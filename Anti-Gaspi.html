@@ -1,12 +1,75 @@
 <!DOCTYPE html>
-<!-- saved from url=(0044)file:///C:/Users/NILS/Downloads/index_2.html -->
-<html lang="fr"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
   <title>Anti-Gaspi</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 500px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: #2e7d32;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #resultat {
+      margin-top: 25px;
+      padding: 15px;
+      background-color: #f0f0f0;
+      border-radius: 5px;
+      display: none;
+    }
+  </style>
 </head>
 <body>
-  <h1>Bienvenue sur ton outil anti-gaspi</h1>
-  <p>Ce fichier est le tout premier morceau de ton projet.</p>
+  <h1>Combien avez-vous vendu hier ?</h1>
+  <p>Entre le nombre de baguettes vendues hier pour voir une première recommandation.</p>
 
+  <label for="ventesHier">Baguettes vendues hier</label>
+  <input type="number" id="ventesHier" placeholder="Exemple : 70">
 
-</body></html>
+  <button onclick="calculer()">Voir la recommandation</button>
+
+  <div id="resultat">
+    <p><strong>Recommandation pour demain :</strong></p>
+    <p id="texteResultat"></p>
+  </div>
+
+  <script>
+    function calculer() {
+      const ventes = parseInt(document.getElementById('ventesHier').value);
+      const resultatDiv = document.getElementById('resultat');
+      const texte = document.getElementById('texteResultat');
+
+      if (isNaN(ventes) || ventes < 0) {
+        texte.textContent = "Merci d'entrer un nombre valide.";
+        resultatDiv.style.display = 'block';
+        return;
+      }
+
+      const recommandation = Math.round(ventes * 1.1);
+
+      texte.textContent = "Produisez environ " + recommandation + " baguettes demain.";
+      resultatDiv.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
