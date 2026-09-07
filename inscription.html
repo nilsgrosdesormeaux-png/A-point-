@@ -52,35 +52,36 @@
   <label for="motdepasse">Mot de passe</label>
   <input type="password" id="motdepasse" placeholder="Au moins 6 caractères">
 
-  <button onclick="inscription()">Créer mon compte</button>
+  <button id="btnInscription">Créer mon compte</button>
 
   <div id="message"></div>
 
   <script>
-    const SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    (function () {
+      var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
+      var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
+      var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    async function inscription() {
-      const email = document.getElementById('email').value;
-      const motdepasse = document.getElementById('motdepasse').value;
-      const messageDiv = document.getElementById('message');
+      document.getElementById('btnInscription').addEventListener('click', function () {
+        var email = document.getElementById('email').value;
+        var motdepasse = document.getElementById('motdepasse').value;
+        var messageDiv = document.getElementById('message');
 
-      const { data, error } = await supabase.auth.signUp({
-        email: email,
-        password: motdepasse
+        sbClient.auth.signUp({
+          email: email,
+          password: motdepasse
+        }).then(function (result) {
+          messageDiv.style.display = 'block';
+          if (result.error) {
+            messageDiv.className = 'erreur';
+            messageDiv.textContent = "Erreur : " + result.error.message;
+          } else {
+            messageDiv.className = 'succes';
+            messageDiv.textContent = "Compte créé ! Vérifie ta boîte email pour confirmer.";
+          }
+        });
       });
-
-      messageDiv.style.display = 'block';
-
-      if (error) {
-        messageDiv.className = 'erreur';
-        messageDiv.textContent = "Erreur : " + error.message;
-      } else {
-        messageDiv.className = 'succes';
-        messageDiv.textContent = "Compte créé ! Vérifie ta boîte email pour confirmer.";
-      }
-    }
+    })();
   </script>
 </body>
 </html>
