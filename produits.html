@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>À Point - Mes produits</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 400px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: #2e7d32;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      width: 100%;
+    }
+    #message {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 5px;
+      display: none;
+    }
+    .succes { background-color: #d4edda; color: #155724; }
+    .erreur { background-color: #f8d7da; color: #721c24; }
+    ul {
+      margin-top: 20px;
+      padding-left: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Mes produits</h1>
+  <p id="statutConnexion">Vérification de la connexion...</p>
+
+  <div id="zoneFormulaire" style="display:none;">
+    <label for="nomProduit">Nom du produit</label>
+    <input type="text" id="nomProduit" placeholder="Exemple : Baguette tradition">
+
+    <button id="btnAjouter">Ajouter ce produit</button>
+
+    <div id="message"></div>
+
+    <h2>Mes produits actuels</h2>
+    <ul id="listeProduits"></ul>
+  </div>
+
+  <script>
+    (function () {
+      var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
+      var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
+      var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      var statutDiv = document.getElementById('statutConnexion');
+      var zoneFormulaire = document.getElementById('zoneFormulaire');
+      var messageDiv = document.getElementById('message');
+      var listeProduits = document.getElementById('listeProduits');
+      var commercantId = null;
+
+      function chargerProduits() {
+        sbClient.from('produits').select('*').eq('commercant_id', commercantId).then(function (result) {
+          listeProduits.innerHTML = '';
+          if (result.data) {
+            result.data.forEach(function (produit) {
+              var li = document.createElement('li');
+              li.textContent = produit.nom;
+              listeProduits.appendChild(li);
+            });
+          }
+        });
+      }
+
+      sbClient.auth.getSession().then(function (result) {
+        var session = result.data.session;
+        if (session) {
+          commercantId = session.user.id;
+          statutDiv.textContent = "Connecté en tant que : " + session.user.email;
+          zoneFormulaire.style.display = 'block';
+          chargerProduits();
+        } else {
+          statutDiv.textContent = "Tu n'es pas connecté. Va d'abord sur la page de connexion.";
+        }
+      });
+
+      document.getElementById('btnAjouter').addEventListener('click', function () {
+        var nomProduit = document.getElementById('nomProduit').value;
+
+        if (!nomProduit) {
+          messageDiv.style.display = 'block';
+          messageDiv.className = 'erreur';
+          messageDiv.textContent = "Merci d'entrer un nom de produit.";
+          return;
+        }
+
+        sbClient.from('produits').insert({
+          commercant_id: commercantId,
+          nom: nomProduit
+        }).then(function (result) {
+          messageDiv.style.display = 'block';
+          if (result.error) {
+            messageDiv.className = 'erreur';
+            messageDiv.textContent = "Erreur : " + result.error.message;
+          } else {
+            messageDiv.className = 'succes';
+            messageDiv.textContent = "Produit ajouté !";
+            document.getElementById('nomProduit').value = '';
+            chargerProduits();
+          }
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
