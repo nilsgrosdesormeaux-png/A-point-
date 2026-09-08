@@ -100,6 +100,7 @@
   </div>
 
   <div class="section-titre">Production recommandée pour demain</div>
+  <p id="texteJourCible" style="font-size: 13px; color: #555; margin: -4px 0 12px;"></p>
   <div class="grille" id="grilleRecommandations"></div>
 
   <div class="section-titre">Vos résultats</div>
@@ -127,11 +128,19 @@
       var statutDiv = document.getElementById('statutConnexion');
       var grille = document.getElementById('grilleRecommandations');
       var nbJoursTotalEl = document.getElementById('nbJoursTotal');
+      var texteJourCibleEl = document.getElementById('texteJourCible');
+
+      var nomsJours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+
+      function capitaliser(texte) {
+        return texte.charAt(0).toUpperCase() + texte.slice(1);
+      }
 
       function calculerRecommandation(ventesDuProduit) {
         var jourCible = new Date();
         jourCible.setDate(jourCible.getDate() + 1);
         var numeroJourCible = jourCible.getDay();
+        var nomJourCible = nomsJours[numeroJourCible];
 
         var ventesMemeJour = ventesDuProduit.filter(function (vente) {
           var d = new Date(vente.date_vente);
@@ -143,10 +152,19 @@
         baseVentes.forEach(function (vente) { somme += vente.quantite; });
         var moyenne = somme / baseVentes.length;
 
+        var texteBase;
+        if (ventesMemeJour.length > 0) {
+          texteBase = "Basé sur tes " + baseVentes.length + " derniers " + nomJourCible + "s";
+        } else {
+          texteBase = "Basé sur tes " + baseVentes.length + " dernier(s) jour(s) de vente (pas encore de " + nomJourCible + " enregistré)";
+        }
+
         return {
           quantite: Math.round(moyenne * 1.1),
           nbJoursUtilises: baseVentes.length,
-          memeJourSemaine: ventesMemeJour.length > 0
+          memeJourSemaine: ventesMemeJour.length > 0,
+          nomJourCible: nomJourCible,
+          texteBase: texteBase
         };
       }
 
@@ -169,6 +187,10 @@
             return;
           }
 
+          var jourCible = new Date();
+          jourCible.setDate(jourCible.getDate() + 1);
+          texteJourCibleEl.textContent = "Prévision pour " + capitaliser(nomsJours[jourCible.getDay()]);
+
           var parProduit = {};
           ventes.forEach(function (vente) {
             if (!parProduit[vente.nom_produit]) parProduit[vente.nom_produit] = [];
@@ -178,13 +200,12 @@
           grille.innerHTML = '';
           Object.keys(parProduit).forEach(function (nomProduit) {
             var r = calculerRecommandation(parProduit[nomProduit]);
-            var detailTexte = r.nbJoursUtilises + " jour(s) pris en compte";
             var div = document.createElement('div');
             div.className = 'carte';
             div.innerHTML =
               '<p class="nom">' + nomProduit + '</p>' +
               '<p class="valeur">' + r.quantite + '</p>' +
-              '<p class="detail">' + detailTexte + '</p>';
+              '<p class="detail">' + r.texteBase + '</p>';
             grille.appendChild(div);
           });
         });
