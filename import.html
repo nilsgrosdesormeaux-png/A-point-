@@ -5,10 +5,11 @@
   <title>À Point - Importer mes ventes</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 500px;
+      max-width: 550px;
       margin: 40px auto;
       padding: 0 20px;
     }
@@ -52,6 +53,29 @@
       padding: 6px;
       text-align: left;
     }
+    .zone-mapping {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #f7f7f7;
+      border-radius: 8px;
+      display: none;
+    }
+    .zone-mapping label {
+      display: block;
+      font-weight: bold;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+    .zone-mapping select {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      box-sizing: border-box;
+    }
+    .aide-format {
+      font-size: 13px;
+      color: #555;
+    }
   </style>
 </head>
 <body>
@@ -65,11 +89,28 @@
   <p id="statutConnexion">Vérification de la connexion...</p>
 
   <div id="zoneFormulaire" style="display:none;">
-    <p>Le fichier doit être un CSV avec 3 colonnes, dans cet ordre : <strong>date</strong> (format AAAA-MM-JJ), <strong>produit</strong>, <strong>quantite</strong>.</p>
+    <p class="aide-format">Dépose un fichier CSV ou Excel (.csv, .xlsx, .xls) contenant tes ventes : une colonne pour la date, une pour le produit, une pour la quantité vendue. Peu importe l'ordre ou le nom exact des colonnes — on essaie de les reconnaître automatiquement, et tu pourras vérifier avant d'importer.</p>
 
     <div class="zone-upload">
-      <p>Sélectionne ton fichier CSV</p>
-      <input type="file" id="fichierCsv" accept=".csv">
+      <p>Sélectionne ton fichier</p>
+      <input type="file" id="fichierImport" accept=".csv,.xlsx,.xls">
+    </div>
+
+    <div id="zoneMapping" class="zone-mapping">
+      <p style="margin:0; font-weight:bold;">Vérifie que les bonnes colonnes sont sélectionnées :</p>
+
+      <label for="selectDate">Colonne pour la date</label>
+      <select id="selectDate"></select>
+
+      <label for="selectProduit">Colonne pour le produit</label>
+      <select id="selectProduit"></select>
+
+      <label for="selectQuantite">Colonne pour la quantité vendue</label>
+      <select id="selectQuantite"></select>
+
+      <div id="apercuBrut"></div>
+
+      <button id="btnValiderMapping">Continuer</button>
     </div>
 
     <div id="apercu"></div>
@@ -87,12 +128,124 @@
 
       var statutDiv = document.getElementById('statutConnexion');
       var zoneFormulaire = document.getElementById('zoneFormulaire');
+      var zoneMapping = document.getElementById('zoneMapping');
+      var apercuBrutDiv = document.getElementById('apercuBrut');
       var apercuDiv = document.getElementById('apercu');
+      var selectDate = document.getElementById('selectDate');
+      var selectProduit = document.getElementById('selectProduit');
+      var selectQuantite = document.getElementById('selectQuantite');
+      var btnValiderMapping = document.getElementById('btnValiderMapping');
       var btnImporter = document.getElementById('btnImporter');
       var messageDiv = document.getElementById('message');
       var commercantId = null;
+
+      var lignesBrutes = [];
+      var entetesDisponibles = [];
       var lignesAImporter = [];
-      
+
+      // Noms de colonnes fréquemment utilisés par les caisses/tableurs, pour reconnaissance automatique
+      var aliasesDate = ['date', 'jour', 'datedevente', 'date_vente', 'datevente', 'dateventre'];
+      var aliasesProduit = ['produit', 'article', 'nomduproduit', 'nom_produit', 'produitvendu', 'item', 'designation', 'nomarticle', 'libelle'];
+      var aliasesQuantite = ['quantite', 'qte', 'nombre', 'nombrevendu', 'quantitevendue', 'qty', 'nbvendu', 'ventes', 'quantitevendu'];
+
+      function normaliserTexte(texte) {
+        return (texte === null || texte === undefined ? '' : texte.toString())
+          .toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]/g, '');
+      }
+
+      function detecterColonne(entetes, aliases) {
+        for (var i = 0; i < entetes.length; i++) {
+          if (aliases.indexOf(normaliserTexte(entetes[i])) !== -1) return entetes[i];
+        }
+        for (var j = 0; j < entetes.length; j++) {
+          var norm = normaliserTexte(entetes[j]);
+          for (var k = 0; k < aliases.length; k++) {
+            if (norm.indexOf(aliases[k]) !== -1) return entetes[j];
+          }
+        }
+        return '';
+      }
+
+      function remplirSelect(select, entetes, valeurDetectee) {
+        select.innerHTML = '<option value="">-- Choisir une colonne --</option>';
+        entetes.forEach(function (entete) {
+          var option = document.createElement('option');
+          option.value = entete;
+          option.textContent = entete;
+          if (entete === valeurDetectee) option.selected = true;
+          select.appendChild(option);
+        });
+      }
+
+      function afficherApercuBrut(lignes, entetes) {
+        if (lignes.length === 0) { apercuBrutDiv.innerHTML = ''; return; }
+        var tableau = '<table><tr>';
+        entetes.forEach(function (e) { tableau += '<th>' + e + '</th>'; });
+        tableau += '</tr>';
+        lignes.slice(0, 3).forEach(function (ligne) {
+          tableau += '<tr>';
+          entetes.forEach(function (e) { tableau += '<td>' + (ligne[e] !== undefined ? ligne[e] : '') + '</td>'; });
+          tableau += '</tr>';
+        });
+        tableau += '</table>';
+        apercuBrutDiv.innerHTML = '<p style="font-size:12px; color:#777; margin-top:12px;">Aperçu de ton fichier :</p>' + tableau;
+      }
+
+      // Convertit une valeur de date (texte dans divers formats, ou objet Date venant d'un Excel) en AAAA-MM-JJ
+      function parserDate(valeur) {
+        if (valeur instanceof Date && !isNaN(valeur)) return formatDateISO(valeur);
+
+        var texte = (valeur === null || valeur === undefined ? '' : valeur.toString()).trim();
+        if (!texte) return null;
+
+        var m = texte.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+        if (m) return formatDateISO(new Date(+m[1], +m[2] - 1, +m[3]));
+
+        m = texte.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+        if (m) return formatDateISO(new Date(+m[3], +m[2] - 1, +m[1]));
+
+        m = texte.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2})$/);
+        if (m) return formatDateISO(new Date(2000 + parseInt(m[3], 10), +m[2] - 1, +m[1]));
+
+        var parsed = new Date(texte);
+        if (!isNaN(parsed)) return formatDateISO(parsed);
+
+        return null;
+      }
+
+      function formatDateISO(date) {
+        var y = date.getFullYear();
+        var mo = ('0' + (date.getMonth() + 1)).slice(-2);
+        var d = ('0' + date.getDate()).slice(-2);
+        return y + '-' + mo + '-' + d;
+      }
+
+      // Convertit une valeur de quantité (nombre, ou texte avec virgule/espaces) en nombre entier
+      function parserQuantite(valeur) {
+        if (typeof valeur === 'number') return Math.round(valeur);
+        var texte = (valeur === null || valeur === undefined ? '' : valeur.toString()).trim();
+        if (!texte) return NaN;
+        texte = texte.replace(/\s/g, '').replace(',', '.').replace(/[^0-9.\-]/g, '');
+        var nombre = parseFloat(texte);
+        return isNaN(nombre) ? NaN : Math.round(nombre);
+      }
+
+      function recevoirDonnees(lignes, entetes) {
+        lignesBrutes = lignes;
+        entetesDisponibles = entetes;
+
+        remplirSelect(selectDate, entetes, detecterColonne(entetes, aliasesDate));
+        remplirSelect(selectProduit, entetes, detecterColonne(entetes, aliasesProduit));
+        remplirSelect(selectQuantite, entetes, detecterColonne(entetes, aliasesQuantite));
+        afficherApercuBrut(lignes, entetes);
+
+        apercuDiv.innerHTML = '';
+        btnImporter.style.display = 'none';
+        zoneMapping.style.display = 'block';
+      }
+
       sbClient.auth.getSession().then(function (result) {
         var session = result.data.session;
         if (session) {
@@ -104,79 +257,79 @@
         }
       });
 
-      document.getElementById('fichierCsv').addEventListener('change', function (e) {
+      document.getElementById('fichierImport').addEventListener('change', function (e) {
         var fichier = e.target.files[0];
         if (!fichier) return;
 
-        Papa.parse(fichier, {
-          header: true,
-          skipEmptyLines: true,
-          complete: function (resultat) {
-            lignesAImporter = [];
-            var lignesInvalides = 0;
+        messageDiv.style.display = 'none';
+        var nomFichier = fichier.name.toLowerCase();
 
-            resultat.data.forEach(function (ligne) {
-              var date = (ligne.date || '').trim();
-              var produit = (ligne.produit || '').trim();
-              var quantite = parseInt(ligne.quantite);
-
-              if (date && produit && !isNaN(quantite)) {
-                lignesAImporter.push({
-                  commercant_id: commercantId,
-                  nom_produit: produit,
-                  quantite: quantite,
-                  date_vente: date
-                });
-              } else {
-                lignesInvalides++;
-              }
-            });
-
-            apercuDiv.innerHTML = '';
-            if (lignesAImporter.length === 0) {
-              apercuDiv.innerHTML = '<div id="message" class="erreur" style="display:block;">Aucune ligne valide trouvée. Vérifie le format du fichier.</div>';
-              btnImporter.style.display = 'none';
-              return;
+        if (nomFichier.endsWith('.csv')) {
+          Papa.parse(fichier, {
+            header: true,
+            skipEmptyLines: true,
+            delimiter: '',
+            complete: function (resultat) {
+              recevoirDonnees(resultat.data, resultat.meta.fields || []);
             }
-
-            var tableau = '<table><tr><th>Date</th><th>Produit</th><th>Quantité</th></tr>';
-            lignesAImporter.slice(0, 5).forEach(function (l) {
-              tableau += '<tr><td>' + l.date_vente + '</td><td>' + l.nom_produit + '</td><td>' + l.quantite + '</td></tr>';
-            });
-            tableau += '</table>';
-
-            var texteInfo = lignesAImporter.length + ' ligne(s) prête(s) à importer';
-            if (lignesInvalides > 0) {
-              texteInfo += ' (' + lignesInvalides + ' ligne(s) ignorée(s) car incomplète(s))';
-            }
-
-            apercuDiv.innerHTML = '<div class="info" style="padding:10px; border-radius:5px;">' + texteInfo + '</div>' + tableau;
-            btnImporter.style.display = 'block';
-          }
-        });
-      });
-
-      btnImporter.addEventListener('click', function () {
-        btnImporter.disabled = true;
-        btnImporter.textContent = 'Import en cours...';
-
-        sbClient.from('ventes').insert(lignesAImporter).then(function (result) {
+          });
+        } else if (nomFichier.endsWith('.xlsx') || nomFichier.endsWith('.xls')) {
+          var lecteur = new FileReader();
+          lecteur.onload = function (evenement) {
+            var donnees = new Uint8Array(evenement.target.result);
+            var classeur = XLSX.read(donnees, { type: 'array', cellDates: true });
+            var premiereFeuille = classeur.Sheets[classeur.SheetNames[0]];
+            var lignes = XLSX.utils.sheet_to_json(premiereFeuille, { defval: '' });
+            var entetes = lignes.length > 0 ? Object.keys(lignes[0]) : [];
+            recevoirDonnees(lignes, entetes);
+          };
+          lecteur.readAsArrayBuffer(fichier);
+        } else {
           messageDiv.style.display = 'block';
-          btnImporter.disabled = false;
-          btnImporter.textContent = 'Importer ces ventes';
+          messageDiv.className = 'erreur';
+          messageDiv.textContent = "Format non reconnu. Utilise un fichier .csv, .xlsx ou .xls.";
+        }
+      });
 
-          if (result.error) {
-            messageDiv.className = 'erreur';
-            messageDiv.textContent = "Erreur : " + result.error.message;
+      btnValiderMapping.addEventListener('click', function () {
+        var colDate = selectDate.value;
+        var colProduit = selectProduit.value;
+        var colQuantite = selectQuantite.value;
+
+        if (!colDate || !colProduit || !colQuantite) {
+          messageDiv.style.display = 'block';
+          messageDiv.className = 'erreur';
+          messageDiv.textContent = "Choisis une colonne pour la date, le produit et la quantité.";
+          return;
+        }
+
+        lignesAImporter = [];
+        var lignesInvalides = 0;
+
+        lignesBrutes.forEach(function (ligne) {
+          var date = parserDate(ligne[colDate]);
+          var produit = (ligne[colProduit] === null || ligne[colProduit] === undefined ? '' : ligne[colProduit].toString()).trim();
+          var quantite = parserQuantite(ligne[colQuantite]);
+
+          if (date && produit && !isNaN(quantite)) {
+            lignesAImporter.push({
+              commercant_id: commercantId,
+              nom_produit: produit,
+              quantite: quantite,
+              date_vente: date
+            });
           } else {
-            messageDiv.className = 'succes';
-            messageDiv.textContent = lignesAImporter.length + " ventes importées avec succès !";
-            btnImporter.style.display = 'none';
-            apercuDiv.innerHTML = '';
+            lignesInvalides++;
           }
         });
-      });
-    })();
-  </script>
-</body>
-</html>
+
+        messageDiv.style.display = 'none';
+        apercuDiv.innerHTML = '';
+
+        if (lignesAImporter.length === 0) {
+          apercuDiv.innerHTML = '<div class="erreur" style="padding:10px; border-radius:5px;">Aucune ligne valide trouvée avec ces colonnes. Vérifie ta sélection ci-dessus.</div>';
+          btnImporter.style.display = 'none';
+          return;
+        }
+
+        var tableau = '<table><tr><th>Date</th><th>Produit</th><th>Quantité</th></tr>';
