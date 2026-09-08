@@ -46,6 +46,11 @@
   </style>
 </head>
 <body>
+  <nav style="margin-bottom: 20px; font-size: 13px;">
+    <a href="tableau-de-bord.html" style="margin-right: 15px; color: #777; text-decoration: none;">Tableau de bord</a>
+    <a href="produits.html" style="margin-right: 15px; color: #777; text-decoration: none;">Mes produits</a>
+    <a href="ventes.html" style="color: #2e7d32; font-weight: 600; text-decoration: none;">Mes ventes</a>
+  </nav>
   <h1>Mes ventes d'hier</h1>
   <p id="statutConnexion">Vérification de la connexion...</p>
 
@@ -70,80 +75,3 @@
       var messageDiv = document.getElementById('message');
       var commercantId = null;
       var produits = [];
-
-      function dateHier() {
-        var d = new Date();
-        d.setDate(d.getDate() - 1);
-        return d.toISOString().split('T')[0];
-      }
-
-      function afficherProduits() {
-        listeProduits.innerHTML = '';
-        produits.forEach(function (produit) {
-          var div = document.createElement('div');
-          div.className = 'ligne-produit';
-          div.innerHTML =
-            '<label>' + produit.nom + '</label>' +
-            '<input type="number" min="0" class="quantiteVendue" data-produit="' + produit.nom + '" placeholder="0">';
-          listeProduits.appendChild(div);
-        });
-      }
-
-      sbClient.auth.getSession().then(function (result) {
-        var session = result.data.session;
-        if (session) {
-          commercantId = session.user.id;
-          statutDiv.textContent = "Connecté en tant que : " + session.user.email;
-
-          sbClient.from('produits').select('*').eq('commercant_id', commercantId).then(function (result) {
-            produits = result.data || [];
-            if (produits.length === 0) {
-              statutDiv.textContent += " — Tu n'as pas encore ajouté de produits.";
-            } else {
-              zoneFormulaire.style.display = 'block';
-              afficherProduits();
-            }
-          });
-        } else {
-          statutDiv.textContent = "Tu n'es pas connecté. Va d'abord sur la page de connexion.";
-        }
-      });
-
-      document.getElementById('btnEnregistrer').addEventListener('click', function () {
-        var champs = document.querySelectorAll('.quantiteVendue');
-        var lignesAEnregistrer = [];
-
-        champs.forEach(function (champ) {
-          var quantite = parseInt(champ.value);
-          if (!isNaN(quantite) && quantite >= 0) {
-            lignesAEnregistrer.push({
-              commercant_id: commercantId,
-              nom_produit: champ.getAttribute('data-produit'),
-              quantite: quantite,
-              date_vente: dateHier()
-            });
-          }
-        });
-
-        if (lignesAEnregistrer.length === 0) {
-          messageDiv.style.display = 'block';
-          messageDiv.className = 'erreur';
-          messageDiv.textContent = "Entre au moins une quantité.";
-          return;
-        }
-
-        sbClient.from('ventes').insert(lignesAEnregistrer).then(function (result) {
-          messageDiv.style.display = 'block';
-          if (result.error) {
-            messageDiv.className = 'erreur';
-            messageDiv.textContent = "Erreur : " + result.error.message;
-          } else {
-            messageDiv.className = 'succes';
-            messageDiv.textContent = "Ventes enregistrées !";
-          }
-        });
-      });
-    })();
-  </script>
-</body>
-</html>
