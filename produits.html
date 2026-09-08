@@ -1,71 +1,54 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <title>À Point - Mes produits</title>
+  <link rel="icon" href="logo.svg">
+  <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 400px;
-      margin: 40px auto;
-      padding: 0 20px;
-    }
-    label {
-      display: block;
-      margin-top: 15px;
-      font-weight: bold;
-    }
-    input {
-      width: 100%;
-      padding: 8px;
-      margin-top: 5px;
-      box-sizing: border-box;
-    }
-    button {
-      margin-top: 20px;
-      padding: 10px 20px;
-      background-color: #2e7d32;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      width: 100%;
-    }
-    #message {
-      margin-top: 15px;
-      padding: 10px;
-      border-radius: 5px;
-      display: none;
-    }
-    .succes { background-color: #d4edda; color: #155724; }
-    .erreur { background-color: #f8d7da; color: #721c24; }
-    ul {
-      margin-top: 20px;
-      padding-left: 20px;
-    }
-  </style>
 </head>
 <body>
-  <nav style="margin-bottom: 20px; font-size: 13px;">
-    <a href="tableau-de-bord.html" style="margin-right: 15px; color: #777; text-decoration: none;">Tableau de bord</a>
-    <a href="produits.html" style="margin-right: 15px; color: #2e7d32; font-weight: 600; text-decoration: none;">Mes produits</a>
-    <a href="ventes.html" style="margin-right: 15px; color: #777; text-decoration: none;">Mes ventes</a>
-    <a href="import.html" style="color: #777; text-decoration: none;">Importer</a>
-  </nav>
-  <h1>Mes produits</h1>
-  <p id="statutConnexion">Vérification de la connexion...</p>
+  <div class="conteneur conteneur--moyen">
+    <header class="entete-site">
+      <a href="tableau-de-bord.html" class="logo">
+        <svg class="logo-marque" viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
+          <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <circle cx="50" cy="56" r="8" fill="currentColor"/>
+        </svg>
+      </a>
+      <nav class="nav-principale">
+        <a href="tableau-de-bord.html" class="nav-lien">Tableau de bord</a>
+        <a href="produits.html" class="nav-lien nav-actif">Mes produits</a>
+        <a href="ventes.html" class="nav-lien">Mes ventes</a>
+        <a href="import.html" class="nav-lien">Importer</a>
+      </nav>
+    </header>
 
-  <div id="zoneFormulaire" style="display:none;">
-    <label for="nomProduit">Nom du produit</label>
-    <input type="text" id="nomProduit" placeholder="Exemple : Baguette tradition">
+    <div class="carte-page">
+      <div class="entete-page">
+        <div>
+          <p class="eyebrow">Gestion</p>
+          <h1>Mes produits</h1>
+        </div>
+        <div class="badge-page" id="badgeProduits" style="display:none;"></div>
+      </div>
+      <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
 
-    <button id="btnAjouter">Ajouter ce produit</button>
+      <div id="zoneFormulaire" style="display:none;">
+        <p class="section-titre" style="margin-top:22px;">Ajouter un produit</p>
+        <div class="ligne-form">
+          <input type="text" id="nomProduit" placeholder="Exemple : Baguette tradition" aria-label="Nom du produit">
+          <button id="btnAjouter">Ajouter</button>
+        </div>
 
-    <div id="message"></div>
+        <div id="message"></div>
 
-    <h2>Mes produits actuels</h2>
-    <ul id="listeProduits"></ul>
+        <p class="section-titre">Mes produits actuels</p>
+        <ul id="listeProduits" class="liste-produits"></ul>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -78,11 +61,15 @@
       var zoneFormulaire = document.getElementById('zoneFormulaire');
       var messageDiv = document.getElementById('message');
       var listeProduits = document.getElementById('listeProduits');
+      var badgeProduits = document.getElementById('badgeProduits');
       var commercantId = null;
 
       function chargerProduits() {
         sbClient.from('produits').select('*').eq('commercant_id', commercantId).then(function (result) {
           listeProduits.innerHTML = '';
+          var nb = result.data ? result.data.length : 0;
+          badgeProduits.textContent = nb + (nb > 1 ? ' produits' : ' produit');
+          badgeProduits.style.display = 'inline-block';
           if (result.data) {
             result.data.forEach(function (produit) {
               var li = document.createElement('li');
