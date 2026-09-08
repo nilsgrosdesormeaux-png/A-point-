@@ -1,132 +1,81 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <title>À Point - Importer mes ventes</title>
+  <link rel="icon" href="logo.svg">
+  <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 550px;
-      margin: 40px auto;
-      padding: 0 20px;
-    }
-    .zone-upload {
-      border: 2px dashed #ccc;
-      border-radius: 8px;
-      padding: 30px;
-      text-align: center;
-      margin-top: 20px;
-    }
-    input[type="file"] {
-      margin-top: 15px;
-    }
-    button {
-      margin-top: 20px;
-      padding: 10px 20px;
-      background-color: #2e7d32;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      width: 100%;
-    }
-    #message {
-      margin-top: 15px;
-      padding: 10px;
-      border-radius: 5px;
-      display: none;
-    }
-    .succes { background-color: #d4edda; color: #155724; }
-    .erreur { background-color: #f8d7da; color: #721c24; }
-    .info { background-color: #e2e3e5; color: #383d41; }
-    table {
-      width: 100%;
-      margin-top: 15px;
-      font-size: 13px;
-      border-collapse: collapse;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 6px;
-      text-align: left;
-    }
-    .zone-mapping {
-      margin-top: 20px;
-      padding: 15px;
-      background-color: #f7f7f7;
-      border-radius: 8px;
-      display: none;
-    }
-    .zone-mapping label {
-      display: block;
-      font-weight: bold;
-      font-size: 13px;
-      margin-top: 12px;
-    }
-    .zone-mapping select {
-      width: 100%;
-      padding: 8px;
-      margin-top: 5px;
-      box-sizing: border-box;
-    }
-    .aide-format {
-      font-size: 13px;
-      color: #555;
-    }
-  </style>
 </head>
 <body>
-  <nav style="margin-bottom: 20px; font-size: 13px;">
-    <a href="tableau-de-bord.html" style="margin-right: 15px; color: #777; text-decoration: none;">Tableau de bord</a>
-    <a href="produits.html" style="margin-right: 15px; color: #777; text-decoration: none;">Mes produits</a>
-    <a href="ventes.html" style="margin-right: 15px; color: #777; text-decoration: none;">Mes ventes</a>
-    <a href="import.html" style="color: #2e7d32; font-weight: 600; text-decoration: none;">Importer</a>
-  </nav>
-  <h1>Importer mon historique de ventes</h1>
-  <p id="statutConnexion">Vérification de la connexion...</p>
+  <div class="conteneur conteneur--moyen">
+    <header class="entete-site">
+      <a href="tableau-de-bord.html" class="logo">
+        <svg class="logo-marque" viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
+          <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <circle cx="50" cy="56" r="8" fill="currentColor"/>
+        </svg>
+      </a>
+      <nav class="nav-principale">
+        <a href="tableau-de-bord.html" class="nav-lien">Tableau de bord</a>
+        <a href="produits.html" class="nav-lien">Mes produits</a>
+        <a href="ventes.html" class="nav-lien">Mes ventes</a>
+        <a href="import.html" class="nav-lien nav-actif">Importer</a>
+      </nav>
+    </header>
 
-  <div id="zoneFormulaire" style="display:none;">
-    <p class="aide-format">Dépose un fichier CSV ou Excel (.csv, .xlsx, .xls) contenant tes ventes : une colonne pour la date, une pour le produit, une pour la quantité vendue. Peu importe l'ordre ou le nom exact des colonnes — on essaie de les reconnaître automatiquement, et tu pourras vérifier avant d'importer.</p>
+    <div class="carte-page">
+      <div class="entete-page">
+        <div>
+          <p class="eyebrow">Import</p>
+          <h1>Importer mon historique de ventes</h1>
+        </div>
+      </div>
+      <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
 
-    <div class="zone-upload">
-      <p>Sélectionne ton fichier</p>
-      <input type="file" id="fichierImport" accept=".csv,.xlsx,.xls">
+      <div id="zoneFormulaire" style="display:none;">
+        <p class="texte-aide">Dépose un fichier CSV ou Excel (.csv, .xlsx, .xls) contenant tes ventes : une colonne pour la date, une pour le produit, une pour la quantité vendue. Peu importe l'ordre ou le nom exact des colonnes — on essaie de les reconnaître automatiquement, et tu pourras vérifier avant d'importer.</p>
+
+        <div class="zone-upload">
+          <p class="section-titre" style="margin-top:0;">Sélectionne ton fichier</p>
+          <input type="file" id="fichierImport" accept=".csv,.xlsx,.xls">
+        </div>
+
+        <div id="zoneMapping" class="zone-mapping">
+          <p style="margin:0; font-weight:600;">Vérifie que les bonnes colonnes sont sélectionnées :</p>
+
+          <label for="selectDate">Colonne pour la date</label>
+          <select id="selectDate"></select>
+
+          <label for="selectProduit">Colonne pour le produit</label>
+          <select id="selectProduit"></select>
+
+          <label for="selectQuantite">Colonne pour la quantité vendue</label>
+          <select id="selectQuantite"></select>
+
+          <div id="apercuBrut"></div>
+
+          <button id="btnValiderMapping">Continuer</button>
+        </div>
+
+        <div id="apercu"></div>
+
+        <button id="btnImporter" style="display:none;">Importer ces ventes</button>
+
+        <div id="message"></div>
+      </div>
     </div>
-
-    <div id="zoneMapping" class="zone-mapping">
-      <p style="margin:0; font-weight:bold;">Vérifie que les bonnes colonnes sont sélectionnées :</p>
-
-      <label for="selectDate">Colonne pour la date</label>
-      <select id="selectDate"></select>
-
-      <label for="selectProduit">Colonne pour le produit</label>
-      <select id="selectProduit"></select>
-
-      <label for="selectQuantite">Colonne pour la quantité vendue</label>
-      <select id="selectQuantite"></select>
-
-      <div id="apercuBrut"></div>
-
-      <button id="btnValiderMapping">Continuer</button>
-    </div>
-
-    <div id="apercu"></div>
-
-    <button id="btnImporter" style="display:none;">Importer ces ventes</button>
-
-    <div id="message"></div>
   </div>
 
   <script>
     (function () {
-      console.log('[import] script demarre');
       var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
       var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
       var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-      console.log('[import] client supabase cree', !!sbClient, typeof sbClient.auth);
 
       var statutDiv = document.getElementById('statutConnexion');
       var zoneFormulaire = document.getElementById('zoneFormulaire');
@@ -153,7 +102,7 @@
       function normaliserTexte(texte) {
         return (texte === null || texte === undefined ? '' : texte.toString())
           .toLowerCase()
-          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .normalize('NFD').replace(/[̀-ͯ]/g, '')
           .replace(/[^a-z0-9]/g, '');
       }
 
@@ -248,12 +197,7 @@
         zoneMapping.style.display = 'block';
       }
 
-      console.log('[import] appel getSession...');
-      var sessionResolue = false;
-
       sbClient.auth.getSession().then(function (result) {
-        sessionResolue = true;
-        console.log('[import] getSession resolu', result);
         var session = result.data.session;
         if (session) {
           commercantId = session.user.id;
@@ -263,17 +207,8 @@
           statutDiv.textContent = "Tu n'es pas connecté. Va d'abord sur la page de connexion.";
         }
       }).catch(function (erreur) {
-        sessionResolue = true;
-        console.log('[import] getSession erreur', erreur);
         statutDiv.textContent = "Erreur de connexion : " + erreur.message;
       });
-
-      setTimeout(function () {
-        if (!sessionResolue) {
-          console.log('[import] TIMEOUT apres 6s, getSession ne repond pas');
-          statutDiv.textContent = "Vérification anormalement longue — regarde la console (F12) pour le détail.";
-        }
-      }, 6000);
 
       document.getElementById('fichierImport').addEventListener('change', function (e) {
         var fichier = e.target.files[0];
