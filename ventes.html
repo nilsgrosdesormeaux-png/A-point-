@@ -1,67 +1,49 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <title>À Point - Mes ventes</title>
+  <link rel="icon" href="logo.svg">
+  <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 450px;
-      margin: 40px auto;
-      padding: 0 20px;
-    }
-    .ligne-produit {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: 15px;
-    }
-    .ligne-produit label {
-      font-weight: bold;
-    }
-    .ligne-produit input {
-      width: 90px;
-      padding: 8px;
-      box-sizing: border-box;
-    }
-    button {
-      margin-top: 25px;
-      padding: 10px 20px;
-      background-color: #2e7d32;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      width: 100%;
-    }
-    #message {
-      margin-top: 15px;
-      padding: 10px;
-      border-radius: 5px;
-      display: none;
-    }
-    .succes { background-color: #d4edda; color: #155724; }
-    .erreur { background-color: #f8d7da; color: #721c24; }
-  </style>
 </head>
 <body>
-  <nav style="margin-bottom: 20px; font-size: 13px;">
-    <a href="tableau-de-bord.html" style="margin-right: 15px; color: #777; text-decoration: none;">Tableau de bord</a>
-    <a href="produits.html" style="margin-right: 15px; color: #777; text-decoration: none;">Mes produits</a>
-    <a href="ventes.html" style="margin-right: 15px; color: #2e7d32; font-weight: 600; text-decoration: none;">Mes ventes</a>
-    <a href="import.html" style="color: #777; text-decoration: none;">Importer</a>
-  </nav>
-  <h1>Mes ventes d'hier</h1>
-  <p id="statutConnexion">Vérification de la connexion...</p>
+  <div class="conteneur conteneur--moyen">
+    <header class="entete-site">
+      <a href="tableau-de-bord.html" class="logo">
+        <svg class="logo-marque" viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
+          <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <circle cx="50" cy="56" r="8" fill="currentColor"/>
+        </svg>
+      </a>
+      <nav class="nav-principale">
+        <a href="tableau-de-bord.html" class="nav-lien">Tableau de bord</a>
+        <a href="produits.html" class="nav-lien">Mes produits</a>
+        <a href="ventes.html" class="nav-lien nav-actif">Mes ventes</a>
+        <a href="import.html" class="nav-lien">Importer</a>
+      </nav>
+    </header>
 
-  <div id="zoneFormulaire" style="display:none;">
-    <p>Entre le nombre vendu hier pour chaque produit :</p>
-    <div id="listeProduits"></div>
+    <div class="carte-page">
+      <div class="entete-page">
+        <div>
+          <p class="eyebrow">Saisie</p>
+          <h1>Mes ventes d'hier</h1>
+        </div>
+      </div>
+      <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
 
-    <button id="btnEnregistrer">Enregistrer mes ventes</button>
+      <div id="zoneFormulaire" style="display:none;">
+        <p class="section-titre" style="margin-top:22px;">Entre le nombre vendu hier pour chaque produit</p>
+        <div id="listeProduits"></div>
 
-    <div id="message"></div>
+        <button id="btnEnregistrer">Enregistrer mes ventes</button>
+
+        <div id="message"></div>
+      </div>
+    </div>
   </div>
 
   <script>
