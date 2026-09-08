@@ -40,6 +40,9 @@
       <div class="sombre-label">Production recommandée pour demain</div>
       <div class="grille-sombre" id="grilleRecommandations"></div>
 
+      <div class="sombre-label" id="labelIngredients" style="display:none;">Consommation d'ingrédients prévue pour demain</div>
+      <div class="grille-sombre" id="grilleIngredients" style="display:none;"></div>
+
       <div class="sombre-label">Vos résultats</div>
       <div class="grille-sombre" id="grilleResultats">
         <div class="carte-sombre">
@@ -340,6 +343,45 @@
         };
       }
 
+      // Traduit les recommandations par plat en consommation prévue par ingrédient,
+      // via les fiches techniques optionnelles définies sur chaque produit. Un plat
+      // sans fiche technique (ex: un croissant, qui EST déjà l'unité à produire)
+      // n'apparaît simplement pas ici — ça reste la recommandation par produit
+      // ci-dessus qui fait foi pour lui. Ceci ne connaît pas le stock déjà en
+      // réserve : c'est une consommation prévue, pas directement "quoi commander".
+      function calculerConsommationIngredients(recommandationsParNom, produits, ingredientsLignes) {
+        var idParNom = {};
+        produits.forEach(function (p) { idParNom[p.nom] = p.id; });
+
+        var lignesParProduitId = {};
+        ingredientsLignes.forEach(function (ligne) {
+          if (!lignesParProduitId[ligne.produit_id]) lignesParProduitId[ligne.produit_id] = [];
+          lignesParProduitId[ligne.produit_id].push(ligne);
+        });
+
+        var totaux = {};
+        Object.keys(recommandationsParNom).forEach(function (nomProduit) {
+          var produitId = idParNom[nomProduit];
+          if (produitId === undefined) return;
+          var lignes = lignesParProduitId[produitId];
+          if (!lignes) return;
+          var quantiteRecommandee = recommandationsParNom[nomProduit];
+
+          lignes.forEach(function (ligne) {
+            var uniteAffichee = ligne.unite || '';
+            var cle = ligne.nom_ingredient.trim().toLowerCase() + '|' + uniteAffichee.trim().toLowerCase();
+            if (!totaux[cle]) {
+              totaux[cle] = { nom: ligne.nom_ingredient, unite: uniteAffichee, total: 0 };
+            }
+            totaux[cle].total += quantiteRecommandee * ligne.quantite;
+          });
+        });
+
+        return Object.keys(totaux).map(function (cle) { return totaux[cle]; }).sort(function (a, b) {
+          return b.total - a.total;
+        });
+      }
+
       sombreDateEl.textContent = "Aujourd'hui " + formatDateLongue(new Date());
 
       sbClient.auth.getSession().then(function (result) {
@@ -352,8 +394,14 @@
         statutDiv.textContent = session.user.email;
         var commercantId = session.user.id;
 
-        sbClient.from('ventes').select('*').eq('commercant_id', commercantId).then(function (result) {
-          var ventes = result.data || [];
+        Promise.all([
+          sbClient.from('ventes').select('*').eq('commercant_id', commercantId),
+          sbClient.from('produits').select('*').eq('commercant_id', commercantId),
+          sbClient.from('ingredients_produit').select('*').eq('commercant_id', commercantId)
+        ]).then(function (resultats) {
+          var ventes = resultats[0].data || [];
+          var produits = resultats[1].data || [];
+          var ingredientsLignes = resultats[2].data || [];
           sombreBadgeEl.textContent = ventes.length + " jour(s) d'historique";
 
           if (ventes.length === 0) {
@@ -373,8 +421,10 @@
           });
 
           grille.innerHTML = '';
+          var recommandationsParNom = {};
           Object.keys(parProduit).forEach(function (nomProduit) {
             var r = calculerRecommandation(parProduit[nomProduit]);
+            recommandationsParNom[nomProduit] = r.quantite;
 
             var deltaHTML = '';
             if (r.delta !== null) {
@@ -405,6 +455,24 @@
               '<p class="detail">' + r.texteBase + '</p>';
             grille.appendChild(div);
           });
+
+          var ingredients = calculerConsommationIngredients(recommandationsParNom, produits, ingredientsLignes);
+          if (ingredients.length > 0) {
+            var labelIngredientsEl = document.getElementById('labelIngredients');
+            var grilleIngredientsEl = document.getElementById('grilleIngredients');
+            labelIngredientsEl.style.display = 'block';
+            grilleIngredientsEl.style.display = 'grid';
+            grilleIngredientsEl.innerHTML = '';
+            ingredients.forEach(function (ing) {
+              var totalArrondi = Math.round(ing.total * 10) / 10;
+              var div = document.createElement('div');
+              div.className = 'carte-sombre';
+              div.innerHTML =
+                '<p class="nom">' + ing.nom + '</p>' +
+                '<p class="valeur">' + totalArrondi + (ing.unite ? ' ' + ing.unite : '') + '</p>';
+              grilleIngredientsEl.appendChild(div);
+            });
+          }
 
           var fiabilite = calculerFiabilite(ventes);
           if (fiabilite && fiabilite.nbPoints >= 3) {
