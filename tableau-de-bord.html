@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>À Point - Tableau de bord</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, Arial, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 30px 20px;
+      background-color: #fafafa;
+      color: #1a1a1a;
+    }
+    .entete {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+    }
+    .entete h1 {
+      font-size: 22px;
+      margin: 0;
+    }
+    .entete p {
+      font-size: 13px;
+      color: #777;
+      margin: 4px 0 0;
+    }
+    .section-titre {
+      font-size: 13px;
+      color: #777;
+      margin: 25px 0 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .grille {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+    }
+    .carte {
+      background: white;
+      border: 1px solid #e5e5e5;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .carte .nom {
+      font-size: 13px;
+      color: #777;
+      margin: 0 0 6px;
+    }
+    .carte .valeur {
+      font-size: 26px;
+      font-weight: 600;
+      margin: 0;
+    }
+    .carte .detail {
+      font-size: 12px;
+      color: #999;
+      margin: 4px 0 0;
+    }
+    .carte-vide {
+      background: white;
+      border: 1px solid #e5e5e5;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      color: #777;
+      font-size: 14px;
+    }
+    .carte-vide a {
+      color: #2e7d32;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .lien-retour {
+      display: block;
+      margin-top: 30px;
+      font-size: 13px;
+      color: #777;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="entete">
+    <div>
+      <h1>À Point</h1>
+      <p id="statutConnexion">Chargement...</p>
+    </div>
+  </div>
+
+  <div class="section-titre">Production recommandée pour demain</div>
+  <div class="grille" id="grilleRecommandations"></div>
+
+  <div class="section-titre">Vos résultats</div>
+  <div class="grille">
+    <div class="carte">
+      <p class="nom">Économies réalisées</p>
+      <p class="valeur" style="color:#2e7d32;">—</p>
+      <p class="detail">Disponible avec plus d'historique</p>
+    </div>
+    <div class="carte">
+      <p class="nom">Historique disponible</p>
+      <p class="valeur" id="nbJoursTotal">0</p>
+      <p class="detail">jour(s) enregistré(s)</p>
+    </div>
+  </div>
+
+  <a href="ventes.html" class="lien-retour">← Ajouter les ventes d'hier</a>
+
+  <script>
+    (function () {
+      var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
+      var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
+      var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      var statutDiv = document.getElementById('statutConnexion');
+      var grille = document.getElementById('grilleRecommandations');
+      var nbJoursTotalEl = document.getElementById('nbJoursTotal');
+
+      function calculerRecommandation(ventesDuProduit) {
+        var jourCible = new Date();
+        jourCible.setDate(jourCible.getDate() + 1);
+        var numeroJourCible = jourCible.getDay();
+
+        var ventesMemeJour = ventesDuProduit.filter(function (vente) {
+          var d = new Date(vente.date_vente);
+          return d.getDay() === numeroJourCible;
+        });
+
+        var baseVentes = ventesMemeJour.length > 0 ? ventesMemeJour : ventesDuProduit;
+        var somme = 0;
+        baseVentes.forEach(function (vente) { somme += vente.quantite; });
+        var moyenne = somme / baseVentes.length;
+
+        return {
+          quantite: Math.round(moyenne * 1.1),
+          nbJoursUtilises: baseVentes.length,
+          memeJourSemaine: ventesMemeJour.length > 0
+        };
+      }
+
+      sbClient.auth.getSession().then(function (result) {
+        var session = result.data.session;
+        if (!session) {
+          statutDiv.textContent = "Non connecté — va sur connexion.html";
+          return;
+        }
+
+        statutDiv.textContent = session.user.email;
+        var commercantId = session.user.id;
+
+        sbClient.from('ventes').select('*').eq('commercant_id', commercantId).then(function (result) {
+          var ventes = result.data || [];
+          nbJoursTotalEl.textContent = ventes.length;
+
+          if (ventes.length === 0) {
+            grille.innerHTML = '<div class="carte-vide">Aucune donnée pour l\'instant.<br><a href="ventes.html">Ajouter tes premières ventes →</a></div>';
+            return;
+          }
+
+          var parProduit = {};
+          ventes.forEach(function (vente) {
+            if (!parProduit[vente.nom_produit]) parProduit[vente.nom_produit] = [];
+            parProduit[vente.nom_produit].push(vente);
+          });
+
+          grille.innerHTML = '';
+          Object.keys(parProduit).forEach(function (nomProduit) {
+            var r = calculerRecommandation(parProduit[nomProduit]);
+            var detailTexte = r.nbJoursUtilises + " jour(s) pris en compte";
+            var div = document.createElement('div');
+            div.className = 'carte';
+            div.innerHTML =
+              '<p class="nom">' + nomProduit + '</p>' +
+              '<p class="valeur">' + r.quantite + '</p>' +
+              '<p class="detail">' + detailTexte + '</p>';
+            grille.appendChild(div);
+          });
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
