@@ -1,0 +1,542 @@
+/* =========================================================
+   À Point — feuille de style commune à toutes les pages
+   ========================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --ink: #211d17;
+  --accent: #23211c;
+  --accent-fonce: #050504;
+  --accent-clair: #e7e2d5;
+  --fond: #f8f4ec;
+  --surface: #fffdf9;
+  --bordure: #eae1d1;
+  --texte: #211d17;
+  --texte-attenue: #77695a;
+  --texte-tres-attenue: #ac9f8c;
+  --succes-fond: #e7efe4;
+  --succes-texte: #2f8f52;
+  --erreur-fond: #fbeae7;
+  --erreur-texte: #d1483a;
+  --info-fond: #f1ece0;
+  --info-texte: #58503f;
+  --rayon: 10px;
+  --rayon-lg: 16px;
+  --ombre: 0 1px 2px rgba(33, 29, 23, 0.05), 0 4px 14px rgba(33, 29, 23, 0.06);
+  --police: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  --police-titre: 'Fraunces', Georgia, 'Times New Roman', serif;
+
+  /* Carte sombre (tableau de bord) */
+  --sombre-fond: #16140f;
+  --sombre-surface: #201d17;
+  --sombre-bordure: #322d23;
+  --sombre-texte: #f7f3ea;
+  --sombre-texte-attenue: #b3a996;
+  --sombre-hausse: #4caf6d;
+  --sombre-baisse: #e2584a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--police);
+  background-color: var(--fond);
+  color: var(--texte);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.conteneur {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 32px 20px 60px;
+}
+
+.conteneur--large {
+  max-width: 620px;
+}
+
+.conteneur--moyen {
+  max-width: 560px;
+}
+
+/* ---------- En-tête / logo / navigation ---------- */
+
+.entete-site {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  margin-bottom: 28px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--bordure);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.logo-marque {
+  display: block;
+  flex-shrink: 0;
+}
+
+.nav-principale {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+}
+
+.nav-lien {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--texte-attenue);
+  text-decoration: none;
+  padding: 4px 0;
+  border-bottom: 2px solid transparent;
+}
+
+.nav-lien:hover {
+  color: var(--texte);
+}
+
+.nav-lien.nav-actif {
+  color: var(--accent);
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+}
+
+/* ---------- Typographie générale ---------- */
+
+h1 {
+  font-family: var(--police-titre);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0 0 6px;
+}
+
+h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 24px 0 10px;
+}
+
+p {
+  margin: 0 0 10px;
+}
+
+.sous-titre {
+  color: var(--texte-attenue);
+  font-size: 14px;
+  margin: 0 0 24px;
+}
+
+.section-titre {
+  font-size: 12px;
+  color: var(--texte-attenue);
+  margin: 28px 0 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.texte-aide {
+  font-size: 13px;
+  color: var(--texte-attenue);
+}
+
+/* ---------- Formulaires ---------- */
+
+label {
+  display: block;
+  margin-top: 16px;
+  margin-bottom: 6px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+select {
+  width: 100%;
+  padding: 10px 12px;
+  font-family: var(--police);
+  font-size: 14px;
+  color: var(--texte);
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  box-sizing: border-box;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-clair);
+}
+
+input[type="file"] {
+  font-size: 13px;
+}
+
+button {
+  margin-top: 22px;
+  padding: 11px 20px;
+  font-family: var(--police);
+  font-size: 14px;
+  font-weight: 600;
+  background-color: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--rayon);
+  cursor: pointer;
+  width: 100%;
+  transition: background-color 0.15s ease;
+}
+
+button:hover {
+  background-color: var(--accent-fonce);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ---------- Cartes / grilles (tableau de bord) ---------- */
+
+.grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.carte {
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-lg);
+  padding: 16px;
+  box-shadow: var(--ombre);
+}
+
+.carte .nom {
+  font-size: 13px;
+  color: var(--texte-attenue);
+  margin: 0 0 6px;
+}
+
+.carte .valeur {
+  font-family: var(--police-titre);
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.carte .detail {
+  font-size: 12px;
+  color: var(--texte-tres-attenue);
+  margin: 4px 0 0;
+}
+
+.carte-vide {
+  background: var(--surface);
+  border: 1px dashed var(--bordure);
+  border-radius: var(--rayon-lg);
+  padding: 22px;
+  text-align: center;
+  color: var(--texte-attenue);
+  font-size: 14px;
+}
+
+.carte-vide a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.lien-retour {
+  display: block;
+  margin-top: 32px;
+  font-size: 13px;
+  color: var(--texte-attenue);
+  text-decoration: none;
+}
+
+.lien-retour:hover {
+  color: var(--texte);
+}
+
+/* ---------- Messages ---------- */
+
+#message, .message {
+  margin-top: 15px;
+  padding: 11px 14px;
+  border-radius: var(--rayon);
+  font-size: 14px;
+  display: none;
+}
+
+.succes { background-color: var(--succes-fond); color: var(--succes-texte); }
+.erreur { background-color: var(--erreur-fond); color: var(--erreur-texte); }
+.info { background-color: var(--info-fond); color: var(--info-texte); }
+
+/* ---------- Zone d'import / upload ---------- */
+
+.zone-upload {
+  border: 2px dashed var(--bordure);
+  border-radius: var(--rayon-lg);
+  padding: 28px;
+  text-align: center;
+  margin-top: 20px;
+  background: var(--surface);
+}
+
+.zone-mapping {
+  margin-top: 20px;
+  padding: 16px;
+  background-color: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-lg);
+  display: none;
+}
+
+.zone-mapping label {
+  margin-top: 12px;
+}
+
+/* ---------- Tableaux ---------- */
+
+table {
+  width: 100%;
+  margin-top: 14px;
+  font-size: 13px;
+  border-collapse: collapse;
+}
+
+th, td {
+  border: 1px solid var(--bordure);
+  padding: 7px 8px;
+  text-align: left;
+}
+
+th {
+  background: var(--fond);
+  font-weight: 600;
+}
+
+/* ---------- Onglets (page de connexion) ---------- */
+
+.onglets {
+  display: flex;
+  border-bottom: 1px solid var(--bordure);
+  margin-bottom: 20px;
+}
+
+.onglet {
+  flex: 1;
+  text-align: center;
+  padding: 10px;
+  cursor: pointer;
+  color: var(--texte-tres-attenue);
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 2px solid transparent;
+}
+
+.onglet.actif {
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+
+/* ---------- Ligne produit (page ventes) ---------- */
+
+.ligne-produit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+}
+
+.ligne-produit label {
+  margin: 0;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.ligne-produit input {
+  width: 90px;
+  margin-top: 0;
+}
+
+/* ---------- Liste produits ---------- */
+
+ul.liste-produits {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+ul.liste-produits li {
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+/* ---------- Marque sur la page de connexion ---------- */
+
+.logo-centre {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--ink);
+  margin-bottom: 22px;
+}
+
+/* ---------- Tableau de bord — carte sombre ---------- */
+
+.tableau-sombre {
+  background: var(--sombre-fond);
+  color: var(--sombre-texte);
+  border-radius: 20px;
+  padding: 26px 24px 28px;
+  box-shadow: var(--ombre);
+}
+
+.sombre-entete {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.sombre-date {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sombre-texte-attenue);
+  margin: 0 0 4px;
+}
+
+.sombre-titre {
+  font-family: var(--police-titre);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--sombre-texte);
+  margin: 0;
+}
+
+.sombre-badge {
+  font-size: 11px;
+  color: var(--sombre-texte-attenue);
+  background: var(--sombre-surface);
+  border: 1px solid var(--sombre-bordure);
+  border-radius: 999px;
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+
+.sombre-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sombre-texte-attenue);
+  font-weight: 600;
+  margin: 22px 0 10px;
+}
+
+.grille-sombre {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.carte-sombre {
+  background: var(--sombre-surface);
+  border: 1px solid var(--sombre-bordure);
+  border-radius: 14px;
+  padding: 15px;
+}
+
+.carte-sombre .nom {
+  font-size: 12px;
+  color: var(--sombre-texte-attenue);
+  margin: 0 0 6px;
+}
+
+.carte-sombre .valeur {
+  font-family: var(--police);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--sombre-texte);
+  margin: 0;
+}
+
+.carte-sombre .detail {
+  font-size: 11px;
+  color: var(--sombre-texte-attenue);
+  margin: 5px 0 0;
+}
+
+.carte-sombre .fourchette {
+  font-size: 12px;
+  color: var(--sombre-texte-attenue);
+  margin: 3px 0 0;
+}
+
+.delta {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 5px 0 0;
+}
+
+.delta-hausse { color: var(--sombre-hausse); }
+.delta-baisse { color: var(--sombre-baisse); }
+.delta-stable { color: var(--sombre-texte-attenue); }
+
+.carte-vide-sombre {
+  background: var(--sombre-surface);
+  border: 1px dashed var(--sombre-bordure);
+  border-radius: 14px;
+  padding: 22px;
+  text-align: center;
+  color: var(--sombre-texte-attenue);
+  font-size: 14px;
+  grid-column: 1 / -1;
+}
+
+.carte-vide-sombre a {
+  color: var(--sombre-texte);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.resultat-sombre.actif .valeur {
+  color: var(--sombre-hausse);
+}
