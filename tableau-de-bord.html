@@ -86,9 +86,7 @@
   </style>
 </head>
 <body>
-  <div class="entete">
-    <div>
-     <nav style="margin-bottom: 20px; font-size: 13px;">
+  <nav style="margin-bottom: 20px; font-size: 13px;">
     <a href="tableau-de-bord.html" style="margin-right: 15px; color: #2e7d32; font-weight: 600; text-decoration: none;">Tableau de bord</a>
     <a href="produits.html" style="margin-right: 15px; color: #777; text-decoration: none;">Mes produits</a>
     <a href="ventes.html" style="color: #777; text-decoration: none;">Mes ventes</a>
@@ -132,65 +130,3 @@
       function calculerRecommandation(ventesDuProduit) {
         var jourCible = new Date();
         jourCible.setDate(jourCible.getDate() + 1);
-        var numeroJourCible = jourCible.getDay();
-
-        var ventesMemeJour = ventesDuProduit.filter(function (vente) {
-          var d = new Date(vente.date_vente);
-          return d.getDay() === numeroJourCible;
-        });
-
-        var baseVentes = ventesMemeJour.length > 0 ? ventesMemeJour : ventesDuProduit;
-        var somme = 0;
-        baseVentes.forEach(function (vente) { somme += vente.quantite; });
-        var moyenne = somme / baseVentes.length;
-
-        return {
-          quantite: Math.round(moyenne * 1.1),
-          nbJoursUtilises: baseVentes.length,
-          memeJourSemaine: ventesMemeJour.length > 0
-        };
-      }
-
-      sbClient.auth.getSession().then(function (result) {
-        var session = result.data.session;
-        if (!session) {
-          statutDiv.textContent = "Non connecté — va sur connexion.html";
-          return;
-        }
-
-        statutDiv.textContent = session.user.email;
-        var commercantId = session.user.id;
-
-        sbClient.from('ventes').select('*').eq('commercant_id', commercantId).then(function (result) {
-          var ventes = result.data || [];
-          nbJoursTotalEl.textContent = ventes.length;
-
-          if (ventes.length === 0) {
-            grille.innerHTML = '<div class="carte-vide">Aucune donnée pour l\'instant.<br><a href="ventes.html">Ajouter tes premières ventes →</a></div>';
-            return;
-          }
-
-          var parProduit = {};
-          ventes.forEach(function (vente) {
-            if (!parProduit[vente.nom_produit]) parProduit[vente.nom_produit] = [];
-            parProduit[vente.nom_produit].push(vente);
-          });
-
-          grille.innerHTML = '';
-          Object.keys(parProduit).forEach(function (nomProduit) {
-            var r = calculerRecommandation(parProduit[nomProduit]);
-            var detailTexte = r.nbJoursUtilises + " jour(s) pris en compte";
-            var div = document.createElement('div');
-            div.className = 'carte';
-            div.innerHTML =
-              '<p class="nom">' + nomProduit + '</p>' +
-              '<p class="valeur">' + r.quantite + '</p>' +
-              '<p class="detail">' + detailTexte + '</p>';
-            grille.appendChild(div);
-          });
-        });
-      });
-    })();
-  </script>
-</body>
-</html>
