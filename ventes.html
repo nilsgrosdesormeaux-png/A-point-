@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>À Point - Mes ventes</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 450px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    .ligne-produit {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 15px;
+    }
+    .ligne-produit label {
+      font-weight: bold;
+    }
+    .ligne-produit input {
+      width: 90px;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 25px;
+      padding: 10px 20px;
+      background-color: #2e7d32;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      width: 100%;
+    }
+    #message {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 5px;
+      display: none;
+    }
+    .succes { background-color: #d4edda; color: #155724; }
+    .erreur { background-color: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+  <h1>Mes ventes d'hier</h1>
+  <p id="statutConnexion">Vérification de la connexion...</p>
+
+  <div id="zoneFormulaire" style="display:none;">
+    <p>Entre le nombre vendu hier pour chaque produit :</p>
+    <div id="listeProduits"></div>
+
+    <button id="btnEnregistrer">Enregistrer mes ventes</button>
+
+    <div id="message"></div>
+  </div>
+
+  <script>
+    (function () {
+      var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
+      var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
+      var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      var statutDiv = document.getElementById('statutConnexion');
+      var zoneFormulaire = document.getElementById('zoneFormulaire');
+      var listeProduits = document.getElementById('listeProduits');
+      var messageDiv = document.getElementById('message');
+      var commercantId = null;
+      var produits = [];
+
+      function dateHier() {
+        var d = new Date();
+        d.setDate(d.getDate() - 1);
+        return d.toISOString().split('T')[0];
+      }
+
+      function afficherProduits() {
+        listeProduits.innerHTML = '';
+        produits.forEach(function (produit) {
+          var div = document.createElement('div');
+          div.className = 'ligne-produit';
+          div.innerHTML =
+            '<label>' + produit.nom + '</label>' +
+            '<input type="number" min="0" class="quantiteVendue" data-produit="' + produit.nom + '" placeholder="0">';
+          listeProduits.appendChild(div);
+        });
+      }
+
+      sbClient.auth.getSession().then(function (result) {
+        var session = result.data.session;
+        if (session) {
+          commercantId = session.user.id;
+          statutDiv.textContent = "Connecté en tant que : " + session.user.email;
+
+          sbClient.from('produits').select('*').eq('commercant_id', commercantId).then(function (result) {
+            produits = result.data || [];
+            if (produits.length === 0) {
+              statutDiv.textContent += " — Tu n'as pas encore ajouté de produits.";
+            } else {
+              zoneFormulaire.style.display = 'block';
+              afficherProduits();
+            }
+          });
+        } else {
+          statutDiv.textContent = "Tu n'es pas connecté. Va d'abord sur la page de connexion.";
+        }
+      });
+
+      document.getElementById('btnEnregistrer').addEventListener('click', function () {
+        var champs = document.querySelectorAll('.quantiteVendue');
+        var lignesAEnregistrer = [];
+
+        champs.forEach(function (champ) {
+          var quantite = parseInt(champ.value);
+          if (!isNaN(quantite) && quantite >= 0) {
+            lignesAEnregistrer.push({
+              commercant_id: commercantId,
+              nom_produit: champ.getAttribute('data-produit'),
+              quantite: quantite,
+              date_vente: dateHier()
+            });
+          }
+        });
+
+        if (lignesAEnregistrer.length === 0) {
+          messageDiv.style.display = 'block';
+          messageDiv.className = 'erreur';
+          messageDiv.textContent = "Entre au moins une quantité.";
+          return;
+        }
+
+        sbClient.from('ventes').insert(lignesAEnregistrer).then(function (result) {
+          messageDiv.style.display = 'block';
+          if (result.error) {
+            messageDiv.className = 'erreur';
+            messageDiv.textContent = "Erreur : " + result.error.message;
+          } else {
+            messageDiv.className = 'succes';
+            messageDiv.textContent = "Ventes enregistrées !";
+          }
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
