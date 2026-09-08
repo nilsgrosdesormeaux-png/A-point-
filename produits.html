@@ -46,7 +46,21 @@
         <div id="message"></div>
 
         <p class="section-titre">Mes produits actuels</p>
+        <p class="texte-aide" style="margin-top:-6px;">Clique sur un produit pour lui définir une fiche technique (les ingrédients qui le composent) — utile pour un plat composé comme un burger, inutile pour un produit simple comme un croissant.</p>
         <ul id="listeProduits" class="liste-produits"></ul>
+
+        <div id="ficheTechnique" style="display:none;">
+          <p class="section-titre">Fiche technique — <span id="ficheProduitNom"></span></p>
+          <div id="listeIngredients"></div>
+          <div class="ligne-form" style="margin-top:10px; flex-wrap:wrap;">
+            <input type="text" id="nomIngredient" list="ingredientsConnus" placeholder="Ingrédient (ex : pain à burger)" aria-label="Nom de l'ingrédient" style="flex:2; min-width:160px;">
+            <datalist id="ingredientsConnus"></datalist>
+            <input type="number" id="quantiteIngredient" placeholder="Qté" min="0" step="any" aria-label="Quantité" style="flex:1; min-width:70px; max-width:90px;">
+            <input type="text" id="uniteIngredient" placeholder="Unité (g, ml...)" aria-label="Unité" style="flex:1; min-width:90px; max-width:120px;">
+            <button id="btnAjouterIngredient" style="flex:1; min-width:100px;">Ajouter</button>
+          </div>
+          <div id="messageIngredient"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -62,7 +76,29 @@
       var messageDiv = document.getElementById('message');
       var listeProduits = document.getElementById('listeProduits');
       var badgeProduits = document.getElementById('badgeProduits');
+      var ficheTechniqueDiv = document.getElementById('ficheTechnique');
+      var ficheProduitNomEl = document.getElementById('ficheProduitNom');
+      var listeIngredientsDiv = document.getElementById('listeIngredients');
+      var messageIngredientDiv = document.getElementById('messageIngredient');
+      var ingredientsConnusEl = document.getElementById('ingredientsConnus');
       var commercantId = null;
+      var produitSelectionne = null;
+
+      // Suggère les noms d'ingrédients déjà utilisés (sur tous les produits), pour
+      // éviter que "Tomate" et "tomates" soient comptés comme deux ingrédients
+      // différents sur le tableau de bord.
+      function chargerNomsIngredientsConnus() {
+        sbClient.from('ingredients_produit').select('nom_ingredient').eq('commercant_id', commercantId).then(function (result) {
+          var noms = {};
+          (result.data || []).forEach(function (ligne) { noms[ligne.nom_ingredient] = true; });
+          ingredientsConnusEl.innerHTML = '';
+          Object.keys(noms).forEach(function (nom) {
+            var option = document.createElement('option');
+            option.value = nom;
+            ingredientsConnusEl.appendChild(option);
+          });
+        });
+      }
 
       function chargerProduits() {
         sbClient.from('produits').select('*').eq('commercant_id', commercantId).then(function (result) {
@@ -74,9 +110,60 @@
             result.data.forEach(function (produit) {
               var li = document.createElement('li');
               li.textContent = produit.nom;
+              li.style.cursor = 'pointer';
+              li.title = 'Cliquer pour définir la fiche technique';
+              li.addEventListener('click', function () { afficherFicheTechnique(produit); });
               listeProduits.appendChild(li);
             });
           }
+        });
+      }
+
+      // Affiche l'éditeur de fiche technique (liste d'ingrédients) pour un produit donné.
+      function afficherFicheTechnique(produit) {
+        produitSelectionne = produit;
+        ficheProduitNomEl.textContent = produit.nom;
+        ficheTechniqueDiv.style.display = 'block';
+        messageIngredientDiv.innerHTML = '';
+        chargerIngredients();
+        ficheTechniqueDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      function chargerIngredients() {
+        if (!produitSelectionne) return;
+        sbClient.from('ingredients_produit').select('*').eq('produit_id', produitSelectionne.id).then(function (result) {
+          listeIngredientsDiv.innerHTML = '';
+          var lignes = result.data || [];
+          if (lignes.length === 0) {
+            var vide = document.createElement('p');
+            vide.className = 'texte-aide';
+            vide.style.marginTop = '10px';
+            vide.textContent = "Aucun ingrédient pour l'instant.";
+            listeIngredientsDiv.appendChild(vide);
+            return;
+          }
+          lignes.forEach(function (ligne) {
+            var div = document.createElement('div');
+            div.className = 'ligne-ingredient';
+
+            var texte = document.createElement('span');
+            texte.textContent = ligne.quantite + (ligne.unite ? ' ' + ligne.unite : '') + ' — ' + ligne.nom_ingredient;
+
+            var btnSupprimer = document.createElement('button');
+            btnSupprimer.type = 'button';
+            btnSupprimer.className = 'lien-supprimer';
+            btnSupprimer.textContent = '×';
+            btnSupprimer.setAttribute('aria-label', 'Supprimer cet ingrédient');
+            btnSupprimer.addEventListener('click', function () {
+              sbClient.from('ingredients_produit').delete().eq('id', ligne.id).then(function () {
+                chargerIngredients();
+              });
+            });
+
+            div.appendChild(texte);
+            div.appendChild(btnSupprimer);
+            listeIngredientsDiv.appendChild(div);
+          });
         });
       }
 
@@ -87,6 +174,7 @@
           statutDiv.textContent = "Connecté en tant que : " + session.user.email;
           zoneFormulaire.style.display = 'block';
           chargerProduits();
+          chargerNomsIngredientsConnus();
         } else {
           statutDiv.textContent = "Tu n'es pas connecté. Va d'abord sur la page de connexion.";
         }
@@ -115,6 +203,39 @@
             messageDiv.textContent = "Produit ajouté !";
             document.getElementById('nomProduit').value = '';
             chargerProduits();
+          }
+        });
+      });
+
+      document.getElementById('btnAjouterIngredient').addEventListener('click', function () {
+        if (!produitSelectionne) return;
+
+        var nomIngredient = document.getElementById('nomIngredient').value.trim();
+        var quantite = parseFloat(document.getElementById('quantiteIngredient').value);
+        var unite = document.getElementById('uniteIngredient').value.trim();
+
+        messageIngredientDiv.innerHTML = '';
+
+        if (!nomIngredient || isNaN(quantite) || quantite <= 0) {
+          messageIngredientDiv.innerHTML = '<p class="erreur" style="padding:8px 10px; border-radius:6px; margin:8px 0 0;">Entre un nom d\'ingrédient et une quantité valide.</p>';
+          return;
+        }
+
+        sbClient.from('ingredients_produit').insert({
+          commercant_id: commercantId,
+          produit_id: produitSelectionne.id,
+          nom_ingredient: nomIngredient,
+          quantite: quantite,
+          unite: unite || null
+        }).then(function (result) {
+          if (result.error) {
+            messageIngredientDiv.innerHTML = '<p class="erreur" style="padding:8px 10px; border-radius:6px; margin:8px 0 0;">Erreur : ' + result.error.message + '</p>';
+          } else {
+            document.getElementById('nomIngredient').value = '';
+            document.getElementById('quantiteIngredient').value = '';
+            document.getElementById('uniteIngredient').value = '';
+            chargerIngredients();
+            chargerNomsIngredientsConnus();
           }
         });
       });
