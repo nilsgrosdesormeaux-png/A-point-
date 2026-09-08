@@ -1,141 +1,147 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <title>À Point - Tableau de bord</title>
+  <link rel="icon" href="logo.svg">
+  <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: -apple-system, Arial, sans-serif;
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 30px 20px;
-      background-color: #fafafa;
-      color: #1a1a1a;
-    }
-    .entete {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 25px;
-    }
-    .entete h1 {
-      font-size: 22px;
-      margin: 0;
-    }
-    .entete p {
-      font-size: 13px;
-      color: #777;
-      margin: 4px 0 0;
-    }
-    .section-titre {
-      font-size: 13px;
-      color: #777;
-      margin: 25px 0 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .grille {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 12px;
-    }
-    .carte {
-      background: white;
-      border: 1px solid #e5e5e5;
-      border-radius: 12px;
-      padding: 16px;
-    }
-    .carte .nom {
-      font-size: 13px;
-      color: #777;
-      margin: 0 0 6px;
-    }
-    .carte .valeur {
-      font-size: 26px;
-      font-weight: 600;
-      margin: 0;
-    }
-    .carte .detail {
-      font-size: 12px;
-      color: #999;
-      margin: 4px 0 0;
-    }
-    .carte-vide {
-      background: white;
-      border: 1px solid #e5e5e5;
-      border-radius: 12px;
-      padding: 20px;
-      text-align: center;
-      color: #777;
-      font-size: 14px;
-    }
-    .carte-vide a {
-      color: #2e7d32;
-      font-weight: 600;
-      text-decoration: none;
-    }
-    .lien-retour {
-      display: block;
-      margin-top: 30px;
-      font-size: 13px;
-      color: #777;
-      text-decoration: none;
-    }
-  </style>
 </head>
 <body>
-  <nav style="margin-bottom: 20px; font-size: 13px;">
-    <a href="tableau-de-bord.html" style="margin-right: 15px; color: #2e7d32; font-weight: 600; text-decoration: none;">Tableau de bord</a>
-    <a href="produits.html" style="margin-right: 15px; color: #777; text-decoration: none;">Mes produits</a>
-    <a href="ventes.html" style="margin-right: 15px; color: #777; text-decoration: none;">Mes ventes</a>
-    <a href="import.html" style="color: #777; text-decoration: none;">Importer</a>
-  </nav>
-  <div class="entete">
-    <div>
-      <h1>À Point</h1>
-      <p id="statutConnexion">Chargement...</p>
+  <div class="conteneur conteneur--large">
+    <header class="entete-site">
+      <a href="tableau-de-bord.html" class="logo">
+        <svg class="logo-marque" viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
+          <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <circle cx="50" cy="56" r="8" fill="currentColor"/>
+        </svg>
+      </a>
+      <nav class="nav-principale">
+        <a href="tableau-de-bord.html" class="nav-lien nav-actif">Tableau de bord</a>
+        <a href="produits.html" class="nav-lien">Mes produits</a>
+        <a href="ventes.html" class="nav-lien">Mes ventes</a>
+        <a href="import.html" class="nav-lien">Importer</a>
+      </nav>
+    </header>
+
+    <p id="statutConnexion" class="texte-aide">Chargement...</p>
+
+    <div class="tableau-sombre">
+      <div class="sombre-entete">
+        <div>
+          <p class="sombre-date" id="sombreDate"></p>
+          <p class="sombre-titre" id="sombreTitre">Prévision</p>
+        </div>
+        <div class="sombre-badge" id="sombreBadge">— jour(s) d'historique</div>
+      </div>
+
+      <div class="sombre-label">Production recommandée pour demain</div>
+      <div class="grille-sombre" id="grilleRecommandations"></div>
+
+      <div class="sombre-label">Vos résultats</div>
+      <div class="grille-sombre" id="grilleResultats">
+        <div class="carte-sombre">
+          <p class="nom">Économisé grâce à l'outil</p>
+          <p class="valeur">—</p>
+          <p class="detail">Bientôt disponible (dès qu'on connaît le prix de tes produits)</p>
+        </div>
+        <div class="carte-sombre">
+          <p class="nom">Invendus évités</p>
+          <p class="valeur">—</p>
+          <p class="detail">Bientôt disponible (dès qu'on suit tes stocks)</p>
+        </div>
+        <div class="carte-sombre" id="carteFiabilite">
+          <p class="nom">Fiabilité des prévisions</p>
+          <p class="valeur">—</p>
+          <p class="detail">Pas encore assez d'historique</p>
+        </div>
+      </div>
     </div>
+
+    <a href="ventes.html" class="lien-retour">← Ajouter les ventes d'hier</a>
   </div>
-
-  <div class="section-titre">Production recommandée pour demain</div>
-  <p id="texteJourCible" style="font-size: 13px; color: #555; margin: -4px 0 12px;"></p>
-  <div class="grille" id="grilleRecommandations"></div>
-
-  <div class="section-titre">Vos résultats</div>
-  <div class="grille">
-    <div class="carte">
-      <p class="nom">Économies réalisées</p>
-      <p class="valeur" style="color:#2e7d32;">—</p>
-      <p class="detail">Disponible avec plus d'historique</p>
-    </div>
-    <div class="carte">
-      <p class="nom">Historique disponible</p>
-      <p class="valeur" id="nbJoursTotal">0</p>
-      <p class="detail">jour(s) enregistré(s)</p>
-    </div>
-  </div>
-
-  <a href="ventes.html" class="lien-retour">← Ajouter les ventes d'hier</a>
 
   <script>
-        (function () {
+    (function () {
       var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
       var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
       var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
       var statutDiv = document.getElementById('statutConnexion');
       var grille = document.getElementById('grilleRecommandations');
-      var nbJoursTotalEl = document.getElementById('nbJoursTotal');
-      var texteJourCibleEl = document.getElementById('texteJourCible');
+      var sombreDateEl = document.getElementById('sombreDate');
+      var sombreTitreEl = document.getElementById('sombreTitre');
+      var sombreBadgeEl = document.getElementById('sombreBadge');
+      var carteFiabiliteEl = document.getElementById('carteFiabilite');
 
       var nomsJours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+      var nomsMois = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 
       function capitaliser(texte) {
         return texte.charAt(0).toUpperCase() + texte.slice(1);
       }
 
+      function formatDateLongue(date) {
+        return capitaliser(nomsJours[date.getDay()]) + ' ' + date.getDate() + ' ' + nomsMois[date.getMonth()];
+      }
+
+      // Poids donné aux ventes récentes par rapport aux anciennes dans la moyenne
+      // pondérée (voir moyennePonderee ci-dessous). Plus proche de 1 = quasi plate,
+      // plus proche de 0 = très sensible aux dernières occurrences.
+      var DECALAGE_PONDERATION = 0.75;
+
+      // Détecte et écarte les valeurs aberrantes (méthode IQR) avant de calculer
+      // la moyenne, pour qu'un jour exceptionnel (fermeture, événement, erreur de
+      // saisie) ne fausse pas la recommandation. Ne s'applique qu'à partir de 5
+      // points d'historique : sur un historique court, l'exclure serait plus risqué
+      // que de la garder, et le calcul statistique n'aurait pas de sens.
+      function exclureValeursAberrantes(ventesTriees) {
+        if (ventesTriees.length < 5) {
+          return { ventesFiltrees: ventesTriees, nbExclus: 0 };
+        }
+        var quantites = ventesTriees.map(function (v) { return v.quantite; }).sort(function (a, b) { return a - b; });
+        function percentile(p) {
+          var idx = (quantites.length - 1) * p;
+          var lo = Math.floor(idx), hi = Math.ceil(idx);
+          if (lo === hi) return quantites[lo];
+          return quantites[lo] + (quantites[hi] - quantites[lo]) * (idx - lo);
+        }
+        var q1 = percentile(0.25);
+        var q3 = percentile(0.75);
+        var iqr = q3 - q1;
+        if (iqr === 0) {
+          return { ventesFiltrees: ventesTriees, nbExclus: 0 };
+        }
+        var basMin = q1 - 1.5 * iqr;
+        var hautMax = q3 + 1.5 * iqr;
+        var filtrees = ventesTriees.filter(function (v) { return v.quantite >= basMin && v.quantite <= hautMax; });
+        // Garde-fou : ne jamais descendre sous 3 points restants après filtrage.
+        if (filtrees.length < 3) {
+          return { ventesFiltrees: ventesTriees, nbExclus: 0 };
+        }
+        return { ventesFiltrees: filtrees, nbExclus: ventesTriees.length - filtrees.length };
+      }
+
+      // Moyenne pondérée : les ventes récentes comptent plus que les anciennes,
+      // pour qu'une tendance qui monte ou descend se voie plus vite qu'avec une
+      // moyenne plate. ventesTriees doit être triée par date croissante.
+      function moyennePonderee(ventesTriees) {
+        var n = ventesTriees.length;
+        var sommePonderee = 0;
+        var sommePoids = 0;
+        ventesTriees.forEach(function (v, i) {
+          var positionDepuisLaFin = n - 1 - i; // 0 = la plus récente
+          var poids = Math.pow(DECALAGE_PONDERATION, positionDepuisLaFin);
+          sommePonderee += v.quantite * poids;
+          sommePoids += poids;
+        });
+        return sommePonderee / sommePoids;
+      }
+
+      // Calcule la recommandation pour un produit, avec la comparaison ("delta")
+      // par rapport à la dernière vente réelle du même jour de la semaine.
       function calculerRecommandation(ventesDuProduit) {
         var jourCible = new Date();
         jourCible.setDate(jourCible.getDate() + 1);
@@ -148,9 +154,14 @@
         });
 
         var baseVentes = ventesMemeJour.length > 0 ? ventesMemeJour : ventesDuProduit;
-        var somme = 0;
-        baseVentes.forEach(function (vente) { somme += vente.quantite; });
-        var moyenne = somme / baseVentes.length;
+        var baseTriee = baseVentes.slice().sort(function (a, b) {
+          return new Date(a.date_vente) - new Date(b.date_vente);
+        });
+
+        var filtrage = exclureValeursAberrantes(baseTriee);
+        var baseFinale = filtrage.ventesFiltrees;
+        var moyenne = moyennePonderee(baseFinale);
+        var quantite = Math.round(moyenne * 1.1);
 
         var texteBase;
         if (ventesMemeJour.length > 0) {
@@ -158,15 +169,76 @@
         } else {
           texteBase = "Basé sur tes " + baseVentes.length + " dernier(s) jour(s) de vente (pas encore de " + nomJourCible + " enregistré)";
         }
+        if (filtrage.nbExclus > 0) {
+          texteBase += " (" + filtrage.nbExclus + " jour" + (filtrage.nbExclus > 1 ? "s" : "") + " atypique" + (filtrage.nbExclus > 1 ? "s" : "") + " écarté" + (filtrage.nbExclus > 1 ? "s" : "") + " du calcul)";
+        }
+
+        var delta = null;
+        if (ventesMemeJour.length > 0) {
+          var trie = ventesMemeJour.slice().sort(function (a, b) {
+            return new Date(b.date_vente) - new Date(a.date_vente);
+          });
+          delta = quantite - trie[0].quantite;
+        }
 
         return {
-          quantite: Math.round(moyenne * 1.1),
+          quantite: quantite,
           nbJoursUtilises: baseVentes.length,
           memeJourSemaine: ventesMemeJour.length > 0,
           nomJourCible: nomJourCible,
-          texteBase: texteBase
+          texteBase: texteBase,
+          delta: delta
         };
       }
+
+      // Rejoue l'historique produit par produit et jour par jour pour vérifier,
+      // après coup, si la méthode de recommandation aurait été proche de la réalité.
+      // Utilise la même méthode que calculerRecommandation (moyenne pondérée +
+      // exclusion des aberrantes) pour que ce score mesure bien la fiabilité
+      // réelle de ce que le tableau de bord affiche.
+      function calculerFiabilite(ventes) {
+        var parProduit = {};
+        ventes.forEach(function (v) {
+          if (!parProduit[v.nom_produit]) parProduit[v.nom_produit] = [];
+          parProduit[v.nom_produit].push(v);
+        });
+
+        var erreurs = [];
+        Object.keys(parProduit).forEach(function (nom) {
+          var lignes = parProduit[nom].slice().sort(function (a, b) {
+            return new Date(a.date_vente) - new Date(b.date_vente);
+          });
+          var parJour = {};
+          lignes.forEach(function (v) {
+            var jour = new Date(v.date_vente).getDay();
+            if (!parJour[jour]) parJour[jour] = [];
+            parJour[jour].push(v);
+          });
+          Object.keys(parJour).forEach(function (jour) {
+            var occurrences = parJour[jour];
+            for (var i = 1; i < occurrences.length; i++) {
+              var historique = occurrences.slice(0, i);
+              var filtrage = exclureValeursAberrantes(historique);
+              var prediction = Math.round(moyennePonderee(filtrage.ventesFiltrees) * 1.1);
+              var reel = occurrences[i].quantite;
+              if (reel > 0) {
+                erreurs.push(Math.abs(prediction - reel) / reel);
+              }
+            }
+          });
+        });
+
+        if (erreurs.length === 0) return null;
+        var sommeErreurs = 0;
+        erreurs.forEach(function (e) { sommeErreurs += e; });
+        var erreurMoyenne = sommeErreurs / erreurs.length;
+        return {
+          valeur: Math.max(0, Math.round((1 - erreurMoyenne) * 100)),
+          nbPoints: erreurs.length
+        };
+      }
+
+      sombreDateEl.textContent = "Aujourd'hui " + formatDateLongue(new Date());
 
       sbClient.auth.getSession().then(function (result) {
         var session = result.data.session;
@@ -180,16 +252,17 @@
 
         sbClient.from('ventes').select('*').eq('commercant_id', commercantId).then(function (result) {
           var ventes = result.data || [];
-          nbJoursTotalEl.textContent = ventes.length;
+          sombreBadgeEl.textContent = ventes.length + " jour(s) d'historique";
 
           if (ventes.length === 0) {
-            grille.innerHTML = '<div class="carte-vide">Aucune donnée pour l\'instant.<br><a href="ventes.html">Ajouter tes premières ventes →</a></div>';
+            sombreTitreEl.textContent = "Pas encore de données";
+            grille.innerHTML = '<div class="carte-vide-sombre">Aucune donnée pour l\'instant.<br><a href="ventes.html">Ajouter tes premières ventes →</a></div>';
             return;
           }
 
           var jourCible = new Date();
           jourCible.setDate(jourCible.getDate() + 1);
-          texteJourCibleEl.textContent = "Prévision pour " + capitaliser(nomsJours[jourCible.getDay()]);
+          sombreTitreEl.textContent = "Prévision pour " + capitaliser(nomsJours[jourCible.getDay()]);
 
           var parProduit = {};
           ventes.forEach(function (vente) {
@@ -200,14 +273,34 @@
           grille.innerHTML = '';
           Object.keys(parProduit).forEach(function (nomProduit) {
             var r = calculerRecommandation(parProduit[nomProduit]);
+
+            var deltaHTML = '';
+            if (r.delta !== null) {
+              if (r.delta > 0) {
+                deltaHTML = '<p class="delta delta-hausse">+' + r.delta + ' vs la semaine dernière</p>';
+              } else if (r.delta < 0) {
+                deltaHTML = '<p class="delta delta-baisse">' + r.delta + ' vs la semaine dernière</p>';
+              } else {
+                deltaHTML = '<p class="delta delta-stable">Stable vs la semaine dernière</p>';
+              }
+            }
+
             var div = document.createElement('div');
-            div.className = 'carte';
+            div.className = 'carte-sombre';
             div.innerHTML =
               '<p class="nom">' + nomProduit + '</p>' +
               '<p class="valeur">' + r.quantite + '</p>' +
+              deltaHTML +
               '<p class="detail">' + r.texteBase + '</p>';
             grille.appendChild(div);
           });
+
+          var fiabilite = calculerFiabilite(ventes);
+          if (fiabilite && fiabilite.nbPoints >= 3) {
+            carteFiabiliteEl.classList.add('actif');
+            carteFiabiliteEl.querySelector('.valeur').textContent = fiabilite.valeur + '%';
+            carteFiabiliteEl.querySelector('.detail').textContent = "Calculée sur " + fiabilite.nbPoints + " prévision(s) passée(s)";
+          }
         });
       });
     })();
