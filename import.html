@@ -304,21 +304,47 @@
         btnImporter.disabled = true;
         btnImporter.textContent = 'Import en cours...';
 
-        sbClient.from('ventes').insert(lignesAImporter).then(function (result) {
-          messageDiv.style.display = 'block';
-          btnImporter.disabled = false;
-          btnImporter.textContent = 'Importer ces ventes';
+        // Avant d'importer les ventes, on s'assure que chaque produit rencontré
+        // existe déjà dans "Mes produits" — sinon la fiche technique (ingrédients)
+        // ne pourrait jamais s'y rattacher, et il faudrait tout recréer à la main
+        // après coup. On crée automatiquement ceux qui manquent.
+        var nomsRencontres = {};
+        lignesAImporter.forEach(function (l) { nomsRencontres[l.nom_produit] = true; });
 
-          if (result.error) {
-            messageDiv.className = 'erreur';
-            messageDiv.textContent = "Erreur : " + result.error.message;
-          } else {
-            messageDiv.className = 'succes';
-            messageDiv.textContent = lignesAImporter.length + " ventes importées avec succès !";
-            btnImporter.style.display = 'none';
-            zoneMapping.style.display = 'none';
-            apercuDiv.innerHTML = '';
-          }
+        sbClient.from('produits').select('nom').eq('commercant_id', commercantId).then(function (resultatProduits) {
+          var nomsExistants = {};
+          (resultatProduits.data || []).forEach(function (p) { nomsExistants[p.nom] = true; });
+
+          var nouveauxProduits = Object.keys(nomsRencontres)
+            .filter(function (nom) { return !nomsExistants[nom]; })
+            .map(function (nom) { return { commercant_id: commercantId, nom: nom }; });
+
+          var creerProduitsManquants = nouveauxProduits.length > 0
+            ? sbClient.from('produits').insert(nouveauxProduits)
+            : Promise.resolve({ error: null });
+
+          creerProduitsManquants.then(function () {
+            sbClient.from('ventes').insert(lignesAImporter).then(function (result) {
+              messageDiv.style.display = 'block';
+              btnImporter.disabled = false;
+              btnImporter.textContent = 'Importer ces ventes';
+
+              if (result.error) {
+                messageDiv.className = 'erreur';
+                messageDiv.textContent = "Erreur : " + result.error.message;
+              } else {
+                messageDiv.className = 'succes';
+                var texte = lignesAImporter.length + " ventes importées avec succès !";
+                if (nouveauxProduits.length > 0) {
+                  texte += " " + nouveauxProduits.length + " nouveau(x) produit(s) ajouté(s) automatiquement dans Mes produits.";
+                }
+                messageDiv.textContent = texte;
+                btnImporter.style.display = 'none';
+                zoneMapping.style.display = 'none';
+                apercuDiv.innerHTML = '';
+              }
+            });
+          });
         });
       });
     })();
