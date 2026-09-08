@@ -122,9 +122,11 @@
 
   <script>
     (function () {
+      console.log('[import] script demarre');
       var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
       var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
       var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      console.log('[import] client supabase cree', !!sbClient, typeof sbClient.auth);
 
       var statutDiv = document.getElementById('statutConnexion');
       var zoneFormulaire = document.getElementById('zoneFormulaire');
@@ -246,7 +248,12 @@
         zoneMapping.style.display = 'block';
       }
 
+      console.log('[import] appel getSession...');
+      var sessionResolue = false;
+
       sbClient.auth.getSession().then(function (result) {
+        sessionResolue = true;
+        console.log('[import] getSession resolu', result);
         var session = result.data.session;
         if (session) {
           commercantId = session.user.id;
@@ -255,7 +262,18 @@
         } else {
           statutDiv.textContent = "Tu n'es pas connecté. Va d'abord sur la page de connexion.";
         }
+      }).catch(function (erreur) {
+        sessionResolue = true;
+        console.log('[import] getSession erreur', erreur);
+        statutDiv.textContent = "Erreur de connexion : " + erreur.message;
       });
+
+      setTimeout(function () {
+        if (!sessionResolue) {
+          console.log('[import] TIMEOUT apres 6s, getSession ne repond pas');
+          statutDiv.textContent = "Vérification anormalement longue — regarde la console (F12) pour le détail.";
+        }
+      }, 6000);
 
       document.getElementById('fichierImport').addEventListener('change', function (e) {
         var fichier = e.target.files[0];
@@ -333,3 +351,42 @@
         }
 
         var tableau = '<table><tr><th>Date</th><th>Produit</th><th>Quantité</th></tr>';
+        lignesAImporter.slice(0, 5).forEach(function (l) {
+          tableau += '<tr><td>' + l.date_vente + '</td><td>' + l.nom_produit + '</td><td>' + l.quantite + '</td></tr>';
+        });
+        tableau += '</table>';
+
+        var texteInfo = lignesAImporter.length + ' ligne(s) prête(s) à importer';
+        if (lignesInvalides > 0) {
+          texteInfo += ' (' + lignesInvalides + ' ligne(s) ignorée(s) car incomplète(s) ou illisible(s))';
+        }
+
+        apercuDiv.innerHTML = '<div class="info" style="padding:10px; border-radius:5px;">' + texteInfo + '</div>' + tableau;
+        btnImporter.style.display = 'block';
+      });
+
+      btnImporter.addEventListener('click', function () {
+        btnImporter.disabled = true;
+        btnImporter.textContent = 'Import en cours...';
+
+        sbClient.from('ventes').insert(lignesAImporter).then(function (result) {
+          messageDiv.style.display = 'block';
+          btnImporter.disabled = false;
+          btnImporter.textContent = 'Importer ces ventes';
+
+          if (result.error) {
+            messageDiv.className = 'erreur';
+            messageDiv.textContent = "Erreur : " + result.error.message;
+          } else {
+            messageDiv.className = 'succes';
+            messageDiv.textContent = lignesAImporter.length + " ventes importées avec succès !";
+            btnImporter.style.display = 'none';
+            zoneMapping.style.display = 'none';
+            apercuDiv.innerHTML = '';
+          }
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
