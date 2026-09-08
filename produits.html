@@ -47,6 +47,11 @@
   </style>
 </head>
 <body>
+  <nav style="margin-bottom: 20px; font-size: 13px;">
+    <a href="tableau-de-bord.html" style="margin-right: 15px; color: #777; text-decoration: none;">Tableau de bord</a>
+    <a href="produits.html" style="margin-right: 15px; color: #2e7d32; font-weight: 600; text-decoration: none;">Mes produits</a>
+    <a href="ventes.html" style="color: #777; text-decoration: none;">Mes ventes</a>
+  </nav>
   <h1>Mes produits</h1>
   <p id="statutConnexion">Vérification de la connexion...</p>
 
@@ -63,7 +68,7 @@
   </div>
 
   <script>
-    (function () {
+        (function () {
       var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
       var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
       var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
