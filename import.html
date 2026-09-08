@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>À Point - Importer mes ventes</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 500px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    .zone-upload {
+      border: 2px dashed #ccc;
+      border-radius: 8px;
+      padding: 30px;
+      text-align: center;
+      margin-top: 20px;
+    }
+    input[type="file"] {
+      margin-top: 15px;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: #2e7d32;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      width: 100%;
+    }
+    #message {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 5px;
+      display: none;
+    }
+    .succes { background-color: #d4edda; color: #155724; }
+    .erreur { background-color: #f8d7da; color: #721c24; }
+    .info { background-color: #e2e3e5; color: #383d41; }
+    table {
+      width: 100%;
+      margin-top: 15px;
+      font-size: 13px;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 6px;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <h1>Importer mon historique de ventes</h1>
+  <p id="statutConnexion">Vérification de la connexion...</p>
+
+  <div id="zoneFormulaire" style="display:none;">
+    <p>Le fichier doit être un CSV avec 3 colonnes, dans cet ordre : <strong>date</strong> (format AAAA-MM-JJ), <strong>produit</strong>, <strong>quantite</strong>.</p>
+
+    <div class="zone-upload">
+      <p>Sélectionne ton fichier CSV</p>
+      <input type="file" id="fichierCsv" accept=".csv">
+    </div>
+
+    <div id="apercu"></div>
+
+    <button id="btnImporter" style="display:none;">Importer ces ventes</button>
+
+    <div id="message"></div>
+  </div>
+
+  <script>
+    (function () {
+      var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
+      var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
+      var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      var statutDiv = document.getElementById('statutConnexion');
+      var zoneFormulaire = document.getElementById('zoneFormulaire');
+      var apercuDiv = document.getElementById('apercu');
+      var btnImporter = document.getElementById('btnImporter');
+      var messageDiv = document.getElementById('message');
+      var commercantId = null;
+      var lignesAImporter = [];
+      
+      sbClient.auth.getSession().then(function (result) {
+        var session = result.data.session;
+        if (session) {
+          commercantId = session.user.id;
+          statutDiv.textContent = "Connecté en tant que : " + session.user.email;
+          zoneFormulaire.style.display = 'block';
+        } else {
+          statutDiv.textContent = "Tu n'es pas connecté. Va d'abord sur la page de connexion.";
+        }
+      });
+
+      document.getElementById('fichierCsv').addEventListener('change', function (e) {
+        var fichier = e.target.files[0];
+        if (!fichier) return;
+
+        Papa.parse(fichier, {
+          header: true,
+          skipEmptyLines: true,
+          complete: function (resultat) {
+            lignesAImporter = [];
+            var lignesInvalides = 0;
+
+            resultat.data.forEach(function (ligne) {
+              var date = (ligne.date || '').trim();
+              var produit = (ligne.produit || '').trim();
+              var quantite = parseInt(ligne.quantite);
+
+              if (date && produit && !isNaN(quantite)) {
+                lignesAImporter.push({
+                  commercant_id: commercantId,
+                  nom_produit: produit,
+                  quantite: quantite,
+                  date_vente: date
+                });
+              } else {
+                lignesInvalides++;
+              }
+            });
+
+            apercuDiv.innerHTML = '';
+            if (lignesAImporter.length === 0) {
+              apercuDiv.innerHTML = '<div id="message" class="erreur" style="display:block;">Aucune ligne valide trouvée. Vérifie le format du fichier.</div>';
+              btnImporter.style.display = 'none';
+              return;
+            }
+
+            var tableau = '<table><tr><th>Date</th><th>Produit</th><th>Quantité</th></tr>';
+            lignesAImporter.slice(0, 5).forEach(function (l) {
+              tableau += '<tr><td>' + l.date_vente + '</td><td>' + l.nom_produit + '</td><td>' + l.quantite + '</td></tr>';
+            });
+            tableau += '</table>';
+
+            var texteInfo = lignesAImporter.length + ' ligne(s) prête(s) à importer';
+            if (lignesInvalides > 0) {
+              texteInfo += ' (' + lignesInvalides + ' ligne(s) ignorée(s) car incomplète(s))';
+            }
+
+            apercuDiv.innerHTML = '<div class="info" style="padding:10px; border-radius:5px;">' + texteInfo + '</div>' + tableau;
+            btnImporter.style.display = 'block';
+          }
+        });
+      });
+
+      btnImporter.addEventListener('click', function () {
+        btnImporter.disabled = true;
+        btnImporter.textContent = 'Import en cours...';
+
+        sbClient.from('ventes').insert(lignesAImporter).then(function (result) {
+          messageDiv.style.display = 'block';
+          btnImporter.disabled = false;
+          btnImporter.textContent = 'Importer ces ventes';
+
+          if (result.error) {
+            messageDiv.className = 'erreur';
+            messageDiv.textContent = "Erreur : " + result.error.message;
+          } else {
+            messageDiv.className = 'succes';
+            messageDiv.textContent = lignesAImporter.length + " ventes importées avec succès !";
+            btnImporter.style.display = 'none';
+            apercuDiv.innerHTML = '';
+          }
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
