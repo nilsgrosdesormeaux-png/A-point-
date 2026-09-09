@@ -707,3 +707,8 @@ button.lien-supprimer:hover {
   background: rgba(214, 168, 74, 0.18);
   color: #d9b65c;
 }
+
+.badge-jour--vacances {
+  background: rgba(90, 158, 191, 0.18);
+  color: #6fb3d9;
+}
