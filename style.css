@@ -794,3 +794,116 @@ button.lien-supprimer:hover {
   color: var(--sombre-baisse);
   border-color: var(--sombre-baisse);
 }
+
+/* ---------- Pied de page (lien CGU) ---------- */
+
+.pied-page {
+  margin-top: 28px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--texte-tres-attenue);
+}
+
+.pied-page a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.pied-page a:hover {
+  color: var(--texte-attenue);
+}
+
+/* ---------- Case à cocher générique (consentement, options) ---------- */
+
+.case-consentement {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 18px 0 0;
+  font-size: 13px;
+  color: var(--texte-attenue);
+  cursor: pointer;
+}
+
+.case-consentement input {
+  width: auto;
+  margin: 2px 0 0;
+  flex-shrink: 0;
+}
+
+.case-consentement a {
+  color: var(--texte);
+  font-weight: 600;
+}
+
+/* ---------- Format téléphone ---------- */
+/* Le site n'avait jusqu'ici jamais été pensé pour un écran étroit (pas de
+   media query du tout) : un commerçant qui consulte son tableau de bord
+   depuis son téléphone entre deux clients aurait dû zoomer pour tout lire.
+   Les règles ci-dessous resserrent l'espace, empilent ce qui était côte à
+   côte, et gardent tout lisible sans jamais faire déborder la page. */
+@media (max-width: 560px) {
+  .conteneur {
+    padding: 20px 16px 44px;
+  }
+
+  h1 {
+    font-size: 23px;
+  }
+
+  .carte-page {
+    padding: 18px 16px;
+  }
+
+  .entete-site {
+    gap: 8px 14px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+  }
+
+  .nav-principale {
+    gap: 4px 12px;
+    width: 100%;
+  }
+
+  .nav-lien {
+    font-size: 12.5px;
+  }
+
+  /* Une ligne "champ + bouton" (ajouter un produit, changer d'email...)
+     reste côte à côte sur grand écran, mais devient trop étroite pour
+     rester lisible en dessous de ce seuil : on l'empile à la place. */
+  .ligne-form {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .ligne-form button {
+    width: 100%;
+  }
+
+  .grille,
+  .grille-sombre {
+    grid-template-columns: 1fr;
+  }
+
+  .tableau-sombre {
+    padding: 20px 16px 22px;
+  }
+
+  .sombre-titre {
+    font-size: 22px;
+  }
+
+  ul.liste-produits {
+    grid-template-columns: 1fr;
+  }
+
+  table {
+    font-size: 12px;
+  }
+
+  th, td {
+    padding: 6px 7px;
+  }
+}
