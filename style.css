@@ -702,3 +702,8 @@ button.lien-supprimer:hover {
   color: var(--sombre-texte-attenue);
   border: 1px solid var(--sombre-bordure);
 }
+
+.badge-jour--ferie {
+  background: rgba(214, 168, 74, 0.18);
+  color: #d9b65c;
+}
