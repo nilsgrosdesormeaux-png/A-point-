@@ -3,6 +3,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Semaine</title>
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="style.css">
@@ -52,6 +53,7 @@
     </div>
 
     <a href="tableau-de-bord.html" class="lien-retour">← Retour au tableau de bord</a>
+    <p class="pied-page"><a href="cgu.html">Conditions générales d'utilisation</a></p>
   </div>
 
   <script>
@@ -248,15 +250,42 @@
       // Météo à venir : purement informatif ici (une petite mention sur la
       // carte du jour), contrairement au tableau de bord où elle ajuste le
       // chiffre. Mêmes fonctions/API que sur le tableau de bord (voir
-      // tableau-de-bord.html pour le détail) ; les coordonnées, une fois
-      // géocodées une seule fois là-bas, sont déjà en cache ici aussi.
-      function geocoderCodePostal(codePostal) {
-        var url = 'https://geo.api.gouv.fr/communes?codePostal=' + encodeURIComponent(codePostal) + '&fields=centre&format=json';
+      // tableau-de-bord.html pour le détail, y compris le choix de la bonne
+      // commune via la ville quand un code postal en recouvre plusieurs) ;
+      // les coordonnées, une fois géocodées une seule fois là-bas, sont déjà
+      // en cache ici aussi.
+      function normaliserNomVille(texte) {
+        return (texte === null || texte === undefined ? '' : texte.toString())
+          .toLowerCase()
+          .normalize('NFD').replace(/[̀-ͯ]/g, '')
+          .replace(/[^a-z0-9]/g, '');
+      }
+
+      function choisirCommune(communes, ville) {
+        if (communes.length <= 1 || !ville) return communes[0];
+        var villeNorm = normaliserNomVille(ville);
+        if (!villeNorm) return communes[0];
+        var i, nomNorm;
+        for (i = 0; i < communes.length; i++) {
+          nomNorm = normaliserNomVille(communes[i].nom);
+          if (nomNorm === villeNorm) return communes[i];
+        }
+        for (i = 0; i < communes.length; i++) {
+          nomNorm = normaliserNomVille(communes[i].nom);
+          if (nomNorm.indexOf(villeNorm) !== -1 || villeNorm.indexOf(nomNorm) !== -1) return communes[i];
+        }
+        return communes[0];
+      }
+
+      function geocoderCodePostal(codePostal, ville) {
+        var url = 'https://geo.api.gouv.fr/communes?codePostal=' + encodeURIComponent(codePostal) + '&fields=nom,centre&format=json';
         return fetch(url).then(function (res) {
           return res.ok ? res.json() : [];
         }).then(function (communes) {
-          if (!communes || communes.length === 0 || !communes[0].centre || !communes[0].centre.coordinates) return null;
-          var coords = communes[0].centre.coordinates;
+          if (!communes || communes.length === 0) return null;
+          var commune = choisirCommune(communes, ville);
+          if (!commune || !commune.centre || !commune.centre.coordinates) return null;
+          var coords = commune.centre.coordinates;
           return { latitude: coords[1], longitude: coords[0] };
         }).catch(function () { return null; });
       }
@@ -266,7 +295,7 @@
         if (parametres.latitude != null && parametres.longitude != null) {
           return Promise.resolve({ latitude: parametres.latitude, longitude: parametres.longitude });
         }
-        return geocoderCodePostal(parametres.code_postal).then(function (coords) {
+        return geocoderCodePostal(parametres.code_postal, parametres.ville).then(function (coords) {
           if (!coords) return null;
           sbClient.from('parametres_commercant').update({ latitude: coords.latitude, longitude: coords.longitude }).eq('commercant_id', commercantId);
           return coords;
