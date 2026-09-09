@@ -645,6 +645,21 @@ button.lien-supprimer:hover {
   margin: 3px 0 0;
 }
 
+.carte-sombre--lien {
+  display: block;
+  text-decoration: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.carte-sombre--lien:hover {
+  border-color: var(--sombre-texte-attenue);
+  background: var(--sombre-fond);
+}
+
+.carte-sombre--lien .valeur {
+  color: var(--sombre-hausse);
+}
+
 .delta {
   font-size: 12px;
   font-weight: 600;
@@ -672,7 +687,7 @@ button.lien-supprimer:hover {
   text-decoration: none;
 }
 
-.resultat-sombre.actif .valeur {
+.carte-sombre.actif .valeur {
   color: var(--sombre-hausse);
 }
 
@@ -741,4 +756,35 @@ button.lien-supprimer:hover {
 .case-jour input {
   width: auto;
   margin: 0;
+}
+
+/* ---------- Page Semaine ---------- */
+
+.actions-jour {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.btn-mini {
+  margin: 0;
+  width: auto;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: transparent;
+  color: var(--sombre-texte-attenue);
+  border: 1px solid var(--sombre-bordure);
+  border-radius: 999px;
+}
+
+.btn-mini:hover {
+  background: var(--sombre-fond);
+  color: var(--sombre-texte);
+}
+
+.btn-mini--retirer {
+  color: var(--sombre-baisse);
+  border-color: var(--sombre-baisse);
 }
