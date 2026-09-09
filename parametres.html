@@ -3,6 +3,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Paramètres</title>
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="style.css">
@@ -47,6 +48,10 @@
         <input type="text" id="inputCodePostal" placeholder="Ex : 35400" maxlength="5" inputmode="numeric">
         <p class="texte-aide" style="margin-top:-4px;">Sert à déduire automatiquement ta zone de vacances scolaires (A, B ou C), pour que les prévisions en tiennent compte.</p>
 
+        <label for="inputVille" style="margin-top:14px;">Ville</label>
+        <input type="text" id="inputVille" placeholder="Ex : Rennes">
+        <p class="texte-aide" style="margin-top:-4px;">Un même code postal peut couvrir plusieurs communes voisines : précise le nom de ta ville pour que la météo soit bien celle de ton emplacement exact, pas celle d'une commune à côté.</p>
+
         <label>Jours de fermeture habituels</label>
         <div class="grille-jours" id="grilleJoursFermeture"></div>
         <p class="texte-aide">Les jours cochés ne seront jamais recommandés à la production, et ne compteront pas comme des jours "ratés" dans le calcul de fiabilité.</p>
@@ -74,6 +79,7 @@
         <p class="section-titre">Session</p>
         <button id="btnDeconnexion" type="button" style="background-color: var(--surface); color: var(--texte); border: 1px solid var(--bordure);">Se déconnecter</button>
       </div>
+      <p class="pied-page"><a href="cgu.html">Conditions générales d'utilisation</a></p>
     </div>
   </div>
 
@@ -87,6 +93,7 @@
       var zoneParametresEl = document.getElementById('zoneParametres');
       var inputNomRestaurantEl = document.getElementById('inputNomRestaurant');
       var inputCodePostalEl = document.getElementById('inputCodePostal');
+      var inputVilleEl = document.getElementById('inputVille');
       var grilleJoursFermetureEl = document.getElementById('grilleJoursFermeture');
       var btnEnregistrerCommerceEl = document.getElementById('btnEnregistrerCommerce');
       var messageCommerceEl = document.getElementById('messageCommerce');
@@ -150,6 +157,7 @@
           if (!parametres) return;
           inputNomRestaurantEl.value = parametres.nom_restaurant || '';
           inputCodePostalEl.value = parametres.code_postal || '';
+          inputVilleEl.value = parametres.ville || '';
           var fermes = parametres.jours_fermeture || [];
           var cases = grilleJoursFermetureEl.querySelectorAll('.case-jour-input');
           cases.forEach(function (c) {
@@ -174,6 +182,14 @@
           commercant_id: commercantId,
           nom_restaurant: inputNomRestaurantEl.value.trim() || null,
           code_postal: cp || null,
+          ville: inputVilleEl.value.trim() || null,
+          // On réinitialise les coordonnées mises en cache à chaque
+          // enregistrement : un changement de code postal ou de ville doit
+          // être repris par la météo dès le prochain chargement du tableau
+          // de bord, plutôt que de garder d'anciennes coordonnées géocodées
+          // avant que la ville ne soit renseignée.
+          latitude: null,
+          longitude: null,
           jours_fermeture: joursFermeture,
           updated_at: new Date().toISOString()
         }).then(function (res) {
