@@ -23,21 +23,13 @@
         <a href="produits.html" class="nav-lien">Mes produits</a>
         <a href="ventes.html" class="nav-lien">Mes ventes</a>
         <a href="import.html" class="nav-lien">Importer</a>
+        <a href="parametres.html" class="nav-lien">Paramètres</a>
       </nav>
     </header>
 
     <p id="statutConnexion" class="texte-aide">Chargement...</p>
 
-    <div class="carte-page" id="carteLocalisation" style="display:none; margin-bottom: 20px;">
-      <p class="eyebrow">Une fois, pour affiner les prévisions</p>
-      <h2 style="margin: 0 0 6px;">Ton code postal</h2>
-      <p class="texte-aide">Sert à connaître automatiquement ta zone de vacances scolaires (A, B ou C), pour que les prévisions en tiennent compte. Demandé une seule fois, jamais retouché ensuite.</p>
-      <div class="ligne-form">
-        <input type="text" id="inputCodePostal" placeholder="Ex : 35400" maxlength="5" inputmode="numeric">
-        <button id="btnEnregistrerCodePostal" type="button">Enregistrer</button>
-      </div>
-      <p id="messageLocalisation" class="texte-aide" style="display:none; margin: 10px 0 0;"></p>
-    </div>
+    <p class="texte-aide" id="bandeauReglages" style="display:none; margin-bottom:16px;">💡 <a href="parametres.html">Complète tes réglages</a> (code postal, jours de fermeture) pour affiner les prévisions.</p>
 
     <div class="tableau-sombre">
       <div class="sombre-entete">
@@ -48,10 +40,10 @@
         <div class="sombre-badge" id="sombreBadge">— jour(s) d'historique</div>
       </div>
 
-      <div class="sombre-label">Production recommandée pour demain</div>
+      <div class="sombre-label" id="labelProduction">Production recommandée pour demain</div>
       <div class="grille-sombre" id="grilleRecommandations"></div>
 
-      <div class="sombre-label" id="labelIngredients" style="display:none;">Consommation d'ingrédients prévue pour demain</div>
+      <div class="sombre-label" id="labelIngredients" style="display:none;">Consommation d'ingrédients prévue</div>
       <div class="grille-sombre" id="grilleIngredients" style="display:none;"></div>
 
       <div class="sombre-label" id="labelSemaine" style="display:none;">Cette semaine</div>
@@ -392,11 +384,27 @@
         return false;
       }
 
+      // Renvoie la prochaine date, à partir de depuisDate exclue, qui n'est pas
+      // un jour de fermeture habituel. Sert à ne jamais recommander de
+      // production (ni de prévision individuelle) pour un jour où le commerce
+      // est fermé : on saute directement au prochain jour d'ouverture. Garde-fou
+      // à 7 itérations pour ne jamais boucler indéfiniment si jours_fermeture
+      // contenait par erreur les 7 jours de la semaine.
+      function prochainJourOuvert(depuisDate, joursFermeture) {
+        var d = new Date(depuisDate);
+        d.setDate(d.getDate() + 1);
+        var securite = 0;
+        while (joursFermeture && joursFermeture.indexOf(d.getDay()) !== -1 && securite < 7) {
+          d.setDate(d.getDate() + 1);
+          securite++;
+        }
+        return d;
+      }
+
       // Calcule la recommandation pour un produit, avec la comparaison ("delta")
       // par rapport à la dernière vente réelle du même jour de la semaine.
-      function calculerRecommandation(ventesDuProduit, zoneVacances) {
-        var jourCible = new Date();
-        jourCible.setDate(jourCible.getDate() + 1);
+      function calculerRecommandation(ventesDuProduit, zoneVacances, joursFermeture) {
+        var jourCible = prochainJourOuvert(new Date(), joursFermeture);
         var numeroJourCible = jourCible.getDay();
         var nomJourCible = nomsJours[numeroJourCible];
         var cibleFeriee = estJourFerie(jourCible);
@@ -583,7 +591,7 @@
         return valeursTriees[lo] + (valeursTriees[hi] - valeursTriees[lo]) * (idx - lo);
       }
 
-      function calculerPrevisionSemaine(ventes, zoneVacances) {
+      function calculerPrevisionSemaine(ventes, zoneVacances, joursFermeture) {
         var totauxParDate = {};
         ventes.forEach(function (v) {
           totauxParDate[v.date_vente] = (totauxParDate[v.date_vente] || 0) + v.quantite;
@@ -599,8 +607,9 @@
           var dateCible = new Date();
           dateCible.setDate(dateCible.getDate() + offset);
           var numeroJour = dateCible.getDay();
-          var cibleFeriee = estJourFerie(dateCible);
-          var cibleVacances = !cibleFeriee && estEnVacances(dateCible, zoneVacances);
+          var cibleFermee = !!(joursFermeture && joursFermeture.indexOf(numeroJour) !== -1);
+          var cibleFeriee = !cibleFermee && estJourFerie(dateCible);
+          var cibleVacances = !cibleFermee && !cibleFeriee && estEnVacances(dateCible, zoneVacances);
 
           // Comme pour la recommandation par produit : un jour férié ou en
           // vacances scolaires passé n'est pas représentatif d'un jour de
@@ -624,7 +633,12 @@
           var moyenne = moyennePonderee(base);
 
           var tier = 'normal';
-          if (cibleFeriee) {
+          if (cibleFermee) {
+            // Un jour de fermeture habituelle n'a rien à voir avec un signal
+            // d'affluence : ce n'est pas une donnée manquante, c'est un fait
+            // certain (fermé = fermé), donc prioritaire sur férié/vacances.
+            tier = 'ferme';
+          } else if (cibleFeriee) {
             // Un jour férié n'est comparé à rien : pas assez de données pour
             // dire honnêtement "chargé" ou "calme" par rapport à d'autres
             // jours fériés, et le comparer aux jours de semaine ordinaires
@@ -660,35 +674,8 @@
 
         statutDiv.textContent = session.user.email;
         var commercantId = session.user.id;
-
-        // Réglage ponctuel : le code postal sert uniquement à déduire la zone
-        // de vacances scolaires (A/B/C) automatiquement, sans jamais demander
-        // au commerçant de la connaître lui-même. Demandé une seule fois ;
-        // le formulaire se cache dès qu'il est renseigné.
-        var carteLocalisationEl = document.getElementById('carteLocalisation');
-        var inputCodePostalEl = document.getElementById('inputCodePostal');
-        var btnEnregistrerCodePostalEl = document.getElementById('btnEnregistrerCodePostal');
-        var messageLocalisationEl = document.getElementById('messageLocalisation');
-
-        btnEnregistrerCodePostalEl.addEventListener('click', function () {
-          var cp = inputCodePostalEl.value.trim();
-          if (!/^[0-9]{5}$/.test(cp)) {
-            messageLocalisationEl.style.display = 'block';
-            messageLocalisationEl.textContent = "Un code postal français fait 5 chiffres.";
-            return;
-          }
-          btnEnregistrerCodePostalEl.disabled = true;
-          sbClient.from('parametres_commercant').upsert({ commercant_id: commercantId, code_postal: cp, updated_at: new Date().toISOString() }).then(function (res) {
-            btnEnregistrerCodePostalEl.disabled = false;
-            if (res.error) {
-              messageLocalisationEl.style.display = 'block';
-              messageLocalisationEl.textContent = "Erreur : " + res.error.message;
-              return;
-            }
-            carteLocalisationEl.style.display = 'none';
-            location.reload();
-          });
-        });
+        var bandeauReglagesEl = document.getElementById('bandeauReglages');
+        var labelProductionEl = document.getElementById('labelProduction');
 
         Promise.all([
           sbClient.from('ventes').select('*').eq('commercant_id', commercantId),
@@ -701,8 +688,12 @@
           var ingredientsLignes = resultats[2].data || [];
           var parametres = (resultats[3].data && resultats[3].data[0]) || null;
           var zoneVacances = parametres ? zoneVacancesPourCodePostal(parametres.code_postal) : null;
+          var joursFermeture = (parametres && parametres.jours_fermeture) || [];
+          if (parametres && parametres.nom_restaurant) {
+            statutDiv.textContent = parametres.nom_restaurant;
+          }
           if (!parametres || !parametres.code_postal) {
-            carteLocalisationEl.style.display = 'block';
+            bandeauReglagesEl.style.display = 'block';
           }
           sombreBadgeEl.textContent = ventes.length + " jour(s) d'historique";
 
@@ -712,9 +703,9 @@
             return;
           }
 
-          var jourCible = new Date();
-          jourCible.setDate(jourCible.getDate() + 1);
+          var jourCible = prochainJourOuvert(new Date(), joursFermeture);
           sombreTitreEl.textContent = "Prévision pour " + capitaliser(nomsJours[jourCible.getDay()]);
+          labelProductionEl.textContent = "Production recommandée pour " + nomsJours[jourCible.getDay()];
 
           var parProduit = {};
           ventes.forEach(function (vente) {
@@ -725,7 +716,7 @@
           grille.innerHTML = '';
           var recommandationsParNom = {};
           Object.keys(parProduit).forEach(function (nomProduit) {
-            var r = calculerRecommandation(parProduit[nomProduit], zoneVacances);
+            var r = calculerRecommandation(parProduit[nomProduit], zoneVacances, joursFermeture);
             recommandationsParNom[nomProduit] = r.quantite;
 
             var deltaHTML = '';
@@ -762,6 +753,7 @@
           if (ingredients.length > 0) {
             var labelIngredientsEl = document.getElementById('labelIngredients');
             var grilleIngredientsEl = document.getElementById('grilleIngredients');
+            labelIngredientsEl.textContent = "Consommation d'ingrédients prévue pour " + nomsJours[jourCible.getDay()];
             labelIngredientsEl.style.display = 'block';
             grilleIngredientsEl.style.display = 'grid';
             grilleIngredientsEl.innerHTML = '';
@@ -776,7 +768,7 @@
             });
           }
 
-          var previsionSemaine = calculerPrevisionSemaine(ventes, zoneVacances);
+          var previsionSemaine = calculerPrevisionSemaine(ventes, zoneVacances, joursFermeture);
           if (previsionSemaine.length > 0) {
             var labelSemaineEl = document.getElementById('labelSemaine');
             var grilleSemaineEl = document.getElementById('grilleSemaine');
@@ -785,7 +777,10 @@
             grilleSemaineEl.innerHTML = '';
             previsionSemaine.forEach(function (j) {
               var badgeHTML, detailTexte;
-              if (j.tier === 'charge') {
+              if (j.tier === 'ferme') {
+                badgeHTML = '<span class="badge-jour badge-jour--ferme">Fermé</span>';
+                detailTexte = 'Jour de fermeture habituel.';
+              } else if (j.tier === 'charge') {
                 badgeHTML = '<span class="badge-jour badge-jour--charge">Jour chargé</span>';
                 detailTexte = 'Pense à prévoir du renfort.';
               } else if (j.tier === 'calme') {
