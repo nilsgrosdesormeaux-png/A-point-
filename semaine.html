@@ -245,6 +245,56 @@
         return false;
       }
 
+      // Météo à venir : purement informatif ici (une petite mention sur la
+      // carte du jour), contrairement au tableau de bord où elle ajuste le
+      // chiffre. Mêmes fonctions/API que sur le tableau de bord (voir
+      // tableau-de-bord.html pour le détail) ; les coordonnées, une fois
+      // géocodées une seule fois là-bas, sont déjà en cache ici aussi.
+      function geocoderCodePostal(codePostal) {
+        var url = 'https://geo.api.gouv.fr/communes?codePostal=' + encodeURIComponent(codePostal) + '&fields=centre&format=json';
+        return fetch(url).then(function (res) {
+          return res.ok ? res.json() : [];
+        }).then(function (communes) {
+          if (!communes || communes.length === 0 || !communes[0].centre || !communes[0].centre.coordinates) return null;
+          var coords = communes[0].centre.coordinates;
+          return { latitude: coords[1], longitude: coords[0] };
+        }).catch(function () { return null; });
+      }
+
+      function obtenirCoordonnees(parametres, commercantId) {
+        if (!parametres || !parametres.code_postal) return Promise.resolve(null);
+        if (parametres.latitude != null && parametres.longitude != null) {
+          return Promise.resolve({ latitude: parametres.latitude, longitude: parametres.longitude });
+        }
+        return geocoderCodePostal(parametres.code_postal).then(function (coords) {
+          if (!coords) return null;
+          sbClient.from('parametres_commercant').update({ latitude: coords.latitude, longitude: coords.longitude }).eq('commercant_id', commercantId);
+          return coords;
+        });
+      }
+
+      function categoriserMeteo(precipitation, temperatureMax) {
+        if (precipitation !== null && precipitation !== undefined && precipitation >= 1) return 'pluvieux';
+        if (temperatureMax !== null && temperatureMax !== undefined && temperatureMax >= 26) return 'chaud';
+        return 'normal';
+      }
+
+      function meteoDepuisReponse(data) {
+        var parJour = {};
+        if (data && data.daily && data.daily.time) {
+          data.daily.time.forEach(function (iso, i) {
+            parJour[iso] = categoriserMeteo(data.daily.precipitation_sum[i], data.daily.temperature_2m_max[i]);
+          });
+        }
+        return parJour;
+      }
+
+      function recupererMeteoPrevue(latitude, longitude) {
+        var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + latitude + '&longitude=' + longitude +
+          '&daily=precipitation_sum,temperature_2m_max&timezone=Europe%2FParis&forecast_days=10';
+        return fetch(url).then(function (res) { return res.ok ? res.json() : null; }).then(meteoDepuisReponse).catch(function () { return {}; });
+      }
+
       function retroTesterMethode(ventes, fonctionPrediction) {
         var parProduit = {};
         ventes.forEach(function (v) {
@@ -394,6 +444,18 @@
             return;
           }
 
+          // Météo à venir : best-effort, purement informatif sur cette page —
+          // une panne réseau n'empêche jamais d'afficher la semaine, elle
+          // affiche simplement les cartes sans la mention météo.
+          obtenirCoordonnees(parametres, commercantIdGlobal).then(function (coords) {
+            return coords ? recupererMeteoPrevue(coords.latitude, coords.longitude) : {};
+          }).catch(function () { return {}; }).then(function (meteoPrevue) {
+            afficherSemaine(ventes, zoneVacances, joursFermeture, evenements, meteoPrevue || {});
+          });
+        });
+      }
+
+      function afficherSemaine(ventes, zoneVacances, joursFermeture, evenements, meteoPrevue) {
           var previsionSemaine = calculerPrevisionSemaine(ventes, zoneVacances, joursFermeture, evenements);
           grilleSemaineEl.innerHTML = '';
           previsionSemaine.forEach(function (j) {
@@ -439,12 +501,25 @@
                 '</div>';
             }
 
+            // Mention météo, purement informative (n'influence ni le badge ni
+            // le texte ci-dessus) : inutile sur un jour déjà fermé.
+            var meteoHTML = '';
+            if (j.tier !== 'ferme' && meteoPrevue) {
+              var categorieJour = meteoPrevue[j.iso];
+              if (categorieJour === 'pluvieux') {
+                meteoHTML = '<p class="detail-meteo">🌧️ Pluie prévue</p>';
+              } else if (categorieJour === 'chaud') {
+                meteoHTML = '<p class="detail-meteo">☀️ Forte chaleur prévue</p>';
+              }
+            }
+
             var div = document.createElement('div');
             div.className = 'carte-sombre';
             div.innerHTML =
               '<p class="nom">' + capitaliser(nomsJoursCourts[j.date.getDay()]) + ' ' + j.date.getDate() + ' ' + nomsMoisCourts[j.date.getMonth()] + '</p>' +
               badgeHTML +
               '<p class="detail">' + detailTexte + '</p>' +
+              meteoHTML +
               actionsHTML;
             grilleSemaineEl.appendChild(div);
           });
@@ -460,7 +535,6 @@
             }
             carteFiabiliteEl.querySelector('.detail').textContent = detailFiabilite;
           }
-        });
       }
 
       grilleSemaineEl.addEventListener('click', function (evenement) {
