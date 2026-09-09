@@ -61,10 +61,18 @@
       var commercantId = null;
       var produits = [];
       
+      // Attention : toISOString() convertit en UTC, ce qui décale la date d'un
+      // jour entre minuit et l'heure du décalage horaire (ex: entre 0h et 2h en
+      // heure d'été française) — un commerçant qui saisit ses ventes tard le
+      // soir ou tôt le matin obtiendrait alors la mauvaise date. On construit
+      // la date à la main à partir des composants locaux à la place (même
+      // logique que versISO() sur le tableau de bord et la page Semaine).
       function dateHier() {
         var d = new Date();
         d.setDate(d.getDate() - 1);
-        return d.toISOString().split('T')[0];
+        var mm = ('0' + (d.getMonth() + 1)).slice(-2);
+        var jj = ('0' + d.getDate()).slice(-2);
+        return d.getFullYear() + '-' + mm + '-' + jj;
       }
 
       function afficherProduits() {
