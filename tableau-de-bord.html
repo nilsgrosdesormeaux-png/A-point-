@@ -43,6 +43,9 @@
       <div class="sombre-label" id="labelIngredients" style="display:none;">Consommation d'ingrédients prévue pour demain</div>
       <div class="grille-sombre" id="grilleIngredients" style="display:none;"></div>
 
+      <div class="sombre-label" id="labelSemaine" style="display:none;">Cette semaine</div>
+      <div class="grille-sombre" id="grilleSemaine" style="display:none;"></div>
+
       <div class="sombre-label">Vos résultats</div>
       <div class="grille-sombre" id="grilleResultats">
         <div class="carte-sombre">
@@ -81,6 +84,8 @@
 
       var nomsJours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
       var nomsMois = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+      var nomsJoursCourts = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+      var nomsMoisCourts = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 
       function capitaliser(texte) {
         return texte.charAt(0).toUpperCase() + texte.slice(1);
@@ -382,6 +387,72 @@
         });
       }
 
+      // Prévision d'affluence sur la semaine à venir : réutilise exactement le
+      // même moteur que la recommandation par produit (moyenne pondérée +
+      // exclusion des valeurs aberrantes), mais appliqué à la somme de toutes
+      // les ventes du jour plutôt qu'à un produit isolé. Le signal renvoyé
+      // n'est jamais un seuil ni un effectif deviné : chaque jour à venir est
+      // simplement situé dans la distribution de SES propres jours passés du
+      // même jour de semaine ("dans le haut de la fourchette pour un mercredi"),
+      // sans qu'aucune saisie n'ait jamais été demandée au commerçant.
+      function percentileValeur(valeursTriees, p) {
+        var idx = (valeursTriees.length - 1) * p;
+        var lo = Math.floor(idx), hi = Math.ceil(idx);
+        if (lo === hi) return valeursTriees[lo];
+        return valeursTriees[lo] + (valeursTriees[hi] - valeursTriees[lo]) * (idx - lo);
+      }
+
+      function calculerPrevisionSemaine(ventes) {
+        var totauxParDate = {};
+        ventes.forEach(function (v) {
+          totauxParDate[v.date_vente] = (totauxParDate[v.date_vente] || 0) + v.quantite;
+        });
+        var historiqueTotal = Object.keys(totauxParDate).map(function (d) {
+          return { date_vente: d, quantite: totauxParDate[d] };
+        }).sort(function (a, b) { return new Date(a.date_vente) - new Date(b.date_vente); });
+
+        if (historiqueTotal.length === 0) return [];
+
+        var jours = [];
+        for (var offset = 1; offset <= 7; offset++) {
+          var dateCible = new Date();
+          dateCible.setDate(dateCible.getDate() + offset);
+          var numeroJour = dateCible.getDay();
+
+          var memeJour = historiqueTotal.filter(function (t) {
+            return new Date(t.date_vente).getDay() === numeroJour;
+          });
+          var base = memeJour.length > 0 ? memeJour : historiqueTotal;
+          // Pas d'exclusion des valeurs aberrantes ici, volontairement : cette
+          // méthode (IQR) sert ailleurs à protéger une quantité de commande
+          // précise d'un jour isolé complètement raté (fermeture imprévue,
+          // erreur de saisie). Ici, sur seulement quelques points par jour de
+          // semaine, elle finit par exclure exactement les jours récents qui
+          // représentent un vrai changement de rythme (une tendance qui monte
+          // ou baisse depuis 2-3 semaines) — l'information qu'on veut justement
+          // détecter. Un signal qualitatif (chargé/calme/normal) tolère mieux
+          // qu'une quantité exacte qu'un jour isolé vraiment atypique influence
+          // un peu le résultat.
+          var moyenne = moyennePonderee(base);
+
+          var tier = 'normal';
+          if (memeJour.length >= 4) {
+            var quantitesTriees = base.map(function (v) { return v.quantite; }).sort(function (a, b) { return a - b; });
+            var q1 = percentileValeur(quantitesTriees, 0.25);
+            var q3 = percentileValeur(quantitesTriees, 0.75);
+            if (q3 > q1) {
+              if (moyenne > q3) tier = 'charge';
+              else if (moyenne < q1) tier = 'calme';
+            }
+          } else {
+            tier = 'insuffisant';
+          }
+
+          jours.push({ date: dateCible, nomJour: nomsJours[numeroJour], tier: tier });
+        }
+        return jours;
+      }
+
       sombreDateEl.textContent = "Aujourd'hui " + formatDateLongue(new Date());
 
       sbClient.auth.getSession().then(function (result) {
@@ -471,6 +542,38 @@
                 '<p class="nom">' + ing.nom + '</p>' +
                 '<p class="valeur">' + totalArrondi + (ing.unite ? ' ' + ing.unite : '') + '</p>';
               grilleIngredientsEl.appendChild(div);
+            });
+          }
+
+          var previsionSemaine = calculerPrevisionSemaine(ventes);
+          if (previsionSemaine.length > 0) {
+            var labelSemaineEl = document.getElementById('labelSemaine');
+            var grilleSemaineEl = document.getElementById('grilleSemaine');
+            labelSemaineEl.style.display = 'block';
+            grilleSemaineEl.style.display = 'grid';
+            grilleSemaineEl.innerHTML = '';
+            previsionSemaine.forEach(function (j) {
+              var badgeHTML, detailTexte;
+              if (j.tier === 'charge') {
+                badgeHTML = '<span class="badge-jour badge-jour--charge">Jour chargé</span>';
+                detailTexte = 'Pense à prévoir du renfort.';
+              } else if (j.tier === 'calme') {
+                badgeHTML = '<span class="badge-jour badge-jour--calme">Jour calme</span>';
+                detailTexte = 'Bonne occasion pour une offre ou une promo.';
+              } else if (j.tier === 'normal') {
+                badgeHTML = '<span class="badge-jour badge-jour--normal">Normal</span>';
+                detailTexte = 'Activité dans la moyenne des ' + j.nomJour + 's.';
+              } else {
+                badgeHTML = '<span class="badge-jour badge-jour--normal">—</span>';
+                detailTexte = "Pas encore assez de " + j.nomJour + "s enregistrés pour comparer.";
+              }
+              var div = document.createElement('div');
+              div.className = 'carte-sombre';
+              div.innerHTML =
+                '<p class="nom">' + capitaliser(nomsJoursCourts[j.date.getDay()]) + ' ' + j.date.getDate() + ' ' + nomsMoisCourts[j.date.getMonth()] + '</p>' +
+                badgeHTML +
+                '<p class="detail">' + detailTexte + '</p>';
+              grilleSemaineEl.appendChild(div);
             });
           }
 
