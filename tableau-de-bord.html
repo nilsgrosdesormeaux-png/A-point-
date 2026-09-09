@@ -28,6 +28,17 @@
 
     <p id="statutConnexion" class="texte-aide">Chargement...</p>
 
+    <div class="carte-page" id="carteLocalisation" style="display:none; margin-bottom: 20px;">
+      <p class="eyebrow">Une fois, pour affiner les prévisions</p>
+      <h2 style="margin: 0 0 6px;">Ton code postal</h2>
+      <p class="texte-aide">Sert à connaître automatiquement ta zone de vacances scolaires (A, B ou C), pour que les prévisions en tiennent compte. Demandé une seule fois, jamais retouché ensuite.</p>
+      <div class="ligne-form">
+        <input type="text" id="inputCodePostal" placeholder="Ex : 35400" maxlength="5" inputmode="numeric">
+        <button id="btnEnregistrerCodePostal" type="button">Enregistrer</button>
+      </div>
+      <p id="messageLocalisation" class="texte-aide" style="display:none; margin: 10px 0 0;"></p>
+    </div>
+
     <div class="tableau-sombre">
       <div class="sombre-entete">
         <div>
@@ -310,21 +321,94 @@
         return CACHE_JOURS_FERIES[annee].indexOf(versISO(date)) !== -1;
       }
 
+      // Vacances scolaires : contrairement aux jours fériés, pas une formule —
+      // dates publiées chaque année par le ministère, et zone (A/B/C) propre à
+      // chaque académie. Codées en dur pour les années scolaires 2025-2026 et
+      // 2026-2027 (sources : education.gouv.fr, vérifiées sur deux sites
+      // indépendants le 9 septembre 2026) ; à compléter à la main chaque
+      // année scolaire suivante — une fois par an, pas une charge récurrente.
+      var PERIODES_VACANCES = [
+        // 2025-2026
+        { debut: '2025-10-18', fin: '2025-11-03', zones: 'toutes' },   // Toussaint
+        { debut: '2025-12-20', fin: '2026-01-05', zones: 'toutes' },   // Noël
+        { debut: '2026-02-07', fin: '2026-02-23', zones: ['A'] },      // Hiver A
+        { debut: '2026-02-14', fin: '2026-03-02', zones: ['B'] },      // Hiver B
+        { debut: '2026-02-21', fin: '2026-03-09', zones: ['C'] },      // Hiver C
+        { debut: '2026-04-04', fin: '2026-04-20', zones: ['A'] },      // Printemps A
+        { debut: '2026-04-11', fin: '2026-04-27', zones: ['B'] },      // Printemps B
+        { debut: '2026-04-18', fin: '2026-05-04', zones: ['C'] },      // Printemps C
+        { debut: '2026-07-04', fin: '2026-08-31', zones: 'toutes' },   // Été 2026
+        // 2026-2027
+        { debut: '2026-10-17', fin: '2026-11-02', zones: 'toutes' },   // Toussaint
+        { debut: '2026-12-19', fin: '2027-01-04', zones: 'toutes' },   // Noël
+        { debut: '2027-02-13', fin: '2027-03-01', zones: ['A'] },      // Hiver A
+        { debut: '2027-02-20', fin: '2027-03-08', zones: ['B'] },      // Hiver B
+        { debut: '2027-02-06', fin: '2027-02-22', zones: ['C'] },      // Hiver C
+        { debut: '2027-04-10', fin: '2027-04-26', zones: ['A'] },      // Printemps A
+        { debut: '2027-04-17', fin: '2027-05-03', zones: ['B'] },      // Printemps B
+        { debut: '2027-04-03', fin: '2027-04-19', zones: ['C'] },      // Printemps C
+        { debut: '2027-07-03', fin: '2027-08-31', zones: 'toutes' }    // Été 2027 (fin indicative)
+      ];
+
+      // Correspondance département → académie → zone (académies au 9 sept
+      // 2026, source education.gouv.fr). La Corse (2A/2B) et les
+      // départements/collectivités d'outre-mer ont leur propre calendrier,
+      // non couvert ici : on préfère ne rien affirmer plutôt que deviner.
+      var DEPARTEMENT_VERS_ZONE = {};
+      (function () {
+        var parZone = {
+          A: ['25','39','70','90', '24','33','40','47','64', '03','15','43','63', '21','58','71','89', '07','26','38','73','74', '19','23','87', '01','42','69', '16','17','79','86'],
+          B: ['04','05','13', '02','60','80', '59','62', '54','55','57','88', '44','49','53','72','85', '06','83','84', '14','50','61','27','76', '18','28','36','37','41','45', '08','10','51','52', '22','29','35','56', '67','68'],
+          C: ['77','93','94', '11','30','34','48','66', '75', '09','12','31','32','46','65','81','82', '78','91','92','95']
+        };
+        Object.keys(parZone).forEach(function (zone) {
+          parZone[zone].forEach(function (dep) { DEPARTEMENT_VERS_ZONE[dep] = zone; });
+        });
+      })();
+
+      function codePostalVersDepartement(codePostal) {
+        var cp = (codePostal || '').trim();
+        if (!/^[0-9]{5}$/.test(cp)) return null;
+        if (cp.substring(0, 2) === '97' || cp.substring(0, 2) === '98') return cp.substring(0, 3);
+        if (cp.substring(0, 2) === '20') return null; // Corse : non couvert
+        return cp.substring(0, 2);
+      }
+
+      function zoneVacancesPourCodePostal(codePostal) {
+        var dep = codePostalVersDepartement(codePostal);
+        if (!dep) return null;
+        return DEPARTEMENT_VERS_ZONE[dep] || null;
+      }
+
+      function estEnVacances(date, zone) {
+        if (!zone) return false;
+        var iso = versISO(date);
+        for (var i = 0; i < PERIODES_VACANCES.length; i++) {
+          var p = PERIODES_VACANCES[i];
+          if (iso >= p.debut && iso <= p.fin) {
+            if (p.zones === 'toutes' || p.zones.indexOf(zone) !== -1) return true;
+          }
+        }
+        return false;
+      }
+
       // Calcule la recommandation pour un produit, avec la comparaison ("delta")
       // par rapport à la dernière vente réelle du même jour de la semaine.
-      function calculerRecommandation(ventesDuProduit) {
+      function calculerRecommandation(ventesDuProduit, zoneVacances) {
         var jourCible = new Date();
         jourCible.setDate(jourCible.getDate() + 1);
         var numeroJourCible = jourCible.getDay();
         var nomJourCible = nomsJours[numeroJourCible];
         var cibleFeriee = estJourFerie(jourCible);
+        var cibleVacances = !cibleFeriee && estEnVacances(jourCible, zoneVacances);
 
-        // Un jour férié tombant un mardi ne se comporte pas comme un mardi
-        // normal : on l'écarte des mardis "normaux" utilisés comme référence,
-        // pour ne pas fausser la moyenne des jours ordinaires avec lui.
+        // Un jour férié ou en vacances scolaires tombant un mardi ne se
+        // comporte pas comme un mardi normal : on l'écarte des mardis
+        // "normaux" utilisés comme référence, pour ne pas fausser la moyenne
+        // des jours ordinaires avec lui.
         var ventesMemeJour = ventesDuProduit.filter(function (vente) {
           var d = new Date(vente.date_vente);
-          return d.getDay() === numeroJourCible && !estJourFerie(d);
+          return d.getDay() === numeroJourCible && !estJourFerie(d) && !estEnVacances(d, zoneVacances);
         });
 
         var baseVentes = ventesMemeJour.length > 0 ? ventesMemeJour : ventesDuProduit;
@@ -349,6 +433,8 @@
         }
         if (cibleFeriee) {
           texteBase = "⚠️ Jour férié : l'activité peut différer d'un " + nomJourCible + " normal. " + texteBase;
+        } else if (cibleVacances) {
+          texteBase = "🏖️ Vacances scolaires : l'activité peut différer d'un " + nomJourCible + " normal. " + texteBase;
         }
 
         var delta = null;
@@ -367,7 +453,8 @@
           texteBase: texteBase,
           delta: delta,
           fourchette: fourchette,
-          jourFerie: cibleFeriee
+          jourFerie: cibleFeriee,
+          vacancesScolaires: cibleVacances
         };
       }
 
@@ -496,7 +583,7 @@
         return valeursTriees[lo] + (valeursTriees[hi] - valeursTriees[lo]) * (idx - lo);
       }
 
-      function calculerPrevisionSemaine(ventes) {
+      function calculerPrevisionSemaine(ventes, zoneVacances) {
         var totauxParDate = {};
         ventes.forEach(function (v) {
           totauxParDate[v.date_vente] = (totauxParDate[v.date_vente] || 0) + v.quantite;
@@ -513,13 +600,15 @@
           dateCible.setDate(dateCible.getDate() + offset);
           var numeroJour = dateCible.getDay();
           var cibleFeriee = estJourFerie(dateCible);
+          var cibleVacances = !cibleFeriee && estEnVacances(dateCible, zoneVacances);
 
-          // Comme pour la recommandation par produit : un jour férié passé
-          // n'est pas représentatif d'un jour de semaine "normal", on l'écarte
-          // de la référence utilisée pour les jours ordinaires.
+          // Comme pour la recommandation par produit : un jour férié ou en
+          // vacances scolaires passé n'est pas représentatif d'un jour de
+          // semaine "normal", on l'écarte de la référence utilisée pour les
+          // jours ordinaires.
           var memeJour = historiqueTotal.filter(function (t) {
             var d = new Date(t.date_vente);
-            return d.getDay() === numeroJour && !estJourFerie(d);
+            return d.getDay() === numeroJour && !estJourFerie(d) && !estEnVacances(d, zoneVacances);
           });
           var base = memeJour.length > 0 ? memeJour : historiqueTotal;
           // Pas d'exclusion des valeurs aberrantes ici, volontairement : cette
@@ -541,6 +630,8 @@
             // jours fériés, et le comparer aux jours de semaine ordinaires
             // n'aurait pas de sens.
             tier = 'ferie';
+          } else if (cibleVacances) {
+            tier = 'vacances';
           } else if (memeJour.length >= 4) {
             var quantitesTriees = base.map(function (v) { return v.quantite; }).sort(function (a, b) { return a - b; });
             var q1 = percentileValeur(quantitesTriees, 0.25);
@@ -570,14 +661,49 @@
         statutDiv.textContent = session.user.email;
         var commercantId = session.user.id;
 
+        // Réglage ponctuel : le code postal sert uniquement à déduire la zone
+        // de vacances scolaires (A/B/C) automatiquement, sans jamais demander
+        // au commerçant de la connaître lui-même. Demandé une seule fois ;
+        // le formulaire se cache dès qu'il est renseigné.
+        var carteLocalisationEl = document.getElementById('carteLocalisation');
+        var inputCodePostalEl = document.getElementById('inputCodePostal');
+        var btnEnregistrerCodePostalEl = document.getElementById('btnEnregistrerCodePostal');
+        var messageLocalisationEl = document.getElementById('messageLocalisation');
+
+        btnEnregistrerCodePostalEl.addEventListener('click', function () {
+          var cp = inputCodePostalEl.value.trim();
+          if (!/^[0-9]{5}$/.test(cp)) {
+            messageLocalisationEl.style.display = 'block';
+            messageLocalisationEl.textContent = "Un code postal français fait 5 chiffres.";
+            return;
+          }
+          btnEnregistrerCodePostalEl.disabled = true;
+          sbClient.from('parametres_commercant').upsert({ commercant_id: commercantId, code_postal: cp, updated_at: new Date().toISOString() }).then(function (res) {
+            btnEnregistrerCodePostalEl.disabled = false;
+            if (res.error) {
+              messageLocalisationEl.style.display = 'block';
+              messageLocalisationEl.textContent = "Erreur : " + res.error.message;
+              return;
+            }
+            carteLocalisationEl.style.display = 'none';
+            location.reload();
+          });
+        });
+
         Promise.all([
           sbClient.from('ventes').select('*').eq('commercant_id', commercantId),
           sbClient.from('produits').select('*').eq('commercant_id', commercantId),
-          sbClient.from('ingredients_produit').select('*').eq('commercant_id', commercantId)
+          sbClient.from('ingredients_produit').select('*').eq('commercant_id', commercantId),
+          sbClient.from('parametres_commercant').select('*').eq('commercant_id', commercantId)
         ]).then(function (resultats) {
           var ventes = resultats[0].data || [];
           var produits = resultats[1].data || [];
           var ingredientsLignes = resultats[2].data || [];
+          var parametres = (resultats[3].data && resultats[3].data[0]) || null;
+          var zoneVacances = parametres ? zoneVacancesPourCodePostal(parametres.code_postal) : null;
+          if (!parametres || !parametres.code_postal) {
+            carteLocalisationEl.style.display = 'block';
+          }
           sombreBadgeEl.textContent = ventes.length + " jour(s) d'historique";
 
           if (ventes.length === 0) {
@@ -599,7 +725,7 @@
           grille.innerHTML = '';
           var recommandationsParNom = {};
           Object.keys(parProduit).forEach(function (nomProduit) {
-            var r = calculerRecommandation(parProduit[nomProduit]);
+            var r = calculerRecommandation(parProduit[nomProduit], zoneVacances);
             recommandationsParNom[nomProduit] = r.quantite;
 
             var deltaHTML = '';
@@ -650,7 +776,7 @@
             });
           }
 
-          var previsionSemaine = calculerPrevisionSemaine(ventes);
+          var previsionSemaine = calculerPrevisionSemaine(ventes, zoneVacances);
           if (previsionSemaine.length > 0) {
             var labelSemaineEl = document.getElementById('labelSemaine');
             var grilleSemaineEl = document.getElementById('grilleSemaine');
@@ -667,6 +793,9 @@
                 detailTexte = 'Bonne occasion pour une offre ou une promo.';
               } else if (j.tier === 'ferie') {
                 badgeHTML = '<span class="badge-jour badge-jour--ferie">Jour férié</span>';
+                detailTexte = "L'activité peut être différente d'un jour normal.";
+              } else if (j.tier === 'vacances') {
+                badgeHTML = '<span class="badge-jour badge-jour--vacances">Vacances scolaires</span>';
                 detailTexte = "L'activité peut être différente d'un jour normal.";
               } else if (j.tier === 'normal') {
                 badgeHTML = '<span class="badge-jour badge-jour--normal">Normal</span>';
