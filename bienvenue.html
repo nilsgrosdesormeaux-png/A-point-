@@ -170,11 +170,29 @@
       <h1 style="font-size: 22px;">À quoi sert l'outil ?</h1>
       <p class="texte-aide">À Point regarde ton historique de ventes et te dit, chaque jour, <strong style="color: var(--texte);">quelle quantité produire ou commander</strong> pour ton prochain jour d'ouverture — sans que tu aies besoin de faire le calcul toi-même.</p>
       <ul class="pitch-liste">
-        <li>Il apprend directement de <strong>tes propres ventes passées</strong>, produit par produit — pas d'un modèle générique qui suppose que ta boulangerie ressemble à une autre.</li>
+        <li>Il apprend directement de <strong>tes propres ventes passées</strong>, produit par produit — pas d'un modèle générique qui suppose que ton commerce ressemble à un autre.</li>
         <li>Il tient compte automatiquement des <strong>jours fériés</strong>, des <strong>vacances scolaires</strong> de ta zone, et de la <strong>météo prévue</strong> (par exemple, plus de fréquentation quand il pleut, différemment selon le produit).</li>
         <li>Tu peux aussi signaler toi-même un <strong>événement particulier</strong> attendu (marché local, jour férié atypique, événement dans le quartier) pour ajuster la recommandation ce jour-là.</li>
         <li>Il donne une <strong>fourchette</strong> plutôt qu'un chiffre unique qui ferait semblant d'être certain — plus ton historique est long et régulier, plus la fourchette se resserre.</li>
-        <li>Une fois tes ventes renseignées, il n'y a <strong>aucune tâche manuelle récurrente</strong> à part regarder le tableau de bord et, chaque jour, noter combien tu as vendu la veille (30 secondes).</li>
+        <li>Une fois l'historique de départ chargé, il suffit de le garder à jour : soit en notant chaque jour ce que tu as vendu la veille (30 secondes, sur « Mes ventes »), soit en réimportant de temps en temps ton fichier d'export de caisse pour que tout s'ajoute d'un coup, automatiquement. En dehors de ça, la seule chose à faire au quotidien est de consulter le tableau de bord.</li>
+      </ul>
+
+      <p class="section-titre" style="margin-top: 26px;">Pourquoi pas continuer à l'estimer soi-même ?</p>
+      <p class="texte-aide">Beaucoup de commerçants ajustent leur production « au feeling », à partir de ce dont ils se souviennent des jours précédents. Ça fonctionne, mais avec des limites bien réelles : la mémoire retient surtout les jours extrêmes (celui où tout est parti, celui où il a fallu jeter), pas la moyenne réelle ; il est difficile de comparer mentalement un samedi de pluie à un samedi ensoleillé, ou de se rappeler que les vacances scolaires changent la fréquentation d'un quartier à l'autre ; et ce calcul doit être refait chaque jour, pour chaque produit, ce qui prend du temps et de l'attention. À Point fait ce travail de façon systématique : il regarde tout l'historique réellement disponible — pas seulement ce dont on se souvient — traite chaque produit séparément, et applique toujours la même méthode. Ça réduit à la fois le risque de produire trop (invendus, gaspillage, argent perdu) et de produire trop peu (rupture, client déçu). Ce n'est pas magique ni infaillible (voir plus bas), mais c'est plus systématique que l'instinct seul, sans demander plus de travail au quotidien qu'avant.</p>
+    </div>
+  </div>
+
+  <div class="section-bienvenue">
+    <div class="carte-page">
+      <p class="eyebrow">DANS LE DÉTAIL</p>
+      <h1 style="font-size: 22px;">Comment la quantité recommandée est calculée</h1>
+      <p class="texte-aide">Pas besoin de comprendre cette partie pour utiliser l'outil au quotidien, mais si tu veux savoir ce qu'il y a derrière le chiffre affiché :</p>
+      <ul class="pitch-liste">
+        <li>Pour chaque produit et chaque jour, l'outil part de <strong>tes ventes passées pour ce même jour de semaine</strong> (par exemple, tous tes jeudis) et calcule une moyenne.</li>
+        <li>C'est une <strong>moyenne pondérée</strong> : tes ventes les plus récentes comptent plus que les anciennes, pour suivre une tendance (hausse ou baisse) plutôt que de rester bloqué sur une ancienne habitude.</li>
+        <li>Un jour <strong>exceptionnel et isolé</strong> (une vente très en dehors de la normale, à la hausse comme à la baisse) est automatiquement écarté du calcul pour ne pas fausser la moyenne.</li>
+        <li>Un seul ajustement supplémentaire est ensuite appliqué si la situation le justifie — jamais plusieurs à la fois — dans cet ordre de priorité : <strong>un jour de fermeture connu</strong>, <strong>un événement que tu as signalé toi-même</strong>, <strong>un jour férié</strong>, <strong>les vacances scolaires</strong> de ta zone, puis <strong>la météo prévue</strong>.</li>
+        <li>Le résultat est toujours présenté avec une <strong>fourchette</strong> (par exemple « entre 67 et 76 ») plutôt qu'un chiffre unique qui ferait semblant d'être certain — plus ton historique est long et régulier, plus cette fourchette se resserre.</li>
       </ul>
     </div>
   </div>
@@ -197,7 +215,8 @@
       <div>
         <p class="etape-titre">Ajouter tes produits</p>
       </div>
-      <p class="etape-texte">Dans <strong>« Mes produits »</strong>, ajoute chaque produit que tu veux suivre (ex : Baguette tradition, Croissant, Pain au chocolat...). Un produit composé de plusieurs ingrédients (comme un burger) peut aussi avoir sa propre « fiche technique » pour qu'À Point calcule directement la quantité d'ingrédients nécessaires — c'est optionnel, à faire seulement si ça t'intéresse.</p>
+      <p class="etape-texte">Dans <strong>« Mes produits »</strong>, ajoute chaque produit que tu veux suivre (ex : Baguette tradition, Plat du jour, Café...). C'est la liste que l'outil utilisera ensuite pour reconnaître tes ventes — pas besoin de tous les ajouter à la main avant de commencer : un import de fichier (étape suivante) crée automatiquement les produits qu'il ne connaît pas encore.</p>
+      <p class="etape-texte">Un produit composé de plusieurs ingrédients (comme un burger ou un plat préparé) peut aussi avoir sa propre <strong>« fiche technique »</strong> : clique sur le produit, puis ajoute chaque ingrédient et la quantité utilisée. À Point peut alors calculer directement, en plus de la quantité de produits à préparer, la <strong>quantité totale d'ingrédients nécessaires</strong>. C'est entièrement optionnel — utile pour un plat composé, inutile pour un produit simple comme un croissant. Tu peux les ajouter un par un ici, ou d'un coup par fichier si tu en as déjà la liste quelque part (voir l'étape suivante).</p>
       <div class="etape-capture"><img src="captures-tuto/3-produits.png" alt="Écran Mes produits"></div>
     </div>
 
@@ -206,21 +225,23 @@
       <div>
         <p class="etape-titre">Renseigner ton historique de ventes</p>
       </div>
-      <p class="etape-texte">C'est l'étape la plus importante : plus l'historique est long, plus les prévisions sont fiables. Deux façons de faire, selon ta situation :</p>
+      <p class="etape-texte">C'est l'étape la plus importante : les prévisions sont calculées à partir de <strong>tes propres ventes passées</strong>, donc plus cet historique est long et régulier, plus elles seront fiables. Avec très peu de données au départ, l'outil reste prudent (fourchettes larges) — c'est normal, ça se resserre au fur et à mesure. Deux façons de charger cet historique, selon ta situation :</p>
       <div class="bloc-choix">
         <div class="choix-carte">
           <p class="titre-choix">Tu as un export de ta caisse</p>
-          <p>Va dans <strong>« Importer »</strong>, dépose ton fichier CSV ou Excel. À Point essaie de reconnaître automatiquement les colonnes (date, produit, quantité) — tu peux vérifier et corriger avant de valider.</p>
+          <p>Va dans <strong>« Importer »</strong>, onglet « Mes ventes », et dépose ton fichier CSV ou Excel (.csv, .xlsx, .xls). Il doit juste contenir, quelque part, une colonne avec une <strong>date</strong>, une avec le <strong>nom du produit</strong>, et une avec la <strong>quantité vendue</strong> — peu importe l'ordre des colonnes ou leur nom exact (« date », « jour », « quantité », « qté »... sont tous reconnus). À Point essaie de les détecter automatiquement et t'affiche un aperçu ligne par ligne avant d'importer quoi que ce soit ; si une colonne n'est pas reconnue, tu peux la choisir toi-même dans un menu déroulant. Les produits qui n'existent pas encore dans « Mes produits » sont créés automatiquement au passage.</p>
         </div>
         <div class="choix-carte">
           <p class="titre-choix">Tu n'as pas d'export</p>
-          <p>Va dans <strong>« Mes ventes »</strong> et note, chaque jour, ce que tu as vendu la veille pour chaque produit. Ça prend 30 secondes et l'historique se construit tout seul, jour après jour.</p>
+          <p>Va dans <strong>« Mes ventes »</strong> et note, chaque jour, ce que tu as vendu la veille pour chaque produit. Ça prend 30 secondes et l'historique se construit tout seul, jour après jour — les toutes premières semaines seront juste moins précises, le temps d'accumuler assez de données.</p>
         </div>
       </div>
       <p class="etape-texte" style="margin-bottom: 8px;">Voici l'écran d'import :</p>
       <div class="etape-capture" style="margin-bottom: 18px;"><img src="captures-tuto/4-import.png" alt="Écran d'import de fichier de ventes"></div>
       <p class="etape-texte" style="margin-bottom: 8px;">Et l'écran de saisie quotidienne :</p>
       <div class="etape-capture"><img src="captures-tuto/5-ventes.png" alt="Écran de saisie des ventes de la veille"></div>
+      <p class="etape-note">⚠️ Si tu importes un fichier, évite d'importer deux fois des dates qui se chevauchent avec un import précédent : les ventes seraient comptées en double pour ces jours-là. En cas de doute, mieux vaut tout réimporter d'un coup avec un seul fichier complet plutôt que par petits bouts qui se recoupent.</p>
+      <p class="etape-texte" style="margin: 18px 0 0;">Bonus — tu as aussi un fichier avec tes recettes ? Le même écran « Importer » a un second onglet, <strong>« Mes fiches techniques »</strong>, qui fonctionne pareil : dépose un fichier avec le produit, l'ingrédient, la quantité et l'unité, et tout est importé d'un coup — pratique si tu as déjà cette liste quelque part plutôt que de la ressaisir produit par produit dans « Mes produits ».</p>
     </div>
 
     <div class="etape">
@@ -237,7 +258,7 @@
       <div>
         <p class="etape-titre">Consulter ton tableau de bord chaque jour</p>
       </div>
-      <p class="etape-texte">C'est l'écran que tu regarderas au quotidien. Il affiche, pour ton prochain jour d'ouverture, la <strong>quantité recommandée par produit</strong>, une <strong>fourchette</strong>, la comparaison avec le même jour la semaine dernière, et — quand ça joue un rôle — la raison d'un ajustement (jour férié, vacances, météo, événement signalé).</p>
+      <p class="etape-texte">C'est l'écran que tu regarderas au quotidien. Il affiche, pour ton prochain jour d'ouverture, la <strong>quantité recommandée par produit</strong>, une <strong>fourchette</strong>, la comparaison avec le même jour la semaine dernière, et — quand ça joue un rôle — la raison d'un ajustement (jour férié, vacances, météo, événement signalé). Le détail de ce calcul est expliqué plus haut, dans « Comment la quantité recommandée est calculée ».</p>
       <div class="etape-capture"><img src="captures-tuto/7-tableau-de-bord.png" alt="Tableau de bord avec les recommandations du jour"></div>
       <p class="etape-note">Un onglet <strong>« Semaine »</strong> donne aussi une vue sur les 7 prochains jours d'un coup, avec un badge par jour (normal, calme, chargé, fermé...) et la possibilité de signaler toi-même un jour où tu attends plus ou moins de monde que d'habitude.</p>
       <div class="etape-capture" style="margin-top: 14px;"><img src="captures-tuto/8-semaine.png" alt="Vue de la semaine à venir"></div>
