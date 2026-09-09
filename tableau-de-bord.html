@@ -379,6 +379,76 @@
         return false;
       }
 
+      // Météo : automatique dès que le code postal est connu (déjà collecté
+      // pour les vacances scolaires), sans aucune saisie supplémentaire.
+      // Géocodage une seule fois via l'API officielle geo.api.gouv.fr (gratuite,
+      // sans clé), mis en cache dans parametres_commercant pour ne jamais le
+      // refaire. Météo passée et à venir via Open-Meteo (gratuite, sans clé,
+      // historique + prévision jusqu'à 10 jours). Tout est best-effort : une
+      // panne réseau ou un service indisponible ne bloque jamais l'affichage,
+      // la météo est simplement absente ce chargement-là, comme n'importe
+      // quel autre signal optionnel de ce tableau de bord.
+      function geocoderCodePostal(codePostal) {
+        var url = 'https://geo.api.gouv.fr/communes?codePostal=' + encodeURIComponent(codePostal) + '&fields=centre&format=json';
+        return fetch(url).then(function (res) {
+          return res.ok ? res.json() : [];
+        }).then(function (communes) {
+          if (!communes || communes.length === 0 || !communes[0].centre || !communes[0].centre.coordinates) return null;
+          var coords = communes[0].centre.coordinates; // [longitude, latitude]
+          return { latitude: coords[1], longitude: coords[0] };
+        }).catch(function () { return null; });
+      }
+
+      // Récupère, une seule fois par commerçant, les coordonnées géographiques
+      // à partir du code postal déjà enregistré — en cache si déjà connues,
+      // sinon géocodées puis sauvegardées pour la prochaine fois (écriture
+      // best-effort : son échec éventuel n'empêche pas la météo de fonctionner
+      // pour ce chargement-ci).
+      function obtenirCoordonnees(parametres, commercantId) {
+        if (!parametres || !parametres.code_postal) return Promise.resolve(null);
+        if (parametres.latitude != null && parametres.longitude != null) {
+          return Promise.resolve({ latitude: parametres.latitude, longitude: parametres.longitude });
+        }
+        return geocoderCodePostal(parametres.code_postal).then(function (coords) {
+          if (!coords) return null;
+          sbClient.from('parametres_commercant').update({ latitude: coords.latitude, longitude: coords.longitude }).eq('commercant_id', commercantId);
+          return coords;
+        });
+      }
+
+      // Un jour est classé "pluvieux" si au moins 1mm de pluie est tombé,
+      // "chaud" à partir de 26°C, sinon "normal" — seuils volontairement
+      // simples plutôt qu'un calcul météorologique poussé, suffisants pour
+      // détecter un effet réel sur les ventes.
+      function categoriserMeteo(precipitation, temperatureMax) {
+        if (precipitation !== null && precipitation !== undefined && precipitation >= 1) return 'pluvieux';
+        if (temperatureMax !== null && temperatureMax !== undefined && temperatureMax >= 26) return 'chaud';
+        return 'normal';
+      }
+
+      function meteoDepuisReponse(data) {
+        var parJour = {};
+        if (data && data.daily && data.daily.time) {
+          data.daily.time.forEach(function (iso, i) {
+            parJour[iso] = categoriserMeteo(data.daily.precipitation_sum[i], data.daily.temperature_2m_max[i]);
+          });
+        }
+        return parJour;
+      }
+
+      function recupererMeteoPassee(latitude, longitude, dateDebut, dateFin) {
+        var url = 'https://archive-api.open-meteo.com/v1/archive?latitude=' + latitude + '&longitude=' + longitude +
+          '&start_date=' + dateDebut + '&end_date=' + dateFin +
+          '&daily=precipitation_sum,temperature_2m_max&timezone=Europe%2FParis';
+        return fetch(url).then(function (res) { return res.ok ? res.json() : null; }).then(meteoDepuisReponse).catch(function () { return {}; });
+      }
+
+      function recupererMeteoPrevue(latitude, longitude) {
+        var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + latitude + '&longitude=' + longitude +
+          '&daily=precipitation_sum,temperature_2m_max&timezone=Europe%2FParis&forecast_days=10';
+        return fetch(url).then(function (res) { return res.ok ? res.json() : null; }).then(meteoDepuisReponse).catch(function () { return {}; });
+      }
+
       // Renvoie la prochaine date, à partir de depuisDate exclue, qui n'est pas
       // un jour de fermeture habituel. Sert à ne jamais recommander de
       // production (ni de prévision individuelle) pour un jour où le commerce
@@ -398,16 +468,20 @@
 
       // Calcule la recommandation pour un produit, avec la comparaison ("delta")
       // par rapport à la dernière vente réelle du même jour de la semaine.
-      function calculerRecommandation(ventesDuProduit, zoneVacances, joursFermeture, evenements) {
+      function calculerRecommandation(ventesDuProduit, zoneVacances, joursFermeture, evenements, meteoPassee, meteoPrevue) {
         var jourCible = prochainJourOuvert(new Date(), joursFermeture);
         var numeroJourCible = jourCible.getDay();
         var nomJourCible = nomsJours[numeroJourCible];
+        var isoCible = versISO(jourCible);
         // Un événement signalé à la main sur le jour cible (page Semaine) prime
         // sur férié/vacances scolaires : le commerçant sait quelque chose que
         // l'historique seul ne peut pas deviner.
-        var evenementCible = evenements ? evenements[versISO(jourCible)] : undefined;
+        var evenementCible = evenements ? evenements[isoCible] : undefined;
         var cibleFeriee = !evenementCible && estJourFerie(jourCible);
         var cibleVacances = !evenementCible && !cibleFeriee && estEnVacances(jourCible, zoneVacances);
+        // La météo n'ajuste le chiffre que si aucun autre signal (plus certain
+        // ou plus explicite) ne s'applique déjà — pas de cumul d'incertitudes.
+        var meteoCible = (!evenementCible && !cibleFeriee && !cibleVacances && meteoPrevue) ? meteoPrevue[isoCible] : undefined;
 
         // Un jour férié ou en vacances scolaires tombant un mardi ne se
         // comporte pas comme un mardi normal : on l'écarte des mardis
@@ -427,6 +501,36 @@
         var baseFinale = filtrage.ventesFiltrees;
         var moyenne = moyennePonderee(baseFinale);
         var quantite = Math.round(moyenne * 1.1);
+
+        // Ajustement météo : compare, parmi les jours de même jour de semaine,
+        // ceux qui avaient la même catégorie météo (pluvieux/chaud) à
+        // l'ensemble de ces jours-là — jamais à tout l'historique tous jours
+        // confondus, pour isoler l'effet météo de l'effet jour de semaine.
+        // Nécessite au moins 3 jours passés dans cette catégorie et 5 jours
+        // au total pour avoir un repère ; l'écart est plafonné à ±40% pour
+        // qu'un petit échantillon ne fasse jamais dérailler la recommandation.
+        var ajustementMeteo = null;
+        if (meteoCible && meteoCible !== 'normal' && meteoPassee && ventesMemeJour.length >= 5) {
+          var joursAvecCategorie = ventesMemeJour.filter(function (v) { return meteoPassee[v.date_vente] === meteoCible; });
+          if (joursAvecCategorie.length >= 3) {
+            var sommeCategorie = 0;
+            joursAvecCategorie.forEach(function (v) { sommeCategorie += v.quantite; });
+            var moyenneCategorie = sommeCategorie / joursAvecCategorie.length;
+            var sommeGlobale = 0;
+            ventesMemeJour.forEach(function (v) { sommeGlobale += v.quantite; });
+            var moyenneGlobale = sommeGlobale / ventesMemeJour.length;
+            if (moyenneGlobale > 0) {
+              var ratio = Math.max(0.6, Math.min(1.4, moyenneCategorie / moyenneGlobale));
+              if (Math.abs(ratio - 1) >= 0.08) {
+                ajustementMeteo = { ratio: ratio, categorie: meteoCible, nbJours: joursAvecCategorie.length };
+              }
+            }
+          }
+        }
+        if (ajustementMeteo) {
+          quantite = Math.round(quantite * ajustementMeteo.ratio);
+        }
+
         var fourchette = calculerFourchette(baseFinale, moyenne, quantite);
 
         var texteBase;
@@ -453,6 +557,11 @@
           texteBase = "⚠️ Jour férié : l'activité peut différer d'un " + nomJourCible + " normal. " + texteBase;
         } else if (cibleVacances) {
           texteBase = "🏖️ Vacances scolaires : l'activité peut différer d'un " + nomJourCible + " normal. " + texteBase;
+        } else if (ajustementMeteo) {
+          var motMeteo = ajustementMeteo.categorie === 'pluvieux' ? 'pluie' : 'forte chaleur';
+          var icone = ajustementMeteo.categorie === 'pluvieux' ? '🌧️' : '☀️';
+          var sens = ajustementMeteo.ratio > 1 ? 'vendent plutôt plus' : 'vendent plutôt moins';
+          texteBase = icone + " " + capitaliser(motMeteo) + " prévue : tes " + nomJourCible + "s de " + motMeteo + " " + sens + " que la moyenne (" + ajustementMeteo.nbJours + " observé(s)). " + texteBase;
         }
 
         var delta = null;
@@ -564,71 +673,93 @@
             return;
           }
 
-          var jourCible = prochainJourOuvert(new Date(), joursFermeture);
-          sombreTitreEl.textContent = "Prévision pour " + capitaliser(nomsJours[jourCible.getDay()]);
-          labelProductionEl.textContent = "Production recommandée pour " + nomsJours[jourCible.getDay()];
+          function afficherRecommandations(meteoPassee, meteoPrevue) {
+            var jourCible = prochainJourOuvert(new Date(), joursFermeture);
+            sombreTitreEl.textContent = "Prévision pour " + capitaliser(nomsJours[jourCible.getDay()]);
+            labelProductionEl.textContent = "Production recommandée pour " + nomsJours[jourCible.getDay()];
 
-          var parProduit = {};
-          ventes.forEach(function (vente) {
-            if (!parProduit[vente.nom_produit]) parProduit[vente.nom_produit] = [];
-            parProduit[vente.nom_produit].push(vente);
-          });
+            var parProduit = {};
+            ventes.forEach(function (vente) {
+              if (!parProduit[vente.nom_produit]) parProduit[vente.nom_produit] = [];
+              parProduit[vente.nom_produit].push(vente);
+            });
 
-          grille.innerHTML = '';
-          var recommandationsParNom = {};
-          Object.keys(parProduit).forEach(function (nomProduit) {
-            var r = calculerRecommandation(parProduit[nomProduit], zoneVacances, joursFermeture, evenements);
-            recommandationsParNom[nomProduit] = r.quantite;
+            grille.innerHTML = '';
+            var recommandationsParNom = {};
+            Object.keys(parProduit).forEach(function (nomProduit) {
+              var r = calculerRecommandation(parProduit[nomProduit], zoneVacances, joursFermeture, evenements, meteoPassee, meteoPrevue);
+              recommandationsParNom[nomProduit] = r.quantite;
 
-            var deltaHTML = '';
-            if (r.delta !== null) {
-              if (r.delta > 0) {
-                deltaHTML = '<p class="delta delta-hausse">+' + r.delta + ' vs la semaine dernière</p>';
-              } else if (r.delta < 0) {
-                deltaHTML = '<p class="delta delta-baisse">' + r.delta + ' vs la semaine dernière</p>';
-              } else {
-                deltaHTML = '<p class="delta delta-stable">Stable vs la semaine dernière</p>';
+              var deltaHTML = '';
+              if (r.delta !== null) {
+                if (r.delta > 0) {
+                  deltaHTML = '<p class="delta delta-hausse">+' + r.delta + ' vs la semaine dernière</p>';
+                } else if (r.delta < 0) {
+                  deltaHTML = '<p class="delta delta-baisse">' + r.delta + ' vs la semaine dernière</p>';
+                } else {
+                  deltaHTML = '<p class="delta delta-stable">Stable vs la semaine dernière</p>';
+                }
               }
-            }
 
-            var fourchetteHTML = '';
-            if (r.fourchette) {
-              var note = '';
-              if (r.fourchette.tier === 'histo-court') note = " (peu d'historique)";
-              else if (r.fourchette.tier === 'irreguliere') note = ' (ventes irrégulières)';
-              fourchetteHTML = '<p class="fourchette">Entre ' + r.fourchette.bas + ' et ' + r.fourchette.haut + note + '</p>';
-            }
+              var fourchetteHTML = '';
+              if (r.fourchette) {
+                var note = '';
+                if (r.fourchette.tier === 'histo-court') note = " (peu d'historique)";
+                else if (r.fourchette.tier === 'irreguliere') note = ' (ventes irrégulières)';
+                fourchetteHTML = '<p class="fourchette">Entre ' + r.fourchette.bas + ' et ' + r.fourchette.haut + note + '</p>';
+              }
 
-            var div = document.createElement('div');
-            div.className = 'carte-sombre';
-            div.innerHTML =
-              '<p class="nom">' + nomProduit + '</p>' +
-              '<p class="valeur">' + r.quantite + '</p>' +
-              fourchetteHTML +
-              deltaHTML +
-              '<p class="detail">' + r.texteBase + '</p>';
-            grille.appendChild(div);
-          });
-
-          var ingredients = calculerConsommationIngredients(recommandationsParNom, produits, ingredientsLignes);
-          if (ingredients.length > 0) {
-            var labelIngredientsEl = document.getElementById('labelIngredients');
-            var grilleIngredientsEl = document.getElementById('grilleIngredients');
-            labelIngredientsEl.textContent = "Consommation d'ingrédients prévue pour " + nomsJours[jourCible.getDay()];
-            labelIngredientsEl.style.display = 'block';
-            grilleIngredientsEl.style.display = 'grid';
-            grilleIngredientsEl.innerHTML = '';
-            ingredients.forEach(function (ing) {
-              var totalArrondi = Math.round(ing.total * 10) / 10;
               var div = document.createElement('div');
               div.className = 'carte-sombre';
               div.innerHTML =
-                '<p class="nom">' + ing.nom + '</p>' +
-                '<p class="valeur">' + totalArrondi + (ing.unite ? ' ' + ing.unite : '') + '</p>';
-              grilleIngredientsEl.appendChild(div);
+                '<p class="nom">' + nomProduit + '</p>' +
+                '<p class="valeur">' + r.quantite + '</p>' +
+                fourchetteHTML +
+                deltaHTML +
+                '<p class="detail">' + r.texteBase + '</p>';
+              grille.appendChild(div);
             });
+
+            var ingredients = calculerConsommationIngredients(recommandationsParNom, produits, ingredientsLignes);
+            if (ingredients.length > 0) {
+              var labelIngredientsEl = document.getElementById('labelIngredients');
+              var grilleIngredientsEl = document.getElementById('grilleIngredients');
+              labelIngredientsEl.textContent = "Consommation d'ingrédients prévue pour " + nomsJours[jourCible.getDay()];
+              labelIngredientsEl.style.display = 'block';
+              grilleIngredientsEl.style.display = 'grid';
+              grilleIngredientsEl.innerHTML = '';
+              ingredients.forEach(function (ing) {
+                var totalArrondi = Math.round(ing.total * 10) / 10;
+                var div = document.createElement('div');
+                div.className = 'carte-sombre';
+                div.innerHTML =
+                  '<p class="nom">' + ing.nom + '</p>' +
+                  '<p class="valeur">' + totalArrondi + (ing.unite ? ' ' + ing.unite : '') + '</p>';
+                grilleIngredientsEl.appendChild(div);
+              });
+            }
           }
 
+          // Météo automatique dès que le code postal est connu — best-effort :
+          // si la géolocalisation ou l'appel météo échoue, on affiche quand
+          // même les recommandations, simplement sans cet ajustement.
+          obtenirCoordonnees(parametres, commercantId).then(function (coords) {
+            if (!coords) {
+              afficherRecommandations({}, {});
+              return;
+            }
+            var datesTriees = ventes.map(function (v) { return v.date_vente; }).sort();
+            Promise.all([
+              recupererMeteoPassee(coords.latitude, coords.longitude, datesTriees[0], versISO(new Date())),
+              recupererMeteoPrevue(coords.latitude, coords.longitude)
+            ]).then(function (resultatsMeteo) {
+              afficherRecommandations(resultatsMeteo[0], resultatsMeteo[1]);
+            }).catch(function () {
+              afficherRecommandations({}, {});
+            });
+          }).catch(function () {
+            afficherRecommandations({}, {});
+          });
         });
       });
     })();
