@@ -3,7 +3,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>À Point - Importer mes ventes</title>
+  <title>À Point - Importer</title>
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -32,13 +32,18 @@
       <div class="entete-page">
         <div>
           <p class="eyebrow">Import</p>
-          <h1>Importer mon historique de ventes</h1>
+          <h1 id="titreImport">Importer mon historique de ventes</h1>
         </div>
       </div>
       <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
 
       <div id="zoneFormulaire" style="display:none;">
-        <p class="texte-aide">Dépose un fichier CSV ou Excel (.csv, .xlsx, .xls) contenant tes ventes : une colonne pour la date, une pour le produit, une pour la quantité vendue. Peu importe l'ordre ou le nom exact des colonnes — on essaie de les reconnaître automatiquement, et tu pourras vérifier avant d'importer.</p>
+        <div class="onglets">
+          <div class="onglet actif" id="ongletVentes">Mes ventes</div>
+          <div class="onglet" id="ongletFiches">Mes fiches techniques</div>
+        </div>
+
+        <p class="texte-aide" id="texteExplication"></p>
 
         <div class="zone-upload">
           <p class="section-titre" style="margin-top:0;">Sélectionne ton fichier</p>
@@ -48,14 +53,26 @@
         <div id="zoneMapping" class="zone-mapping">
           <p style="margin:0; font-weight:600;">Vérifie que les bonnes colonnes sont sélectionnées :</p>
 
-          <label for="selectDate">Colonne pour la date</label>
-          <select id="selectDate"></select>
+          <div id="champDate">
+            <label for="selectDate">Colonne pour la date</label>
+            <select id="selectDate"></select>
+          </div>
 
-          <label for="selectProduit">Colonne pour le produit</label>
+          <label for="selectProduit" id="labelProduit">Colonne pour le produit</label>
           <select id="selectProduit"></select>
 
-          <label for="selectQuantite">Colonne pour la quantité vendue</label>
+          <div id="champIngredient">
+            <label for="selectIngredient">Colonne pour l'ingrédient</label>
+            <select id="selectIngredient"></select>
+          </div>
+
+          <label for="selectQuantite" id="labelQuantite">Colonne pour la quantité vendue</label>
           <select id="selectQuantite"></select>
+
+          <div id="champUnite">
+            <label for="selectUnite">Colonne pour l'unité (optionnelle)</label>
+            <select id="selectUnite"></select>
+          </div>
 
           <div id="apercuBrut"></div>
 
@@ -84,20 +101,53 @@
       var apercuDiv = document.getElementById('apercu');
       var selectDate = document.getElementById('selectDate');
       var selectProduit = document.getElementById('selectProduit');
+      var selectIngredient = document.getElementById('selectIngredient');
       var selectQuantite = document.getElementById('selectQuantite');
+      var selectUnite = document.getElementById('selectUnite');
+      var champDate = document.getElementById('champDate');
+      var champIngredient = document.getElementById('champIngredient');
+      var champUnite = document.getElementById('champUnite');
+      var labelProduit = document.getElementById('labelProduit');
+      var labelQuantite = document.getElementById('labelQuantite');
       var btnValiderMapping = document.getElementById('btnValiderMapping');
       var btnImporter = document.getElementById('btnImporter');
       var messageDiv = document.getElementById('message');
+      var fichierInput = document.getElementById('fichierImport');
+      var titreImportEl = document.getElementById('titreImport');
+      var texteExplicationEl = document.getElementById('texteExplication');
+      var ongletVentes = document.getElementById('ongletVentes');
+      var ongletFiches = document.getElementById('ongletFiches');
       var commercantId = null;
 
+      var modeImport = 'ventes'; // 'ventes' ou 'fiches'
       var lignesBrutes = [];
       var entetesDisponibles = [];
-      var lignesAImporter = [];
+      var lignesAImporter = [];        // mode ventes
+      var lignesFichesAImporter = [];  // mode fiches
+
+      var TEXTES = {
+        ventes: {
+          titre: "Importer mon historique de ventes",
+          explication: "Dépose un fichier CSV ou Excel (.csv, .xlsx, .xls) contenant tes ventes : une colonne pour la date, une pour le produit, une pour la quantité vendue. Peu importe l'ordre ou le nom exact des colonnes — on essaie de les reconnaître automatiquement, et tu pourras vérifier avant d'importer.",
+          labelProduit: "Colonne pour le produit",
+          labelQuantite: "Colonne pour la quantité vendue",
+          boutonImporter: "Importer ces ventes"
+        },
+        fiches: {
+          titre: "Importer mes fiches techniques",
+          explication: "Dépose un fichier CSV ou Excel listant les ingrédients de tes recettes : une ligne par ingrédient, avec le nom du produit (le plat), le nom de l'ingrédient, la quantité utilisée pour une unité vendue, et si besoin l'unité (g, kg, ml...). Un produit qui n'existe pas encore dans Mes produits est créé automatiquement.",
+          labelProduit: "Colonne pour le produit (le plat)",
+          labelQuantite: "Colonne pour la quantité (par unité vendue)",
+          boutonImporter: "Importer ces fiches techniques"
+        }
+      };
 
       // Noms de colonnes fréquemment utilisés par les caisses/tableurs, pour reconnaissance automatique
       var aliasesDate = ['date', 'jour', 'datedevente', 'date_vente', 'datevente', 'dateventre'];
-      var aliasesProduit = ['produit', 'article', 'nomduproduit', 'nom_produit', 'produitvendu', 'item', 'designation', 'nomarticle', 'libelle'];
+      var aliasesProduit = ['produit', 'plat', 'article', 'nomduproduit', 'nom_produit', 'produitvendu', 'item', 'designation', 'nomarticle', 'libelle'];
       var aliasesQuantite = ['quantite', 'qte', 'nombre', 'nombrevendu', 'quantitevendue', 'qty', 'nbvendu', 'ventes', 'quantitevendu'];
+      var aliasesIngredient = ['ingredient', 'ingredients', 'composant', 'matierepremiere', 'ingredientutilise'];
+      var aliasesUnite = ['unite', 'unites', 'uom', 'mesure'];
 
       function normaliserTexte(texte) {
         return (texte === null || texte === undefined ? '' : texte.toString())
@@ -119,8 +169,10 @@
         return '';
       }
 
-      function remplirSelect(select, entetes, valeurDetectee) {
-        select.innerHTML = '<option value="">-- Choisir une colonne --</option>';
+      function remplirSelect(select, entetes, valeurDetectee, avecOptionVide) {
+        select.innerHTML = avecOptionVide
+          ? '<option value="">-- Aucune --</option>'
+          : '<option value="">-- Choisir une colonne --</option>';
         entetes.forEach(function (entete) {
           var option = document.createElement('option');
           option.value = entete;
@@ -173,7 +225,7 @@
         return y + '-' + mo + '-' + d;
       }
 
-      // Convertit une valeur de quantité (nombre, ou texte avec virgule/espaces) en nombre entier
+      // Convertit une valeur de quantité (nombre, ou texte avec virgule/espaces) en nombre entier (ventes)
       function parserQuantite(valeur) {
         if (typeof valeur === 'number') return Math.round(valeur);
         var texte = (valeur === null || valeur === undefined ? '' : valeur.toString()).trim();
@@ -183,13 +235,69 @@
         return isNaN(nombre) ? NaN : Math.round(nombre);
       }
 
+      // Convertit une valeur de quantité en nombre décimal, sans arrondi (fiches techniques :
+      // 0.5 kg de beurre ne doit pas être arrondi à 1)
+      function parserQuantiteDecimale(valeur) {
+        if (typeof valeur === 'number') return valeur;
+        var texte = (valeur === null || valeur === undefined ? '' : valeur.toString()).trim();
+        if (!texte) return NaN;
+        texte = texte.replace(/\s/g, '').replace(',', '.').replace(/[^0-9.\-]/g, '');
+        var nombre = parseFloat(texte);
+        return isNaN(nombre) ? NaN : nombre;
+      }
+
+      function texteCellule(valeur) {
+        return (valeur === null || valeur === undefined ? '' : valeur.toString()).trim();
+      }
+
+      function reinitialiserApresChangementFichierOuMode() {
+        lignesBrutes = [];
+        entetesDisponibles = [];
+        lignesAImporter = [];
+        lignesFichesAImporter = [];
+        zoneMapping.style.display = 'none';
+        apercuBrutDiv.innerHTML = '';
+        apercuDiv.innerHTML = '';
+        btnImporter.style.display = 'none';
+        btnImporter.disabled = false;
+        messageDiv.style.display = 'none';
+        fichierInput.value = '';
+      }
+
+      function definirMode(nouveauMode) {
+        modeImport = nouveauMode;
+        var t = TEXTES[modeImport];
+
+        titreImportEl.textContent = t.titre;
+        texteExplicationEl.textContent = t.explication;
+        labelProduit.textContent = t.labelProduit;
+        labelQuantite.textContent = t.labelQuantite;
+        btnImporter.textContent = t.boutonImporter;
+
+        ongletVentes.classList.toggle('actif', modeImport === 'ventes');
+        ongletFiches.classList.toggle('actif', modeImport === 'fiches');
+
+        champDate.style.display = modeImport === 'ventes' ? 'block' : 'none';
+        champIngredient.style.display = modeImport === 'fiches' ? 'block' : 'none';
+        champUnite.style.display = modeImport === 'fiches' ? 'block' : 'none';
+
+        reinitialiserApresChangementFichierOuMode();
+      }
+
       function recevoirDonnees(lignes, entetes) {
         lignesBrutes = lignes;
         entetesDisponibles = entetes;
 
-        remplirSelect(selectDate, entetes, detecterColonne(entetes, aliasesDate));
-        remplirSelect(selectProduit, entetes, detecterColonne(entetes, aliasesProduit));
-        remplirSelect(selectQuantite, entetes, detecterColonne(entetes, aliasesQuantite));
+        if (modeImport === 'ventes') {
+          remplirSelect(selectDate, entetes, detecterColonne(entetes, aliasesDate), false);
+          remplirSelect(selectProduit, entetes, detecterColonne(entetes, aliasesProduit), false);
+          remplirSelect(selectQuantite, entetes, detecterColonne(entetes, aliasesQuantite), false);
+        } else {
+          remplirSelect(selectProduit, entetes, detecterColonne(entetes, aliasesProduit), false);
+          remplirSelect(selectIngredient, entetes, detecterColonne(entetes, aliasesIngredient), false);
+          remplirSelect(selectQuantite, entetes, detecterColonne(entetes, aliasesQuantite), false);
+          remplirSelect(selectUnite, entetes, detecterColonne(entetes, aliasesUnite), true);
+        }
         afficherApercuBrut(lignes, entetes);
 
         apercuDiv.innerHTML = '';
@@ -203,6 +311,7 @@
           commercantId = session.user.id;
           statutDiv.textContent = "Connecté en tant que : " + session.user.email;
           zoneFormulaire.style.display = 'block';
+          definirMode('ventes');
         } else {
           statutDiv.textContent = "Tu n'es pas connecté. Va d'abord sur la page de connexion.";
         }
@@ -210,7 +319,10 @@
         statutDiv.textContent = "Erreur de connexion : " + erreur.message;
       });
 
-      document.getElementById('fichierImport').addEventListener('change', function (e) {
+      ongletVentes.addEventListener('click', function () { definirMode('ventes'); });
+      ongletFiches.addEventListener('click', function () { definirMode('fiches'); });
+
+      fichierInput.addEventListener('change', function (e) {
         var fichier = e.target.files[0];
         if (!fichier) return;
 
@@ -244,7 +356,7 @@
         }
       });
 
-      btnValiderMapping.addEventListener('click', function () {
+      function validerMappingVentes() {
         var colDate = selectDate.value;
         var colProduit = selectProduit.value;
         var colQuantite = selectQuantite.value;
@@ -261,7 +373,7 @@
 
         lignesBrutes.forEach(function (ligne) {
           var date = parserDate(ligne[colDate]);
-          var produit = (ligne[colProduit] === null || ligne[colProduit] === undefined ? '' : ligne[colProduit].toString()).trim();
+          var produit = texteCellule(ligne[colProduit]);
           var quantite = parserQuantite(ligne[colQuantite]);
 
           if (date && produit && !isNaN(quantite)) {
@@ -298,12 +410,72 @@
 
         apercuDiv.innerHTML = '<div class="info" style="padding:10px; border-radius:5px;">' + texteInfo + '</div>' + tableau;
         btnImporter.style.display = 'block';
+      }
+
+      function validerMappingFiches() {
+        var colProduit = selectProduit.value;
+        var colIngredient = selectIngredient.value;
+        var colQuantite = selectQuantite.value;
+        var colUnite = selectUnite.value;
+
+        if (!colProduit || !colIngredient || !colQuantite) {
+          messageDiv.style.display = 'block';
+          messageDiv.className = 'erreur';
+          messageDiv.textContent = "Choisis une colonne pour le produit, l'ingrédient et la quantité.";
+          return;
+        }
+
+        lignesFichesAImporter = [];
+        var lignesInvalides = 0;
+
+        lignesBrutes.forEach(function (ligne) {
+          var produit = texteCellule(ligne[colProduit]);
+          var ingredient = texteCellule(ligne[colIngredient]);
+          var quantite = parserQuantiteDecimale(ligne[colQuantite]);
+          var unite = colUnite ? texteCellule(ligne[colUnite]) : '';
+
+          if (produit && ingredient && !isNaN(quantite) && quantite > 0) {
+            lignesFichesAImporter.push({
+              produit: produit,
+              ingredient: ingredient,
+              quantite: quantite,
+              unite: unite || null
+            });
+          } else {
+            lignesInvalides++;
+          }
+        });
+
+        messageDiv.style.display = 'none';
+        apercuDiv.innerHTML = '';
+
+        if (lignesFichesAImporter.length === 0) {
+          apercuDiv.innerHTML = '<div class="erreur" style="padding:10px; border-radius:5px;">Aucune ligne valide trouvée avec ces colonnes. Vérifie ta sélection ci-dessus.</div>';
+          btnImporter.style.display = 'none';
+          return;
+        }
+
+        var tableau = '<table><tr><th>Produit</th><th>Ingrédient</th><th>Quantité</th><th>Unité</th></tr>';
+        lignesFichesAImporter.slice(0, 5).forEach(function (l) {
+          tableau += '<tr><td>' + l.produit + '</td><td>' + l.ingredient + '</td><td>' + l.quantite + '</td><td>' + (l.unite || '—') + '</td></tr>';
+        });
+        tableau += '</table>';
+
+        var texteInfo = lignesFichesAImporter.length + ' ligne(s) prête(s) à importer';
+        if (lignesInvalides > 0) {
+          texteInfo += ' (' + lignesInvalides + ' ligne(s) ignorée(s) car incomplète(s) ou illisible(s))';
+        }
+
+        apercuDiv.innerHTML = '<div class="info" style="padding:10px; border-radius:5px;">' + texteInfo + '</div>' + tableau;
+        btnImporter.style.display = 'block';
+      }
+
+      btnValiderMapping.addEventListener('click', function () {
+        if (modeImport === 'ventes') validerMappingVentes();
+        else validerMappingFiches();
       });
 
-      btnImporter.addEventListener('click', function () {
-        btnImporter.disabled = true;
-        btnImporter.textContent = 'Import en cours...';
-
+      function importerVentes() {
         // Avant d'importer les ventes, on s'assure que chaque produit rencontré
         // existe déjà dans "Mes produits" — sinon la fiche technique (ingrédients)
         // ne pourrait jamais s'y rattacher, et il faudrait tout recréer à la main
@@ -327,7 +499,7 @@
             sbClient.from('ventes').insert(lignesAImporter).then(function (result) {
               messageDiv.style.display = 'block';
               btnImporter.disabled = false;
-              btnImporter.textContent = 'Importer ces ventes';
+              btnImporter.textContent = TEXTES.ventes.boutonImporter;
 
               if (result.error) {
                 messageDiv.className = 'erreur';
@@ -346,6 +518,80 @@
             });
           });
         });
+      }
+
+      function importerFiches() {
+        // Même logique de création automatique que pour les ventes : un plat mentionné
+        // dans le document de recette qui n'existe pas encore dans "Mes produits" est créé
+        // à la volée, sinon sa fiche technique n'aurait aucun produit à rattacher.
+        var nomsRencontres = {};
+        lignesFichesAImporter.forEach(function (l) { nomsRencontres[l.produit] = true; });
+
+        sbClient.from('produits').select('id,nom').eq('commercant_id', commercantId).then(function (resultatProduits) {
+          var nomVersId = {};
+          (resultatProduits.data || []).forEach(function (p) { nomVersId[p.nom] = p.id; });
+
+          var nomsManquants = Object.keys(nomsRencontres).filter(function (nom) { return !(nom in nomVersId); });
+          var nouveauxProduits = nomsManquants.map(function (nom) { return { commercant_id: commercantId, nom: nom }; });
+
+          var creerProduitsManquants = nouveauxProduits.length > 0
+            ? sbClient.from('produits').insert(nouveauxProduits).select('id,nom')
+            : Promise.resolve({ data: [], error: null });
+
+          creerProduitsManquants.then(function (resultatCreation) {
+            if (resultatCreation.error) {
+              messageDiv.style.display = 'block';
+              messageDiv.className = 'erreur';
+              messageDiv.textContent = "Erreur lors de la création des produits manquants : " + resultatCreation.error.message;
+              btnImporter.disabled = false;
+              btnImporter.textContent = TEXTES.fiches.boutonImporter;
+              return;
+            }
+
+            (resultatCreation.data || []).forEach(function (p) { nomVersId[p.nom] = p.id; });
+
+            var lignesIngredients = lignesFichesAImporter
+              .filter(function (l) { return nomVersId[l.produit] !== undefined; })
+              .map(function (l) {
+                return {
+                  commercant_id: commercantId,
+                  produit_id: nomVersId[l.produit],
+                  nom_ingredient: l.ingredient,
+                  quantite: l.quantite,
+                  unite: l.unite
+                };
+              });
+
+            sbClient.from('ingredients_produit').insert(lignesIngredients).then(function (result) {
+              messageDiv.style.display = 'block';
+              btnImporter.disabled = false;
+              btnImporter.textContent = TEXTES.fiches.boutonImporter;
+
+              if (result.error) {
+                messageDiv.className = 'erreur';
+                messageDiv.textContent = "Erreur : " + result.error.message;
+              } else {
+                messageDiv.className = 'succes';
+                var texte = lignesIngredients.length + " ligne(s) de fiche technique importée(s) avec succès !";
+                if (nouveauxProduits.length > 0) {
+                  texte += " " + nouveauxProduits.length + " nouveau(x) produit(s) ajouté(s) automatiquement dans Mes produits.";
+                }
+                messageDiv.textContent = texte;
+                btnImporter.style.display = 'none';
+                zoneMapping.style.display = 'none';
+                apercuDiv.innerHTML = '';
+              }
+            });
+          });
+        });
+      }
+
+      btnImporter.addEventListener('click', function () {
+        btnImporter.disabled = true;
+        btnImporter.textContent = 'Import en cours...';
+
+        if (modeImport === 'ventes') importerVentes();
+        else importerFiches();
       });
     })();
   </script>
