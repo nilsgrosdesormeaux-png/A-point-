@@ -20,6 +20,7 @@
       </a>
       <nav class="nav-principale">
         <a href="tableau-de-bord.html" class="nav-lien nav-actif">Tableau de bord</a>
+        <a href="semaine.html" class="nav-lien">Semaine</a>
         <a href="produits.html" class="nav-lien">Mes produits</a>
         <a href="ventes.html" class="nav-lien">Mes ventes</a>
         <a href="import.html" class="nav-lien">Importer</a>
@@ -46,9 +47,6 @@
       <div class="sombre-label" id="labelIngredients" style="display:none;">Consommation d'ingrédients prévue</div>
       <div class="grille-sombre" id="grilleIngredients" style="display:none;"></div>
 
-      <div class="sombre-label" id="labelSemaine" style="display:none;">Cette semaine</div>
-      <div class="grille-sombre" id="grilleSemaine" style="display:none;"></div>
-
       <div class="sombre-label">Vos résultats</div>
       <div class="grille-sombre" id="grilleResultats">
         <div class="carte-sombre">
@@ -61,11 +59,11 @@
           <p class="valeur">—</p>
           <p class="detail">Bientôt disponible (dès qu'on suit tes stocks)</p>
         </div>
-        <div class="carte-sombre" id="carteFiabilite">
-          <p class="nom">Fiabilité des prévisions</p>
-          <p class="valeur">—</p>
-          <p class="detail">Pas encore assez d'historique</p>
-        </div>
+        <a class="carte-sombre carte-sombre--lien" href="semaine.html">
+          <p class="nom">Cette semaine &amp; fiabilité</p>
+          <p class="valeur" style="font-size:20px;">Voir la semaine →</p>
+          <p class="detail">Prévision des 7 jours à venir et fiabilité des prévisions</p>
+        </a>
       </div>
     </div>
 
@@ -83,12 +81,9 @@
       var sombreDateEl = document.getElementById('sombreDate');
       var sombreTitreEl = document.getElementById('sombreTitre');
       var sombreBadgeEl = document.getElementById('sombreBadge');
-      var carteFiabiliteEl = document.getElementById('carteFiabilite');
 
       var nomsJours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
       var nomsMois = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-      var nomsJoursCourts = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
-      var nomsMoisCourts = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 
       function capitaliser(texte) {
         return texte.charAt(0).toUpperCase() + texte.slice(1);
@@ -403,12 +398,16 @@
 
       // Calcule la recommandation pour un produit, avec la comparaison ("delta")
       // par rapport à la dernière vente réelle du même jour de la semaine.
-      function calculerRecommandation(ventesDuProduit, zoneVacances, joursFermeture) {
+      function calculerRecommandation(ventesDuProduit, zoneVacances, joursFermeture, evenements) {
         var jourCible = prochainJourOuvert(new Date(), joursFermeture);
         var numeroJourCible = jourCible.getDay();
         var nomJourCible = nomsJours[numeroJourCible];
-        var cibleFeriee = estJourFerie(jourCible);
-        var cibleVacances = !cibleFeriee && estEnVacances(jourCible, zoneVacances);
+        // Un événement signalé à la main sur le jour cible (page Semaine) prime
+        // sur férié/vacances scolaires : le commerçant sait quelque chose que
+        // l'historique seul ne peut pas deviner.
+        var evenementCible = evenements ? evenements[versISO(jourCible)] : undefined;
+        var cibleFeriee = !evenementCible && estJourFerie(jourCible);
+        var cibleVacances = !evenementCible && !cibleFeriee && estEnVacances(jourCible, zoneVacances);
 
         // Un jour férié ou en vacances scolaires tombant un mardi ne se
         // comporte pas comme un mardi normal : on l'écarte des mardis
@@ -439,7 +438,18 @@
         if (filtrage.nbExclus > 0) {
           texteBase += " (" + filtrage.nbExclus + " jour" + (filtrage.nbExclus > 1 ? "s" : "") + " atypique" + (filtrage.nbExclus > 1 ? "s" : "") + " écarté" + (filtrage.nbExclus > 1 ? "s" : "") + " du calcul)";
         }
-        if (cibleFeriee) {
+        if (evenementCible === 'plus') {
+          // Estimation manuelle plutôt que calculée : on ajuste d'un pourcentage
+          // fixe, pas d'un chiffre prétendument précis (l'ampleur réelle n'est
+          // pas connue), et on l'affiche comme telle plutôt que comme un calcul.
+          quantite = Math.round(quantite * 1.15);
+          fourchette = null;
+          texteBase = "📅 Événement signalé (plus de monde attendu) — estimation manuelle, pas calculée. " + texteBase;
+        } else if (evenementCible === 'moins') {
+          quantite = Math.round(quantite * 0.85);
+          fourchette = null;
+          texteBase = "📅 Événement signalé (moins de monde attendu) — estimation manuelle, pas calculée. " + texteBase;
+        } else if (cibleFeriee) {
           texteBase = "⚠️ Jour férié : l'activité peut différer d'un " + nomJourCible + " normal. " + texteBase;
         } else if (cibleVacances) {
           texteBase = "🏖️ Vacances scolaires : l'activité peut différer d'un " + nomJourCible + " normal. " + texteBase;
@@ -462,79 +472,9 @@
           delta: delta,
           fourchette: fourchette,
           jourFerie: cibleFeriee,
-          vacancesScolaires: cibleVacances
+          vacancesScolaires: cibleVacances,
+          evenement: evenementCible
         };
-      }
-
-      // Rejoue l'historique produit par produit et jour par jour : pour chaque
-      // occurrence réelle d'un jour de semaine donné, applique fonctionPrediction
-      // à tout ce qui la précède et compare au chiffre réellement vendu ce
-      // jour-là. Partagé par calculerFiabilite (méthode d'À Point) et
-      // calculerFiabiliteNaive (simple moyenne) pour que les deux soient
-      // rejouées exactement sur les mêmes points, et que la comparaison entre
-      // les deux soit honnête plutôt qu'un chiffre isolé sans repère.
-      function retroTesterMethode(ventes, fonctionPrediction) {
-        var parProduit = {};
-        ventes.forEach(function (v) {
-          if (!parProduit[v.nom_produit]) parProduit[v.nom_produit] = [];
-          parProduit[v.nom_produit].push(v);
-        });
-
-        var erreurs = [];
-        Object.keys(parProduit).forEach(function (nom) {
-          var lignes = parProduit[nom].slice().sort(function (a, b) {
-            return new Date(a.date_vente) - new Date(b.date_vente);
-          });
-          var parJour = {};
-          lignes.forEach(function (v) {
-            var jour = new Date(v.date_vente).getDay();
-            if (!parJour[jour]) parJour[jour] = [];
-            parJour[jour].push(v);
-          });
-          Object.keys(parJour).forEach(function (jour) {
-            var occurrences = parJour[jour];
-            for (var i = 1; i < occurrences.length; i++) {
-              var historique = occurrences.slice(0, i);
-              var prediction = fonctionPrediction(historique);
-              var reel = occurrences[i].quantite;
-              if (reel > 0) {
-                erreurs.push(Math.abs(prediction - reel) / reel);
-              }
-            }
-          });
-        });
-
-        if (erreurs.length === 0) return null;
-        var sommeErreurs = 0;
-        erreurs.forEach(function (e) { sommeErreurs += e; });
-        var erreurMoyenne = sommeErreurs / erreurs.length;
-        return {
-          valeur: Math.max(0, Math.round((1 - erreurMoyenne) * 100)),
-          nbPoints: erreurs.length
-        };
-      }
-
-      // Fiabilité de la méthode d'À Point (moyenne pondérée + exclusion des
-      // valeurs aberrantes) — celle qui alimente réellement la recommandation
-      // affichée sur ce tableau de bord.
-      function calculerFiabilite(ventes) {
-        return retroTesterMethode(ventes, function (historique) {
-          var filtrage = exclureValeursAberrantes(historique);
-          return Math.round(moyennePonderee(filtrage.ventesFiltrees) * 1.1);
-        });
-      }
-
-      // Fiabilité d'une méthode naïve (simple moyenne arithmétique, sans
-      // pondération ni exclusion) — la méthode "à la main" qu'un commerçant
-      // ferait spontanément. Sert de point de comparaison honnête : "75% de
-      // fiabilité" ne prouve rien tout seul, "75% contre 58% avec une simple
-      // moyenne, sur tes propres chiffres" le prouve.
-      function calculerFiabiliteNaive(ventes) {
-        return retroTesterMethode(ventes, function (historique) {
-          var somme = 0;
-          historique.forEach(function (h) { somme += h.quantite; });
-          return Math.round(somme / historique.length);
-        });
       }
 
       // Traduit les recommandations par plat en consommation prévue par ingrédient,
@@ -576,93 +516,6 @@
         });
       }
 
-      // Prévision d'affluence sur la semaine à venir : réutilise exactement le
-      // même moteur que la recommandation par produit (moyenne pondérée +
-      // exclusion des valeurs aberrantes), mais appliqué à la somme de toutes
-      // les ventes du jour plutôt qu'à un produit isolé. Le signal renvoyé
-      // n'est jamais un seuil ni un effectif deviné : chaque jour à venir est
-      // simplement situé dans la distribution de SES propres jours passés du
-      // même jour de semaine ("dans le haut de la fourchette pour un mercredi"),
-      // sans qu'aucune saisie n'ait jamais été demandée au commerçant.
-      function percentileValeur(valeursTriees, p) {
-        var idx = (valeursTriees.length - 1) * p;
-        var lo = Math.floor(idx), hi = Math.ceil(idx);
-        if (lo === hi) return valeursTriees[lo];
-        return valeursTriees[lo] + (valeursTriees[hi] - valeursTriees[lo]) * (idx - lo);
-      }
-
-      function calculerPrevisionSemaine(ventes, zoneVacances, joursFermeture) {
-        var totauxParDate = {};
-        ventes.forEach(function (v) {
-          totauxParDate[v.date_vente] = (totauxParDate[v.date_vente] || 0) + v.quantite;
-        });
-        var historiqueTotal = Object.keys(totauxParDate).map(function (d) {
-          return { date_vente: d, quantite: totauxParDate[d] };
-        }).sort(function (a, b) { return new Date(a.date_vente) - new Date(b.date_vente); });
-
-        if (historiqueTotal.length === 0) return [];
-
-        var jours = [];
-        for (var offset = 1; offset <= 7; offset++) {
-          var dateCible = new Date();
-          dateCible.setDate(dateCible.getDate() + offset);
-          var numeroJour = dateCible.getDay();
-          var cibleFermee = !!(joursFermeture && joursFermeture.indexOf(numeroJour) !== -1);
-          var cibleFeriee = !cibleFermee && estJourFerie(dateCible);
-          var cibleVacances = !cibleFermee && !cibleFeriee && estEnVacances(dateCible, zoneVacances);
-
-          // Comme pour la recommandation par produit : un jour férié ou en
-          // vacances scolaires passé n'est pas représentatif d'un jour de
-          // semaine "normal", on l'écarte de la référence utilisée pour les
-          // jours ordinaires.
-          var memeJour = historiqueTotal.filter(function (t) {
-            var d = new Date(t.date_vente);
-            return d.getDay() === numeroJour && !estJourFerie(d) && !estEnVacances(d, zoneVacances);
-          });
-          var base = memeJour.length > 0 ? memeJour : historiqueTotal;
-          // Pas d'exclusion des valeurs aberrantes ici, volontairement : cette
-          // méthode (IQR) sert ailleurs à protéger une quantité de commande
-          // précise d'un jour isolé complètement raté (fermeture imprévue,
-          // erreur de saisie). Ici, sur seulement quelques points par jour de
-          // semaine, elle finit par exclure exactement les jours récents qui
-          // représentent un vrai changement de rythme (une tendance qui monte
-          // ou baisse depuis 2-3 semaines) — l'information qu'on veut justement
-          // détecter. Un signal qualitatif (chargé/calme/normal) tolère mieux
-          // qu'une quantité exacte qu'un jour isolé vraiment atypique influence
-          // un peu le résultat.
-          var moyenne = moyennePonderee(base);
-
-          var tier = 'normal';
-          if (cibleFermee) {
-            // Un jour de fermeture habituelle n'a rien à voir avec un signal
-            // d'affluence : ce n'est pas une donnée manquante, c'est un fait
-            // certain (fermé = fermé), donc prioritaire sur férié/vacances.
-            tier = 'ferme';
-          } else if (cibleFeriee) {
-            // Un jour férié n'est comparé à rien : pas assez de données pour
-            // dire honnêtement "chargé" ou "calme" par rapport à d'autres
-            // jours fériés, et le comparer aux jours de semaine ordinaires
-            // n'aurait pas de sens.
-            tier = 'ferie';
-          } else if (cibleVacances) {
-            tier = 'vacances';
-          } else if (memeJour.length >= 4) {
-            var quantitesTriees = base.map(function (v) { return v.quantite; }).sort(function (a, b) { return a - b; });
-            var q1 = percentileValeur(quantitesTriees, 0.25);
-            var q3 = percentileValeur(quantitesTriees, 0.75);
-            if (q3 > q1) {
-              if (moyenne > q3) tier = 'charge';
-              else if (moyenne < q1) tier = 'calme';
-            }
-          } else {
-            tier = 'insuffisant';
-          }
-
-          jours.push({ date: dateCible, nomJour: nomsJours[numeroJour], tier: tier });
-        }
-        return jours;
-      }
-
       sombreDateEl.textContent = "Aujourd'hui " + formatDateLongue(new Date());
 
       sbClient.auth.getSession().then(function (result) {
@@ -681,7 +534,8 @@
           sbClient.from('ventes').select('*').eq('commercant_id', commercantId),
           sbClient.from('produits').select('*').eq('commercant_id', commercantId),
           sbClient.from('ingredients_produit').select('*').eq('commercant_id', commercantId),
-          sbClient.from('parametres_commercant').select('*').eq('commercant_id', commercantId)
+          sbClient.from('parametres_commercant').select('*').eq('commercant_id', commercantId),
+          sbClient.from('evenements_commercant').select('*').eq('commercant_id', commercantId)
         ]).then(function (resultats) {
           var ventes = resultats[0].data || [];
           var produits = resultats[1].data || [];
@@ -689,6 +543,13 @@
           var parametres = (resultats[3].data && resultats[3].data[0]) || null;
           var zoneVacances = parametres ? zoneVacancesPourCodePostal(parametres.code_postal) : null;
           var joursFermeture = (parametres && parametres.jours_fermeture) || [];
+          // Signalements manuels ("plus de monde" / "moins de monde"), gérés
+          // depuis la page Semaine : une carte { date ISO -> direction } pour
+          // pouvoir retrouver directement si le jour cible d'aujourd'hui en a un.
+          var evenements = {};
+          (resultats[4].data || []).forEach(function (e) {
+            evenements[e.date_evenement] = e.direction;
+          });
           if (parametres && parametres.nom_restaurant) {
             statutDiv.textContent = parametres.nom_restaurant;
           }
@@ -716,7 +577,7 @@
           grille.innerHTML = '';
           var recommandationsParNom = {};
           Object.keys(parProduit).forEach(function (nomProduit) {
-            var r = calculerRecommandation(parProduit[nomProduit], zoneVacances, joursFermeture);
+            var r = calculerRecommandation(parProduit[nomProduit], zoneVacances, joursFermeture, evenements);
             recommandationsParNom[nomProduit] = r.quantite;
 
             var deltaHTML = '';
@@ -768,58 +629,6 @@
             });
           }
 
-          var previsionSemaine = calculerPrevisionSemaine(ventes, zoneVacances, joursFermeture);
-          if (previsionSemaine.length > 0) {
-            var labelSemaineEl = document.getElementById('labelSemaine');
-            var grilleSemaineEl = document.getElementById('grilleSemaine');
-            labelSemaineEl.style.display = 'block';
-            grilleSemaineEl.style.display = 'grid';
-            grilleSemaineEl.innerHTML = '';
-            previsionSemaine.forEach(function (j) {
-              var badgeHTML, detailTexte;
-              if (j.tier === 'ferme') {
-                badgeHTML = '<span class="badge-jour badge-jour--ferme">Fermé</span>';
-                detailTexte = 'Jour de fermeture habituel.';
-              } else if (j.tier === 'charge') {
-                badgeHTML = '<span class="badge-jour badge-jour--charge">Jour chargé</span>';
-                detailTexte = 'Pense à prévoir du renfort.';
-              } else if (j.tier === 'calme') {
-                badgeHTML = '<span class="badge-jour badge-jour--calme">Jour calme</span>';
-                detailTexte = 'Bonne occasion pour une offre ou une promo.';
-              } else if (j.tier === 'ferie') {
-                badgeHTML = '<span class="badge-jour badge-jour--ferie">Jour férié</span>';
-                detailTexte = "L'activité peut être différente d'un jour normal.";
-              } else if (j.tier === 'vacances') {
-                badgeHTML = '<span class="badge-jour badge-jour--vacances">Vacances scolaires</span>';
-                detailTexte = "L'activité peut être différente d'un jour normal.";
-              } else if (j.tier === 'normal') {
-                badgeHTML = '<span class="badge-jour badge-jour--normal">Normal</span>';
-                detailTexte = 'Activité dans la moyenne des ' + j.nomJour + 's.';
-              } else {
-                badgeHTML = '<span class="badge-jour badge-jour--normal">—</span>';
-                detailTexte = "Pas encore assez de " + j.nomJour + "s enregistrés pour comparer.";
-              }
-              var div = document.createElement('div');
-              div.className = 'carte-sombre';
-              div.innerHTML =
-                '<p class="nom">' + capitaliser(nomsJoursCourts[j.date.getDay()]) + ' ' + j.date.getDate() + ' ' + nomsMoisCourts[j.date.getMonth()] + '</p>' +
-                badgeHTML +
-                '<p class="detail">' + detailTexte + '</p>';
-              grilleSemaineEl.appendChild(div);
-            });
-          }
-
-          var fiabilite = calculerFiabilite(ventes);
-          var fiabiliteNaive = calculerFiabiliteNaive(ventes);
-          if (fiabilite && fiabilite.nbPoints >= 3) {
-            carteFiabiliteEl.classList.add('actif');
-            carteFiabiliteEl.querySelector('.valeur').textContent = fiabilite.valeur + '%';
-            var detailFiabilite = "Calculée sur " + fiabilite.nbPoints + " prévision(s) passée(s)";
-            if (fiabiliteNaive && fiabiliteNaive.nbPoints >= 3) {
-              detailFiabilite += " — contre " + fiabiliteNaive.valeur + "% avec une simple moyenne";
-            }
-            carteFiabiliteEl.querySelector('.detail').textContent = detailFiabilite;
-          }
         });
       });
     })();
