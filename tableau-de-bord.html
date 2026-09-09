@@ -301,12 +301,14 @@
         };
       }
 
-      // Rejoue l'historique produit par produit et jour par jour pour vérifier,
-      // après coup, si la méthode de recommandation aurait été proche de la réalité.
-      // Utilise la même méthode que calculerRecommandation (moyenne pondérée +
-      // exclusion des aberrantes) pour que ce score mesure bien la fiabilité
-      // réelle de ce que le tableau de bord affiche.
-      function calculerFiabilite(ventes) {
+      // Rejoue l'historique produit par produit et jour par jour : pour chaque
+      // occurrence réelle d'un jour de semaine donné, applique fonctionPrediction
+      // à tout ce qui la précède et compare au chiffre réellement vendu ce
+      // jour-là. Partagé par calculerFiabilite (méthode d'À Point) et
+      // calculerFiabiliteNaive (simple moyenne) pour que les deux soient
+      // rejouées exactement sur les mêmes points, et que la comparaison entre
+      // les deux soit honnête plutôt qu'un chiffre isolé sans repère.
+      function retroTesterMethode(ventes, fonctionPrediction) {
         var parProduit = {};
         ventes.forEach(function (v) {
           if (!parProduit[v.nom_produit]) parProduit[v.nom_produit] = [];
@@ -328,8 +330,7 @@
             var occurrences = parJour[jour];
             for (var i = 1; i < occurrences.length; i++) {
               var historique = occurrences.slice(0, i);
-              var filtrage = exclureValeursAberrantes(historique);
-              var prediction = Math.round(moyennePonderee(filtrage.ventesFiltrees) * 1.1);
+              var prediction = fonctionPrediction(historique);
               var reel = occurrences[i].quantite;
               if (reel > 0) {
                 erreurs.push(Math.abs(prediction - reel) / reel);
@@ -346,6 +347,29 @@
           valeur: Math.max(0, Math.round((1 - erreurMoyenne) * 100)),
           nbPoints: erreurs.length
         };
+      }
+
+      // Fiabilité de la méthode d'À Point (moyenne pondérée + exclusion des
+      // valeurs aberrantes) — celle qui alimente réellement la recommandation
+      // affichée sur ce tableau de bord.
+      function calculerFiabilite(ventes) {
+        return retroTesterMethode(ventes, function (historique) {
+          var filtrage = exclureValeursAberrantes(historique);
+          return Math.round(moyennePonderee(filtrage.ventesFiltrees) * 1.1);
+        });
+      }
+
+      // Fiabilité d'une méthode naïve (simple moyenne arithmétique, sans
+      // pondération ni exclusion) — la méthode "à la main" qu'un commerçant
+      // ferait spontanément. Sert de point de comparaison honnête : "75% de
+      // fiabilité" ne prouve rien tout seul, "75% contre 58% avec une simple
+      // moyenne, sur tes propres chiffres" le prouve.
+      function calculerFiabiliteNaive(ventes) {
+        return retroTesterMethode(ventes, function (historique) {
+          var somme = 0;
+          historique.forEach(function (h) { somme += h.quantite; });
+          return Math.round(somme / historique.length);
+        });
       }
 
       // Traduit les recommandations par plat en consommation prévue par ingrédient,
@@ -578,10 +602,15 @@
           }
 
           var fiabilite = calculerFiabilite(ventes);
+          var fiabiliteNaive = calculerFiabiliteNaive(ventes);
           if (fiabilite && fiabilite.nbPoints >= 3) {
             carteFiabiliteEl.classList.add('actif');
             carteFiabiliteEl.querySelector('.valeur').textContent = fiabilite.valeur + '%';
-            carteFiabiliteEl.querySelector('.detail').textContent = "Calculée sur " + fiabilite.nbPoints + " prévision(s) passée(s)";
+            var detailFiabilite = "Calculée sur " + fiabilite.nbPoints + " prévision(s) passée(s)";
+            if (fiabiliteNaive && fiabiliteNaive.nbPoints >= 3) {
+              detailFiabilite += " — contre " + fiabiliteNaive.valeur + "% avec une simple moyenne";
+            }
+            carteFiabiliteEl.querySelector('.detail').textContent = detailFiabilite;
           }
         });
       });
