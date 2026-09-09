@@ -1,98 +1,50 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <title>À Point</title>
+  <link rel="icon" href="logo.svg">
+  <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 400px;
-      margin: 60px auto;
-      padding: 0 20px;
-    }
-    h1 {
-      text-align: center;
-      margin-bottom: 5px;
-    }
-    .sous-titre {
-      text-align: center;
-      color: #777;
-      font-size: 14px;
-      margin-bottom: 25px;
-    }
-    .onglets {
-      display: flex;
-      border-bottom: 1px solid #ddd;
-      margin-bottom: 20px;
-    }
-    .onglet {
-      flex: 1;
-      text-align: center;
-      padding: 10px;
-      cursor: pointer;
-      color: #999;
-      font-weight: 600;
-      border-bottom: 2px solid transparent;
-    }
-    .onglet.actif {
-      color: #2e7d32;
-      border-bottom: 2px solid #2e7d32;
-    }
-    label {
-      display: block;
-      margin-top: 15px;
-      font-weight: bold;
-      font-size: 14px;
-    }
-    input {
-      width: 100%;
-      padding: 10px;
-      margin-top: 5px;
-      box-sizing: border-box;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-    }
-    button {
-      margin-top: 20px;
-      padding: 12px 20px;
-      background-color: #2e7d32;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      width: 100%;
-      font-size: 15px;
-    }
-    #message {
-      margin-top: 15px;
-      padding: 10px;
-      border-radius: 5px;
-      display: none;
-      font-size: 14px;
-    }
-    .succes { background-color: #d4edda; color: #155724; }
-    .erreur { background-color: #f8d7da; color: #721c24; }
+    body { display: flex; align-items: center; min-height: 100vh; }
+    .conteneur { margin: auto; width: 100%; padding-top: 0; padding-bottom: 40px; }
+    h1 { text-align: center; }
+    .sous-titre { text-align: center; margin-bottom: 26px; }
   </style>
 </head>
 <body>
-  <h1>À Point</h1>
-  <p class="sous-titre">La bonne quantité, chaque jour</p>
+  <div class="conteneur" style="max-width: 380px;">
+    <div class="logo-centre">
+      <svg class="logo-marque" viewBox="0 0 100 100" width="56" height="56" aria-hidden="true">
+        <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <circle cx="50" cy="56" r="8" fill="currentColor"/>
+      </svg>
+    </div>
+    <h1>À Point</h1>
+    <p class="sous-titre texte-aide">La bonne quantité, chaque jour</p>
 
-  <div class="onglets">
-    <div class="onglet actif" id="ongletConnexion">Se connecter</div>
-    <div class="onglet" id="ongletInscription">Créer un compte</div>
-  </div>
+    <div class="onglets">
+      <div class="onglet actif" id="ongletConnexion">Se connecter</div>
+      <div class="onglet" id="ongletInscription">Créer un compte</div>
+    </div>
 
-  <label for="email">Email</label>
-  <input type="email" id="email" placeholder="ton@email.com">
+    <label for="email">Email</label>
+    <input type="email" id="email" placeholder="ton@email.com">
 
-  <label for="motdepasse">Mot de passe</label>
+    <label for="motdepasse">Mot de passe</label>
     <input type="password" id="motdepasse" placeholder="Au moins 6 caractères">
 
-  <button id="btnAction">Se connecter</button>
+    <button id="btnAction">Se connecter</button>
 
-  <div id="message"></div>
+    <div id="message"></div>
+
+    <p class="texte-aide" style="text-align: center; margin-top: 18px;">
+      Nouveau ici ? <a href="bienvenue.html">Découvre comment ça marche avant de commencer →</a>
+    </p>
+  </div>
 
   <script>
     (function () {
