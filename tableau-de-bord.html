@@ -248,6 +248,68 @@
         return { bas: bas, haut: haut, tier: tier };
       }
 
+      // Jours fériés légaux français, calculés une fois pour toutes (aucune
+      // saisie, aucune API) : les dates fixes, plus les dates mobiles dérivées
+      // du dimanche de Pâques (algorithme de Meeus/Jones/Butcher). Simplification
+      // assumée : ne couvre pas le Vendredi saint ni le 26 décembre, fériés
+      // seulement en Alsace-Moselle — à ajouter si un pilote y est situé.
+      function datePaques(annee) {
+        var a = annee % 19;
+        var b = Math.floor(annee / 100);
+        var c = annee % 100;
+        var d = Math.floor(b / 4);
+        var e = b % 4;
+        var f = Math.floor((b + 8) / 25);
+        var g = Math.floor((b - f + 1) / 3);
+        var h = (19 * a + b - d - g + 15) % 30;
+        var i = Math.floor(c / 4);
+        var k = c % 4;
+        var l = (32 + 2 * e + 2 * i - h - k) % 7;
+        var m = Math.floor((a + 11 * h + 22 * l) / 451);
+        var mois = Math.floor((h + l - 7 * m + 114) / 31);
+        var jour = ((h + l - 7 * m + 114) % 31) + 1;
+        return new Date(annee, mois - 1, jour);
+      }
+
+      function ajouterJours(date, n) {
+        var d = new Date(date);
+        d.setDate(d.getDate() + n);
+        return d;
+      }
+
+      function versISO(date) {
+        var mm = ('0' + (date.getMonth() + 1)).slice(-2);
+        var dd = ('0' + date.getDate()).slice(-2);
+        return date.getFullYear() + '-' + mm + '-' + dd;
+      }
+
+      function joursFeriesAnnee(annee) {
+        var paques = datePaques(annee);
+        var dates = [
+          new Date(annee, 0, 1),
+          ajouterJours(paques, 1),
+          new Date(annee, 4, 1),
+          new Date(annee, 4, 8),
+          ajouterJours(paques, 39),
+          ajouterJours(paques, 50),
+          new Date(annee, 6, 14),
+          new Date(annee, 7, 15),
+          new Date(annee, 10, 1),
+          new Date(annee, 10, 11),
+          new Date(annee, 11, 25)
+        ];
+        return dates.map(versISO);
+      }
+
+      var CACHE_JOURS_FERIES = {};
+      function estJourFerie(date) {
+        var annee = date.getFullYear();
+        if (!CACHE_JOURS_FERIES[annee]) {
+          CACHE_JOURS_FERIES[annee] = joursFeriesAnnee(annee);
+        }
+        return CACHE_JOURS_FERIES[annee].indexOf(versISO(date)) !== -1;
+      }
+
       // Calcule la recommandation pour un produit, avec la comparaison ("delta")
       // par rapport à la dernière vente réelle du même jour de la semaine.
       function calculerRecommandation(ventesDuProduit) {
@@ -255,10 +317,14 @@
         jourCible.setDate(jourCible.getDate() + 1);
         var numeroJourCible = jourCible.getDay();
         var nomJourCible = nomsJours[numeroJourCible];
+        var cibleFeriee = estJourFerie(jourCible);
 
+        // Un jour férié tombant un mardi ne se comporte pas comme un mardi
+        // normal : on l'écarte des mardis "normaux" utilisés comme référence,
+        // pour ne pas fausser la moyenne des jours ordinaires avec lui.
         var ventesMemeJour = ventesDuProduit.filter(function (vente) {
           var d = new Date(vente.date_vente);
-          return d.getDay() === numeroJourCible;
+          return d.getDay() === numeroJourCible && !estJourFerie(d);
         });
 
         var baseVentes = ventesMemeJour.length > 0 ? ventesMemeJour : ventesDuProduit;
@@ -281,6 +347,9 @@
         if (filtrage.nbExclus > 0) {
           texteBase += " (" + filtrage.nbExclus + " jour" + (filtrage.nbExclus > 1 ? "s" : "") + " atypique" + (filtrage.nbExclus > 1 ? "s" : "") + " écarté" + (filtrage.nbExclus > 1 ? "s" : "") + " du calcul)";
         }
+        if (cibleFeriee) {
+          texteBase = "⚠️ Jour férié : l'activité peut différer d'un " + nomJourCible + " normal. " + texteBase;
+        }
 
         var delta = null;
         if (ventesMemeJour.length > 0) {
@@ -297,7 +366,8 @@
           nomJourCible: nomJourCible,
           texteBase: texteBase,
           delta: delta,
-          fourchette: fourchette
+          fourchette: fourchette,
+          jourFerie: cibleFeriee
         };
       }
 
@@ -442,9 +512,14 @@
           var dateCible = new Date();
           dateCible.setDate(dateCible.getDate() + offset);
           var numeroJour = dateCible.getDay();
+          var cibleFeriee = estJourFerie(dateCible);
 
+          // Comme pour la recommandation par produit : un jour férié passé
+          // n'est pas représentatif d'un jour de semaine "normal", on l'écarte
+          // de la référence utilisée pour les jours ordinaires.
           var memeJour = historiqueTotal.filter(function (t) {
-            return new Date(t.date_vente).getDay() === numeroJour;
+            var d = new Date(t.date_vente);
+            return d.getDay() === numeroJour && !estJourFerie(d);
           });
           var base = memeJour.length > 0 ? memeJour : historiqueTotal;
           // Pas d'exclusion des valeurs aberrantes ici, volontairement : cette
@@ -460,7 +535,13 @@
           var moyenne = moyennePonderee(base);
 
           var tier = 'normal';
-          if (memeJour.length >= 4) {
+          if (cibleFeriee) {
+            // Un jour férié n'est comparé à rien : pas assez de données pour
+            // dire honnêtement "chargé" ou "calme" par rapport à d'autres
+            // jours fériés, et le comparer aux jours de semaine ordinaires
+            // n'aurait pas de sens.
+            tier = 'ferie';
+          } else if (memeJour.length >= 4) {
             var quantitesTriees = base.map(function (v) { return v.quantite; }).sort(function (a, b) { return a - b; });
             var q1 = percentileValeur(quantitesTriees, 0.25);
             var q3 = percentileValeur(quantitesTriees, 0.75);
@@ -584,6 +665,9 @@
               } else if (j.tier === 'calme') {
                 badgeHTML = '<span class="badge-jour badge-jour--calme">Jour calme</span>';
                 detailTexte = 'Bonne occasion pour une offre ou une promo.';
+              } else if (j.tier === 'ferie') {
+                badgeHTML = '<span class="badge-jour badge-jour--ferie">Jour férié</span>';
+                detailTexte = "L'activité peut être différente d'un jour normal.";
               } else if (j.tier === 'normal') {
                 badgeHTML = '<span class="badge-jour badge-jour--normal">Normal</span>';
                 detailTexte = 'Activité dans la moyenne des ' + j.nomJour + 's.';
