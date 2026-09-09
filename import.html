@@ -9,6 +9,14 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    .detail-colonne { font-size: 12px; margin: 4px 0 12px; min-height: 1em; }
+    .detail-colonne.ok { color: var(--succes-texte); }
+    .detail-colonne.attention { color: var(--erreur-texte); }
+    .banniere-verification { padding: 10px 12px; border-radius: var(--rayon); margin: 4px 0 14px; font-size: 14px; }
+    .banniere-verification.ok { background: var(--succes-fond); color: var(--succes-texte); }
+    .banniere-verification.attention { background: var(--erreur-fond); color: var(--erreur-texte); }
+  </style>
 </head>
 <body>
   <div class="conteneur conteneur--moyen">
@@ -54,14 +62,17 @@
 
         <div id="zoneMapping" class="zone-mapping">
           <p style="margin:0; font-weight:600;">Vérifie que les bonnes colonnes sont sélectionnées :</p>
+          <div id="banniereVerification"></div>
 
           <div id="champDate">
             <label for="selectDate">Colonne pour la date</label>
             <select id="selectDate"></select>
+            <p id="detailDate" class="detail-colonne"></p>
           </div>
 
           <label for="selectProduit" id="labelProduit">Colonne pour le produit</label>
           <select id="selectProduit"></select>
+          <p id="detailProduit" class="detail-colonne"></p>
 
           <div id="champIngredient">
             <label for="selectIngredient">Colonne pour l'ingrédient</label>
@@ -70,6 +81,7 @@
 
           <label for="selectQuantite" id="labelQuantite">Colonne pour la quantité vendue</label>
           <select id="selectQuantite"></select>
+          <p id="detailQuantite" class="detail-colonne"></p>
 
           <div id="champUnite">
             <label for="selectUnite">Colonne pour l'unité (optionnelle)</label>
@@ -109,6 +121,10 @@
       var champDate = document.getElementById('champDate');
       var champIngredient = document.getElementById('champIngredient');
       var champUnite = document.getElementById('champUnite');
+      var detailDate = document.getElementById('detailDate');
+      var detailProduit = document.getElementById('detailProduit');
+      var detailQuantite = document.getElementById('detailQuantite');
+      var banniereVerification = document.getElementById('banniereVerification');
       var labelProduit = document.getElementById('labelProduit');
       var labelQuantite = document.getElementById('labelQuantite');
       var btnValiderMapping = document.getElementById('btnValiderMapping');
@@ -147,7 +163,7 @@
       // Noms de colonnes fréquemment utilisés par les caisses/tableurs, pour reconnaissance automatique
       var aliasesDate = ['date', 'jour', 'datedevente', 'date_vente', 'datevente', 'dateventre'];
       var aliasesProduit = ['produit', 'plat', 'article', 'nomduproduit', 'nom_produit', 'produitvendu', 'item', 'designation', 'nomarticle', 'libelle'];
-      var aliasesQuantite = ['quantite', 'qte', 'nombre', 'nombrevendu', 'quantitevendue', 'qty', 'nbvendu', 'ventes', 'quantitevendu'];
+      var aliasesQuantite = ['quantite', 'qte', 'nombre', 'nombrevendu', 'quantitevendue', 'qty', 'nbvendu', 'ventes', 'quantitevendu', 'vendu', 'vendus', 'vendue'];
       var aliasesIngredient = ['ingredient', 'ingredients', 'composant', 'matierepremiere', 'ingredientutilise'];
       var aliasesUnite = ['unite', 'unites', 'uom', 'mesure'];
 
@@ -169,6 +185,179 @@
           }
         }
         return '';
+      }
+
+      // --- Détection intelligente par contenu ---------------------------
+      // Le nom d'une colonne peut mentir (un intitulé "Article" qui contient
+      // en réalité une catégorie, un "Jour" qui contient le jour de semaine
+      // et pas une date...). En plus de l'alias sur le nom, on regarde donc
+      // aussi ce qu'il y a VRAIMENT dans la colonne, pour détecter — et
+      // signaler clairement — un mauvais choix avant même que le
+      // commerçant clique sur Continuer.
+
+      var produitsExistantsNormalises = {}; // clé normalisée -> nom canonique déjà en base
+      var produitsExistantsPromise = null;
+
+      function cleNormaliseeProduit(nom) {
+        return (nom === null || nom === undefined ? '' : nom.toString())
+          .trim().toLowerCase()
+          .normalize('NFD').replace(/[̀-ͯ]/g, '');
+      }
+
+      function chargerProduitsExistants() {
+        if (!produitsExistantsPromise) {
+          produitsExistantsPromise = sbClient.from('produits').select('nom').eq('commercant_id', commercantId)
+            .then(function (res) {
+              (res.data || []).forEach(function (p) { produitsExistantsNormalises[cleNormaliseeProduit(p.nom)] = p.nom; });
+              return produitsExistantsNormalises;
+            })
+            .catch(function () { return produitsExistantsNormalises; });
+        }
+        return produitsExistantsPromise;
+      }
+
+      function echantillonnerColonne(lignes, colonne, max) {
+        var valeurs = [];
+        for (var i = 0; i < lignes.length && valeurs.length < max; i++) {
+          var v = lignes[i][colonne];
+          if (v !== undefined && v !== null && v.toString().trim() !== '') valeurs.push(v);
+        }
+        return valeurs;
+      }
+
+      function scoreColonneDate(valeurs) {
+        if (valeurs.length === 0) return 0;
+        var ok = 0;
+        valeurs.forEach(function (v) { if (parserDate(v)) ok++; });
+        return ok / valeurs.length;
+      }
+
+      // Vérifie qu'une valeur RESSEMBLE vraiment à un nombre (pour noter une
+      // colonne), sans la tolérance de parserQuantite (qui, lui, nettoie les
+      // caractères parasites pour extraire un nombre au moment de l'import
+      // réel). Cette tolérance est très utile pour importer des valeurs un
+      // peu sales, mais rend n'importe quelle colonne texte "compatible
+      // quantité" par accident (ex : une date "2026-07-01" ou "9 septembre
+      // 2026" finit, une fois les caractères non numériques retirés, par
+      // ressembler à un nombre). Pour noter une colonne, on veut donc que la
+      // valeur SOIT un nombre de bout en bout, pas qu'elle en contienne un.
+      function ressembleANombre(valeur) {
+        if (typeof valeur === 'number') return isFinite(valeur);
+        var texte = (valeur === null || valeur === undefined ? '' : valeur.toString()).trim();
+        if (!texte) return false;
+        return /^-?\d+([.,]\d+)?$/.test(texte);
+      }
+
+      function scoreColonneQuantite(valeurs, entete) {
+        if (valeurs.length === 0) return 0;
+        var ok = 0;
+        valeurs.forEach(function (v) { if (ressembleANombre(v)) ok++; });
+        var score = ok / valeurs.length;
+
+        var normEntete = normaliserTexte(entete);
+        // Faux-ami classique : un intitulé qui évoque un stock restant
+        // plutôt qu'une quantité vendue.
+        if (normEntete.indexOf('stock') !== -1 || normEntete.indexOf('restant') !== -1 || normEntete.indexOf('disponible') !== -1) {
+          score *= 0.3;
+        }
+
+        // Une colonne aux valeurs presque toutes différentes ET croissantes
+        // ressemble à un identifiant (n° de ticket, de ligne...), pas à une
+        // quantité vendue qui se répète naturellement d'un jour à l'autre.
+        var nombres = valeurs.map(parserQuantite).filter(function (n) { return !isNaN(n); });
+        if (nombres.length >= 5) {
+          var distincts = {};
+          nombres.forEach(function (n) { distincts[n] = true; });
+          var tauxDistinct = Object.keys(distincts).length / nombres.length;
+          var croissants = 0;
+          for (var i = 1; i < nombres.length; i++) { if (nombres[i] > nombres[i - 1]) croissants++; }
+          var tauxCroissant = croissants / (nombres.length - 1);
+          if (tauxDistinct > 0.9 && tauxCroissant > 0.85) score *= 0.2;
+        }
+        return score;
+      }
+
+      function scoreColonneProduit(valeurs, entete) {
+        var texteVals = valeurs.map(texteCellule).filter(function (t) { return t; });
+        if (texteVals.length === 0) return 0;
+        var normEntete = normaliserTexte(entete);
+        var ressembleCategorie = normEntete.indexOf('categorie') !== -1 || normEntete.indexOf('famille') !== -1 || normEntete.indexOf('rayon') !== -1;
+
+        if (Object.keys(produitsExistantsNormalises).length > 0) {
+          var correspond = 0;
+          texteVals.forEach(function (t) { if (produitsExistantsNormalises[cleNormaliseeProduit(t)]) correspond++; });
+          var score = correspond / texteVals.length;
+          if (ressembleCategorie) score *= 0.5;
+          return score;
+        }
+
+        // Pas encore de produits connus pour comparer : heuristique de repli.
+        var toutesNumeriques = texteVals.every(function (t) { return !isNaN(parserQuantite(t)); });
+        if (toutesNumeriques) return 0.1;
+        var distincts = {};
+        texteVals.forEach(function (t) { distincts[cleNormaliseeProduit(t)] = true; });
+        if (Object.keys(distincts).length <= 1) return 0.3;
+        return ressembleCategorie ? 0.3 : 0.6;
+      }
+
+      // Combine l'alias sur le nom de colonne et le score sur son contenu :
+      // le nom ne l'emporte que si le contenu le confirme un minimum ;
+      // sinon on fait confiance à la colonne dont le contenu correspond
+      // vraiment, même si son intitulé n'est pas dans la liste connue.
+      var SEUIL_CONFIANCE = 0.5;
+
+      function detecterColonneParContenu(lignes, entetes, aliases, fonctionScore) {
+        var candidatAlias = detecterColonne(entetes, aliases);
+        var scoreParColonne = {};
+        var meilleureColonne = '';
+        var meilleurScore = -1;
+
+        entetes.forEach(function (e) {
+          var valeurs = echantillonnerColonne(lignes, e, 40);
+          var s = fonctionScore(valeurs, e);
+          scoreParColonne[e] = s;
+          if (s > meilleurScore) { meilleurScore = s; meilleureColonne = e; }
+        });
+
+        var scoreAlias = candidatAlias ? (scoreParColonne[candidatAlias] || 0) : -1;
+        var choix;
+        if (candidatAlias && scoreAlias >= SEUIL_CONFIANCE) {
+          choix = candidatAlias;
+        } else if (meilleurScore >= SEUIL_CONFIANCE) {
+          choix = meilleureColonne;
+        } else if (candidatAlias) {
+          choix = candidatAlias;
+        } else {
+          choix = (meilleureColonne && meilleurScore > 0) ? meilleureColonne : '';
+        }
+        return { colonne: choix, scores: scoreParColonne };
+      }
+
+      // Deux champs différents (ex: date et quantité) peuvent pointer vers la
+      // même colonne par coïncidence — une date "2026-07-01" est par exemple
+      // aussi lisible comme un nombre par un parseur numérique permissif. On
+      // règle les conflits en donnant la colonne à la détection la plus sûre,
+      // et en réaffectant les autres à leur meilleure alternative encore libre.
+      function resoudreConflitsColonnes(entetes, bilans) {
+        var prisPar = {};
+        var ordonnes = bilans.slice().sort(function (a, b) {
+          var sa = a.colonne ? (a.scores[a.colonne] || 0) : -1;
+          var sb = b.colonne ? (b.scores[b.colonne] || 0) : -1;
+          return sb - sa;
+        });
+        ordonnes.forEach(function (bilan) {
+          if (!bilan.colonne) return;
+          if (!prisPar[bilan.colonne]) { prisPar[bilan.colonne] = true; return; }
+          var meilleureLibre = '';
+          var meilleurScoreLibre = -1;
+          entetes.forEach(function (e) {
+            if (prisPar[e]) return;
+            var s = bilan.scores[e] || 0;
+            if (s > meilleurScoreLibre) { meilleurScoreLibre = s; meilleureLibre = e; }
+          });
+          bilan.colonne = meilleureLibre;
+          if (meilleureLibre) prisPar[meilleureLibre] = true;
+        });
       }
 
       function remplirSelect(select, entetes, valeurDetectee, avecOptionVide) {
@@ -213,6 +402,34 @@
 
         m = texte.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2})$/);
         if (m) return formatDateISO(new Date(2000 + parseInt(m[3], 10), +m[2] - 1, +m[1]));
+
+        // Une chaîne uniquement numérique, sans aucun séparateur, n'est une
+        // date que sous la forme compacte AAAAMMJJ (8 chiffres) : on vérifie
+        // que l'année/mois/jour obtenus sont bien cohérents. Sans ce garde-
+        // fou, new Date("10235") ci-dessous "réussirait" à interpréter un
+        // simple n° de ticket ou d'identifiant comme une date (année 10235),
+        // ce qui ferait à tort gagner ce genre de colonne dans la détection.
+        if (/^\d+$/.test(texte)) {
+          if (texte.length === 8) {
+            var annee = +texte.slice(0, 4), mois = +texte.slice(4, 6), jour = +texte.slice(6, 8);
+            var dateCompacte = new Date(annee, mois - 1, jour);
+            if (!isNaN(dateCompacte) && dateCompacte.getFullYear() === annee && dateCompacte.getMonth() === mois - 1 && dateCompacte.getDate() === jour) {
+              return formatDateISO(dateCompacte);
+            }
+          }
+          return null;
+        }
+
+        // Le constructeur Date natif reste bien trop permissif au-delà de
+        // ce cas : new Date("1.2") ou new Date("4.5") "réussissent" par
+        // exemple à produire une date bidon (il lit "1.2" comme "mois.jour"
+        // dans une année par défaut) — un prix ou une remise se ferait
+        // alors à tort passer pour une date valide. Les formats numériques
+        // qu'on veut vraiment reconnaître sont déjà couverts ci-dessus ; on
+        // ne tente ce parsing de secours, plus permissif, que si la chaîne
+        // contient au moins une lettre (un nom de mois écrit en toutes
+        // lettres : "septembre 2026", "September 9, 2026"...).
+        if (!/[a-zA-Z]/.test(texte)) return null;
 
         var parsed = new Date(texte);
         if (!isNaN(parsed)) return formatDateISO(parsed);
@@ -282,18 +499,45 @@
         champDate.style.display = modeImport === 'ventes' ? 'block' : 'none';
         champIngredient.style.display = modeImport === 'fiches' ? 'block' : 'none';
         champUnite.style.display = modeImport === 'fiches' ? 'block' : 'none';
+        detailProduit.style.display = modeImport === 'ventes' ? 'block' : 'none';
+        detailQuantite.style.display = modeImport === 'ventes' ? 'block' : 'none';
+        banniereVerification.innerHTML = '';
 
         reinitialiserApresChangementFichierOuMode();
       }
 
+      // Dernier bilan de détection calculé (colonne -> score 0..1), gardé de
+      // côté pour pouvoir donner un message d'erreur précis si l'import
+      // final échoue, et pour rafraîchir le retour visuel quand l'utilisateur
+      // change une sélection à la main.
+      var dernieresValeursParColonne = {};
+      var dernierBilan = { date: null, produit: null, quantite: null };
+
       function recevoirDonnees(lignes, entetes) {
         lignesBrutes = lignes;
         entetesDisponibles = entetes;
+        // On attend d'avoir la liste des produits déjà connus (utile pour
+        // reconnaître la bonne colonne "produit" par son contenu) avant de
+        // lancer la détection — l'appel est quasi immédiat en pratique.
+        chargerProduitsExistants().then(function () {
+          afficherMappingEtApercu(lignes, entetes);
+        });
+      }
+
+      function afficherMappingEtApercu(lignes, entetes) {
+        dernieresValeursParColonne = {};
+        entetes.forEach(function (e) { dernieresValeursParColonne[e] = echantillonnerColonne(lignes, e, 40); });
 
         if (modeImport === 'ventes') {
-          remplirSelect(selectDate, entetes, detecterColonne(entetes, aliasesDate), false);
-          remplirSelect(selectProduit, entetes, detecterColonne(entetes, aliasesProduit), false);
-          remplirSelect(selectQuantite, entetes, detecterColonne(entetes, aliasesQuantite), false);
+          var bilanDate = detecterColonneParContenu(lignes, entetes, aliasesDate, scoreColonneDate);
+          var bilanProduit = detecterColonneParContenu(lignes, entetes, aliasesProduit, scoreColonneProduit);
+          var bilanQuantite = detecterColonneParContenu(lignes, entetes, aliasesQuantite, scoreColonneQuantite);
+          resoudreConflitsColonnes(entetes, [bilanDate, bilanProduit, bilanQuantite]);
+          dernierBilan = { date: bilanDate, produit: bilanProduit, quantite: bilanQuantite };
+
+          remplirSelect(selectDate, entetes, bilanDate.colonne, false);
+          remplirSelect(selectProduit, entetes, bilanProduit.colonne, false);
+          remplirSelect(selectQuantite, entetes, bilanQuantite.colonne, false);
         } else {
           remplirSelect(selectProduit, entetes, detecterColonne(entetes, aliasesProduit), false);
           remplirSelect(selectIngredient, entetes, detecterColonne(entetes, aliasesIngredient), false);
@@ -301,11 +545,60 @@
           remplirSelect(selectUnite, entetes, detecterColonne(entetes, aliasesUnite), true);
         }
         afficherApercuBrut(lignes, entetes);
+        if (modeImport === 'ventes') rafraichirRetourVisuel();
 
         apercuDiv.innerHTML = '';
         btnImporter.style.display = 'none';
         zoneMapping.style.display = 'block';
       }
+
+      // --- Retour visuel immédiat sous chaque colonne (mode ventes) -----
+      function exempleValeur(colonne) {
+        var vals = dernieresValeursParColonne[colonne] || [];
+        return vals.length ? texteCellule(vals[0]) : '';
+      }
+
+      function afficherDetailColonne(el, colonne, score, libelleType) {
+        if (!colonne) { el.textContent = ''; el.className = 'detail-colonne'; return; }
+        var pct = Math.round(score * 100);
+        if (score >= SEUIL_CONFIANCE) {
+          el.className = 'detail-colonne ok';
+          el.textContent = '✓ ' + pct + '% des valeurs ressemblent à ' + libelleType + ' (ex. « ' + exempleValeur(colonne) + ' »).';
+        } else {
+          el.className = 'detail-colonne attention';
+          el.textContent = '⚠️ Cette colonne ne ressemble pas vraiment à ' + libelleType + ' (ex. « ' + exempleValeur(colonne) + ' ») — vérifie que c\'est la bonne.';
+        }
+      }
+
+      function rafraichirRetourVisuel() {
+        if (modeImport !== 'ventes') return;
+        var colDate = selectDate.value;
+        var colProduit = selectProduit.value;
+        var colQuantite = selectQuantite.value;
+
+        var scoreDate = colDate ? scoreColonneDate(dernieresValeursParColonne[colDate] || []) : 0;
+        var scoreProduit = colProduit ? scoreColonneProduit(dernieresValeursParColonne[colProduit] || [], colProduit) : 0;
+        var scoreQuantite = colQuantite ? scoreColonneQuantite(dernieresValeursParColonne[colQuantite] || [], colQuantite) : 0;
+
+        afficherDetailColonne(detailDate, colDate, scoreDate, 'des dates');
+        afficherDetailColonne(detailProduit, colProduit, scoreProduit, 'des noms de produits' + (Object.keys(produitsExistantsNormalises).length ? ' que tu as déjà' : ''));
+        afficherDetailColonne(detailQuantite, colQuantite, scoreQuantite, 'des quantités vendues');
+
+        var toutBon = colDate && colProduit && colQuantite && scoreDate >= SEUIL_CONFIANCE && scoreProduit >= SEUIL_CONFIANCE && scoreQuantite >= SEUIL_CONFIANCE;
+        var auMoinsUnProbleme = (colDate && scoreDate < SEUIL_CONFIANCE) || (colProduit && scoreProduit < SEUIL_CONFIANCE) || (colQuantite && scoreQuantite < SEUIL_CONFIANCE);
+
+        if (toutBon) {
+          banniereVerification.innerHTML = '<div class="banniere-verification ok">✓ Tout semble correct — tu peux continuer.</div>';
+        } else if (auMoinsUnProbleme) {
+          banniereVerification.innerHTML = '<div class="banniere-verification attention">⚠️ Au moins une colonne ci-dessous ne correspond probablement pas — regarde les détails avant de continuer.</div>';
+        } else {
+          banniereVerification.innerHTML = '';
+        }
+      }
+
+      selectDate.addEventListener('change', rafraichirRetourVisuel);
+      selectProduit.addEventListener('change', rafraichirRetourVisuel);
+      selectQuantite.addEventListener('change', rafraichirRetourVisuel);
 
       sbClient.auth.getSession().then(function (result) {
         var session = result.data.session;
@@ -358,6 +651,25 @@
         }
       });
 
+      // Pointe la colonne la plus probablement fautive, avec un exemple
+      // concret, plutôt qu'un simple "vérifie ta sélection" qui oblige à
+      // deviner laquelle des trois colonnes ne va pas.
+      function messageAucuneLigneValide(colDate, colProduit, colQuantite) {
+        var candidats = [
+          { colonne: colDate, score: scoreColonneDate(dernieresValeursParColonne[colDate] || []), libelle: 'la date', typeAttendu: 'des dates (ex. 15/03/2026)' },
+          { colonne: colProduit, score: scoreColonneProduit(dernieresValeursParColonne[colProduit] || [], colProduit), libelle: 'le produit', typeAttendu: 'des noms de produits' },
+          { colonne: colQuantite, score: scoreColonneQuantite(dernieresValeursParColonne[colQuantite] || [], colQuantite), libelle: 'la quantité vendue', typeAttendu: 'des nombres' }
+        ];
+        candidats.sort(function (a, b) { return a.score - b.score; });
+        var pire = candidats[0];
+
+        if (pire.score < SEUIL_CONFIANCE) {
+          var exemple = exempleValeur(pire.colonne);
+          return "Aucune ligne valide trouvée. La colonne choisie pour " + pire.libelle + " (« " + pire.colonne + " ») ne contient pas " + pire.typeAttendu + (exemple ? " — exemple trouvé : « " + exemple + " »" : "") + ". Choisis une autre colonne dans le menu au-dessus.";
+        }
+        return "Aucune ligne valide trouvée avec ces colonnes. Vérifie ta sélection ci-dessus.";
+      }
+
       function validerMappingVentes() {
         var colDate = selectDate.value;
         var colProduit = selectProduit.value;
@@ -394,7 +706,7 @@
         apercuDiv.innerHTML = '';
 
         if (lignesAImporter.length === 0) {
-          apercuDiv.innerHTML = '<div class="erreur" style="padding:10px; border-radius:5px;">Aucune ligne valide trouvée avec ces colonnes. Vérifie ta sélection ci-dessus.</div>';
+          apercuDiv.innerHTML = '<div class="erreur" style="padding:10px; border-radius:5px;">' + messageAucuneLigneValide(colDate, colProduit, colQuantite) + '</div>';
           btnImporter.style.display = 'none';
           return;
         }
@@ -482,10 +794,27 @@
         // existe déjà dans "Mes produits" — sinon la fiche technique (ingrédients)
         // ne pourrait jamais s'y rattacher, et il faudrait tout recréer à la main
         // après coup. On crée automatiquement ceux qui manquent.
-        var nomsRencontres = {};
-        lignesAImporter.forEach(function (l) { nomsRencontres[l.nom_produit] = true; });
-
+        //
+        // La comparaison se fait sur une clé normalisée (espaces superflus et
+        // casse ignorés) : un fichier qui écrit tantôt "Croissant", tantôt
+        // "croissant" ou "CROISSANT", ne doit pas créer trois fiches produit
+        // différentes pour la même chose. La toute première orthographe
+        // rencontrée (déjà existante en base si possible, sinon celle du
+        // fichier) sert de référence, et toutes les lignes importées sont
+        // réécrites vers cette orthographe canonique.
         sbClient.from('produits').select('nom').eq('commercant_id', commercantId).then(function (resultatProduits) {
+          var nomCanoniqueParCle = {};
+          (resultatProduits.data || []).forEach(function (p) { nomCanoniqueParCle[cleNormaliseeProduit(p.nom)] = p.nom; });
+
+          lignesAImporter.forEach(function (l) {
+            var cle = cleNormaliseeProduit(l.nom_produit);
+            if (!nomCanoniqueParCle[cle]) nomCanoniqueParCle[cle] = l.nom_produit;
+            l.nom_produit = nomCanoniqueParCle[cle];
+          });
+
+          var nomsRencontres = {};
+          lignesAImporter.forEach(function (l) { nomsRencontres[l.nom_produit] = true; });
+
           var nomsExistants = {};
           (resultatProduits.data || []).forEach(function (p) { nomsExistants[p.nom] = true; });
 
@@ -526,12 +855,23 @@
         // Même logique de création automatique que pour les ventes : un plat mentionné
         // dans le document de recette qui n'existe pas encore dans "Mes produits" est créé
         // à la volée, sinon sa fiche technique n'aurait aucun produit à rattacher.
-        var nomsRencontres = {};
-        lignesFichesAImporter.forEach(function (l) { nomsRencontres[l.produit] = true; });
-
+        // Comparaison normalisée (casse/espaces) pour la même raison que dans
+        // importerVentes : éviter de créer un doublon pour une orthographe
+        // légèrement différente d'un produit déjà connu.
         sbClient.from('produits').select('id,nom').eq('commercant_id', commercantId).then(function (resultatProduits) {
           var nomVersId = {};
           (resultatProduits.data || []).forEach(function (p) { nomVersId[p.nom] = p.id; });
+
+          var nomCanoniqueParCle = {};
+          (resultatProduits.data || []).forEach(function (p) { nomCanoniqueParCle[cleNormaliseeProduit(p.nom)] = p.nom; });
+          lignesFichesAImporter.forEach(function (l) {
+            var cle = cleNormaliseeProduit(l.produit);
+            if (!nomCanoniqueParCle[cle]) nomCanoniqueParCle[cle] = l.produit;
+            l.produit = nomCanoniqueParCle[cle];
+          });
+
+          var nomsRencontres = {};
+          lignesFichesAImporter.forEach(function (l) { nomsRencontres[l.produit] = true; });
 
           var nomsManquants = Object.keys(nomsRencontres).filter(function (nom) { return !(nom in nomVersId); });
           var nouveauxProduits = nomsManquants.map(function (nom) { return { commercant_id: commercantId, nom: nom }; });
