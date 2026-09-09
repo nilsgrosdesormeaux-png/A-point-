@@ -1,0 +1,238 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>À Point - Paramètres</title>
+  <link rel="icon" href="logo.svg">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="conteneur conteneur--moyen">
+    <header class="entete-site">
+      <a href="tableau-de-bord.html" class="logo">
+        <svg class="logo-marque" viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
+          <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <circle cx="50" cy="56" r="8" fill="currentColor"/>
+        </svg>
+      </a>
+      <nav class="nav-principale">
+        <a href="tableau-de-bord.html" class="nav-lien">Tableau de bord</a>
+        <a href="produits.html" class="nav-lien">Mes produits</a>
+        <a href="ventes.html" class="nav-lien">Mes ventes</a>
+        <a href="import.html" class="nav-lien">Importer</a>
+        <a href="parametres.html" class="nav-lien nav-actif">Paramètres</a>
+      </nav>
+    </header>
+
+    <div class="carte-page">
+      <div class="entete-page">
+        <div>
+          <p class="eyebrow">Réglages</p>
+          <h1>Paramètres</h1>
+        </div>
+      </div>
+      <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
+
+      <div id="zoneParametres" style="display:none;">
+        <p class="section-titre" style="margin-top:22px;">Mon commerce</p>
+
+        <label for="inputNomRestaurant">Nom du restaurant</label>
+        <input type="text" id="inputNomRestaurant" placeholder="Ex : Café de l'Ouest">
+
+        <label for="inputCodePostal">Code postal</label>
+        <input type="text" id="inputCodePostal" placeholder="Ex : 35400" maxlength="5" inputmode="numeric">
+        <p class="texte-aide" style="margin-top:-4px;">Sert à déduire automatiquement ta zone de vacances scolaires (A, B ou C), pour que les prévisions en tiennent compte.</p>
+
+        <label>Jours de fermeture habituels</label>
+        <div class="grille-jours" id="grilleJoursFermeture"></div>
+        <p class="texte-aide">Les jours cochés ne seront jamais recommandés à la production, et ne compteront pas comme des jours "ratés" dans le calcul de fiabilité.</p>
+
+        <button id="btnEnregistrerCommerce" type="button">Enregistrer</button>
+        <div id="messageCommerce"></div>
+
+        <p class="section-titre">Compte</p>
+        <p class="texte-aide" id="emailActuel"></p>
+
+        <label for="inputNouvelEmail">Changer d'adresse email</label>
+        <div class="ligne-form">
+          <input type="email" id="inputNouvelEmail" placeholder="nouvelle@adresse.fr">
+          <button id="btnChangerEmail" type="button">Enregistrer</button>
+        </div>
+        <div id="messageEmail"></div>
+
+        <label for="inputNouveauMdp">Changer de mot de passe</label>
+        <input type="password" id="inputNouveauMdp" placeholder="Nouveau mot de passe (8 caractères minimum)">
+        <label for="inputConfirmerMdp" style="margin-top:10px;">Confirmer le nouveau mot de passe</label>
+        <input type="password" id="inputConfirmerMdp" placeholder="Confirme le nouveau mot de passe">
+        <button id="btnChangerMdp" type="button">Enregistrer</button>
+        <div id="messageMdp"></div>
+
+        <p class="section-titre">Session</p>
+        <button id="btnDeconnexion" type="button" style="background-color: var(--surface); color: var(--texte); border: 1px solid var(--bordure);">Se déconnecter</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
+      var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
+      var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      var statutDiv = document.getElementById('statutConnexion');
+      var zoneParametresEl = document.getElementById('zoneParametres');
+      var inputNomRestaurantEl = document.getElementById('inputNomRestaurant');
+      var inputCodePostalEl = document.getElementById('inputCodePostal');
+      var grilleJoursFermetureEl = document.getElementById('grilleJoursFermeture');
+      var btnEnregistrerCommerceEl = document.getElementById('btnEnregistrerCommerce');
+      var messageCommerceEl = document.getElementById('messageCommerce');
+      var emailActuelEl = document.getElementById('emailActuel');
+      var inputNouvelEmailEl = document.getElementById('inputNouvelEmail');
+      var btnChangerEmailEl = document.getElementById('btnChangerEmail');
+      var messageEmailEl = document.getElementById('messageEmail');
+      var inputNouveauMdpEl = document.getElementById('inputNouveauMdp');
+      var inputConfirmerMdpEl = document.getElementById('inputConfirmerMdp');
+      var btnChangerMdpEl = document.getElementById('btnChangerMdp');
+      var messageMdpEl = document.getElementById('messageMdp');
+      var btnDeconnexionEl = document.getElementById('btnDeconnexion');
+
+      // Ordre d'affichage habituel d'une semaine française (lundi → dimanche),
+      // mais la valeur stockée reste celle de JS Date.getDay() (0 = dimanche)
+      // pour rester cohérente avec le reste du code (tableau de bord, etc.).
+      var JOURS_AFFICHES = [
+        { valeur: 1, nom: 'Lundi' },
+        { valeur: 2, nom: 'Mardi' },
+        { valeur: 3, nom: 'Mercredi' },
+        { valeur: 4, nom: 'Jeudi' },
+        { valeur: 5, nom: 'Vendredi' },
+        { valeur: 6, nom: 'Samedi' },
+        { valeur: 0, nom: 'Dimanche' }
+      ];
+
+      function afficherMessage(el, texte, estErreur) {
+        el.className = estErreur ? 'erreur' : 'succes';
+        el.style.cssText = 'padding:8px 10px; border-radius:6px; margin:8px 0 0;';
+        el.textContent = texte;
+      }
+
+      var commercantId = null;
+
+      sbClient.auth.getSession().then(function (result) {
+        var session = result.data.session;
+        if (!session) {
+          statutDiv.textContent = "Tu n'es pas connecté. Va d'abord sur la page de connexion.";
+          return;
+        }
+        commercantId = session.user.id;
+        statutDiv.style.display = 'none';
+        zoneParametresEl.style.display = 'block';
+        emailActuelEl.textContent = "Adresse actuelle : " + session.user.email;
+
+        grilleJoursFermetureEl.innerHTML = '';
+        JOURS_AFFICHES.forEach(function (j) {
+          var label = document.createElement('label');
+          label.className = 'case-jour';
+          var input = document.createElement('input');
+          input.type = 'checkbox';
+          input.value = j.valeur;
+          input.className = 'case-jour-input';
+          label.appendChild(input);
+          label.appendChild(document.createTextNode(j.nom));
+          grilleJoursFermetureEl.appendChild(label);
+        });
+
+        sbClient.from('parametres_commercant').select('*').eq('commercant_id', commercantId).then(function (res) {
+          var parametres = (res.data && res.data[0]) || null;
+          if (!parametres) return;
+          inputNomRestaurantEl.value = parametres.nom_restaurant || '';
+          inputCodePostalEl.value = parametres.code_postal || '';
+          var fermes = parametres.jours_fermeture || [];
+          var cases = grilleJoursFermetureEl.querySelectorAll('.case-jour-input');
+          cases.forEach(function (c) {
+            c.checked = fermes.indexOf(Number(c.value)) !== -1;
+          });
+        });
+      });
+
+      btnEnregistrerCommerceEl.addEventListener('click', function () {
+        if (!commercantId) return;
+        var cp = inputCodePostalEl.value.trim();
+        if (cp && !/^[0-9]{5}$/.test(cp)) {
+          afficherMessage(messageCommerceEl, "Un code postal français fait 5 chiffres.", true);
+          return;
+        }
+        var joursFermeture = [];
+        grilleJoursFermetureEl.querySelectorAll('.case-jour-input').forEach(function (c) {
+          if (c.checked) joursFermeture.push(Number(c.value));
+        });
+        btnEnregistrerCommerceEl.disabled = true;
+        sbClient.from('parametres_commercant').upsert({
+          commercant_id: commercantId,
+          nom_restaurant: inputNomRestaurantEl.value.trim() || null,
+          code_postal: cp || null,
+          jours_fermeture: joursFermeture,
+          updated_at: new Date().toISOString()
+        }).then(function (res) {
+          btnEnregistrerCommerceEl.disabled = false;
+          if (res.error) {
+            afficherMessage(messageCommerceEl, "Erreur : " + res.error.message, true);
+            return;
+          }
+          afficherMessage(messageCommerceEl, "Réglages enregistrés.", false);
+        });
+      });
+
+      btnChangerEmailEl.addEventListener('click', function () {
+        var nouvelEmail = inputNouvelEmailEl.value.trim();
+        if (!nouvelEmail) {
+          afficherMessage(messageEmailEl, "Entre une adresse email.", true);
+          return;
+        }
+        btnChangerEmailEl.disabled = true;
+        sbClient.auth.updateUser({ email: nouvelEmail }).then(function (res) {
+          btnChangerEmailEl.disabled = false;
+          if (res.error) {
+            afficherMessage(messageEmailEl, "Erreur : " + res.error.message, true);
+            return;
+          }
+          afficherMessage(messageEmailEl, "Vérifie ta boîte mail (ancienne et nouvelle adresse) pour confirmer le changement.", false);
+          inputNouvelEmailEl.value = '';
+        });
+      });
+
+      btnChangerMdpEl.addEventListener('click', function () {
+        var nouveauMdp = inputNouveauMdpEl.value;
+        var confirmation = inputConfirmerMdpEl.value;
+        if (nouveauMdp.length < 8) {
+          afficherMessage(messageMdpEl, "Le mot de passe doit faire au moins 8 caractères.", true);
+          return;
+        }
+        if (nouveauMdp !== confirmation) {
+          afficherMessage(messageMdpEl, "Les deux mots de passe ne correspondent pas.", true);
+          return;
+        }
+        btnChangerMdpEl.disabled = true;
+        sbClient.auth.updateUser({ password: nouveauMdp }).then(function (res) {
+          btnChangerMdpEl.disabled = false;
+          if (res.error) {
+            afficherMessage(messageMdpEl, "Erreur : " + res.error.message, true);
+            return;
+          }
+          afficherMessage(messageMdpEl, "Mot de passe mis à jour.", false);
+          inputNouveauMdpEl.value = '';
+          inputConfirmerMdpEl.value = '';
+        });
+      });
+
+      btnDeconnexionEl.addEventListener('click', function () {
+        sbClient.auth.signOut().then(function () {
+          location.href = 'connexion.html';
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
