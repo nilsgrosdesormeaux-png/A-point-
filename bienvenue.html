@@ -1,0 +1,261 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>À Point - Bienvenue</title>
+  <link rel="icon" href="logo.svg">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .barre-haut {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 24px 20px 0;
+    }
+    .barre-haut .logo { display: flex; align-items: center; gap: 8px; }
+    .barre-haut .logo-texte { font-family: var(--police-titre); font-weight: 600; font-size: 18px; color: var(--texte); }
+    .lien-passer { font-size: 13px; color: var(--texte-attenue); text-decoration: none; white-space: nowrap; }
+    .lien-passer:hover { color: var(--texte); text-decoration: underline; }
+
+    .hero-bienvenue {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 36px 20px 8px;
+      text-align: center;
+    }
+    .hero-bienvenue h1 { margin-bottom: 10px; }
+    .hero-bienvenue .sous-titre { max-width: 520px; margin: 0 auto; }
+
+    .section-bienvenue {
+      max-width: 720px;
+      margin: 28px auto;
+      padding: 0 20px;
+    }
+    .section-bienvenue > .carte-page { margin: 0; }
+
+    .pitch-liste {
+      margin: 14px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+    .pitch-liste li {
+      padding: 10px 0 10px 26px;
+      position: relative;
+      color: var(--texte);
+      border-bottom: 1px solid var(--bordure);
+    }
+    .pitch-liste li:last-child { border-bottom: none; }
+    .pitch-liste li::before {
+      content: "→";
+      position: absolute;
+      left: 0;
+      color: var(--texte-tres-attenue);
+    }
+
+    .etape {
+      display: grid;
+      grid-template-columns: 40px 1fr;
+      gap: 4px 16px;
+      margin: 0 0 40px;
+    }
+    .etape:last-child { margin-bottom: 0; }
+    .etape-numero {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--police-titre);
+      font-weight: 600;
+      font-size: 15px;
+    }
+    .etape-titre { font-family: var(--police-titre); font-size: 18px; font-weight: 600; margin: 4px 0 6px; color: var(--texte); }
+    .etape-texte { grid-column: 2; color: var(--texte-attenue); margin: 0 0 14px; }
+    .etape-texte strong { color: var(--texte); }
+    .etape-capture {
+      grid-column: 2;
+    }
+    .etape-capture img {
+      width: 100%;
+      max-width: 480px;
+      border: 1px solid var(--bordure);
+      border-radius: var(--rayon);
+      box-shadow: var(--ombre);
+      display: block;
+    }
+    .etape-note {
+      grid-column: 2;
+      font-size: 13px;
+      color: var(--texte-tres-attenue);
+      margin: 10px 0 0;
+      padding: 10px 12px;
+      background: var(--info-fond);
+      border-radius: var(--rayon);
+    }
+
+    .bloc-choix {
+      grid-column: 2;
+      display: grid;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    @media (min-width: 560px) {
+      .bloc-choix { grid-template-columns: 1fr 1fr; }
+    }
+    .choix-carte {
+      border: 1px solid var(--bordure);
+      border-radius: var(--rayon);
+      padding: 14px 16px;
+      background: var(--surface);
+    }
+    .choix-carte p.titre-choix { font-weight: 600; margin: 0 0 6px; color: var(--texte); }
+    .choix-carte p { margin: 0; font-size: 14px; color: var(--texte-attenue); }
+
+    .honnetete {
+      background: var(--info-fond);
+      border-radius: var(--rayon-lg);
+      padding: 22px 24px;
+      color: var(--info-texte);
+    }
+    .honnetete p { margin: 0 0 10px; }
+    .honnetete p:last-child { margin-bottom: 0; }
+
+    .cta-finale {
+      text-align: center;
+      padding: 12px 20px 60px;
+    }
+    .cta-finale a.bouton-principal {
+      display: inline-block;
+      background: var(--accent);
+      color: var(--surface);
+      text-decoration: none;
+      padding: 14px 30px;
+      border-radius: var(--rayon);
+      font-weight: 600;
+      font-size: 16px;
+    }
+    .cta-finale a.bouton-principal:hover { background: var(--accent-fonce); }
+    .cta-finale p { margin-top: 14px; }
+  </style>
+</head>
+<body>
+
+  <div class="barre-haut">
+    <a href="bienvenue.html" class="logo">
+      <svg class="logo-marque" viewBox="0 0 100 100" width="22" height="22" aria-hidden="true">
+        <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <circle cx="50" cy="56" r="8" fill="currentColor"/>
+      </svg>
+      <span class="logo-texte">À Point</span>
+    </a>
+    <a href="connexion.html" class="lien-passer">Passer, aller directement à la connexion →</a>
+  </div>
+
+  <div class="hero-bienvenue">
+    <p class="eyebrow">GUIDE DE DÉMARRAGE</p>
+    <h1>Bienvenue sur À Point</h1>
+    <p class="sous-titre texte-aide">Ce guide t'explique tout, de A à Z : à quoi ça sert et comment t'installer, étape par étape. Compte environ 5 minutes de lecture. Si tu préfères foncer directement, le lien "Passer" en haut te mène à la connexion.</p>
+  </div>
+
+  <div class="section-bienvenue">
+    <div class="carte-page">
+      <p class="eyebrow">EN BREF</p>
+      <h1 style="font-size: 22px;">À quoi sert l'outil ?</h1>
+      <p class="texte-aide">À Point regarde ton historique de ventes et te dit, chaque jour, <strong style="color: var(--texte);">quelle quantité produire ou commander</strong> pour ton prochain jour d'ouverture — sans que tu aies besoin de faire le calcul toi-même.</p>
+      <ul class="pitch-liste">
+        <li>Il apprend directement de <strong>tes propres ventes passées</strong>, produit par produit — pas d'un modèle générique qui suppose que ta boulangerie ressemble à une autre.</li>
+        <li>Il tient compte automatiquement des <strong>jours fériés</strong>, des <strong>vacances scolaires</strong> de ta zone, et de la <strong>météo prévue</strong> (par exemple, plus de fréquentation quand il pleut, différemment selon le produit).</li>
+        <li>Tu peux aussi signaler toi-même un <strong>événement particulier</strong> attendu (marché local, jour férié atypique, événement dans le quartier) pour ajuster la recommandation ce jour-là.</li>
+        <li>Il donne une <strong>fourchette</strong> plutôt qu'un chiffre unique qui ferait semblant d'être certain — plus ton historique est long et régulier, plus la fourchette se resserre.</li>
+        <li>Une fois tes ventes renseignées, il n'y a <strong>aucune tâche manuelle récurrente</strong> à part regarder le tableau de bord et, chaque jour, noter combien tu as vendu la veille (30 secondes).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="section-bienvenue">
+    <p class="eyebrow" style="padding: 0 4px;">POUR DÉMARRER</p>
+    <h1 style="font-size: 22px; padding: 0 4px; margin-bottom: 28px;">Étape par étape</h1>
+
+    <div class="etape">
+      <div class="etape-numero">1</div>
+      <div>
+        <p class="etape-titre">Créer ton compte</p>
+      </div>
+      <p class="etape-texte">Sur la page de connexion, clique sur l'onglet <strong>« Créer un compte »</strong>, renseigne ton email et un mot de passe. Tu recevras un email de confirmation : clique sur le lien qu'il contient, puis reviens te connecter avec ce même email et mot de passe.</p>
+      <div class="etape-capture"><img src="captures-tuto/2-inscription.png" alt="Écran de création de compte À Point"></div>
+    </div>
+
+    <div class="etape">
+      <div class="etape-numero">2</div>
+      <div>
+        <p class="etape-titre">Ajouter tes produits</p>
+      </div>
+      <p class="etape-texte">Dans <strong>« Mes produits »</strong>, ajoute chaque produit que tu veux suivre (ex : Baguette tradition, Croissant, Pain au chocolat...). Un produit composé de plusieurs ingrédients (comme un burger) peut aussi avoir sa propre « fiche technique » pour qu'À Point calcule directement la quantité d'ingrédients nécessaires — c'est optionnel, à faire seulement si ça t'intéresse.</p>
+      <div class="etape-capture"><img src="captures-tuto/3-produits.png" alt="Écran Mes produits"></div>
+    </div>
+
+    <div class="etape">
+      <div class="etape-numero">3</div>
+      <div>
+        <p class="etape-titre">Renseigner ton historique de ventes</p>
+      </div>
+      <p class="etape-texte">C'est l'étape la plus importante : plus l'historique est long, plus les prévisions sont fiables. Deux façons de faire, selon ta situation :</p>
+      <div class="bloc-choix">
+        <div class="choix-carte">
+          <p class="titre-choix">Tu as un export de ta caisse</p>
+          <p>Va dans <strong>« Importer »</strong>, dépose ton fichier CSV ou Excel. À Point essaie de reconnaître automatiquement les colonnes (date, produit, quantité) — tu peux vérifier et corriger avant de valider.</p>
+        </div>
+        <div class="choix-carte">
+          <p class="titre-choix">Tu n'as pas d'export</p>
+          <p>Va dans <strong>« Mes ventes »</strong> et note, chaque jour, ce que tu as vendu la veille pour chaque produit. Ça prend 30 secondes et l'historique se construit tout seul, jour après jour.</p>
+        </div>
+      </div>
+      <p class="etape-texte" style="margin-bottom: 8px;">Voici l'écran d'import :</p>
+      <div class="etape-capture" style="margin-bottom: 18px;"><img src="captures-tuto/4-import.png" alt="Écran d'import de fichier de ventes"></div>
+      <p class="etape-texte" style="margin-bottom: 8px;">Et l'écran de saisie quotidienne :</p>
+      <div class="etape-capture"><img src="captures-tuto/5-ventes.png" alt="Écran de saisie des ventes de la veille"></div>
+    </div>
+
+    <div class="etape">
+      <div class="etape-numero">4</div>
+      <div>
+        <p class="etape-titre">Régler tes paramètres <span style="font-weight: 400; color: var(--texte-tres-attenue); font-size: 14px;">(optionnel, mais conseillé)</span></p>
+      </div>
+      <p class="etape-texte">Dans <strong>« Paramètres »</strong> : le nom de ton commerce (affiché sur le tableau de bord), ton <strong>code postal</strong> (sert à déduire ta zone de vacances scolaires et la météo locale), et tes <strong>jours de fermeture habituels</strong> (ils ne seront jamais recommandés à la production).</p>
+      <div class="etape-capture"><img src="captures-tuto/6-parametres.png" alt="Écran Paramètres"></div>
+    </div>
+
+    <div class="etape">
+      <div class="etape-numero">5</div>
+      <div>
+        <p class="etape-titre">Consulter ton tableau de bord chaque jour</p>
+      </div>
+      <p class="etape-texte">C'est l'écran que tu regarderas au quotidien. Il affiche, pour ton prochain jour d'ouverture, la <strong>quantité recommandée par produit</strong>, une <strong>fourchette</strong>, la comparaison avec le même jour la semaine dernière, et — quand ça joue un rôle — la raison d'un ajustement (jour férié, vacances, météo, événement signalé).</p>
+      <div class="etape-capture"><img src="captures-tuto/7-tableau-de-bord.png" alt="Tableau de bord avec les recommandations du jour"></div>
+      <p class="etape-note">Un onglet <strong>« Semaine »</strong> donne aussi une vue sur les 7 prochains jours d'un coup, avec un badge par jour (normal, calme, chargé, fermé...) et la possibilité de signaler toi-même un jour où tu attends plus ou moins de monde que d'habitude.</p>
+      <div class="etape-capture" style="margin-top: 14px;"><img src="captures-tuto/8-semaine.png" alt="Vue de la semaine à venir"></div>
+    </div>
+  </div>
+
+  <div class="section-bienvenue">
+    <div class="honnetete">
+      <p class="eyebrow" style="color: var(--info-texte);">À SAVOIR AVANT DE COMMENCER</p>
+      <p>À Point est encore en version de test, en évolution continue. Au tout début, avec peu d'historique, les recommandations seront prudentes et les fourchettes larges — c'est normal, ça se resserre avec le temps. Utilise-le comme une aide à la décision, pas comme une vérité absolue : ton propre jugement reste la référence finale, surtout les premières semaines.</p>
+      <p>Tes retours (ce qui marche, ce qui ne colle pas, ce qui manque) sont vraiment ce qui fait avancer l'outil — n'hésite jamais à les partager directement.</p>
+    </div>
+  </div>
+
+  <div class="cta-finale">
+    <a href="connexion.html" class="bouton-principal">Créer mon compte →</a>
+    <p class="texte-aide">Ça prend deux minutes.</p>
+  </div>
+
+</body>
+</html>
