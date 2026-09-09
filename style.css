@@ -645,6 +645,12 @@ button.lien-supprimer:hover {
   margin: 3px 0 0;
 }
 
+.carte-sombre .detail-meteo {
+  font-size: 11px;
+  color: var(--sombre-texte-attenue);
+  margin: 4px 0 0;
+}
+
 .carte-sombre--lien {
   display: block;
   text-decoration: none;
