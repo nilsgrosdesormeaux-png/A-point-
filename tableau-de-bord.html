@@ -665,7 +665,14 @@
           if (!parametres || !parametres.code_postal) {
             bandeauReglagesEl.style.display = 'block';
           }
-          sombreBadgeEl.textContent = ventes.length + " jour(s) d'historique";
+          // Nombre de jours DISTINCTS couverts par l'historique, pas le nombre
+          // de lignes de vente : avec plusieurs produits, chaque jour génère
+          // une ligne par produit, donc ventes.length seul exagérait le
+          // nombre de jours réellement couverts (ex: 4 produits x 98 jours =
+          // 392 lignes, affiché à tort comme "392 jour(s) d'historique").
+          var joursDistincts = {};
+          ventes.forEach(function (v) { joursDistincts[v.date_vente] = true; });
+          sombreBadgeEl.textContent = Object.keys(joursDistincts).length + " jour(s) d'historique";
 
           if (ventes.length === 0) {
             sombreTitreEl.textContent = "Pas encore de données";
