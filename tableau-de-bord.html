@@ -3,6 +3,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Tableau de bord</title>
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="style.css">
@@ -68,6 +69,7 @@
     </div>
 
     <a href="ventes.html" class="lien-retour">← Ajouter les ventes d'hier</a>
+    <p class="pied-page"><a href="cgu.html">Conditions générales d'utilisation</a></p>
   </div>
 
   <script>
@@ -388,28 +390,67 @@
       // panne réseau ou un service indisponible ne bloque jamais l'affichage,
       // la météo est simplement absente ce chargement-là, comme n'importe
       // quel autre signal optionnel de ce tableau de bord.
-      function geocoderCodePostal(codePostal) {
-        var url = 'https://geo.api.gouv.fr/communes?codePostal=' + encodeURIComponent(codePostal) + '&fields=centre&format=json';
+      //
+      // Un même code postal peut correspondre à plusieurs communes (ex :
+      // 35000 recouvre Rennes mais aussi Saint-Grégoire et Cesson-Sévigné) ;
+      // sans précision, la première commune renvoyée par l'API était prise
+      // par défaut, ce qui pouvait décaler la météo d'une commune voisine.
+      // Quand le commerçant a renseigné le nom de sa ville, on l'utilise pour
+      // choisir la bonne commune parmi celles que retourne le code postal.
+      function normaliserNomVille(texte) {
+        return (texte === null || texte === undefined ? '' : texte.toString())
+          .toLowerCase()
+          .normalize('NFD').replace(/[̀-ͯ]/g, '')
+          .replace(/[^a-z0-9]/g, '');
+      }
+
+      function choisirCommune(communes, ville) {
+        if (communes.length <= 1 || !ville) return communes[0];
+        var villeNorm = normaliserNomVille(ville);
+        if (!villeNorm) return communes[0];
+        var i, nomNorm;
+        // 1) correspondance exacte (une fois les deux noms normalisés).
+        for (i = 0; i < communes.length; i++) {
+          nomNorm = normaliserNomVille(communes[i].nom);
+          if (nomNorm === villeNorm) return communes[i];
+        }
+        // 2) correspondance partielle (ex : "Paris" saisi pour "Paris 15e
+        // Arrondissement"), en secours si aucune correspondance exacte.
+        for (i = 0; i < communes.length; i++) {
+          nomNorm = normaliserNomVille(communes[i].nom);
+          if (nomNorm.indexOf(villeNorm) !== -1 || villeNorm.indexOf(nomNorm) !== -1) return communes[i];
+        }
+        // Aucune correspondance : on garde l'ancien comportement par défaut
+        // plutôt que de bloquer la météo.
+        return communes[0];
+      }
+
+      function geocoderCodePostal(codePostal, ville) {
+        var url = 'https://geo.api.gouv.fr/communes?codePostal=' + encodeURIComponent(codePostal) + '&fields=nom,centre&format=json';
         return fetch(url).then(function (res) {
           return res.ok ? res.json() : [];
         }).then(function (communes) {
-          if (!communes || communes.length === 0 || !communes[0].centre || !communes[0].centre.coordinates) return null;
-          var coords = communes[0].centre.coordinates; // [longitude, latitude]
+          if (!communes || communes.length === 0) return null;
+          var commune = choisirCommune(communes, ville);
+          if (!commune || !commune.centre || !commune.centre.coordinates) return null;
+          var coords = commune.centre.coordinates; // [longitude, latitude]
           return { latitude: coords[1], longitude: coords[0] };
         }).catch(function () { return null; });
       }
 
       // Récupère, une seule fois par commerçant, les coordonnées géographiques
-      // à partir du code postal déjà enregistré — en cache si déjà connues,
-      // sinon géocodées puis sauvegardées pour la prochaine fois (écriture
-      // best-effort : son échec éventuel n'empêche pas la météo de fonctionner
-      // pour ce chargement-ci).
+      // à partir du code postal (et, si renseignée, de la ville) déjà
+      // enregistrés — en cache si déjà connues, sinon géocodées puis
+      // sauvegardées pour la prochaine fois (écriture best-effort : son échec
+      // éventuel n'empêche pas la météo de fonctionner pour ce chargement-ci).
+      // Le cache est invalidé côté paramètres.html à chaque enregistrement,
+      // pour qu'un changement de ville ou de code postal soit bien repris.
       function obtenirCoordonnees(parametres, commercantId) {
         if (!parametres || !parametres.code_postal) return Promise.resolve(null);
         if (parametres.latitude != null && parametres.longitude != null) {
           return Promise.resolve({ latitude: parametres.latitude, longitude: parametres.longitude });
         }
-        return geocoderCodePostal(parametres.code_postal).then(function (coords) {
+        return geocoderCodePostal(parametres.code_postal, parametres.ville).then(function (coords) {
           if (!coords) return null;
           sbClient.from('parametres_commercant').update({ latitude: coords.latitude, longitude: coords.longitude }).eq('commercant_id', commercantId);
           return coords;
