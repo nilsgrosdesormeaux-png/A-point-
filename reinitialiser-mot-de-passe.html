@@ -1,0 +1,134 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>À Point - Réinitialiser le mot de passe</title>
+  <link rel="icon" href="logo.svg">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { display: flex; align-items: center; min-height: 100vh; }
+    .conteneur { margin: auto; width: 100%; padding-top: 0; padding-bottom: 40px; }
+    h1 { text-align: center; }
+    .sous-titre { text-align: center; margin-bottom: 26px; }
+  </style>
+</head>
+<body>
+  <div class="conteneur" style="max-width: 380px;">
+    <div class="logo-centre">
+      <svg class="logo-marque" viewBox="0 0 100 100" width="56" height="56" aria-hidden="true">
+        <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <circle cx="50" cy="56" r="8" fill="currentColor"/>
+      </svg>
+    </div>
+    <h1>Nouveau mot de passe</h1>
+    <p class="sous-titre texte-aide" id="sousTitre">Vérification du lien...</p>
+
+    <div id="zoneFormulaire" style="display:none;">
+      <label for="nouveauMdp">Nouveau mot de passe</label>
+      <input type="password" id="nouveauMdp" placeholder="Au moins 8 caractères">
+
+      <label for="confirmerMdp">Confirmer le nouveau mot de passe</label>
+      <input type="password" id="confirmerMdp" placeholder="Confirme le nouveau mot de passe">
+
+      <button id="btnValider">Mettre à jour mon mot de passe</button>
+    </div>
+
+    <div id="zoneLienInvalide" style="display:none;">
+      <p class="texte-aide">Ce lien est invalide ou a expiré. Redemande un nouveau lien depuis la page de connexion.</p>
+      <a href="connexion.html" class="lien-retour" style="margin-top:6px;">← Retour à la connexion</a>
+    </div>
+
+    <div id="message"></div>
+
+    <p class="pied-page"><a href="cgu.html">Conditions générales d'utilisation</a></p>
+  </div>
+
+  <script>
+    (function () {
+      var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
+      var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
+      var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      var sousTitreEl = document.getElementById('sousTitre');
+      var zoneFormulaireEl = document.getElementById('zoneFormulaire');
+      var zoneLienInvalideEl = document.getElementById('zoneLienInvalide');
+      var nouveauMdpEl = document.getElementById('nouveauMdp');
+      var confirmerMdpEl = document.getElementById('confirmerMdp');
+      var btnValiderEl = document.getElementById('btnValider');
+      var messageDiv = document.getElementById('message');
+
+      var lienValide = false;
+
+      function afficherFormulaire() {
+        if (lienValide) return; // évite un double affichage si l'événement se déclenche deux fois
+        lienValide = true;
+        sousTitreEl.textContent = "Choisis un nouveau mot de passe pour ton compte.";
+        zoneFormulaireEl.style.display = 'block';
+        zoneLienInvalideEl.style.display = 'none';
+      }
+
+      // Le lien reçu par email contient un jeton de récupération que le client
+      // Supabase lit automatiquement dans l'URL au chargement de la page ; il
+      // déclenche alors l'événement PASSWORD_RECOVERY une fois la session de
+      // récupération établie.
+      sbClient.auth.onAuthStateChange(function (event) {
+        if (event === 'PASSWORD_RECOVERY') afficherFormulaire();
+      });
+
+      // Filet de sécurité : sur certaines versions, l'événement peut avoir été
+      // émis avant même que ce script attache son écouteur. On vérifie donc
+      // aussi directement si une session est déjà active juste après le
+      // chargement (best-effort, laisse un court instant à l'analyse de l'URL).
+      setTimeout(function () {
+        if (lienValide) return;
+        sbClient.auth.getSession().then(function (result) {
+          if (lienValide) return;
+          if (result.data.session) {
+            afficherFormulaire();
+          } else {
+            sousTitreEl.textContent = '';
+            zoneLienInvalideEl.style.display = 'block';
+          }
+        });
+      }, 1200);
+
+      btnValiderEl.addEventListener('click', function () {
+        var nouveauMdp = nouveauMdpEl.value;
+        var confirmation = confirmerMdpEl.value;
+
+        if (nouveauMdp.length < 8) {
+          messageDiv.style.display = 'block';
+          messageDiv.className = 'erreur';
+          messageDiv.textContent = "Le mot de passe doit faire au moins 8 caractères.";
+          return;
+        }
+        if (nouveauMdp !== confirmation) {
+          messageDiv.style.display = 'block';
+          messageDiv.className = 'erreur';
+          messageDiv.textContent = "Les deux mots de passe ne correspondent pas.";
+          return;
+        }
+
+        btnValiderEl.disabled = true;
+        sbClient.auth.updateUser({ password: nouveauMdp }).then(function (result) {
+          btnValiderEl.disabled = false;
+          messageDiv.style.display = 'block';
+          if (result.error) {
+            messageDiv.className = 'erreur';
+            messageDiv.textContent = "Erreur : " + result.error.message;
+          } else {
+            messageDiv.className = 'succes';
+            messageDiv.textContent = "Mot de passe mis à jour ! Redirection...";
+            zoneFormulaireEl.style.display = 'none';
+            setTimeout(function () { window.location.href = 'tableau-de-bord.html'; }, 1200);
+          }
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
