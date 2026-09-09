@@ -712,3 +712,33 @@ button.lien-supprimer:hover {
   background: rgba(90, 158, 191, 0.18);
   color: #6fb3d9;
 }
+
+.badge-jour--ferme {
+  background: transparent;
+  border: 1px dashed var(--sombre-bordure);
+  color: var(--sombre-texte-attenue);
+}
+
+/* ---------- Page Paramètres ---------- */
+
+.grille-jours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin: 6px 0 4px;
+}
+
+.case-jour {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.case-jour input {
+  width: auto;
+  margin: 0;
+}
