@@ -3,6 +3,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point</title>
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="style.css">
@@ -37,6 +38,15 @@
     <label for="motdepasse">Mot de passe</label>
     <input type="password" id="motdepasse" placeholder="Au moins 6 caractères">
 
+    <p class="texte-aide" style="text-align: right; margin: 6px 0 0;" id="ligneMotDePasseOublie">
+      <a href="#" id="lienMotDePasseOublie">Mot de passe oublié ?</a>
+    </p>
+
+    <label class="case-consentement" id="ligneCgu" style="display:none;">
+      <input type="checkbox" id="caseCgu">
+      <span>J'ai lu et j'accepte les <a href="cgu.html" target="_blank" rel="noopener">conditions générales d'utilisation</a>.</span>
+    </label>
+
     <button id="btnAction">Se connecter</button>
 
     <div id="message"></div>
@@ -44,6 +54,8 @@
     <p class="texte-aide" style="text-align: center; margin-top: 18px;">
       Nouveau ici ? <a href="bienvenue.html">Découvre comment ça marche avant de commencer →</a>
     </p>
+
+    <p class="pied-page"><a href="cgu.html">Conditions générales d'utilisation</a></p>
   </div>
 
   <script>
@@ -57,6 +69,10 @@
       var ongletInscription = document.getElementById('ongletInscription');
       var btnAction = document.getElementById('btnAction');
       var messageDiv = document.getElementById('message');
+      var ligneCgu = document.getElementById('ligneCgu');
+      var caseCgu = document.getElementById('caseCgu');
+      var ligneMotDePasseOublie = document.getElementById('ligneMotDePasseOublie');
+      var lienMotDePasseOublie = document.getElementById('lienMotDePasseOublie');
 
       sbClient.auth.getSession().then(function (result) {
         if (result.data.session) {
@@ -70,6 +86,8 @@
         ongletInscription.className = 'onglet';
         btnAction.textContent = 'Se connecter';
         messageDiv.style.display = 'none';
+        ligneCgu.style.display = 'none';
+        ligneMotDePasseOublie.style.display = 'block';
       });
 
       ongletInscription.addEventListener('click', function () {
@@ -78,6 +96,33 @@
         ongletConnexion.className = 'onglet';
         btnAction.textContent = 'Créer mon compte';
         messageDiv.style.display = 'none';
+        ligneCgu.style.display = 'flex';
+        ligneMotDePasseOublie.style.display = 'none';
+      });
+
+      lienMotDePasseOublie.addEventListener('click', function (e) {
+        e.preventDefault();
+        var email = document.getElementById('email').value;
+        if (!email) {
+          messageDiv.style.display = 'block';
+          messageDiv.className = 'erreur';
+          messageDiv.textContent = "Renseigne d'abord ton adresse email ci-dessus, puis clique à nouveau sur ce lien.";
+          return;
+        }
+        lienMotDePasseOublie.style.pointerEvents = 'none';
+        sbClient.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin + window.location.pathname.replace(/connexion\.html$/, '') + 'reinitialiser-mot-de-passe.html'
+        }).then(function (result) {
+          lienMotDePasseOublie.style.pointerEvents = '';
+          messageDiv.style.display = 'block';
+          if (result.error) {
+            messageDiv.className = 'erreur';
+            messageDiv.textContent = "Erreur : " + result.error.message;
+          } else {
+            messageDiv.className = 'succes';
+            messageDiv.textContent = "Si un compte existe pour " + email + ", un email vient de lui être envoyé avec un lien pour choisir un nouveau mot de passe.";
+          }
+        });
       });
 
       btnAction.addEventListener('click', function () {
@@ -88,6 +133,13 @@
           messageDiv.style.display = 'block';
           messageDiv.className = 'erreur';
           messageDiv.textContent = "Remplis l'email et le mot de passe.";
+          return;
+        }
+
+        if (modeInscription && !caseCgu.checked) {
+          messageDiv.style.display = 'block';
+          messageDiv.className = 'erreur';
+          messageDiv.textContent = "Coche la case pour accepter les conditions générales d'utilisation avant de créer ton compte.";
           return;
         }
 
