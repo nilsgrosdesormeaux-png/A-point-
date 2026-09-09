@@ -1,0 +1,496 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>À Point - Semaine</title>
+  <link rel="icon" href="logo.svg">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="conteneur conteneur--large">
+    <header class="entete-site">
+      <a href="tableau-de-bord.html" class="logo">
+        <svg class="logo-marque" viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
+          <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <circle cx="50" cy="56" r="8" fill="currentColor"/>
+        </svg>
+      </a>
+      <nav class="nav-principale">
+        <a href="tableau-de-bord.html" class="nav-lien">Tableau de bord</a>
+        <a href="semaine.html" class="nav-lien nav-actif">Semaine</a>
+        <a href="produits.html" class="nav-lien">Mes produits</a>
+        <a href="ventes.html" class="nav-lien">Mes ventes</a>
+        <a href="import.html" class="nav-lien">Importer</a>
+        <a href="parametres.html" class="nav-lien">Paramètres</a>
+      </nav>
+    </header>
+
+    <p id="statutConnexion" class="texte-aide">Chargement...</p>
+
+    <div class="tableau-sombre">
+      <div class="sombre-entete">
+        <div>
+          <p class="sombre-date" id="sombreDate"></p>
+          <p class="sombre-titre">Ta semaine à venir</p>
+        </div>
+      </div>
+
+      <div class="sombre-label">Cette semaine</div>
+      <div class="grille-sombre" id="grilleSemaine"></div>
+
+      <div class="sombre-label">Vos résultats</div>
+      <div class="grille-sombre" id="grilleResultats">
+        <div class="carte-sombre" id="carteFiabilite">
+          <p class="nom">Fiabilité des prévisions</p>
+          <p class="valeur">—</p>
+          <p class="detail">Pas encore assez d'historique</p>
+        </div>
+      </div>
+    </div>
+
+    <a href="tableau-de-bord.html" class="lien-retour">← Retour au tableau de bord</a>
+  </div>
+
+  <script>
+    (function () {
+      var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
+      var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
+      var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      var statutDiv = document.getElementById('statutConnexion');
+      var sombreDateEl = document.getElementById('sombreDate');
+      var grilleSemaineEl = document.getElementById('grilleSemaine');
+      var carteFiabiliteEl = document.getElementById('carteFiabilite');
+
+      var nomsJours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+      var nomsMois = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+      var nomsJoursCourts = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+      var nomsMoisCourts = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+
+      function capitaliser(texte) {
+        return texte.charAt(0).toUpperCase() + texte.slice(1);
+      }
+
+      function formatDateLongue(date) {
+        return capitaliser(nomsJours[date.getDay()]) + ' ' + date.getDate() + ' ' + nomsMois[date.getMonth()];
+      }
+
+      // Poids donné aux ventes récentes par rapport aux anciennes dans la moyenne
+      // pondérée — même logique et même réglage que sur le tableau de bord, pour
+      // que "Cette semaine" et la fiabilité restent cohérentes avec les
+      // recommandations produit par produit affichées ailleurs.
+      var DECALAGE_PONDERATION = 0.75;
+
+      function exclureValeursAberrantes(ventesTriees) {
+        if (ventesTriees.length < 5) {
+          return { ventesFiltrees: ventesTriees, nbExclus: 0 };
+        }
+        var quantites = ventesTriees.map(function (v) { return v.quantite; }).sort(function (a, b) { return a - b; });
+        function percentile(p) {
+          var idx = (quantites.length - 1) * p;
+          var lo = Math.floor(idx), hi = Math.ceil(idx);
+          if (lo === hi) return quantites[lo];
+          return quantites[lo] + (quantites[hi] - quantites[lo]) * (idx - lo);
+        }
+        var q1 = percentile(0.25);
+        var q3 = percentile(0.75);
+        var iqr = q3 - q1;
+        if (iqr === 0) {
+          return { ventesFiltrees: ventesTriees, nbExclus: 0 };
+        }
+        var basMin = q1 - 1.5 * iqr;
+        var hautMax = q3 + 1.5 * iqr;
+        var filtrees = ventesTriees.filter(function (v) { return v.quantite >= basMin && v.quantite <= hautMax; });
+        if (filtrees.length < 3) {
+          return { ventesFiltrees: ventesTriees, nbExclus: 0 };
+        }
+        return { ventesFiltrees: filtrees, nbExclus: ventesTriees.length - filtrees.length };
+      }
+
+      function moyennePonderee(ventesTriees) {
+        var n = ventesTriees.length;
+        var sommePonderee = 0;
+        var sommePoids = 0;
+        ventesTriees.forEach(function (v, i) {
+          var positionDepuisLaFin = n - 1 - i;
+          var poids = Math.pow(DECALAGE_PONDERATION, positionDepuisLaFin);
+          sommePonderee += v.quantite * poids;
+          sommePoids += poids;
+        });
+        return sommePonderee / sommePoids;
+      }
+
+      // Jours fériés / vacances scolaires : mêmes fonctions que sur le tableau
+      // de bord (dupliquées ici volontairement, le site n'a pas de module JS
+      // partagé) — voir tableau-de-bord.html pour le détail des sources et
+      // limites assumées (Alsace-Moselle, Corse/DOM non couverts).
+      function datePaques(annee) {
+        var a = annee % 19;
+        var b = Math.floor(annee / 100);
+        var c = annee % 100;
+        var d = Math.floor(b / 4);
+        var e = b % 4;
+        var f = Math.floor((b + 8) / 25);
+        var g = Math.floor((b - f + 1) / 3);
+        var h = (19 * a + b - d - g + 15) % 30;
+        var i = Math.floor(c / 4);
+        var k = c % 4;
+        var l = (32 + 2 * e + 2 * i - h - k) % 7;
+        var m = Math.floor((a + 11 * h + 22 * l) / 451);
+        var mois = Math.floor((h + l - 7 * m + 114) / 31);
+        var jour = ((h + l - 7 * m + 114) % 31) + 1;
+        return new Date(annee, mois - 1, jour);
+      }
+
+      function ajouterJours(date, n) {
+        var d = new Date(date);
+        d.setDate(d.getDate() + n);
+        return d;
+      }
+
+      function versISO(date) {
+        var mm = ('0' + (date.getMonth() + 1)).slice(-2);
+        var dd = ('0' + date.getDate()).slice(-2);
+        return date.getFullYear() + '-' + mm + '-' + dd;
+      }
+
+      function joursFeriesAnnee(annee) {
+        var paques = datePaques(annee);
+        var dates = [
+          new Date(annee, 0, 1),
+          ajouterJours(paques, 1),
+          new Date(annee, 4, 1),
+          new Date(annee, 4, 8),
+          ajouterJours(paques, 39),
+          ajouterJours(paques, 50),
+          new Date(annee, 6, 14),
+          new Date(annee, 7, 15),
+          new Date(annee, 10, 1),
+          new Date(annee, 10, 11),
+          new Date(annee, 11, 25)
+        ];
+        return dates.map(versISO);
+      }
+
+      var CACHE_JOURS_FERIES = {};
+      function estJourFerie(date) {
+        var annee = date.getFullYear();
+        if (!CACHE_JOURS_FERIES[annee]) {
+          CACHE_JOURS_FERIES[annee] = joursFeriesAnnee(annee);
+        }
+        return CACHE_JOURS_FERIES[annee].indexOf(versISO(date)) !== -1;
+      }
+
+      var PERIODES_VACANCES = [
+        // 2025-2026
+        { debut: '2025-10-18', fin: '2025-11-03', zones: 'toutes' },
+        { debut: '2025-12-20', fin: '2026-01-05', zones: 'toutes' },
+        { debut: '2026-02-07', fin: '2026-02-23', zones: ['A'] },
+        { debut: '2026-02-14', fin: '2026-03-02', zones: ['B'] },
+        { debut: '2026-02-21', fin: '2026-03-09', zones: ['C'] },
+        { debut: '2026-04-04', fin: '2026-04-20', zones: ['A'] },
+        { debut: '2026-04-11', fin: '2026-04-27', zones: ['B'] },
+        { debut: '2026-04-18', fin: '2026-05-04', zones: ['C'] },
+        { debut: '2026-07-04', fin: '2026-08-31', zones: 'toutes' },
+        // 2026-2027
+        { debut: '2026-10-17', fin: '2026-11-02', zones: 'toutes' },
+        { debut: '2026-12-19', fin: '2027-01-04', zones: 'toutes' },
+        { debut: '2027-02-13', fin: '2027-03-01', zones: ['A'] },
+        { debut: '2027-02-20', fin: '2027-03-08', zones: ['B'] },
+        { debut: '2027-02-06', fin: '2027-02-22', zones: ['C'] },
+        { debut: '2027-04-10', fin: '2027-04-26', zones: ['A'] },
+        { debut: '2027-04-17', fin: '2027-05-03', zones: ['B'] },
+        { debut: '2027-04-03', fin: '2027-04-19', zones: ['C'] },
+        { debut: '2027-07-03', fin: '2027-08-31', zones: 'toutes' }
+      ];
+
+      var DEPARTEMENT_VERS_ZONE = {};
+      (function () {
+        var parZone = {
+          A: ['25','39','70','90', '24','33','40','47','64', '03','15','43','63', '21','58','71','89', '07','26','38','73','74', '19','23','87', '01','42','69', '16','17','79','86'],
+          B: ['04','05','13', '02','60','80', '59','62', '54','55','57','88', '44','49','53','72','85', '06','83','84', '14','50','61','27','76', '18','28','36','37','41','45', '08','10','51','52', '22','29','35','56', '67','68'],
+          C: ['77','93','94', '11','30','34','48','66', '75', '09','12','31','32','46','65','81','82', '78','91','92','95']
+        };
+        Object.keys(parZone).forEach(function (zone) {
+          parZone[zone].forEach(function (dep) { DEPARTEMENT_VERS_ZONE[dep] = zone; });
+        });
+      })();
+
+      function codePostalVersDepartement(codePostal) {
+        var cp = (codePostal || '').trim();
+        if (!/^[0-9]{5}$/.test(cp)) return null;
+        if (cp.substring(0, 2) === '97' || cp.substring(0, 2) === '98') return cp.substring(0, 3);
+        if (cp.substring(0, 2) === '20') return null;
+        return cp.substring(0, 2);
+      }
+
+      function zoneVacancesPourCodePostal(codePostal) {
+        var dep = codePostalVersDepartement(codePostal);
+        if (!dep) return null;
+        return DEPARTEMENT_VERS_ZONE[dep] || null;
+      }
+
+      function estEnVacances(date, zone) {
+        if (!zone) return false;
+        var iso = versISO(date);
+        for (var i = 0; i < PERIODES_VACANCES.length; i++) {
+          var p = PERIODES_VACANCES[i];
+          if (iso >= p.debut && iso <= p.fin) {
+            if (p.zones === 'toutes' || p.zones.indexOf(zone) !== -1) return true;
+          }
+        }
+        return false;
+      }
+
+      function retroTesterMethode(ventes, fonctionPrediction) {
+        var parProduit = {};
+        ventes.forEach(function (v) {
+          if (!parProduit[v.nom_produit]) parProduit[v.nom_produit] = [];
+          parProduit[v.nom_produit].push(v);
+        });
+
+        var erreurs = [];
+        Object.keys(parProduit).forEach(function (nom) {
+          var lignes = parProduit[nom].slice().sort(function (a, b) {
+            return new Date(a.date_vente) - new Date(b.date_vente);
+          });
+          var parJour = {};
+          lignes.forEach(function (v) {
+            var jour = new Date(v.date_vente).getDay();
+            if (!parJour[jour]) parJour[jour] = [];
+            parJour[jour].push(v);
+          });
+          Object.keys(parJour).forEach(function (jour) {
+            var occurrences = parJour[jour];
+            for (var i = 1; i < occurrences.length; i++) {
+              var historique = occurrences.slice(0, i);
+              var prediction = fonctionPrediction(historique);
+              var reel = occurrences[i].quantite;
+              if (reel > 0) {
+                erreurs.push(Math.abs(prediction - reel) / reel);
+              }
+            }
+          });
+        });
+
+        if (erreurs.length === 0) return null;
+        var sommeErreurs = 0;
+        erreurs.forEach(function (e) { sommeErreurs += e; });
+        var erreurMoyenne = sommeErreurs / erreurs.length;
+        return {
+          valeur: Math.max(0, Math.round((1 - erreurMoyenne) * 100)),
+          nbPoints: erreurs.length
+        };
+      }
+
+      function calculerFiabilite(ventes) {
+        return retroTesterMethode(ventes, function (historique) {
+          var filtrage = exclureValeursAberrantes(historique);
+          return Math.round(moyennePonderee(filtrage.ventesFiltrees) * 1.1);
+        });
+      }
+
+      function calculerFiabiliteNaive(ventes) {
+        return retroTesterMethode(ventes, function (historique) {
+          var somme = 0;
+          historique.forEach(function (h) { somme += h.quantite; });
+          return Math.round(somme / historique.length);
+        });
+      }
+
+      function percentileValeur(valeursTriees, p) {
+        var idx = (valeursTriees.length - 1) * p;
+        var lo = Math.floor(idx), hi = Math.ceil(idx);
+        if (lo === hi) return valeursTriees[lo];
+        return valeursTriees[lo] + (valeursTriees[hi] - valeursTriees[lo]) * (idx - lo);
+      }
+
+      // Prévision d'affluence sur les 7 jours à venir — identique à la version
+      // qui vivait sur le tableau de bord, avec un nouveau niveau de priorité :
+      // un événement signalé à la main (evenements, connu directement par le
+      // commerçant) prime sur férié/vacances scolaires (des signaux déduits),
+      // mais jamais sur un jour de fermeture (fermé reste fermé quoi qu'il arrive).
+      function calculerPrevisionSemaine(ventes, zoneVacances, joursFermeture, evenements) {
+        var totauxParDate = {};
+        ventes.forEach(function (v) {
+          totauxParDate[v.date_vente] = (totauxParDate[v.date_vente] || 0) + v.quantite;
+        });
+        var historiqueTotal = Object.keys(totauxParDate).map(function (d) {
+          return { date_vente: d, quantite: totauxParDate[d] };
+        }).sort(function (a, b) { return new Date(a.date_vente) - new Date(b.date_vente); });
+
+        if (historiqueTotal.length === 0) return [];
+
+        var jours = [];
+        for (var offset = 1; offset <= 7; offset++) {
+          var dateCible = new Date();
+          dateCible.setDate(dateCible.getDate() + offset);
+          var numeroJour = dateCible.getDay();
+          var isoCible = versISO(dateCible);
+          var cibleFermee = !!(joursFermeture && joursFermeture.indexOf(numeroJour) !== -1);
+          var evenementCible = !cibleFermee && evenements ? evenements[isoCible] : undefined;
+          var cibleFeriee = !cibleFermee && !evenementCible && estJourFerie(dateCible);
+          var cibleVacances = !cibleFermee && !evenementCible && !cibleFeriee && estEnVacances(dateCible, zoneVacances);
+
+          var memeJour = historiqueTotal.filter(function (t) {
+            var d = new Date(t.date_vente);
+            return d.getDay() === numeroJour && !estJourFerie(d) && !estEnVacances(d, zoneVacances);
+          });
+          var base = memeJour.length > 0 ? memeJour : historiqueTotal;
+          var moyenne = moyennePonderee(base);
+
+          var tier = 'normal';
+          if (cibleFermee) {
+            tier = 'ferme';
+          } else if (evenementCible === 'plus') {
+            tier = 'evenement-plus';
+          } else if (evenementCible === 'moins') {
+            tier = 'evenement-moins';
+          } else if (cibleFeriee) {
+            tier = 'ferie';
+          } else if (cibleVacances) {
+            tier = 'vacances';
+          } else if (memeJour.length >= 4) {
+            var quantitesTriees = base.map(function (v) { return v.quantite; }).sort(function (a, b) { return a - b; });
+            var q1 = percentileValeur(quantitesTriees, 0.25);
+            var q3 = percentileValeur(quantitesTriees, 0.75);
+            if (q3 > q1) {
+              if (moyenne > q3) tier = 'charge';
+              else if (moyenne < q1) tier = 'calme';
+            }
+          } else {
+            tier = 'insuffisant';
+          }
+
+          jours.push({ date: dateCible, iso: isoCible, nomJour: nomsJours[numeroJour], tier: tier });
+        }
+        return jours;
+      }
+
+      sombreDateEl.textContent = "Aujourd'hui " + formatDateLongue(new Date());
+
+      var commercantIdGlobal = null;
+
+      function chargerEtAfficher() {
+        Promise.all([
+          sbClient.from('ventes').select('*').eq('commercant_id', commercantIdGlobal),
+          sbClient.from('parametres_commercant').select('*').eq('commercant_id', commercantIdGlobal),
+          sbClient.from('evenements_commercant').select('*').eq('commercant_id', commercantIdGlobal)
+        ]).then(function (resultats) {
+          var ventes = resultats[0].data || [];
+          var parametres = (resultats[1].data && resultats[1].data[0]) || null;
+          var zoneVacances = parametres ? zoneVacancesPourCodePostal(parametres.code_postal) : null;
+          var joursFermeture = (parametres && parametres.jours_fermeture) || [];
+          var evenements = {};
+          (resultats[2].data || []).forEach(function (e) {
+            evenements[e.date_evenement] = e.direction;
+          });
+
+          if (ventes.length === 0) {
+            grilleSemaineEl.innerHTML = '<div class="carte-vide-sombre">Aucune donnée pour l\'instant.<br><a href="ventes.html">Ajouter tes premières ventes →</a></div>';
+            return;
+          }
+
+          var previsionSemaine = calculerPrevisionSemaine(ventes, zoneVacances, joursFermeture, evenements);
+          grilleSemaineEl.innerHTML = '';
+          previsionSemaine.forEach(function (j) {
+            var badgeHTML, detailTexte;
+            if (j.tier === 'ferme') {
+              badgeHTML = '<span class="badge-jour badge-jour--ferme">Fermé</span>';
+              detailTexte = 'Jour de fermeture habituel.';
+            } else if (j.tier === 'evenement-plus') {
+              badgeHTML = '<span class="badge-jour badge-jour--charge">Plus de monde (signalé)</span>';
+              detailTexte = "Événement signalé à la main — pense à prévoir du renfort.";
+            } else if (j.tier === 'evenement-moins') {
+              badgeHTML = '<span class="badge-jour badge-jour--calme">Moins de monde (signalé)</span>';
+              detailTexte = "Événement signalé à la main.";
+            } else if (j.tier === 'charge') {
+              badgeHTML = '<span class="badge-jour badge-jour--charge">Jour chargé</span>';
+              detailTexte = 'Pense à prévoir du renfort.';
+            } else if (j.tier === 'calme') {
+              badgeHTML = '<span class="badge-jour badge-jour--calme">Jour calme</span>';
+              detailTexte = 'Bonne occasion pour une offre ou une promo.';
+            } else if (j.tier === 'ferie') {
+              badgeHTML = '<span class="badge-jour badge-jour--ferie">Jour férié</span>';
+              detailTexte = "L'activité peut être différente d'un jour normal.";
+            } else if (j.tier === 'vacances') {
+              badgeHTML = '<span class="badge-jour badge-jour--vacances">Vacances scolaires</span>';
+              detailTexte = "L'activité peut être différente d'un jour normal.";
+            } else if (j.tier === 'normal') {
+              badgeHTML = '<span class="badge-jour badge-jour--normal">Normal</span>';
+              detailTexte = 'Activité dans la moyenne des ' + j.nomJour + 's.';
+            } else {
+              badgeHTML = '<span class="badge-jour badge-jour--normal">—</span>';
+              detailTexte = "Pas encore assez de " + j.nomJour + "s enregistrés pour comparer.";
+            }
+
+            var actionsHTML = '';
+            if (j.tier === 'ferme') {
+              // Rien à signaler sur un jour fermé.
+            } else if (j.tier === 'evenement-plus' || j.tier === 'evenement-moins') {
+              actionsHTML = '<div class="actions-jour"><button type="button" class="btn-mini btn-mini--retirer" data-date="' + j.iso + '">Retirer le signalement</button></div>';
+            } else {
+              actionsHTML = '<div class="actions-jour">' +
+                '<button type="button" class="btn-mini" data-date="' + j.iso + '" data-direction="plus">+ Plus de monde</button>' +
+                '<button type="button" class="btn-mini" data-date="' + j.iso + '" data-direction="moins">− Moins de monde</button>' +
+                '</div>';
+            }
+
+            var div = document.createElement('div');
+            div.className = 'carte-sombre';
+            div.innerHTML =
+              '<p class="nom">' + capitaliser(nomsJoursCourts[j.date.getDay()]) + ' ' + j.date.getDate() + ' ' + nomsMoisCourts[j.date.getMonth()] + '</p>' +
+              badgeHTML +
+              '<p class="detail">' + detailTexte + '</p>' +
+              actionsHTML;
+            grilleSemaineEl.appendChild(div);
+          });
+
+          var fiabilite = calculerFiabilite(ventes);
+          var fiabiliteNaive = calculerFiabiliteNaive(ventes);
+          if (fiabilite && fiabilite.nbPoints >= 3) {
+            carteFiabiliteEl.classList.add('actif');
+            carteFiabiliteEl.querySelector('.valeur').textContent = fiabilite.valeur + '%';
+            var detailFiabilite = "Calculée sur " + fiabilite.nbPoints + " prévision(s) passée(s)";
+            if (fiabiliteNaive && fiabiliteNaive.nbPoints >= 3) {
+              detailFiabilite += " — contre " + fiabiliteNaive.valeur + "% avec une simple moyenne";
+            }
+            carteFiabiliteEl.querySelector('.detail').textContent = detailFiabilite;
+          }
+        });
+      }
+
+      grilleSemaineEl.addEventListener('click', function (evenement) {
+        var bouton = evenement.target.closest('.btn-mini');
+        if (!bouton || !commercantIdGlobal) return;
+        var date = bouton.getAttribute('data-date');
+        var direction = bouton.getAttribute('data-direction');
+        bouton.disabled = true;
+        if (direction) {
+          sbClient.from('evenements_commercant').upsert({
+            commercant_id: commercantIdGlobal,
+            date_evenement: date,
+            direction: direction
+          }).then(function () { chargerEtAfficher(); });
+        } else {
+          sbClient.from('evenements_commercant').delete().eq('commercant_id', commercantIdGlobal).eq('date_evenement', date).then(function () { chargerEtAfficher(); });
+        }
+      });
+
+      sbClient.auth.getSession().then(function (result) {
+        var session = result.data.session;
+        if (!session) {
+          statutDiv.textContent = "Non connecté — va sur connexion.html";
+          return;
+        }
+        statutDiv.textContent = session.user.email;
+        commercantIdGlobal = session.user.id;
+        chargerEtAfficher();
+      });
+    })();
+  </script>
+</body>
+</html>
