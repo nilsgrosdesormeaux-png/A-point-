@@ -16,6 +16,11 @@
     .banniere-verification { padding: 10px 12px; border-radius: var(--rayon); margin: 4px 0 14px; font-size: 14px; }
     .banniere-verification.ok { background: var(--succes-fond); color: var(--succes-texte); }
     .banniere-verification.attention { background: var(--erreur-fond); color: var(--erreur-texte); }
+    .zone-scroll { overflow-x: auto; max-width: 100%; }
+    .lien-discret { font-size: 13px; color: var(--texte-attenue); text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0; margin-top: 10px; display: inline-block; font-family: inherit; }
+    .lien-discret:hover { color: var(--texte); }
+    .note-produits-auto { font-size: 12px; color: var(--texte-attenue); margin: 8px 0 0; }
+    .resume-auto { font-size: 14px; margin: 4px 0 14px; }
   </style>
 </head>
 <body>
@@ -60,8 +65,13 @@
           <input type="file" id="fichierImport" accept=".csv,.xlsx,.xls">
         </div>
 
+        <div id="resumeAuto" style="display:none;">
+          <p class="resume-auto"><span id="texteResumeAuto"></span></p>
+          <button type="button" id="btnCorrigerManuellement" class="lien-discret">Ce ne sont pas les bonnes colonnes ? Corriger manuellement</button>
+        </div>
+
         <div id="zoneMapping" class="zone-mapping">
-          <p style="margin:0; font-weight:600;">Vérifie que les bonnes colonnes sont sélectionnées :</p>
+          <p id="texteVerification" style="margin:0; font-weight:600;"></p>
           <div id="banniereVerification"></div>
 
           <div id="champDate">
@@ -93,7 +103,7 @@
           <button id="btnValiderMapping">Continuer</button>
         </div>
 
-        <div id="apercu"></div>
+        <div id="apercu" class="zone-scroll"></div>
 
         <button id="btnImporter" style="display:none;">Importer ces ventes</button>
 
@@ -125,6 +135,10 @@
       var detailProduit = document.getElementById('detailProduit');
       var detailQuantite = document.getElementById('detailQuantite');
       var banniereVerification = document.getElementById('banniereVerification');
+      var texteVerificationEl = document.getElementById('texteVerification');
+      var resumeAutoDiv = document.getElementById('resumeAuto');
+      var texteResumeAutoEl = document.getElementById('texteResumeAuto');
+      var btnCorrigerManuellement = document.getElementById('btnCorrigerManuellement');
       var labelProduit = document.getElementById('labelProduit');
       var labelQuantite = document.getElementById('labelQuantite');
       var btnValiderMapping = document.getElementById('btnValiderMapping');
@@ -291,13 +305,19 @@
           return score;
         }
 
-        // Pas encore de produits connus pour comparer : heuristique de repli.
+        // Pas encore de produits connus pour comparer : heuristique de repli,
+        // volontairement plafonnée SOUS le seuil de confiance de base (donc
+        // toujours affichée avec une ⚠️, jamais un ✓ plein) — une colonne de
+        // texte non numérique peut tout aussi bien être une vraie colonne
+        // produit qu'une catégorie de même forme ("Article" peut contenir
+        // l'un ou l'autre selon le fichier), et rien dans son contenu seul
+        // ne permet de trancher sans avoir de vrais produits à comparer.
         var toutesNumeriques = texteVals.every(function (t) { return !isNaN(parserQuantite(t)); });
         if (toutesNumeriques) return 0.1;
         var distincts = {};
         texteVals.forEach(function (t) { distincts[cleNormaliseeProduit(t)] = true; });
         if (Object.keys(distincts).length <= 1) return 0.3;
-        return ressembleCategorie ? 0.3 : 0.6;
+        return ressembleCategorie ? 0.3 : 0.45;
       }
 
       // Combine l'alias sur le nom de colonne et le score sur son contenu :
@@ -305,6 +325,13 @@
       // sinon on fait confiance à la colonne dont le contenu correspond
       // vraiment, même si son intitulé n'est pas dans la liste connue.
       var SEUIL_CONFIANCE = 0.5;
+
+      // Seuil, plus exigeant que SEUIL_CONFIANCE, à partir duquel on considère
+      // l'auto-détection assez sûre pour ne RIEN demander au commerçant : pas
+      // de colonnes à choisir, pas de case à vérifier. En dessous, mieux vaut
+      // lui montrer ce qu'on a trouvé et lui laisser confirmer plutôt que de
+      // se tromper en silence.
+      var SEUIL_AUTOMATIQUE = 0.75;
 
       function detecterColonneParContenu(lignes, entetes, aliases, fonctionScore) {
         var candidatAlias = detecterColonne(entetes, aliases);
@@ -331,6 +358,26 @@
           choix = (meilleureColonne && meilleurScore > 0) ? meilleureColonne : '';
         }
         return { colonne: choix, scores: scoreParColonne };
+      }
+
+      // Confiance "effective" d'un bilan de détection, utilisée uniquement
+      // pour décider si on peut sauter complètement l'étape de vérification
+      // manuelle (voir detectionVentesConfiante ci-dessous) — c'est
+      // volontairement le score de CONTENU brut, sans jamais le renforcer
+      // parce que le nom de la colonne correspond à un intitulé connu :
+      // un en-tête "Article" peut légitimement contenir des noms de
+      // produits dans un fichier, une catégorie dans un autre — seul ce
+      // qu'il y a vraiment dedans permet de trancher sans risque.
+      function confianceEffective(bilan) {
+        if (!bilan.colonne) return 0;
+        return bilan.scores[bilan.colonne] || 0;
+      }
+
+      function detectionVentesConfiante(bilanDate, bilanProduit, bilanQuantite) {
+        return !!(bilanDate.colonne && bilanProduit.colonne && bilanQuantite.colonne) &&
+          confianceEffective(bilanDate) >= SEUIL_AUTOMATIQUE &&
+          confianceEffective(bilanProduit) >= SEUIL_AUTOMATIQUE &&
+          confianceEffective(bilanQuantite) >= SEUIL_AUTOMATIQUE;
       }
 
       // Deux champs différents (ex: date et quantité) peuvent pointer vers la
@@ -384,7 +431,26 @@
           tableau += '</tr>';
         });
         tableau += '</table>';
-        apercuBrutDiv.innerHTML = '<p style="font-size:12px; color:#777; margin-top:12px;">Aperçu de ton fichier :</p>' + tableau;
+        apercuBrutDiv.innerHTML = '<p style="font-size:12px; color:#777; margin-top:12px;">Aperçu de ton fichier :</p><div class="zone-scroll">' + tableau + '</div>';
+      }
+
+      // Note affichée AVANT l'import (pas seulement dans le message de succès
+      // après coup) pour que la création automatique de nouveaux produits ne
+      // soit jamais une surprise silencieuse.
+      function noteNouveauxProduits(lignes, obtenirNom) {
+        var vus = {};
+        var noms = [];
+        lignes.forEach(function (l) {
+          var nom = obtenirNom(l);
+          if (!nom) return;
+          var cle = cleNormaliseeProduit(nom);
+          if (!produitsExistantsNormalises[cle] && !vus[cle]) {
+            vus[cle] = true;
+            noms.push(nom);
+          }
+        });
+        if (noms.length === 0) return '';
+        return '<p class="note-produits-auto">ℹ️ ' + noms.length + ' nouveau(x) produit(s) seront ajoutés automatiquement dans Mes produits : ' + noms.join(', ') + '.</p>';
       }
 
       // Convertit une valeur de date (texte dans divers formats, ou objet Date venant d'un Excel) en AAAA-MM-JJ
@@ -475,6 +541,8 @@
         lignesAImporter = [];
         lignesFichesAImporter = [];
         zoneMapping.style.display = 'none';
+        resumeAutoDiv.style.display = 'none';
+        texteResumeAutoEl.textContent = '';
         apercuBrutDiv.innerHTML = '';
         apercuDiv.innerHTML = '';
         btnImporter.style.display = 'none';
@@ -528,6 +596,13 @@
         dernieresValeursParColonne = {};
         entetes.forEach(function (e) { dernieresValeursParColonne[e] = echantillonnerColonne(lignes, e, 40); });
 
+        apercuDiv.innerHTML = '';
+        btnImporter.style.display = 'none';
+        apercuBrutDiv.innerHTML = '';
+        resumeAutoDiv.style.display = 'none';
+        zoneMapping.style.display = 'none';
+
+        var confiant;
         if (modeImport === 'ventes') {
           var bilanDate = detecterColonneParContenu(lignes, entetes, aliasesDate, scoreColonneDate);
           var bilanProduit = detecterColonneParContenu(lignes, entetes, aliasesProduit, scoreColonneProduit);
@@ -538,19 +613,47 @@
           remplirSelect(selectDate, entetes, bilanDate.colonne, false);
           remplirSelect(selectProduit, entetes, bilanProduit.colonne, false);
           remplirSelect(selectQuantite, entetes, bilanQuantite.colonne, false);
-        } else {
-          remplirSelect(selectProduit, entetes, detecterColonne(entetes, aliasesProduit), false);
-          remplirSelect(selectIngredient, entetes, detecterColonne(entetes, aliasesIngredient), false);
-          remplirSelect(selectQuantite, entetes, detecterColonne(entetes, aliasesQuantite), false);
-          remplirSelect(selectUnite, entetes, detecterColonne(entetes, aliasesUnite), true);
-        }
-        afficherApercuBrut(lignes, entetes);
-        if (modeImport === 'ventes') rafraichirRetourVisuel();
+          rafraichirRetourVisuel();
 
-        apercuDiv.innerHTML = '';
-        btnImporter.style.display = 'none';
-        zoneMapping.style.display = 'block';
+          confiant = detectionVentesConfiante(bilanDate, bilanProduit, bilanQuantite);
+        } else {
+          var colProduitFiches = detecterColonne(entetes, aliasesProduit);
+          var colIngredientFiches = detecterColonne(entetes, aliasesIngredient);
+          var colQuantiteFiches = detecterColonne(entetes, aliasesQuantite);
+          var colUniteFiches = detecterColonne(entetes, aliasesUnite);
+          remplirSelect(selectProduit, entetes, colProduitFiches, false);
+          remplirSelect(selectIngredient, entetes, colIngredientFiches, false);
+          remplirSelect(selectQuantite, entetes, colQuantiteFiches, false);
+          remplirSelect(selectUnite, entetes, colUniteFiches, true);
+
+          confiant = !!(colProduitFiches && colIngredientFiches && colQuantiteFiches);
+        }
+
+        // Détection assez sûre : on ne montre RIEN de la mécanique interne
+        // (pas de colonnes à choisir, pas de fichier brut affiché) — juste
+        // le résultat déjà interprété, prêt à importer, avec une porte de
+        // sortie discrète en cas d'erreur. Sinon, on montre honnêtement ce
+        // qu'on a trouvé et on demande une vérification rapide.
+        if (confiant) {
+          resumeAutoDiv.style.display = 'block';
+          texteResumeAutoEl.textContent = '✓ Fichier reconnu automatiquement.';
+          if (modeImport === 'ventes') validerMappingVentes(); else validerMappingFiches();
+        } else {
+          texteVerificationEl.textContent = "On n'a pas pu identifier toutes les colonnes automatiquement avec certitude — vérifie qu'elles sont correctes avant de continuer :";
+          afficherApercuBrut(lignes, entetes);
+          zoneMapping.style.display = 'block';
+        }
       }
+
+      // Porte de sortie : même quand la détection automatique est confiante,
+      // on garde un moyen simple de repasser en revue/correction manuelle —
+      // au cas (rare) où elle se tromperait malgré tout.
+      btnCorrigerManuellement.addEventListener('click', function () {
+        texteVerificationEl.textContent = 'Colonnes détectées automatiquement — modifie-les si besoin, puis continue :';
+        resumeAutoDiv.style.display = 'none';
+        afficherApercuBrut(lignesBrutes, entetesDisponibles);
+        zoneMapping.style.display = 'block';
+      });
 
       // --- Retour visuel immédiat sous chaque colonne (mode ventes) -----
       function exempleValeur(colonne) {
@@ -722,7 +825,9 @@
           texteInfo += ' (' + lignesInvalides + ' ligne(s) ignorée(s) car incomplète(s) ou illisible(s))';
         }
 
-        apercuDiv.innerHTML = '<div class="info" style="padding:10px; border-radius:5px;">' + texteInfo + '</div>' + tableau;
+        apercuDiv.innerHTML = '<div class="info" style="padding:10px; border-radius:5px;">' + texteInfo + '</div>'
+          + noteNouveauxProduits(lignesAImporter, function (l) { return l.nom_produit; })
+          + tableau;
         btnImporter.style.display = 'block';
       }
 
@@ -780,7 +885,9 @@
           texteInfo += ' (' + lignesInvalides + ' ligne(s) ignorée(s) car incomplète(s) ou illisible(s))';
         }
 
-        apercuDiv.innerHTML = '<div class="info" style="padding:10px; border-radius:5px;">' + texteInfo + '</div>' + tableau;
+        apercuDiv.innerHTML = '<div class="info" style="padding:10px; border-radius:5px;">' + texteInfo + '</div>'
+          + noteNouveauxProduits(lignesFichesAImporter, function (l) { return l.produit; })
+          + tableau;
         btnImporter.style.display = 'block';
       }
 
