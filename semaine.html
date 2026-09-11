@@ -26,6 +26,7 @@
         <a href="ventes.html" class="nav-lien">Mes ventes</a>
         <a href="import.html" class="nav-lien">Importer</a>
         <a href="parametres.html" class="nav-lien">Paramètres</a>
+        <a href="aide.html" class="nav-lien">? Aide</a>
       </nav>
     </header>
 
@@ -46,7 +47,7 @@
       <div class="grille-sombre" id="grilleResultats">
         <div class="carte-sombre" id="carteFiabilite">
           <p class="nom">Fiabilité des prévisions</p>
-          <p class="valeur">—</p>
+          <p class="valeur">-</p>
           <p class="detail">Pas encore assez d'historique</p>
         </div>
       </div>
@@ -494,7 +495,7 @@
               detailTexte = 'Jour de fermeture habituel.';
             } else if (j.tier === 'evenement-plus') {
               badgeHTML = '<span class="badge-jour badge-jour--charge">Plus de monde (signalé)</span>';
-              detailTexte = "Événement signalé à la main — pense à prévoir du renfort.";
+              detailTexte = "Événement signalé à la main : pense à prévoir du renfort.";
             } else if (j.tier === 'evenement-moins') {
               badgeHTML = '<span class="badge-jour badge-jour--calme">Moins de monde (signalé)</span>';
               detailTexte = "Événement signalé à la main.";
@@ -514,7 +515,7 @@
               badgeHTML = '<span class="badge-jour badge-jour--normal">Normal</span>';
               detailTexte = 'Activité dans la moyenne des ' + j.nomJour + 's.';
             } else {
-              badgeHTML = '<span class="badge-jour badge-jour--normal">—</span>';
+              badgeHTML = '<span class="badge-jour badge-jour--normal">?</span>';
               detailTexte = "Pas encore assez de " + j.nomJour + "s enregistrés pour comparer.";
             }
 
@@ -560,7 +561,7 @@
             carteFiabiliteEl.querySelector('.valeur').textContent = fiabilite.valeur + '%';
             var detailFiabilite = "Calculée sur " + fiabilite.nbPoints + " prévision(s) passée(s)";
             if (fiabiliteNaive && fiabiliteNaive.nbPoints >= 3) {
-              detailFiabilite += " — contre " + fiabiliteNaive.valeur + "% avec une simple moyenne";
+              detailFiabilite += " (contre " + fiabiliteNaive.valeur + "% avec une simple moyenne)";
             }
             carteFiabiliteEl.querySelector('.detail').textContent = detailFiabilite;
           }
@@ -586,7 +587,7 @@
       sbClient.auth.getSession().then(function (result) {
         var session = result.data.session;
         if (!session) {
-          statutDiv.textContent = "Non connecté — va sur connexion.html";
+          statutDiv.textContent = "Non connecté. Va sur connexion.html";
           return;
         }
         statutDiv.textContent = session.user.email;
