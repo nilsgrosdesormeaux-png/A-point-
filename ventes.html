@@ -26,6 +26,7 @@
         <a href="ventes.html" class="nav-lien nav-actif">Mes ventes</a>
         <a href="import.html" class="nav-lien">Importer</a>
         <a href="parametres.html" class="nav-lien">Paramètres</a>
+        <a href="aide.html" class="nav-lien">? Aide</a>
       </nav>
     </header>
 
@@ -98,7 +99,7 @@
           sbClient.from('produits').select('*').eq('commercant_id', commercantId).then(function (result) {
             produits = result.data || [];
             if (produits.length === 0) {
-              statutDiv.textContent += " — Tu n'as pas encore ajouté de produits.";
+              statutDiv.textContent += " Tu n'as pas encore ajouté de produits.";
             } else {
               zoneFormulaire.style.display = 'block';
               afficherProduits();
