@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -94,6 +93,18 @@
           </details>
         </div>
 
+        <p class="section-titre" style="margin-top:28px;">Nous contacter</p>
+        <p class="texte-aide" style="margin-top:-4px;">Une question, un bug, un souci ? Écris-nous directement ici, on te répond au plus vite.</p>
+
+        <label for="inputSujetContact">Sujet</label>
+        <input type="text" id="inputSujetContact" placeholder="Ex : Un chiffre me semble faux">
+
+        <label for="inputMessageContact" style="margin-top:14px;">Message</label>
+        <textarea id="inputMessageContact" rows="5" placeholder="Décris ton problème ou ta question en quelques mots"></textarea>
+
+        <button id="btnEnvoyerContact" type="button" style="margin-top:12px;">Envoyer</button>
+        <div id="messageContact"></div>
+
         <p class="pied-page" style="margin-top:20px;"><a href="cgu.html">Conditions générales d'utilisation</a></p>
       </div>
     </div>
@@ -107,6 +118,19 @@
 
       var statutDiv = document.getElementById('statutConnexion');
       var zoneAideEl = document.getElementById('zoneAide');
+      var inputSujetContactEl = document.getElementById('inputSujetContact');
+      var inputMessageContactEl = document.getElementById('inputMessageContact');
+      var btnEnvoyerContactEl = document.getElementById('btnEnvoyerContact');
+      var messageContactEl = document.getElementById('messageContact');
+
+      function afficherMessage(el, texte, estErreur) {
+        el.className = estErreur ? 'erreur' : 'succes';
+        el.style.cssText = 'padding:8px 10px; border-radius:6px; margin:8px 0 0;';
+        el.textContent = texte;
+      }
+
+      var commercantId = null;
+      var commercantEmail = null;
 
       sbClient.auth.getSession().then(function (result) {
         var session = result.data.session;
@@ -114,11 +138,39 @@
           statutDiv.textContent = "Tu n'es pas connecté. Va d'abord sur la page de connexion.";
           return;
         }
+        commercantId = session.user.id;
+        commercantEmail = session.user.email;
         statutDiv.style.display = 'none';
         zoneAideEl.style.display = 'block';
+      });
+
+      btnEnvoyerContactEl.addEventListener('click', function () {
+        var sujet = inputSujetContactEl.value.trim();
+        var texteMessage = inputMessageContactEl.value.trim();
+
+        if (!sujet || !texteMessage) {
+          afficherMessage(messageContactEl, "Renseigne un sujet et un message avant d'envoyer.", true);
+          return;
+        }
+
+        btnEnvoyerContactEl.disabled = true;
+        sbClient.from('messages_contact').insert({
+          commercant_id: commercantId,
+          email: commercantEmail,
+          sujet: sujet,
+          message: texteMessage
+        }).then(function (res) {
+          btnEnvoyerContactEl.disabled = false;
+          if (res.error) {
+            afficherMessage(messageContactEl, "Erreur : " + res.error.message, true);
+            return;
+          }
+          inputSujetContactEl.value = '';
+          inputMessageContactEl.value = '';
+          afficherMessage(messageContactEl, "Message envoyé, on te répond au plus vite.", false);
+        });
       });
     })();
   </script>
 </body>
 </html>
-

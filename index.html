@@ -1,135 +1,14 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="0; url=connexion.html">
   <title>À Point</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body { display: flex; align-items: center; min-height: 100vh; }
-    .conteneur { margin: auto; width: 100%; padding-top: 0; padding-bottom: 40px; }
-    h1 { text-align: center; }
-    .sous-titre { text-align: center; margin-bottom: 26px; }
-  </style>
+  <script>window.location.replace('connexion.html');</script>
 </head>
 <body>
-  <div class="conteneur" style="max-width: 380px;">
-    <div class="logo-centre">
-      <svg class="logo-marque" viewBox="0 0 100 100" width="56" height="56" aria-hidden="true">
-        <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
-        <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
-        <circle cx="50" cy="56" r="8" fill="currentColor"/>
-      </svg>
-    </div>
-    <h1>À Point</h1>
-    <p class="sous-titre texte-aide">La bonne quantité, chaque jour</p>
-
-    <div class="onglets">
-      <div class="onglet actif" id="ongletConnexion">Se connecter</div>
-      <div class="onglet" id="ongletInscription">Créer un compte</div>
-    </div>
-
-    <label for="email">Email</label>
-    <input type="email" id="email" placeholder="ton@email.com">
-
-    <label for="motdepasse">Mot de passe</label>
-    <input type="password" id="motdepasse" placeholder="Au moins 6 caractères">
-
-    <button id="btnAction">Se connecter</button>
-
-    <div id="message"></div>
-
-    <p class="texte-aide" style="text-align: center; margin-top: 18px;">
-      Nouveau ici ? <a href="bienvenue.html">Découvre comment ça marche avant de commencer →</a>
-    </p>
-  </div>
-
-  <script>
-    (function () {
-      var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
-      var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
-      var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-      var modeInscription = false;
-      var ongletConnexion = document.getElementById('ongletConnexion');
-      var ongletInscription = document.getElementById('ongletInscription');
-      var btnAction = document.getElementById('btnAction');
-      var messageDiv = document.getElementById('message');
-
-      sbClient.auth.getSession().then(function (result) {
-        if (result.data.session) {
-          window.location.href = 'tableau-de-bord.html';
-        }
-      });
-
-      ongletConnexion.addEventListener('click', function () {
-        modeInscription = false;
-        ongletConnexion.className = 'onglet actif';
-        ongletInscription.className = 'onglet';
-        btnAction.textContent = 'Se connecter';
-        messageDiv.style.display = 'none';
-      });
-
-      ongletInscription.addEventListener('click', function () {
-        modeInscription = true;
-        ongletInscription.className = 'onglet actif';
-        ongletConnexion.className = 'onglet';
-        btnAction.textContent = 'Créer mon compte';
-        messageDiv.style.display = 'none';
-      });
-
-      btnAction.addEventListener('click', function () {
-        var email = document.getElementById('email').value;
-        var motdepasse = document.getElementById('motdepasse').value;
-
-        if (!email || !motdepasse) {
-          messageDiv.style.display = 'block';
-          messageDiv.className = 'erreur';
-          messageDiv.textContent = "Remplis l'email et le mot de passe.";
-          return;
-        }
-
-        btnAction.disabled = true;
-
-        if (modeInscription) {
-          sbClient.auth.signUp({
-            email: email,
-            password: motdepasse,
-            options: {
-              emailRedirectTo: window.location.origin + window.location.pathname
-            }
-          }).then(function (result) {
-            btnAction.disabled = false;
-            messageDiv.style.display = 'block';
-            if (result.error) {
-              messageDiv.className = 'erreur';
-              messageDiv.textContent = "Erreur : " + result.error.message;
-            } else if (result.data.session) {
-              window.location.href = 'tableau-de-bord.html';
-            } else {
-              messageDiv.className = 'succes';
-              messageDiv.textContent = "Compte créé ! Vérifie ta boîte email pour confirmer, puis reviens te connecter ici.";
-            }
-          });
-        } else {
-          sbClient.auth.signInWithPassword({
-            email: email,
-            password: motdepasse
-          }).then(function (result) {
-            btnAction.disabled = false;
-            messageDiv.style.display = 'block';
-            if (result.error) {
-              messageDiv.className = 'erreur';
-              messageDiv.textContent = "Erreur : " + result.error.message;
-            } else {
-              window.location.href = 'tableau-de-bord.html';
-            }
-          });
-        }
-      });
-    })();
-  </script>
+  <p>Redirection vers <a href="connexion.html">À Point</a>…</p>
 </body>
 </html>
