@@ -41,6 +41,7 @@
         <a href="ventes.html" class="nav-lien">Mes ventes</a>
         <a href="import.html" class="nav-lien nav-actif">Importer</a>
         <a href="parametres.html" class="nav-lien">Paramètres</a>
+        <a href="aide.html" class="nav-lien">? Aide</a>
       </nav>
     </header>
 
@@ -162,7 +163,7 @@
       var TEXTES = {
         ventes: {
           titre: "Importer mon historique de ventes",
-          explication: "Dépose un fichier CSV ou Excel (.csv, .xlsx, .xls) contenant tes ventes : une colonne pour la date, une pour le produit, une pour la quantité vendue. Peu importe l'ordre ou le nom exact des colonnes — on essaie de les reconnaître automatiquement, et tu pourras vérifier avant d'importer.",
+          explication: "Dépose un fichier CSV ou Excel (.csv, .xlsx, .xls) contenant tes ventes : une colonne pour la date, une pour le produit, une pour la quantité vendue. Peu importe l'ordre ou le nom exact des colonnes : on essaie de les reconnaître automatiquement, et tu pourras vérifier avant d'importer.",
           labelProduit: "Colonne pour le produit",
           labelQuantite: "Colonne pour la quantité vendue",
           boutonImporter: "Importer ces ventes"
@@ -641,7 +642,7 @@
           texteResumeAutoEl.textContent = '✓ Fichier reconnu automatiquement.';
           if (modeImport === 'ventes') validerMappingVentes(); else validerMappingFiches();
         } else {
-          texteVerificationEl.textContent = "On n'a pas pu identifier toutes les colonnes automatiquement avec certitude — vérifie qu'elles sont correctes avant de continuer :";
+          texteVerificationEl.textContent = "On n'a pas pu identifier toutes les colonnes automatiquement avec certitude. Vérifie qu'elles sont correctes avant de continuer :";
           afficherApercuBrut(lignes, entetes);
           zoneMapping.style.display = 'block';
         }
@@ -651,7 +652,7 @@
       // on garde un moyen simple de repasser en revue/correction manuelle —
       // au cas (rare) où elle se tromperait malgré tout.
       btnCorrigerManuellement.addEventListener('click', function () {
-        texteVerificationEl.textContent = 'Colonnes détectées automatiquement — modifie-les si besoin, puis continue :';
+        texteVerificationEl.textContent = 'Colonnes détectées automatiquement, modifie-les si besoin, puis continue :';
         resumeAutoDiv.style.display = 'none';
         afficherApercuBrut(lignesBrutes, entetesDisponibles);
         zoneMapping.style.display = 'block';
@@ -671,7 +672,7 @@
           el.textContent = '✓ ' + pct + '% des valeurs ressemblent à ' + libelleType + ' (ex. « ' + exempleValeur(colonne) + ' »).';
         } else {
           el.className = 'detail-colonne attention';
-          el.textContent = '⚠️ Cette colonne ne ressemble pas vraiment à ' + libelleType + ' (ex. « ' + exempleValeur(colonne) + ' ») — vérifie que c\'est la bonne.';
+          el.textContent = '⚠️ Cette colonne ne ressemble pas vraiment à ' + libelleType + ' (ex. « ' + exempleValeur(colonne) + ' »). Vérifie que c\'est la bonne.';
         }
       }
 
@@ -693,9 +694,9 @@
         var auMoinsUnProbleme = (colDate && scoreDate < SEUIL_CONFIANCE) || (colProduit && scoreProduit < SEUIL_CONFIANCE) || (colQuantite && scoreQuantite < SEUIL_CONFIANCE);
 
         if (toutBon) {
-          banniereVerification.innerHTML = '<div class="banniere-verification ok">✓ Tout semble correct — tu peux continuer.</div>';
+          banniereVerification.innerHTML = '<div class="banniere-verification ok">✓ Tout semble correct, tu peux continuer.</div>';
         } else if (auMoinsUnProbleme) {
-          banniereVerification.innerHTML = '<div class="banniere-verification attention">⚠️ Au moins une colonne ci-dessous ne correspond probablement pas — regarde les détails avant de continuer.</div>';
+          banniereVerification.innerHTML = '<div class="banniere-verification attention">⚠️ Au moins une colonne ci-dessous ne correspond probablement pas. Regarde les détails avant de continuer.</div>';
         } else {
           banniereVerification.innerHTML = '';
         }
@@ -770,7 +771,7 @@
 
         if (pire.score < SEUIL_CONFIANCE) {
           var exemple = exempleValeur(pire.colonne);
-          return "Aucune ligne valide trouvée. La colonne choisie pour " + pire.libelle + " (« " + pire.colonne + " ») ne contient pas " + pire.typeAttendu + (exemple ? " — exemple trouvé : « " + exemple + " »" : "") + ". Choisis une autre colonne dans le menu au-dessus.";
+          return "Aucune ligne valide trouvée. La colonne choisie pour " + pire.libelle + " (« " + pire.colonne + " ») ne contient pas " + pire.typeAttendu + (exemple ? " (exemple trouvé : « " + exemple + " »)" : "") + ". Choisis une autre colonne dans le menu au-dessus.";
         }
         return "Aucune ligne valide trouvée avec ces colonnes. Vérifie ta sélection ci-dessus.";
       }
@@ -878,7 +879,7 @@
 
         var tableau = '<table><tr><th>Produit</th><th>Ingrédient</th><th>Quantité</th><th>Unité</th></tr>';
         lignesFichesAImporter.slice(0, 5).forEach(function (l) {
-          tableau += '<tr><td>' + l.produit + '</td><td>' + l.ingredient + '</td><td>' + l.quantite + '</td><td>' + (l.unite || '—') + '</td></tr>';
+          tableau += '<tr><td>' + l.produit + '</td><td>' + l.ingredient + '</td><td>' + l.quantite + '</td><td>' + (l.unite || '-') + '</td></tr>';
         });
         tableau += '</table>';
 
