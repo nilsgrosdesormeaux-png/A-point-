@@ -128,25 +128,6 @@
     }
     .honnetete p { margin: 0; }
 
-    .faq-item {
-      border: 1px solid var(--bordure);
-      border-radius: var(--rayon);
-      padding: 2px 16px;
-      margin-bottom: 10px;
-      background: var(--surface);
-    }
-    .faq-item summary {
-      cursor: pointer;
-      font-weight: 600;
-      padding: 13px 0;
-      color: var(--texte);
-      list-style: none;
-    }
-    .faq-item summary::-webkit-details-marker { display: none; }
-    .faq-item summary::after { content: "+"; float: right; color: var(--texte-tres-attenue); font-weight: 400; }
-    .faq-item[open] summary::after { content: "−"; }
-    .faq-item p { margin: 0 0 14px; color: var(--texte-attenue); font-size: 14px; }
-
     .cta-finale {
       text-align: center;
       padding: 12px 20px 60px;
@@ -197,10 +178,10 @@
       <div class="carte-page">
         <p class="eyebrow">EN BREF</p>
         <h1 style="font-size: 22px;">À quoi sert l'outil ?</h1>
-        <p class="texte-aide">À Point regarde ton historique de ventes et te dit, chaque jour, <strong style="color: var(--texte);">quelle quantité produire ou commander</strong> pour ton prochain jour d'ouverture — automatiquement, produit par produit.</p>
+        <p class="texte-aide">À Point regarde ton historique de ventes et te dit, chaque jour, <strong style="color: var(--texte);">quelle quantité produire ou commander</strong> pour ton prochain jour d'ouverture, automatiquement, produit par produit.</p>
         <ul class="pitch-liste">
-          <li>Basé sur <strong>tes propres ventes passées</strong> — jamais un modèle générique qui suppose que ton commerce ressemble à un autre.</li>
-          <li>Ajuste automatiquement pour les <strong>jours fériés</strong>, les <strong>vacances scolaires</strong> et la <strong>météo prévue</strong> — et tu peux aussi signaler toi-même un <strong>événement particulier</strong> attendu.</li>
+          <li>Basé sur <strong>tes propres ventes passées</strong>, jamais un modèle générique qui suppose que ton commerce ressemble à un autre.</li>
+          <li>Ajuste automatiquement pour les <strong>jours fériés</strong>, les <strong>vacances scolaires</strong> et la <strong>météo prévue</strong>, et tu peux aussi signaler toi-même un <strong>événement particulier</strong> attendu.</li>
           <li>Toujours donné en <strong>fourchette</strong> plutôt qu'un chiffre unique : plus ton historique s'accumule, plus elle se resserre.</li>
           <li>Une fois lancé, il suffit de garder ton historique à jour (30 secondes par jour, ou en réimportant un export de temps en temps) et de consulter le tableau de bord.</li>
         </ul>
@@ -235,11 +216,11 @@
         <div>
           <p class="etape-titre">Renseigner ton historique de ventes</p>
         </div>
-        <p class="etape-texte">L'étape la plus importante : plus cet historique est long, plus les prévisions seront fiables. Avec peu de données au départ, l'outil reste prudent — ça se resserre avec le temps. Deux façons de le charger :</p>
+        <p class="etape-texte">L'étape la plus importante : plus cet historique est long, plus les prévisions seront fiables. Avec peu de données au départ, l'outil reste prudent : ça se resserre avec le temps. Deux façons de le charger :</p>
         <div class="bloc-choix">
           <div class="choix-carte">
             <p class="titre-choix">Tu as un export de ta caisse</p>
-            <p>Va dans <strong>« Importer »</strong>, onglet « Mes ventes », dépose ton fichier (CSV, Excel...). Une colonne date, une colonne produit, une colonne quantité suffisent — l'ordre et le nom exact n'ont pas d'importance, c'est détecté automatiquement.</p>
+            <p>Va dans <strong>« Importer »</strong>, onglet « Mes ventes », dépose ton fichier (CSV, Excel...). Une colonne date, une colonne produit, une colonne quantité suffisent. L'ordre et le nom exact n'ont pas d'importance, c'est détecté automatiquement.</p>
           </div>
           <div class="choix-carte">
             <p class="titre-choix">Tu n'as pas d'export</p>
@@ -250,7 +231,7 @@
         <div class="etape-capture" style="margin-bottom: 18px;"><img src="4-import_2.png" alt="Écran d'import de fichier de ventes"></div>
         <p class="etape-texte" style="margin-bottom: 8px;">Et l'écran de saisie quotidienne :</p>
         <div class="etape-capture"><img src="5-ventes_2.png" alt="Écran de saisie des ventes de la veille"></div>
-        <p class="etape-note">⚠️ Évite d'importer deux fois des dates qui se chevauchent — les ventes seraient comptées en double. En cas de doute, réimporte tout d'un coup avec un seul fichier complet.</p>
+        <p class="etape-note">⚠️ Évite d'importer deux fois des dates qui se chevauchent : les ventes seraient comptées en double. En cas de doute, réimporte tout d'un coup avec un seul fichier complet.</p>
         <p class="etape-texte" style="margin: 18px 0 0;">Un fichier de recettes ? Le même écran a un onglet <strong>« Mes fiches techniques »</strong> qui importe tout d'un coup (produit, ingrédient, quantité).</p>
       </div>
 
@@ -268,7 +249,7 @@
         <div>
           <p class="etape-titre">Consulter ton tableau de bord chaque jour</p>
         </div>
-        <p class="etape-texte">L'écran que tu regarderas au quotidien : la <strong>quantité recommandée par produit</strong>, une <strong>fourchette</strong>, et — quand ça joue un rôle — la raison d'un ajustement (jour férié, vacances, météo, événement signalé). Le détail du calcul est dans la FAQ ci-dessus, si ça t'intéresse.</p>
+        <p class="etape-texte">L'écran que tu regarderas au quotidien : la <strong>quantité recommandée par produit</strong>, une <strong>fourchette</strong>, et, quand ça joue un rôle, la raison d'un ajustement (jour férié, vacances, météo, événement signalé). Le détail du calcul est dans la FAQ ci-dessus, si ça t'intéresse.</p>
         <div class="etape-capture"><img src="7-tableau-de-bord_2.png" alt="Tableau de bord avec les recommandations du jour"></div>
         <p class="etape-note">Un onglet <strong>« Semaine »</strong> donne aussi une vue sur les 7 prochains jours, avec un badge par jour et la possibilité de signaler toi-même un jour où tu attends plus ou moins de monde.</p>
         <div class="etape-capture" style="margin-top: 14px;"><img src="8-semaine_2.png" alt="Vue de la semaine à venir"></div>
@@ -278,7 +259,7 @@
     <div class="section-bienvenue">
       <div class="honnetete">
         <p class="eyebrow" style="color: var(--info-texte);">À SAVOIR AVANT DE COMMENCER</p>
-        <p>À Point est encore en version de test. Au début, avec peu d'historique, les recommandations sont prudentes — normal, ça se resserre avec le temps. Utilise-le comme une aide à la décision, jamais une vérité absolue : ton jugement reste la référence. Tes retours sont ce qui fait avancer l'outil, n'hésite pas à les partager.</p>
+        <p>À Point est encore en version de test. Au début, avec peu d'historique, les recommandations sont prudentes : c'est normal, ça se resserre avec le temps. Utilise-le comme une aide à la décision, jamais une vérité absolue : ton jugement reste la référence. Tes retours sont ce qui fait avancer l'outil, n'hésite pas à les partager.</p>
       </div>
     </div>
   </div>
@@ -290,7 +271,7 @@
 
       <details class="faq-item">
         <summary>Est-ce que ça remplace mon propre jugement ?</summary>
-        <p>Non. C'est une aide à la décision : la recommandation te donne un repère basé sur tes vraies ventes passées, mais la décision finale — et la responsabilité — restent toujours les tiennes. Surtout les premières semaines, où l'historique est encore court.</p>
+        <p>Non. C'est une aide à la décision : la recommandation te donne un repère basé sur tes vraies ventes passées, mais la décision finale (et la responsabilité) restent toujours les tiennes. Surtout les premières semaines, où l'historique est encore court.</p>
       </details>
 
       <details class="faq-item">
@@ -305,7 +286,7 @@
 
       <details class="faq-item">
         <summary>C'est payant ?</summary>
-        <p>Non, pas pendant cette phase de test. Si l'outil devient un jour payant, ce sera annoncé clairement à l'avance — rien ne change sans que tu sois prévenu.</p>
+        <p>Non, pas pendant cette phase de test. Si l'outil devient un jour payant, ce sera annoncé clairement à l'avance : rien ne change sans que tu sois prévenu.</p>
       </details>
 
       <details class="faq-item">
@@ -325,7 +306,7 @@
 
       <details class="faq-item">
         <summary>Pourquoi pas juste continuer à l'estimer moi-même, à l'instinct ?</summary>
-        <p>Ça marche, mais avec des limites réelles : la mémoire retient surtout les jours extrêmes, pas la moyenne ; il est difficile de comparer mentalement un samedi de pluie à un samedi ensoleillé ; et ce calcul est à refaire chaque jour, pour chaque produit. À Point fait ce travail de façon systématique, à partir de tout ton historique réel — sans prendre plus de temps qu'avant.</p>
+        <p>Ça marche, mais avec des limites réelles : la mémoire retient surtout les jours extrêmes, pas la moyenne ; il est difficile de comparer mentalement un samedi de pluie à un samedi ensoleillé ; et ce calcul est à refaire chaque jour, pour chaque produit. À Point fait ce travail de façon systématique, à partir de tout ton historique réel, sans prendre plus de temps qu'avant.</p>
       </details>
 
       <details class="faq-item">
@@ -335,7 +316,7 @@
 
       <details class="faq-item">
         <summary>Est-ce que ça marche sur téléphone ?</summary>
-        <p>Oui, le site s'adapte à l'écran de ton téléphone — pratique pour consulter ton tableau de bord entre deux clients.</p>
+        <p>Oui, le site s'adapte à l'écran de ton téléphone, pratique pour consulter ton tableau de bord entre deux clients.</p>
       </details>
     </div>
   </div>
