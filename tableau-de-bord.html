@@ -26,6 +26,7 @@
         <a href="ventes.html" class="nav-lien">Mes ventes</a>
         <a href="import.html" class="nav-lien">Importer</a>
         <a href="parametres.html" class="nav-lien">Paramètres</a>
+        <a href="aide.html" class="nav-lien">? Aide</a>
       </nav>
     </header>
 
@@ -39,7 +40,7 @@
           <p class="sombre-date" id="sombreDate"></p>
           <p class="sombre-titre" id="sombreTitre">Prévision</p>
         </div>
-        <div class="sombre-badge" id="sombreBadge">— jour(s) d'historique</div>
+        <div class="sombre-badge" id="sombreBadge">... jour(s) d'historique</div>
       </div>
 
       <div class="sombre-label" id="labelProduction">Production recommandée pour demain</div>
@@ -52,12 +53,12 @@
       <div class="grille-sombre" id="grilleResultats">
         <div class="carte-sombre">
           <p class="nom">Économisé grâce à l'outil</p>
-          <p class="valeur">—</p>
+          <p class="valeur">-</p>
           <p class="detail">Bientôt disponible (dès qu'on connaît le prix de tes produits)</p>
         </div>
         <div class="carte-sombre">
           <p class="nom">Invendus évités</p>
-          <p class="valeur">—</p>
+          <p class="valeur">-</p>
           <p class="detail">Bientôt disponible (dès qu'on suit tes stocks)</p>
         </div>
         <a class="carte-sombre carte-sombre--lien" href="semaine.html">
@@ -589,11 +590,11 @@
           // pas connue), et on l'affiche comme telle plutôt que comme un calcul.
           quantite = Math.round(quantite * 1.15);
           fourchette = null;
-          texteBase = "📅 Événement signalé (plus de monde attendu) — estimation manuelle, pas calculée. " + texteBase;
+          texteBase = "📅 Événement signalé (plus de monde attendu) : estimation manuelle, pas calculée. " + texteBase;
         } else if (evenementCible === 'moins') {
           quantite = Math.round(quantite * 0.85);
           fourchette = null;
-          texteBase = "📅 Événement signalé (moins de monde attendu) — estimation manuelle, pas calculée. " + texteBase;
+          texteBase = "📅 Événement signalé (moins de monde attendu) : estimation manuelle, pas calculée. " + texteBase;
         } else if (cibleFeriee) {
           texteBase = "⚠️ Jour férié : l'activité peut différer d'un " + nomJourCible + " normal. " + texteBase;
         } else if (cibleVacances) {
@@ -671,7 +672,7 @@
       sbClient.auth.getSession().then(function (result) {
         var session = result.data.session;
         if (!session) {
-          statutDiv.textContent = "Non connecté — va sur connexion.html";
+          statutDiv.textContent = "Non connecté. Va sur connexion.html";
           return;
         }
 
