@@ -1,1 +1,124 @@
 
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>À Point - Aide</title>
+  <link rel="icon" href="logo.svg">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="conteneur conteneur--moyen">
+    <header class="entete-site">
+      <a href="tableau-de-bord.html" class="logo">
+        <svg class="logo-marque" viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
+          <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <circle cx="50" cy="56" r="8" fill="currentColor"/>
+        </svg>
+      </a>
+      <nav class="nav-principale">
+        <a href="tableau-de-bord.html" class="nav-lien">Tableau de bord</a>
+        <a href="semaine.html" class="nav-lien">Semaine</a>
+        <a href="produits.html" class="nav-lien">Mes produits</a>
+        <a href="ventes.html" class="nav-lien">Mes ventes</a>
+        <a href="import.html" class="nav-lien">Importer</a>
+        <a href="parametres.html" class="nav-lien">Paramètres</a>
+        <a href="aide.html" class="nav-lien nav-actif">? Aide</a>
+      </nav>
+    </header>
+
+    <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
+
+    <div id="zoneAide" style="display:none;">
+      <div class="carte-page">
+        <div class="entete-page">
+          <div>
+            <p class="eyebrow">Aide</p>
+            <h1>Questions fréquentes</h1>
+          </div>
+        </div>
+        <p class="texte-aide" style="margin-top:-4px;">Les réponses aux questions les plus courantes. Pour une présentation complète de l'outil, le <a href="bienvenue.html">guide de démarrage</a> reste aussi disponible.</p>
+
+        <div style="margin-top:20px;">
+          <details class="faq-item">
+            <summary>Est-ce que ça remplace mon propre jugement ?</summary>
+            <p>Non. C'est une aide à la décision : la recommandation te donne un repère basé sur tes vraies ventes passées, mais la décision finale (et la responsabilité) restent toujours les tiennes. Surtout les premières semaines, où l'historique est encore court.</p>
+          </details>
+
+          <details class="faq-item">
+            <summary>Combien de temps avant que ce soit vraiment fiable ?</summary>
+            <p>Ça dépend de la régularité de ton historique, mais compte quelques semaines pour que les fourchettes se resserrent vraiment. Au tout début, avec peu de données, l'outil reste volontairement prudent plutôt que de te donner un faux sentiment de précision.</p>
+          </details>
+
+          <details class="faq-item">
+            <summary>Je n'ai pas d'export de caisse, je peux quand même m'en servir ?</summary>
+            <p>Oui. Tu notes tes ventes de la veille chaque jour dans « Mes ventes » (30 secondes), et l'historique se construit progressivement. Ce sera juste un peu moins précis les toutes premières semaines, le temps d'accumuler des données.</p>
+          </details>
+
+          <details class="faq-item">
+            <summary>C'est payant ?</summary>
+            <p>Non, pas pendant cette phase de test. Si l'outil devient un jour payant, ce sera annoncé clairement à l'avance : rien ne change sans que tu sois prévenu.</p>
+          </details>
+
+          <details class="faq-item">
+            <summary>Mes données de vente sont-elles vues par d'autres commerçants, ou revendues ?</summary>
+            <p>Non. Tes données sont hébergées de façon sécurisée et ne sont accessibles qu'à toi ; elles ne sont ni partagées avec d'autres commerçants, ni revendues à qui que ce soit.</p>
+          </details>
+
+          <details class="faq-item">
+            <summary>Comment supprimer mon compte ou mes données ?</summary>
+            <p>Contacte-moi directement (voir les CGU pour l'adresse) et je m'en occupe.</p>
+          </details>
+
+          <details class="faq-item">
+            <summary>J'ai oublié mon mot de passe, comment faire ?</summary>
+            <p>Sur la page de connexion, clique sur « Mot de passe oublié ? », renseigne ton email : un lien pour en choisir un nouveau t'est envoyé.</p>
+          </details>
+
+          <details class="faq-item">
+            <summary>Pourquoi pas juste continuer à l'estimer moi-même, à l'instinct ?</summary>
+            <p>Ça marche, mais avec des limites réelles : la mémoire retient surtout les jours extrêmes, pas la moyenne ; il est difficile de comparer mentalement un samedi de pluie à un samedi ensoleillé ; et ce calcul est à refaire chaque jour, pour chaque produit. À Point fait ce travail de façon systématique, à partir de tout ton historique réel, sans prendre plus de temps qu'avant.</p>
+          </details>
+
+          <details class="faq-item">
+            <summary>Comment est calculée la quantité recommandée, en détail ?</summary>
+            <p>Pour chaque produit et chaque jour, l'outil part de tes ventes passées ce même jour de semaine (par exemple, tous tes jeudis), en moyenne pondérée : les ventes récentes comptent plus que les anciennes, pour suivre une tendance plutôt que rester bloqué sur une ancienne habitude. Un jour exceptionnel et isolé est écarté du calcul. Un seul ajustement est ensuite appliqué si la situation le justifie, jamais plusieurs à la fois, dans cet ordre : jour de fermeture connu, événement que tu as signalé, jour férié, vacances scolaires, puis météo prévue. Le résultat est toujours donné en fourchette plutôt qu'un chiffre unique.</p>
+          </details>
+
+          <details class="faq-item">
+            <summary>Est-ce que ça marche sur téléphone ?</summary>
+            <p>Oui, le site s'adapte à l'écran de ton téléphone, pratique pour consulter ton tableau de bord entre deux clients.</p>
+          </details>
+        </div>
+
+        <p class="pied-page" style="margin-top:20px;"><a href="cgu.html">Conditions générales d'utilisation</a></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
+      var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
+      var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      var statutDiv = document.getElementById('statutConnexion');
+      var zoneAideEl = document.getElementById('zoneAide');
+
+      sbClient.auth.getSession().then(function (result) {
+        var session = result.data.session;
+        if (!session) {
+          statutDiv.textContent = "Tu n'es pas connecté. Va d'abord sur la page de connexion.";
+          return;
+        }
+        statutDiv.style.display = 'none';
+        zoneAideEl.style.display = 'block';
+      });
+    })();
+  </script>
+</body>
+</html>
+
