@@ -446,6 +446,27 @@ th {
   border-bottom: 2px solid var(--accent);
 }
 
+/* ---------- Questions fréquentes (bienvenue.html, aide.html) ---------- */
+
+.faq-item {
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  padding: 2px 16px;
+  margin-bottom: 10px;
+  background: var(--surface);
+}
+.faq-item summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 13px 0;
+  color: var(--texte);
+  list-style: none;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after { content: "+"; float: right; color: var(--texte-tres-attenue); font-weight: 400; }
+.faq-item[open] summary::after { content: "−"; }
+.faq-item p { margin: 0 0 14px; color: var(--texte-attenue); font-size: 14px; }
+
 /* ---------- Ligne produit (page ventes) ---------- */
 
 .ligne-produit {
