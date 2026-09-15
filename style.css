@@ -1,5 +1,5 @@
 /* =========================================================
-   À Point — feuille de style commune à toutes les pages
+   Ã€ Point â€” feuille de style commune Ã  toutes les pages
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&display=swap');
@@ -68,7 +68,7 @@ body {
   max-width: 560px;
 }
 
-/* ---------- En-tête / logo / navigation ---------- */
+/* ---------- En-tÃªte / logo / navigation ---------- */
 
 .entete-site {
   display: flex;
@@ -119,7 +119,7 @@ body {
   border-bottom-color: var(--accent);
 }
 
-/* ---------- Typographie générale ---------- */
+/* ---------- Typographie gÃ©nÃ©rale ---------- */
 
 h1 {
   font-family: var(--police-titre);
@@ -452,7 +452,7 @@ th {
   border-bottom: 2px solid var(--accent);
 }
 
-/* ---------- Questions fréquentes (bienvenue.html, aide.html) ---------- */
+/* ---------- Questions frÃ©quentes (bienvenue.html, aide.html) ---------- */
 
 .faq-item {
   border: 1px solid var(--bordure);
@@ -470,7 +470,7 @@ th {
 }
 .faq-item summary::-webkit-details-marker { display: none; }
 .faq-item summary::after { content: "+"; float: right; color: var(--texte-tres-attenue); font-weight: 400; }
-.faq-item[open] summary::after { content: "−"; }
+.faq-item[open] summary::after { content: "âˆ’"; }
 .faq-item p { margin: 0 0 14px; color: var(--texte-attenue); font-size: 14px; }
 
 /* ---------- Ligne produit (page ventes) ---------- */
@@ -538,7 +538,7 @@ ul.liste-produits li:hover {
   border-color: var(--texte-tres-attenue);
 }
 
-/* ---------- Fiche technique (ingrédients d'un produit) ---------- */
+/* ---------- Fiche technique (ingrÃ©dients d'un produit) ---------- */
 
 .ligne-ingredient {
   display: flex;
@@ -579,7 +579,7 @@ button.lien-supprimer:hover {
   margin-bottom: 22px;
 }
 
-/* ---------- Tableau de bord — carte sombre ---------- */
+/* ---------- Tableau de bord â€” carte sombre ---------- */
 
 .tableau-sombre {
   background: var(--sombre-fond);
@@ -767,6 +767,69 @@ button.lien-supprimer:hover {
   color: var(--sombre-texte-attenue);
 }
 
+/* ---------- Modal disponibilitÃ©s (page Personnel) ---------- */
+
+.fond-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 5, 4, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 100;
+}
+
+.contenu-modal {
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-lg);
+  padding: 22px 20px;
+  max-width: 360px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-jours {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.modal-jour-ligne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.modal-jour-ligne label {
+  margin: 0;
+  color: var(--texte);
+  font-size: 14px;
+}
+
+.modal-jour-ligne input {
+  width: 70px;
+  padding: 6px 8px;
+  border: 1px solid var(--bordure);
+  border-radius: 6px;
+  font-size: 14px;
+  text-align: right;
+}
+
+.bouton-secondaire {
+  background: transparent;
+  border: 1px solid var(--bordure);
+  color: var(--texte);
+}
+
+.contenu-modal .ligne-form button {
+  flex: 1;
+}
+
 /* ---------- Navigation multi-jours (tableau de bord) ---------- */
 
 .nav-jours {
@@ -831,7 +894,7 @@ button.lien-supprimer:hover {
   border-color: var(--sombre-texte);
 }
 
-/* ---------- Actions produit (éditer / supprimer) ---------- */
+/* ---------- Actions produit (Ã©diter / supprimer) ---------- */
 
 .nom-produit {
   flex: 1;
@@ -912,7 +975,7 @@ button.lien-supprimer:hover {
   margin: 0;
 }
 
-/* ---------- Page Paramètres ---------- */
+/* ---------- Page ParamÃ¨tres ---------- */
 
 .grille-jours {
   display: flex;
@@ -985,7 +1048,7 @@ button.lien-supprimer:hover {
   color: var(--texte-attenue);
 }
 
-/* ---------- Case à cocher générique (consentement, options) ---------- */
+/* ---------- Case Ã  cocher gÃ©nÃ©rique (consentement, options) ---------- */
 
 .case-consentement {
   display: flex;
@@ -1008,12 +1071,12 @@ button.lien-supprimer:hover {
   font-weight: 600;
 }
 
-/* ---------- Format téléphone ---------- */
-/* Le site n'avait jusqu'ici jamais été pensé pour un écran étroit (pas de
-   media query du tout) : un commerçant qui consulte son tableau de bord
-   depuis son téléphone entre deux clients aurait dû zoomer pour tout lire.
-   Les règles ci-dessous resserrent l'espace, empilent ce qui était côte à
-   côte, et gardent tout lisible sans jamais faire déborder la page. */
+/* ---------- Format tÃ©lÃ©phone ---------- */
+/* Le site n'avait jusqu'ici jamais Ã©tÃ© pensÃ© pour un Ã©cran Ã©troit (pas de
+   media query du tout) : un commerÃ§ant qui consulte son tableau de bord
+   depuis son tÃ©lÃ©phone entre deux clients aurait dÃ» zoomer pour tout lire.
+   Les rÃ¨gles ci-dessous resserrent l'espace, empilent ce qui Ã©tait cÃ´te Ã 
+   cÃ´te, et gardent tout lisible sans jamais faire dÃ©border la page. */
 @media (max-width: 560px) {
   .conteneur {
     padding: 20px 16px 44px;
@@ -1043,8 +1106,8 @@ button.lien-supprimer:hover {
   }
 
   /* Une ligne "champ + bouton" (ajouter un produit, changer d'email...)
-     reste côte à côte sur grand écran, mais devient trop étroite pour
-     rester lisible en dessous de ce seuil : on l'empile à la place. */
+     reste cÃ´te Ã  cÃ´te sur grand Ã©cran, mais devient trop Ã©troite pour
+     rester lisible en dessous de ce seuil : on l'empile Ã  la place. */
   .ligne-form {
     flex-direction: column;
     gap: 8px;
