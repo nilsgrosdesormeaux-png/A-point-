@@ -1,4 +1,6 @@
 
+
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -119,6 +121,21 @@
         return propre.charAt(0).toUpperCase() + propre.slice(1).toLowerCase();
       }
 
+      // Clé de comparaison pour repérer deux écritures d'un même produit :
+      // espaces superflus ignorés, casse ignorée, accents ignorés, et un
+      // éventuel "s"/"x" final ignoré aussi (singulier/pluriel : "Croissant",
+      // "croissants", "CROISSANT" doivent tous retomber sur la même clé et
+      // ne jamais créer deux fiches produit distinctes). Même règle que
+      // celle utilisée côté import CSV.
+      function cleNormaliseeProduit(nom) {
+        var propre = (nom || '').toString().trim().toLowerCase()
+          .normalize('NFD').replace(/[̀-ͯ]/g, '');
+        if (propre.length > 3 && /[sx]$/.test(propre)) {
+          propre = propre.slice(0, -1);
+        }
+        return propre;
+      }
+
       // Suggère les noms d'ingrédients déjà utilisés (sur tous les produits), pour
       // éviter que "Tomate" et "tomates" soient comptés comme deux ingrédients
       // différents sur le tableau de bord.
@@ -191,14 +208,30 @@
         if (nouveauNom === null) return;
         nouveauNom = nouveauNom.trim();
         if (!nouveauNom || nouveauNom === produit.nom) return;
-        sbClient.from('produits').update({ nom: nouveauNom }).eq('id', produit.id).then(function (result) {
-          if (result.error) {
+
+        var cleNouveau = cleNormaliseeProduit(nouveauNom);
+
+        sbClient.from('produits').select('id, nom').eq('commercant_id', commercantId).then(function (resultExistants) {
+          var doublon = (resultExistants.data || []).find(function (p) {
+            return p.id !== produit.id && cleNormaliseeProduit(p.nom) === cleNouveau;
+          });
+
+          if (doublon) {
             messageDiv.style.display = 'block';
             messageDiv.className = 'erreur';
-            messageDiv.textContent = "Impossible de modifier : " + result.error.message;
-          } else {
-            chargerProduits();
+            messageDiv.textContent = 'Impossible de modifier : "' + formatNomAffichage(doublon.nom) + '" existe déjà dans tes produits.';
+            return;
           }
+
+          sbClient.from('produits').update({ nom: nouveauNom }).eq('id', produit.id).then(function (result) {
+            if (result.error) {
+              messageDiv.style.display = 'block';
+              messageDiv.className = 'erreur';
+              messageDiv.textContent = "Impossible de modifier : " + result.error.message;
+            } else {
+              chargerProduits();
+            }
+          });
         });
       }
 
@@ -283,7 +316,7 @@
       });
 
       document.getElementById('btnAjouter').addEventListener('click', function () {
-        var nomProduit = document.getElementById('nomProduit').value;
+        var nomProduit = document.getElementById('nomProduit').value.trim();
 
         if (!nomProduit) {
           messageDiv.style.display = 'block';
@@ -292,20 +325,39 @@
           return;
         }
 
-        sbClient.from('produits').insert({
-          commercant_id: commercantId,
-          nom: nomProduit
-        }).then(function (result) {
-          messageDiv.style.display = 'block';
-          if (result.error) {
+        var cleNouveau = cleNormaliseeProduit(nomProduit);
+
+        // On vérifie d'abord si ce produit (au sens large : casse, accents,
+        // singulier/pluriel confondus) n'existe pas déjà, pour ne jamais
+        // créer deux fiches produit pour la même chose.
+        sbClient.from('produits').select('id, nom').eq('commercant_id', commercantId).then(function (resultExistants) {
+          var doublon = (resultExistants.data || []).find(function (p) {
+            return cleNormaliseeProduit(p.nom) === cleNouveau;
+          });
+
+          if (doublon) {
+            messageDiv.style.display = 'block';
             messageDiv.className = 'erreur';
-            messageDiv.textContent = "Erreur : " + result.error.message;
-          } else {
-            messageDiv.className = 'succes';
-            messageDiv.textContent = "Produit ajouté !";
+            messageDiv.textContent = '"' + formatNomAffichage(doublon.nom) + '" existe déjà dans tes produits.';
             document.getElementById('nomProduit').value = '';
-            chargerProduits();
+            return;
           }
+
+          sbClient.from('produits').insert({
+            commercant_id: commercantId,
+            nom: nomProduit
+          }).then(function (result) {
+            messageDiv.style.display = 'block';
+            if (result.error) {
+              messageDiv.className = 'erreur';
+              messageDiv.textContent = "Erreur : " + result.error.message;
+            } else {
+              messageDiv.className = 'succes';
+              messageDiv.textContent = "Produit ajouté !";
+              document.getElementById('nomProduit').value = '';
+              chargerProduits();
+            }
+          });
         });
       });
 
