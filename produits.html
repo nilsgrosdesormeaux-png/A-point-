@@ -1,6 +1,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -26,6 +27,7 @@
         <a href="semaine.html" class="nav-lien">Semaine</a>
         <a href="produits.html" class="nav-lien nav-actif">Mes produits</a>
         <a href="ventes.html" class="nav-lien">Mes ventes</a>
+        <a href="personnel.html" class="nav-lien">Personnel</a>
         <a href="import.html" class="nav-lien">Importer</a>
         <a href="parametres.html" class="nav-lien">Paramètres</a>
         <a href="aide.html" class="nav-lien">? Aide</a>
@@ -81,6 +83,10 @@
                 <option value="tranche">tranche</option>
                 <option value="portion">portion</option>
               </select>
+            </div>
+            <div style="flex:1; min-width:110px;">
+              <label for="coutIngredient" style="margin-top:0;">Coût unitaire (€)</label>
+              <input type="number" id="coutIngredient" placeholder="Optionnel" min="0" step="0.01">
             </div>
             <button id="btnAjouterIngredient" style="flex:0 0 auto; min-width:100px;">Ajouter</button>
           </div>
@@ -138,11 +144,21 @@
 
       // Suggère les noms d'ingrédients déjà utilisés (sur tous les produits), pour
       // éviter que "Tomate" et "tomates" soient comptés comme deux ingrédients
-      // différents sur le tableau de bord.
+      // différents sur le tableau de bord. Mémorise aussi le dernier coût
+      // unitaire connu par ingrédient, pour ne jamais faire ressaisir un coût
+      // déjà donné une fois (Mission 1 : le commerçant ne doit jamais re-taper
+      // un prix qu'il a déjà renseigné).
+      var derniersCoutsConnus = {};
       function chargerNomsIngredientsConnus() {
-        sbClient.from('ingredients_produit').select('nom_ingredient').eq('commercant_id', commercantId).then(function (result) {
+        sbClient.from('ingredients_produit').select('nom_ingredient, cout_unitaire, created_at').eq('commercant_id', commercantId).order('created_at', { ascending: true }).then(function (result) {
           var noms = {};
-          (result.data || []).forEach(function (ligne) { noms[ligne.nom_ingredient] = true; });
+          derniersCoutsConnus = {};
+          (result.data || []).forEach(function (ligne) {
+            noms[ligne.nom_ingredient] = true;
+            if (ligne.cout_unitaire != null) {
+              derniersCoutsConnus[ligne.nom_ingredient] = ligne.cout_unitaire;
+            }
+          });
           ingredientsConnusEl.innerHTML = '';
           Object.keys(noms).forEach(function (nom) {
             var option = document.createElement('option');
@@ -282,7 +298,8 @@
             div.className = 'ligne-ingredient';
 
             var texte = document.createElement('span');
-            texte.textContent = ligne.quantite + (ligne.unite ? ' ' + ligne.unite : '') + ' : ' + ligne.nom_ingredient;
+            texte.textContent = ligne.quantite + (ligne.unite ? ' ' + ligne.unite : '') + ' : ' + ligne.nom_ingredient +
+              (ligne.cout_unitaire != null ? ' (' + ligne.cout_unitaire.toString().replace('.', ',') + ' €/' + (ligne.unite || 'unité') + ')' : '');
 
             var btnSupprimer = document.createElement('button');
             btnSupprimer.type = 'button';
@@ -361,12 +378,29 @@
         });
       });
 
+      // Pré-remplit le coût dès que le commerçant tape/sélectionne un
+      // ingrédient déjà connu, pour qu'il voie tout de suite qu'il n'a rien à
+      // ressaisir.
+      document.getElementById('nomIngredient').addEventListener('input', function () {
+        var nom = this.value.trim();
+        var coutEl = document.getElementById('coutIngredient');
+        if (derniersCoutsConnus.hasOwnProperty(nom) && coutEl.value.trim() === '') {
+          coutEl.value = derniersCoutsConnus[nom];
+          coutEl.placeholder = 'Mémorisé : ' + derniersCoutsConnus[nom] + ' €';
+        }
+      });
+
       document.getElementById('btnAjouterIngredient').addEventListener('click', function () {
         if (!produitSelectionne) return;
 
         var nomIngredient = document.getElementById('nomIngredient').value.trim();
         var quantite = parseFloat(document.getElementById('quantiteIngredient').value);
         var unite = document.getElementById('uniteIngredient').value.trim();
+        var coutBrut = document.getElementById('coutIngredient').value.trim();
+        // Champ laissé vide : on réutilise le dernier coût connu pour cet
+        // ingrédient (mémorisation persistante), plutôt que de forcer une
+        // ressaisie à chaque fois.
+        var cout = coutBrut === '' ? (derniersCoutsConnus.hasOwnProperty(nomIngredient) ? derniersCoutsConnus[nomIngredient] : null) : parseFloat(coutBrut);
 
         messageIngredientDiv.innerHTML = '';
 
@@ -375,12 +409,18 @@
           return;
         }
 
+        if (cout !== null && (isNaN(cout) || cout < 0)) {
+          messageIngredientDiv.innerHTML = '<p class="erreur" style="padding:8px 10px; border-radius:6px; margin:8px 0 0;">Le coût unitaire doit être un nombre positif (ou laisse le champ vide).</p>';
+          return;
+        }
+
         sbClient.from('ingredients_produit').insert({
           commercant_id: commercantId,
           produit_id: produitSelectionne.id,
           nom_ingredient: nomIngredient,
           quantite: quantite,
-          unite: unite || null
+          unite: unite || null,
+          cout_unitaire: cout
         }).then(function (result) {
           if (result.error) {
             messageIngredientDiv.innerHTML = '<p class="erreur" style="padding:8px 10px; border-radius:6px; margin:8px 0 0;">Erreur : ' + result.error.message + '</p>';
@@ -388,6 +428,7 @@
             document.getElementById('nomIngredient').value = '';
             document.getElementById('quantiteIngredient').value = '';
             document.getElementById('uniteIngredient').value = '';
+            document.getElementById('coutIngredient').value = '';
             chargerIngredients();
             chargerNomsIngredientsConnus();
           }
