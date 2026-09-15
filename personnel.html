@@ -1,0 +1,604 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>À Point - Personnel</title>
+  <link rel="icon" href="logo.svg">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="conteneur conteneur--moyen">
+    <header class="entete-site">
+      <a href="tableau-de-bord.html" class="logo">
+        <svg class="logo-marque" viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
+          <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <circle cx="50" cy="56" r="8" fill="currentColor"/>
+        </svg>
+      </a>
+      <nav class="nav-principale">
+        <a href="tableau-de-bord.html" class="nav-lien">Tableau de bord</a>
+        <a href="semaine.html" class="nav-lien">Semaine</a>
+        <a href="produits.html" class="nav-lien">Mes produits</a>
+        <a href="ventes.html" class="nav-lien">Mes ventes</a>
+        <a href="personnel.html" class="nav-lien nav-actif">Personnel</a>
+        <a href="import.html" class="nav-lien">Importer</a>
+        <a href="parametres.html" class="nav-lien">Paramètres</a>
+        <a href="aide.html" class="nav-lien">? Aide</a>
+      </nav>
+    </header>
+
+    <div class="carte-page">
+      <div class="entete-page">
+        <div>
+          <p class="eyebrow">Équipe</p>
+          <h1>Personnel</h1>
+        </div>
+        <div class="badge-page" id="badgePersonnel" style="display:none;"></div>
+      </div>
+      <p class="texte-aide">Renseigne ton équipe pour recevoir une recommandation de renfort par jour, en fonction de l'affluence prévue. À Point ne planifie personne nommément (qui travaille, à quel poste précis) : ça reste à toi, avec l'outil de ton choix — on te dit seulement combien de personnes prévoir, et pour quel type de poste.</p>
+      <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
+
+      <div id="zoneFormulaire" style="display:none;">
+        <p class="section-titre" style="margin-top:22px;">Ajouter une personne</p>
+        <div class="ligne-form" style="flex-wrap:wrap;">
+          <input type="text" id="nomPersonne" placeholder="Nom" aria-label="Nom" style="flex:1; min-width:140px;">
+          <input type="text" id="rolePersonne" placeholder="Rôle (ex : vendeur, tourier, cuisinier)" aria-label="Rôle" style="flex:1; min-width:180px;">
+          <button id="btnAjouterPersonne">Ajouter</button>
+        </div>
+        <p class="texte-aide" style="margin-top:-6px;">Tu pourras préciser ses disponibilités juste après l'avoir ajoutée.</p>
+
+        <div id="message"></div>
+
+        <p class="section-titre">Mon équipe</p>
+        <ul id="listePersonnel" class="liste-produits"></ul>
+
+        <div class="sombre-label" style="margin-top:28px;">Recommandation de renfort — 7 prochains jours</div>
+        <div class="grille-sombre" id="grilleRecommandationsRH"></div>
+      </div>
+      <p class="pied-page"><a href="cgu.html">Conditions générales d'utilisation</a></p>
+    </div>
+  </div>
+
+  <!-- Petite fenêtre de disponibilités par personne, réutilisée pour ajouter/modifier -->
+  <div id="fondModal" class="fond-modal" style="display:none;">
+    <div class="contenu-modal">
+      <p class="section-titre" style="margin-top:0;">Disponibilités de <span id="modalNomPersonne"></span></p>
+      <p class="texte-aide" style="margin-top:-6px;">Heures disponibles par jour (laisse à 0 si absent(e) ce jour-là).</p>
+      <div id="modalJours" class="modal-jours"></div>
+      <div class="ligne-form" style="margin-top:14px;">
+        <button id="btnFermerModal" class="bouton-secondaire" type="button">Annuler</button>
+        <button id="btnEnregistrerModal" type="button">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
+      var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
+      var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      var statutDiv = document.getElementById('statutConnexion');
+      var zoneFormulaire = document.getElementById('zoneFormulaire');
+      var messageDiv = document.getElementById('message');
+      var listePersonnelEl = document.getElementById('listePersonnel');
+      var badgePersonnelEl = document.getElementById('badgePersonnel');
+      var grilleRHEl = document.getElementById('grilleRecommandationsRH');
+      var fondModalEl = document.getElementById('fondModal');
+      var modalNomPersonneEl = document.getElementById('modalNomPersonne');
+      var modalJoursEl = document.getElementById('modalJours');
+      var commercantId = null;
+      var personnel = [];
+      var personneEnEdition = null;
+
+      var nomsJours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+      var nomsMois = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+      function capitaliser(texte) {
+        return texte.charAt(0).toUpperCase() + texte.slice(1);
+      }
+
+      function formatDateLongue(date) {
+        return capitaliser(nomsJours[date.getDay()]) + ' ' + date.getDate() + ' ' + nomsMois[date.getMonth()];
+      }
+
+      function formatNomAffichage(nom) {
+        var propre = (nom || '').toString().trim();
+        if (!propre) return propre;
+        return propre.charAt(0).toUpperCase() + propre.slice(1).toLowerCase();
+      }
+
+      // --- Logique de prévision d'affluence (dupliquée depuis semaine.html —
+      // le site n'a pas de module JS partagé) : sert de signal d'entrée à la
+      // recommandation RH ci-dessous. Voir tableau-de-bord.html pour le détail
+      // des sources et limites assumées des jours fériés/vacances scolaires.
+      var DECALAGE_PONDERATION = 0.75;
+
+      function moyennePonderee(ventesTriees) {
+        var n = ventesTriees.length;
+        var sommePonderee = 0;
+        var sommePoids = 0;
+        ventesTriees.forEach(function (v, i) {
+          var positionDepuisLaFin = n - 1 - i;
+          var poids = Math.pow(DECALAGE_PONDERATION, positionDepuisLaFin);
+          sommePonderee += v.quantite * poids;
+          sommePoids += poids;
+        });
+        return sommePonderee / sommePoids;
+      }
+
+      function percentileValeur(triees, p) {
+        var idx = (triees.length - 1) * p;
+        var lo = Math.floor(idx), hi = Math.ceil(idx);
+        if (lo === hi) return triees[lo];
+        return triees[lo] + (triees[hi] - triees[lo]) * (idx - lo);
+      }
+
+      function datePaques(annee) {
+        var a = annee % 19;
+        var b = Math.floor(annee / 100);
+        var c = annee % 100;
+        var d = Math.floor(b / 4);
+        var e = b % 4;
+        var f = Math.floor((b + 8) / 25);
+        var g = Math.floor((b - f + 1) / 3);
+        var h = (19 * a + b - d - g + 15) % 30;
+        var i = Math.floor(c / 4);
+        var k = c % 4;
+        var l = (32 + 2 * e + 2 * i - h - k) % 7;
+        var m = Math.floor((a + 11 * h + 22 * l) / 451);
+        var mois = Math.floor((h + l - 7 * m + 114) / 31);
+        var jour = ((h + l - 7 * m + 114) % 31) + 1;
+        return new Date(annee, mois - 1, jour);
+      }
+
+      function ajouterJours(date, n) {
+        var d = new Date(date);
+        d.setDate(d.getDate() + n);
+        return d;
+      }
+
+      function versISO(date) {
+        var mm = ('0' + (date.getMonth() + 1)).slice(-2);
+        var dd = ('0' + date.getDate()).slice(-2);
+        return date.getFullYear() + '-' + mm + '-' + dd;
+      }
+
+      function joursFeriesAnnee(annee) {
+        var paques = datePaques(annee);
+        var dates = [
+          new Date(annee, 0, 1),
+          ajouterJours(paques, 1),
+          new Date(annee, 4, 1),
+          new Date(annee, 4, 8),
+          ajouterJours(paques, 39),
+          ajouterJours(paques, 50),
+          new Date(annee, 6, 14),
+          new Date(annee, 7, 15),
+          new Date(annee, 10, 1),
+          new Date(annee, 10, 11),
+          new Date(annee, 11, 25)
+        ];
+        return dates.map(versISO);
+      }
+
+      var CACHE_JOURS_FERIES = {};
+      function estJourFerie(date) {
+        var annee = date.getFullYear();
+        if (!CACHE_JOURS_FERIES[annee]) {
+          CACHE_JOURS_FERIES[annee] = joursFeriesAnnee(annee);
+        }
+        return CACHE_JOURS_FERIES[annee].indexOf(versISO(date)) !== -1;
+      }
+
+      var PERIODES_VACANCES = [
+        { debut: '2025-10-18', fin: '2025-11-03', zones: 'toutes' },
+        { debut: '2025-12-20', fin: '2026-01-05', zones: 'toutes' },
+        { debut: '2026-02-07', fin: '2026-02-23', zones: ['A'] },
+        { debut: '2026-02-14', fin: '2026-03-02', zones: ['B'] },
+        { debut: '2026-02-21', fin: '2026-03-09', zones: ['C'] },
+        { debut: '2026-04-04', fin: '2026-04-20', zones: ['A'] },
+        { debut: '2026-04-11', fin: '2026-04-27', zones: ['B'] },
+        { debut: '2026-04-18', fin: '2026-05-04', zones: ['C'] },
+        { debut: '2026-07-04', fin: '2026-08-31', zones: 'toutes' },
+        { debut: '2026-10-17', fin: '2026-11-02', zones: 'toutes' },
+        { debut: '2026-12-19', fin: '2027-01-04', zones: 'toutes' },
+        { debut: '2027-02-13', fin: '2027-03-01', zones: ['A'] },
+        { debut: '2027-02-20', fin: '2027-03-08', zones: ['B'] },
+        { debut: '2027-02-06', fin: '2027-02-22', zones: ['C'] },
+        { debut: '2027-04-10', fin: '2027-04-26', zones: ['A'] },
+        { debut: '2027-04-17', fin: '2027-05-03', zones: ['B'] },
+        { debut: '2027-04-03', fin: '2027-04-19', zones: ['C'] },
+        { debut: '2027-07-03', fin: '2027-08-31', zones: 'toutes' }
+      ];
+
+      var DEPARTEMENT_VERS_ZONE = {};
+      (function () {
+        var parZone = {
+          A: ['25','39','70','90', '24','33','40','47','64', '03','15','43','63', '21','58','71','89', '07','26','38','73','74', '19','23','87', '01','42','69', '16','17','79','86'],
+          B: ['04','05','13', '02','60','80', '59','62', '54','55','57','88', '44','49','53','72','85', '06','83','84', '14','50','61','27','76', '18','28','36','37','41','45', '08','10','51','52', '22','29','35','56', '67','68'],
+          C: ['77','93','94', '11','30','34','48','66', '75', '09','12','31','32','46','65','81','82', '78','91','92','95']
+        };
+        Object.keys(parZone).forEach(function (zone) {
+          parZone[zone].forEach(function (dep) { DEPARTEMENT_VERS_ZONE[dep] = zone; });
+        });
+      })();
+
+      function codePostalVersDepartement(codePostal) {
+        var cp = (codePostal || '').trim();
+        if (!/^[0-9]{5}$/.test(cp)) return null;
+        if (cp.substring(0, 2) === '97' || cp.substring(0, 2) === '98') return cp.substring(0, 3);
+        if (cp.substring(0, 2) === '20') return null;
+        return cp.substring(0, 2);
+      }
+
+      function zoneVacancesPourCodePostal(codePostal) {
+        var dep = codePostalVersDepartement(codePostal);
+        if (!dep) return null;
+        return DEPARTEMENT_VERS_ZONE[dep] || null;
+      }
+
+      function estEnVacances(date, zone) {
+        if (!zone) return false;
+        var iso = versISO(date);
+        for (var i = 0; i < PERIODES_VACANCES.length; i++) {
+          var p = PERIODES_VACANCES[i];
+          if (iso >= p.debut && iso <= p.fin) {
+            if (p.zones === 'toutes' || p.zones.indexOf(zone) !== -1) return true;
+          }
+        }
+        return false;
+      }
+
+      // Même calcul de tier (charge / calme / normal / férié / vacances /
+      // événement / fermé / insuffisant) que sur la page Semaine, appliqué ici
+      // sur le volume total de ventes (tous produits confondus) — l'entrée
+      // pertinente pour une recommandation de renfort en personnel, qui
+      // raisonne en affluence globale plutôt que produit par produit.
+      function calculerPrevisionSemaine(ventes, zoneVacances, joursFermeture, evenements) {
+        var totauxParDate = {};
+        ventes.forEach(function (v) {
+          totauxParDate[v.date_vente] = (totauxParDate[v.date_vente] || 0) + v.quantite;
+        });
+        var historiqueTotal = Object.keys(totauxParDate).map(function (d) {
+          return { date_vente: d, quantite: totauxParDate[d] };
+        }).sort(function (a, b) { return new Date(a.date_vente) - new Date(b.date_vente); });
+
+        if (historiqueTotal.length === 0) return [];
+
+        var jours = [];
+        for (var offset = 1; offset <= 7; offset++) {
+          var dateCible = new Date();
+          dateCible.setDate(dateCible.getDate() + offset);
+          var numeroJour = dateCible.getDay();
+          var isoCible = versISO(dateCible);
+          var cibleFermee = !!(joursFermeture && joursFermeture.indexOf(numeroJour) !== -1);
+          var evenementCible = !cibleFermee && evenements ? evenements[isoCible] : undefined;
+          var cibleFeriee = !cibleFermee && !evenementCible && estJourFerie(dateCible);
+          var cibleVacances = !cibleFermee && !evenementCible && !cibleFeriee && estEnVacances(dateCible, zoneVacances);
+
+          var memeJour = historiqueTotal.filter(function (t) {
+            var d = new Date(t.date_vente);
+            return d.getDay() === numeroJour && !estJourFerie(d) && !estEnVacances(d, zoneVacances);
+          });
+          var base = memeJour.length > 0 ? memeJour : historiqueTotal;
+          var moyenne = moyennePonderee(base);
+
+          var tier = 'normal';
+          if (cibleFermee) {
+            tier = 'ferme';
+          } else if (evenementCible === 'plus') {
+            tier = 'evenement-plus';
+          } else if (evenementCible === 'moins') {
+            tier = 'evenement-moins';
+          } else if (cibleFeriee) {
+            tier = 'ferie';
+          } else if (cibleVacances) {
+            tier = 'vacances';
+          } else if (memeJour.length >= 4) {
+            var quantitesTriees = base.map(function (v) { return v.quantite; }).sort(function (a, b) { return a - b; });
+            var q1 = percentileValeur(quantitesTriees, 0.25);
+            var q3 = percentileValeur(quantitesTriees, 0.75);
+            if (q3 > q1) {
+              if (moyenne > q3) tier = 'charge';
+              else if (moyenne < q1) tier = 'calme';
+            }
+          } else {
+            tier = 'insuffisant';
+          }
+
+          jours.push({ date: dateCible, iso: isoCible, numeroJour: numeroJour, nomJour: nomsJours[numeroJour], tier: tier });
+        }
+        return jours;
+      }
+
+      // --- Recommandation RH (Mission 2, étape B) ------------------------
+      // Croise le signal d'affluence (tier ci-dessus) avec l'équipe
+      // disponible ce jour-là (heures_disponibles > 0 pour ce jour de
+      // semaine) pour suggérer un NOMBRE de personnes par rôle, jamais une
+      // affectation nominative (qui travaille précisément) : ça reste
+      // volontairement hors du périmètre d'À Point (voir Skello/Zelty pour
+      // le planning nominatif).
+      //
+      // Règle simple et vérifiable, pas un modèle : un jour "chargé" ou
+      // "événement +" demande un renfort (+1 personne par rôle représenté
+      // dans l'équipe disponible ce jour-là, dans la limite du nombre de
+      // personnes déjà disponibles pour ce rôle) ; un jour "calme" ou
+      // "événement -" suggère qu'une personne de moins peut suffire (jamais
+      // en dessous de 1 si quelqu'un est disponible, jamais de suggestion de
+      // retirer la seule personne disponible) ; les autres jours (normal,
+      // férié, vacances, historique insuffisant) gardent l'effectif habituel
+      // tel que déclaré disponible, sans ajustement — on ne majore/minore que
+      // lorsque le signal d'affluence est net.
+      function calculerRecommandationsRH(previsionSemaine, equipe) {
+        return previsionSemaine.map(function (jour) {
+          var disponiblesCeJour = equipe.filter(function (p) {
+            var heures = p.heures_disponibles && p.heures_disponibles[jour.nomJour];
+            return heures && heures > 0;
+          });
+
+          var parRole = {};
+          disponiblesCeJour.forEach(function (p) {
+            var role = p.role ? formatNomAffichage(p.role) : 'Non précisé';
+            parRole[role] = (parRole[role] || 0) + 1;
+          });
+
+          var ajustement = 0;
+          if (jour.tier === 'charge' || jour.tier === 'evenement-plus') ajustement = 1;
+          else if ((jour.tier === 'calme' || jour.tier === 'evenement-moins') && disponiblesCeJour.length > 1) ajustement = -1;
+
+          var recommandationParRole = {};
+          if (ajustement !== 0 && Object.keys(parRole).length > 0) {
+            // On applique l'ajustement au(x) rôle(s) le(s) plus représenté(s)
+            // (le renfort ou l'allégement le plus utile porte sur le poste où
+            // il y a déjà le plus de monde, pas sur un rôle isolé à une
+            // personne qu'on ne peut pas raisonnablement retirer).
+            var rolesTries = Object.keys(parRole).sort(function (a, b) { return parRole[b] - parRole[a]; });
+            var roleCible = rolesTries[0];
+            Object.keys(parRole).forEach(function (role) { recommandationParRole[role] = parRole[role]; });
+            recommandationParRole[roleCible] = Math.max(ajustement < 0 ? 1 : 0, parRole[roleCible] + ajustement);
+          } else {
+            recommandationParRole = parRole;
+          }
+
+          return {
+            date: jour.date,
+            nomJour: jour.nomJour,
+            tier: jour.tier,
+            ajustement: ajustement,
+            effectifHabituel: parRole,
+            effectifRecommande: recommandationParRole,
+            aucuneDisponibilite: disponiblesCeJour.length === 0
+          };
+        });
+      }
+
+      function texteTier(tier) {
+        switch (tier) {
+          case 'charge': return 'Jour chargé';
+          case 'calme': return 'Jour calme';
+          case 'evenement-plus': return 'Plus de monde (signalé)';
+          case 'evenement-moins': return 'Moins de monde (signalé)';
+          case 'ferme': return 'Fermé';
+          case 'ferie': return 'Jour férié';
+          case 'vacances': return 'Vacances scolaires';
+          case 'insuffisant': return 'Historique insuffisant';
+          default: return 'Jour normal';
+        }
+      }
+
+      function texteEffectif(effectif) {
+        var roles = Object.keys(effectif);
+        if (roles.length === 0) return 'Personne de disponible déclaré';
+        return roles.map(function (role) { return effectif[role] + ' ' + role.toLowerCase() + (effectif[role] > 1 ? 's' : ''); }).join(', ');
+      }
+
+      function afficherRecommandationsRH(recommandations) {
+        grilleRHEl.innerHTML = '';
+        if (recommandations.length === 0) {
+          grilleRHEl.innerHTML = '<div class="carte-vide-sombre">Ajoute au moins une personne avec des disponibilités, et des ventes enregistrées, pour voir une recommandation ici.</div>';
+          return;
+        }
+        recommandations.forEach(function (r) {
+          var div = document.createElement('div');
+          div.className = 'carte-sombre';
+          var detail;
+          if (r.tier === 'ferme') {
+            detail = 'Fermé ce jour-là.';
+          } else if (r.aucuneDisponibilite) {
+            detail = "Personne d'indiqué comme disponible ce jour-là pour l'instant.";
+          } else if (r.ajustement > 0) {
+            detail = texteTier(r.tier) + " : trafic estimé en hausse → planifier " + texteEffectif(r.effectifRecommande) + " (au lieu de " + texteEffectif(r.effectifHabituel) + " habituellement disponible).";
+          } else if (r.ajustement < 0) {
+            detail = texteTier(r.tier) + " : trafic estimé en baisse → " + texteEffectif(r.effectifRecommande) + " devrai(en)t suffire (au lieu de " + texteEffectif(r.effectifHabituel) + ").";
+          } else {
+            detail = texteTier(r.tier) + " : effectif habituel suffisant → " + texteEffectif(r.effectifHabituel) + ".";
+          }
+          div.innerHTML =
+            '<p class="nom">' + capitaliser(r.nomJour) + ' ' + r.date.getDate() + '</p>' +
+            '<p class="detail">' + detail + '</p>';
+          grilleRHEl.appendChild(div);
+        });
+      }
+
+      // --- CRUD Personnel --------------------------------------------------
+      function chargerPersonnel() {
+        return sbClient.from('personnel').select('*').eq('commercant_id', commercantId).order('created_at', { ascending: true }).then(function (result) {
+          personnel = result.data || [];
+          afficherPersonnel();
+          return personnel;
+        });
+      }
+
+      function afficherPersonnel() {
+        listePersonnelEl.innerHTML = '';
+        badgePersonnelEl.textContent = personnel.length + (personnel.length > 1 ? ' personnes' : ' personne');
+        badgePersonnelEl.style.display = 'inline-block';
+
+        personnel.forEach(function (p) {
+          var li = document.createElement('li');
+
+          var nomSpan = document.createElement('span');
+          nomSpan.className = 'nom-produit';
+          nomSpan.textContent = formatNomAffichage(p.nom) + (p.role ? ' — ' + formatNomAffichage(p.role) : '');
+          nomSpan.title = 'Cliquer pour définir ses disponibilités';
+          nomSpan.addEventListener('click', function () { ouvrirModalDisponibilites(p); });
+
+          var actions = document.createElement('span');
+          actions.className = 'actions-produit';
+
+          var btnSupprimer = document.createElement('button');
+          btnSupprimer.type = 'button';
+          btnSupprimer.className = 'icone-action icone-action--supprimer';
+          btnSupprimer.setAttribute('aria-label', 'Supprimer cette personne');
+          btnSupprimer.textContent = '🗑';
+          btnSupprimer.addEventListener('click', function (e) {
+            e.stopPropagation();
+            supprimerPersonne(p);
+          });
+
+          actions.appendChild(btnSupprimer);
+          li.appendChild(nomSpan);
+          li.appendChild(actions);
+          listePersonnelEl.appendChild(li);
+        });
+      }
+
+      function supprimerPersonne(p) {
+        if (!window.confirm('Supprimer "' + formatNomAffichage(p.nom) + '" de ton équipe ?')) return;
+        sbClient.from('personnel').delete().eq('id', p.id).then(function (result) {
+          if (result.error) {
+            messageDiv.style.display = 'block';
+            messageDiv.className = 'erreur';
+            messageDiv.textContent = "Impossible de supprimer : " + result.error.message;
+          } else {
+            rafraichirTout();
+          }
+        });
+      }
+
+      function ouvrirModalDisponibilites(p) {
+        personneEnEdition = p;
+        modalNomPersonneEl.textContent = formatNomAffichage(p.nom);
+        modalJoursEl.innerHTML = '';
+        var heuresActuelles = p.heures_disponibles || {};
+        nomsJours.forEach(function (nomJour) {
+          var ligne = document.createElement('div');
+          ligne.className = 'modal-jour-ligne';
+          var label = document.createElement('label');
+          label.textContent = capitaliser(nomJour);
+          var input = document.createElement('input');
+          input.type = 'number';
+          input.min = '0';
+          input.max = '24';
+          input.step = '0.5';
+          input.setAttribute('data-jour', nomJour);
+          input.value = heuresActuelles[nomJour] || 0;
+          ligne.appendChild(label);
+          ligne.appendChild(input);
+          modalJoursEl.appendChild(ligne);
+        });
+        fondModalEl.style.display = 'flex';
+      }
+
+      document.getElementById('btnFermerModal').addEventListener('click', function () {
+        fondModalEl.style.display = 'none';
+        personneEnEdition = null;
+      });
+
+      document.getElementById('btnEnregistrerModal').addEventListener('click', function () {
+        if (!personneEnEdition) return;
+        var heures = {};
+        modalJoursEl.querySelectorAll('input').forEach(function (input) {
+          var v = parseFloat(input.value);
+          heures[input.getAttribute('data-jour')] = isNaN(v) || v < 0 ? 0 : v;
+        });
+        sbClient.from('personnel').update({ heures_disponibles: heures }).eq('id', personneEnEdition.id).then(function (result) {
+          fondModalEl.style.display = 'none';
+          personneEnEdition = null;
+          if (result.error) {
+            messageDiv.style.display = 'block';
+            messageDiv.className = 'erreur';
+            messageDiv.textContent = "Impossible d'enregistrer : " + result.error.message;
+          } else {
+            rafraichirTout();
+          }
+        });
+      });
+
+      document.getElementById('btnAjouterPersonne').addEventListener('click', function () {
+        var nom = document.getElementById('nomPersonne').value.trim();
+        var role = document.getElementById('rolePersonne').value.trim();
+
+        if (!nom) {
+          messageDiv.style.display = 'block';
+          messageDiv.className = 'erreur';
+          messageDiv.textContent = "Merci d'entrer un nom.";
+          return;
+        }
+
+        sbClient.from('personnel').insert({
+          commercant_id: commercantId,
+          nom: nom,
+          role: role || null,
+          heures_disponibles: {}
+        }).then(function (result) {
+          messageDiv.style.display = 'block';
+          if (result.error) {
+            messageDiv.className = 'erreur';
+            messageDiv.textContent = "Erreur : " + result.error.message;
+          } else {
+            messageDiv.className = 'succes';
+            messageDiv.textContent = "Personne ajoutée ! Clique sur son nom pour indiquer ses disponibilités.";
+            document.getElementById('nomPersonne').value = '';
+            document.getElementById('rolePersonne').value = '';
+            rafraichirTout();
+          }
+        });
+      });
+
+      function rafraichirTout() {
+        chargerPersonnel().then(function (equipe) {
+          Promise.all([
+            sbClient.from('ventes').select('*').eq('commercant_id', commercantId),
+            sbClient.from('parametres_commercant').select('*').eq('commercant_id', commercantId),
+            sbClient.from('evenements_commercant').select('*').eq('commercant_id', commercantId)
+          ]).then(function (resultats) {
+            var ventes = resultats[0].data || [];
+            var parametres = (resultats[1].data && resultats[1].data[0]) || null;
+            var zoneVacances = parametres ? zoneVacancesPourCodePostal(parametres.code_postal) : null;
+            var joursFermeture = (parametres && parametres.jours_fermeture) || [];
+            var evenements = {};
+            (resultats[2].data || []).forEach(function (e) { evenements[e.date_evenement] = e.direction; });
+
+            if (ventes.length === 0) {
+              grilleRHEl.innerHTML = '<div class="carte-vide-sombre">Pas encore de ventes enregistrées : la recommandation de renfort a besoin d\'un peu d\'historique pour estimer l\'affluence.<br><a href="ventes.html">Ajouter tes premières ventes →</a></div>';
+              return;
+            }
+
+            var previsionSemaine = calculerPrevisionSemaine(ventes, zoneVacances, joursFermeture, evenements);
+            var recommandations = calculerRecommandationsRH(previsionSemaine, equipe);
+            afficherRecommandationsRH(recommandations);
+          });
+        });
+      }
+
+      sbClient.auth.getSession().then(function (result) {
+        var session = result.data.session;
+        if (session) {
+          commercantId = session.user.id;
+          statutDiv.textContent = "Connecté en tant que : " + session.user.email;
+          zoneFormulaire.style.display = 'block';
+          rafraichirTout();
+        } else {
+          statutDiv.textContent = "Tu n'es pas connecté. Va d'abord sur la page de connexion.";
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
