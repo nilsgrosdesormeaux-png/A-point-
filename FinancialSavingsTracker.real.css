@@ -1,0 +1,273 @@
+.financial-savings-tracker {
+  margin: 2rem 0;
+}
+
+.savings-card {
+  background: linear-gradient(135deg, #8b6914 0%, #5a4206 100%);
+  border-radius: 12px;
+  padding: 2rem;
+  color: #f5f1e8;
+  box-shadow: 0 8px 24px rgba(139, 105, 20, 0.3);
+  animation: fadeInUp 0.5s ease;
+}
+
+.savings-card--empty {
+  background: linear-gradient(135deg, #e0d5c0 0%, #d5c9b5 100%);
+  color: #3a2c1a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 1rem;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  line-height: 1;
+}
+
+.empty-state h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #3a2c1a;
+}
+
+.empty-state p {
+  margin: 0.5rem 0;
+  font-size: 0.95rem;
+  color: #5a4206;
+  line-height: 1.5;
+}
+
+.empty-hint {
+  font-size: 0.85rem;
+  font-style: italic;
+  color: #8b6914;
+  margin-top: 1rem !important;
+}
+
+/* Header */
+.savings-header {
+  margin-bottom: 1.5rem;
+}
+
+.savings-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.savings-subtitle {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+/* Metric Principal */
+.savings-metric {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding: 1.5rem 0;
+  border-bottom: 2px solid rgba(245, 241, 232, 0.2);
+}
+
+.savings-amount {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.amount-value {
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.amount-currency {
+  font-size: 1.5rem;
+  font-weight: 600;
+  opacity: 0.95;
+}
+
+.savings-metric-text {
+  margin: 0;
+  font-size: 1rem;
+  opacity: 0.95;
+  font-weight: 500;
+}
+
+/* Impact Statement */
+.savings-impact {
+  background: rgba(245, 241, 232, 0.1);
+  border-left: 4px solid rgba(245, 241, 232, 0.5);
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+}
+
+.impact-text {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.impact-text strong {
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Breakdown Detail */
+.savings-breakdown-detail {
+  margin-bottom: 1.5rem;
+  background: rgba(245, 241, 232, 0.08);
+  border-radius: 6px;
+  padding: 0;
+}
+
+.breakdown-summary {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  user-select: none;
+  transition: background 0.2s;
+  display: block;
+}
+
+.breakdown-summary:hover {
+  background: rgba(245, 241, 232, 0.12);
+}
+
+.breakdown-items {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.breakdown-item {
+  background: rgba(245, 241, 232, 0.05);
+  border-left: 3px solid rgba(245, 241, 232, 0.3);
+  padding: 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.35rem 0;
+}
+
+.breakdown-row--total {
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(245, 241, 232, 0.2);
+  font-weight: 600;
+}
+
+.breakdown-label {
+  opacity: 0.85;
+}
+
+.breakdown-value {
+  font-weight: 600;
+  text-align: right;
+}
+
+.breakdown-value--saved {
+  color: #a3e635;
+  font-weight: 700;
+}
+
+.breakdown-value--savings {
+  color: #fbbf24;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+/* CTA */
+.savings-cta {
+  background: rgba(245, 241, 232, 0.1);
+  padding: 1rem;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.cta-text {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.95;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .savings-card {
+    padding: 1.5rem;
+  }
+
+  .amount-value {
+    font-size: 2.25rem;
+  }
+
+  .amount-currency {
+    font-size: 1.25rem;
+  }
+
+  .savings-metric-text {
+    font-size: 0.95rem;
+  }
+
+  .breakdown-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .breakdown-value {
+    text-align: left;
+  }
+}
+
+/* Support du thème sombre */
+@media (prefers-color-scheme: dark) {
+  .savings-card--empty {
+    background: linear-gradient(135deg, #2a2416 0%, #1f1a13 100%);
+    color: #e0d5c0;
+  }
+
+  .empty-state h3 {
+    color: #e0d5c0;
+  }
+
+  .empty-state p {
+    color: #b8a68f;
+  }
+
+  .empty-hint {
+    color: #997d3e;
+  }
+}
