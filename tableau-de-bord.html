@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -43,6 +44,12 @@
         <div class="sombre-badge" id="sombreBadge">... jour(s) d'historique</div>
       </div>
 
+      <div class="nav-jours" id="navJours" style="display:none;">
+        <button type="button" class="nav-jours-fleche" id="btnJourPrec" aria-label="Jour précédent">‹</button>
+        <div class="nav-jours-pastilles" id="pastillesJours"></div>
+        <button type="button" class="nav-jours-fleche" id="btnJourSuiv" aria-label="Jour suivant">›</button>
+      </div>
+
       <div class="sombre-label" id="labelProduction">Production recommandée pour demain</div>
       <div class="grille-sombre" id="grilleRecommandations"></div>
 
@@ -84,6 +91,18 @@
       var sombreDateEl = document.getElementById('sombreDate');
       var sombreTitreEl = document.getElementById('sombreTitre');
       var sombreBadgeEl = document.getElementById('sombreBadge');
+      var navJoursEl = document.getElementById('navJours');
+      var pastillesJoursEl = document.getElementById('pastillesJours');
+      var btnJourPrecEl = document.getElementById('btnJourPrec');
+      var btnJourSuivEl = document.getElementById('btnJourSuiv');
+
+      // État de la navigation multi-jours : decalageActuel est l'index (0 à 6)
+      // dans joursAffichables, la liste des 7 prochains jours d'ouverture.
+      // contexteAffichage garde la météo déjà récupérée pour ne pas la
+      // rappeler à chaque clic sur le sélecteur.
+      var decalageActuel = 0;
+      var joursAffichables = [];
+      var contexteAffichage = null;
 
       var nomsJours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
       var nomsMois = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
@@ -94,6 +113,17 @@
 
       function formatDateLongue(date) {
         return capitaliser(nomsJours[date.getDay()]) + ' ' + date.getDate() + ' ' + nomsMois[date.getMonth()];
+      }
+
+      // Nettoie un nom de produit pour l'affichage (espaces superflus, casse
+      // hétérogène après un import CSV un peu sale) sans jamais toucher à la
+      // valeur brute stockée en base. Utilisée aussi comme clé de regroupement
+      // ci-dessous pour qu'un même produit saisi sous plusieurs casses
+      // ("CROISSANT", "croissant") ne s'affiche plus comme deux cartes.
+      function formatNomAffichage(nom) {
+        var propre = (nom || '').toString().trim();
+        if (!propre) return propre;
+        return propre.charAt(0).toUpperCase() + propre.slice(1).toLowerCase();
       }
 
       // Poids donné aux ventes récentes par rapport aux anciennes dans la moyenne
@@ -508,10 +538,24 @@
         return d;
       }
 
-      // Calcule la recommandation pour un produit, avec la comparaison ("delta")
+      // Les N prochains jours d'ouverture à partir d'aujourd'hui, dans l'ordre
+      // chronologique — sert à peupler le sélecteur de jours (navigation
+      // multi-jours) du tableau de bord.
+      function prochainsJoursOuverts(n, joursFermeture) {
+        var dates = [];
+        var courant = new Date();
+        for (var i = 0; i < n; i++) {
+          courant = prochainJourOuvert(courant, joursFermeture);
+          dates.push(courant);
+        }
+        return dates;
+      }
+
+      // Calcule la recommandation pour un produit et un jour cible donnés
+      // (le jour cible est désormais choisi via le sélecteur de jours plutôt
+      // que toujours "le prochain jour ouvert"), avec la comparaison ("delta")
       // par rapport à la dernière vente réelle du même jour de la semaine.
-      function calculerRecommandation(ventesDuProduit, zoneVacances, joursFermeture, evenements, meteoPassee, meteoPrevue) {
-        var jourCible = prochainJourOuvert(new Date(), joursFermeture);
+      function calculerRecommandation(ventesDuProduit, jourCible, zoneVacances, evenements, meteoPassee, meteoPrevue) {
         var numeroJourCible = jourCible.getDay();
         var nomJourCible = nomsJours[numeroJourCible];
         var isoCible = versISO(jourCible);
@@ -636,7 +680,10 @@
       // réserve : c'est une consommation prévue, pas directement "quoi commander".
       function calculerConsommationIngredients(recommandationsParNom, produits, ingredientsLignes) {
         var idParNom = {};
-        produits.forEach(function (p) { idParNom[p.nom] = p.id; });
+        // Clé normalisée (voir formatNomAffichage) pour rester cohérent avec le
+        // regroupement des ventes ci-dessous, même si le nom du produit a été
+        // saisi avec une casse différente.
+        produits.forEach(function (p) { idParNom[formatNomAffichage(p.nom)] = p.id; });
 
         var lignesParProduitId = {};
         ingredientsLignes.forEach(function (ligne) {
@@ -722,21 +769,24 @@
             return;
           }
 
-          function afficherRecommandations(meteoPassee, meteoPrevue) {
-            var jourCible = prochainJourOuvert(new Date(), joursFermeture);
-            sombreTitreEl.textContent = "Prévision pour " + capitaliser(nomsJours[jourCible.getDay()]);
+          function afficherRecommandations(meteoPassee, meteoPrevue, jourCible) {
+            sombreTitreEl.textContent = "Prévision pour " + formatDateLongue(jourCible);
             labelProductionEl.textContent = "Production recommandée pour " + nomsJours[jourCible.getDay()];
 
+            // Regroupées par nom normalisé (voir formatNomAffichage) : deux
+            // ventes saisies sous des casses différentes pour le même produit
+            // fusionnent en une seule carte au lieu de s'afficher en double.
             var parProduit = {};
             ventes.forEach(function (vente) {
-              if (!parProduit[vente.nom_produit]) parProduit[vente.nom_produit] = [];
-              parProduit[vente.nom_produit].push(vente);
+              var nomNormalise = formatNomAffichage(vente.nom_produit);
+              if (!parProduit[nomNormalise]) parProduit[nomNormalise] = [];
+              parProduit[nomNormalise].push(vente);
             });
 
             grille.innerHTML = '';
             var recommandationsParNom = {};
             Object.keys(parProduit).forEach(function (nomProduit) {
-              var r = calculerRecommandation(parProduit[nomProduit], zoneVacances, joursFermeture, evenements, meteoPassee, meteoPrevue);
+              var r = calculerRecommandation(parProduit[nomProduit], jourCible, zoneVacances, evenements, meteoPassee, meteoPrevue);
               recommandationsParNom[nomProduit] = r.quantite;
 
               var deltaHTML = '';
@@ -770,9 +820,9 @@
             });
 
             var ingredients = calculerConsommationIngredients(recommandationsParNom, produits, ingredientsLignes);
+            var labelIngredientsEl = document.getElementById('labelIngredients');
+            var grilleIngredientsEl = document.getElementById('grilleIngredients');
             if (ingredients.length > 0) {
-              var labelIngredientsEl = document.getElementById('labelIngredients');
-              var grilleIngredientsEl = document.getElementById('grilleIngredients');
               labelIngredientsEl.textContent = "Consommation d'ingrédients prévue pour " + nomsJours[jourCible.getDay()];
               labelIngredientsEl.style.display = 'block';
               grilleIngredientsEl.style.display = 'grid';
@@ -786,7 +836,59 @@
                   '<p class="valeur">' + totalArrondi + (ing.unite ? ' ' + ing.unite : '') + '</p>';
                 grilleIngredientsEl.appendChild(div);
               });
+            } else {
+              // Nécessaire depuis l'ajout de la navigation multi-jours : sans
+              // ce else, changer de jour vers une prévision sans ingrédients
+              // laissait affiché le bloc du jour précédent.
+              labelIngredientsEl.style.display = 'none';
+              grilleIngredientsEl.style.display = 'none';
+              grilleIngredientsEl.innerHTML = '';
             }
+          }
+
+          // Sélecteur de jours : les 7 prochains jours d'ouverture, affichés en
+          // pastilles cliquables ("Demain", puis le nom du jour). Calculé une
+          // fois ici, indépendamment de la météo, pour apparaître tout de
+          // suite sans attendre cet appel best-effort.
+          joursAffichables = prochainsJoursOuverts(7, joursFermeture);
+          navJoursEl.style.display = 'flex';
+
+          function afficherPastillesJours() {
+            pastillesJoursEl.innerHTML = '';
+            joursAffichables.forEach(function (date, index) {
+              var bouton = document.createElement('button');
+              bouton.type = 'button';
+              bouton.className = 'pastille-jour' + (index === decalageActuel ? ' actif' : '');
+              bouton.textContent = index === 0 ? 'Demain' : capitaliser(nomsJours[date.getDay()]);
+              bouton.addEventListener('click', function () {
+                decalageActuel = index;
+                mettreAJourAffichage();
+              });
+              pastillesJoursEl.appendChild(bouton);
+            });
+            btnJourPrecEl.disabled = decalageActuel === 0;
+            btnJourSuivEl.disabled = decalageActuel === joursAffichables.length - 1;
+          }
+
+          function mettreAJourAffichage() {
+            afficherPastillesJours();
+            if (contexteAffichage) {
+              afficherRecommandations(contexteAffichage.meteoPassee, contexteAffichage.meteoPrevue, joursAffichables[decalageActuel]);
+            }
+          }
+
+          btnJourPrecEl.addEventListener('click', function () {
+            if (decalageActuel > 0) { decalageActuel--; mettreAJourAffichage(); }
+          });
+          btnJourSuivEl.addEventListener('click', function () {
+            if (decalageActuel < joursAffichables.length - 1) { decalageActuel++; mettreAJourAffichage(); }
+          });
+
+          afficherPastillesJours();
+
+          function definirContexteEtAfficher(meteoPassee, meteoPrevue) {
+            contexteAffichage = { meteoPassee: meteoPassee, meteoPrevue: meteoPrevue };
+            mettreAJourAffichage();
           }
 
           // Météo automatique dès que le code postal est connu — best-effort :
@@ -794,7 +896,7 @@
           // même les recommandations, simplement sans cet ajustement.
           obtenirCoordonnees(parametres, commercantId).then(function (coords) {
             if (!coords) {
-              afficherRecommandations({}, {});
+              definirContexteEtAfficher({}, {});
               return;
             }
             var datesTriees = ventes.map(function (v) { return v.date_vente; }).sort();
@@ -802,12 +904,12 @@
               recupererMeteoPassee(coords.latitude, coords.longitude, datesTriees[0], versISO(new Date())),
               recupererMeteoPrevue(coords.latitude, coords.longitude)
             ]).then(function (resultatsMeteo) {
-              afficherRecommandations(resultatsMeteo[0], resultatsMeteo[1]);
+              definirContexteEtAfficher(resultatsMeteo[0], resultatsMeteo[1]);
             }).catch(function () {
-              afficherRecommandations({}, {});
+              definirContexteEtAfficher({}, {});
             });
           }).catch(function () {
-            afficherRecommandations({}, {});
+            definirContexteEtAfficher({}, {});
           });
         });
       });
