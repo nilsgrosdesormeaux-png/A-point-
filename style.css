@@ -767,6 +767,151 @@ button.lien-supprimer:hover {
   color: var(--sombre-texte-attenue);
 }
 
+/* ---------- Navigation multi-jours (tableau de bord) ---------- */
+
+.nav-jours {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 18px;
+}
+
+.nav-jours-fleche {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sombre-surface);
+  color: var(--sombre-texte);
+  border: 1px solid var(--sombre-bordure);
+  border-radius: 999px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.nav-jours-fleche:hover { background: var(--sombre-fond); }
+
+.nav-jours-fleche:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.nav-jours-pastilles {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+}
+
+.nav-jours-pastilles::-webkit-scrollbar { display: none; }
+
+.pastille-jour {
+  flex-shrink: 0;
+  margin: 0;
+  width: auto;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--sombre-surface);
+  color: var(--sombre-texte-attenue);
+  border: 1px solid var(--sombre-bordure);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.pastille-jour:hover { color: var(--sombre-texte); }
+
+.pastille-jour.actif {
+  background: var(--sombre-texte);
+  color: var(--sombre-fond);
+  border-color: var(--sombre-texte);
+}
+
+/* ---------- Actions produit (éditer / supprimer) ---------- */
+
+.nom-produit {
+  flex: 1;
+  cursor: pointer;
+}
+
+.actions-produit {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.icone-action {
+  margin: 0;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--texte-attenue);
+  border: 1px solid var(--bordure);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.icone-action:hover {
+  background: var(--fond);
+  color: var(--texte);
+}
+
+.icone-action--supprimer:hover {
+  background: var(--erreur-fond);
+  color: var(--erreur-texte);
+  border-color: var(--erreur-texte);
+}
+
+/* ---------- Stepper (saisie manuelle des ventes) ---------- */
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stepper-bouton {
+  margin: 0;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 600;
+  background: var(--surface);
+  color: var(--texte);
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.stepper-bouton:hover {
+  background: var(--accent-clair);
+}
+
+.ligne-produit .stepper-valeur {
+  width: 56px;
+  margin: 0;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.stepper-valeur::-webkit-outer-spin-button,
+.stepper-valeur::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 /* ---------- Page Paramètres ---------- */
 
 .grille-jours {
