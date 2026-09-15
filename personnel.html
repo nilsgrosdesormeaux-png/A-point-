@@ -66,6 +66,8 @@
             <button type="button" class="nav-jours-fleche" id="btnPlanningJourSuiv" aria-label="Jour suivant">›</button>
           </div>
 
+          <div id="couvertureCreneaux" class="couverture-creneaux" style="display:none;"></div>
+
           <ul id="listeCreneaux" class="liste-produits liste-produits--espacee" style="margin-top:14px;"></ul>
 
           <p class="section-titre" style="margin-top:22px;">Ajouter un créneau</p>
@@ -139,6 +141,7 @@
       var btnPlanningJourPrecEl = document.getElementById('btnPlanningJourPrec');
       var btnPlanningJourSuivEl = document.getElementById('btnPlanningJourSuiv');
       var listeCreneauxEl = document.getElementById('listeCreneaux');
+      var couvertureCreneauxEl = document.getElementById('couvertureCreneaux');
       var selectPersonneCreneauEl = document.getElementById('selectPersonneCreneau');
       var rolePersonneCreneauEl = document.getElementById('rolePersonneCreneau');
       var heureDebutCreneauEl = document.getElementById('heureDebutCreneau');
@@ -740,10 +743,80 @@
           });
       }
 
+      // --- Couverture par heure (nombre de personnes présentes) ------------
+      // Dérivée directement des créneaux du jour affiché (pas d'heures
+      // d'ouverture/fermeture déclarées quelque part : on prend simplement
+      // la plage couverte par les créneaux existants). Une personne compte
+      // sur une heure entière dès qu'elle chevauche cette heure, même
+      // partiellement — ex. un créneau 8h30–12h compte dans les heures 8, 9,
+      // 10 et 11. Total global tous rôles confondus (pas de décomposition
+      // par poste ici, cf. discussion produit).
+      function heureDecimale(heureStr) {
+        var parties = formatHeure(heureStr).split(':');
+        return parseInt(parties[0], 10) + (parseInt(parties[1], 10) || 0) / 60;
+      }
+
+      function calculerCouverturePourJour(creneaux) {
+        if (creneaux.length === 0) return null;
+
+        var debutMin = Infinity, finMax = -Infinity;
+        creneaux.forEach(function (c) {
+          debutMin = Math.min(debutMin, Math.floor(heureDecimale(c.heure_debut)));
+          finMax = Math.max(finMax, Math.ceil(heureDecimale(c.heure_fin)));
+        });
+
+        var heures = [];
+        for (var h = debutMin; h < finMax; h++) {
+          var compte = creneaux.filter(function (c) {
+            return heureDecimale(c.heure_debut) <= h && heureDecimale(c.heure_fin) > h;
+          }).length;
+          heures.push({ heure: h, compte: compte });
+        }
+        return heures;
+      }
+
+      function afficherCouverture(creneaux) {
+        var couverture = calculerCouverturePourJour(creneaux);
+        if (!couverture || couverture.length === 0) {
+          couvertureCreneauxEl.style.display = 'none';
+          couvertureCreneauxEl.innerHTML = '';
+          return;
+        }
+
+        var maxCompte = Math.max.apply(null, couverture.map(function (h) { return h.compte; }));
+        couvertureCreneauxEl.innerHTML = '';
+        couvertureCreneauxEl.style.display = 'flex';
+
+        couverture.forEach(function (h) {
+          var colonne = document.createElement('div');
+          colonne.className = 'couverture-colonne';
+
+          var barre = document.createElement('div');
+          barre.className = 'couverture-barre';
+          var hauteurPct = maxCompte > 0 ? (h.compte / maxCompte) * 100 : 0;
+          barre.style.height = Math.max(hauteurPct, h.compte > 0 ? 8 : 0) + '%';
+          if (h.compte === 0) barre.classList.add('couverture-barre--vide');
+
+          var valeur = document.createElement('span');
+          valeur.className = 'couverture-valeur';
+          valeur.textContent = h.compte;
+
+          var label = document.createElement('span');
+          label.className = 'couverture-label';
+          label.textContent = h.heure + 'h';
+
+          colonne.appendChild(valeur);
+          colonne.appendChild(barre);
+          colonne.appendChild(label);
+          couvertureCreneauxEl.appendChild(colonne);
+        });
+      }
+
       function afficherCreneauxJourCourant() {
         var iso = jourPlanningCourantISO();
         listeCreneauxEl.innerHTML = '';
         var creneaux = (iso && creneauxParJour[iso]) || [];
+        afficherCouverture(creneaux);
         if (creneaux.length === 0) {
           listeCreneauxEl.innerHTML = '<div class="carte-vide-sombre" style="grid-column:unset;">Aucun créneau pour ce jour. Ajoute-en un ci-dessous, ou génère une proposition automatique.</div>';
           return;

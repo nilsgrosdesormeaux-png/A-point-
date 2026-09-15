@@ -60,6 +60,50 @@ async function stubSupabase(page) {
   });
 }
 
+// Stub avec une session active et des données factices (personnel +
+// créneaux), pour tester la logique de personnel.html qui a besoin d'un
+// commerçant "connecté" — toujours sans aucun vrai réseau.
+async function stubSupabaseAvecDonnees(page, { commercantId, tables }) {
+  await page.addInitScript(({ commercantId, tables }) => {
+    window.supabase = {
+      createClient: function () {
+        return {
+          auth: {
+            getSession: function () {
+              return Promise.resolve({ data: { session: { user: { id: commercantId, email: 'test@test.com' } } } });
+            },
+          },
+          from: function (table) {
+            var data = (tables && tables[table]) || [];
+            var chain = {
+              _data: data,
+              select: function () { return chain; },
+              order: function () { return chain; },
+              eq: function () { return chain; },
+              gte: function () { return chain; },
+              lte: function () { return chain; },
+              then: function (cb) { return Promise.resolve({ data: chain._data, error: null }).then(cb); },
+              insert: function () { return Promise.resolve({ data: [], error: null }); },
+              delete: function () {
+                var d = {
+                  eq: function () { return d; },
+                  gte: function () { return d; },
+                  lte: function () { return Promise.resolve({ data: [], error: null }); },
+                };
+                return d;
+              },
+              update: function () {
+                return { eq: function () { return Promise.resolve({ data: [], error: null }); } };
+              },
+            };
+            return chain;
+          },
+        };
+      },
+    };
+  }, { commercantId, tables });
+}
+
 let passed = 0;
 let failed = 0;
 const failures = [];
@@ -333,6 +377,70 @@ async function main() {
         const corps = await page.locator('body').innerHTML();
         expect(corps.length).toBeGreaterThan(0);
       });
+    });
+
+    await describe('personnel.html — couverture par heure', async () => {
+      const commercantId = 'test-commercant-couverture';
+      const demain = new Date();
+      demain.setDate(demain.getDate() + 1);
+      const isoDemain = demain.toISOString().slice(0, 10);
+
+      const pageAvecDonnees = await browser.newPage();
+      await stubSupabaseAvecDonnees(pageAvecDonnees, {
+        commercantId,
+        tables: {
+          personnel: [
+            { id: 'p1', nom: 'Alice', role: 'vendeur', heures_disponibles: {} },
+            { id: 'p2', nom: 'Bob', role: 'cuisinier', heures_disponibles: {} },
+            { id: 'p3', nom: 'Chloe', role: 'vendeur', heures_disponibles: {} },
+          ],
+          ventes: [],
+          parametres_commercant: [],
+          evenements_commercant: [],
+          creneaux_personnel: [
+            { id: 'c1', commercant_id: commercantId, personnel_id: 'p1', date_creneau: isoDemain, heure_debut: '08:00:00', heure_fin: '12:00:00', role: 'vendeur', origine: 'manuel' },
+            { id: 'c2', commercant_id: commercantId, personnel_id: 'p2', date_creneau: isoDemain, heure_debut: '10:30:00', heure_fin: '15:00:00', role: 'cuisinier', origine: 'manuel' },
+            { id: 'c3', commercant_id: commercantId, personnel_id: 'p3', date_creneau: isoDemain, heure_debut: '14:00:00', heure_fin: '22:00:00', role: 'vendeur', origine: 'manuel' },
+          ],
+        },
+      });
+
+      await test('affiche une colonne par heure couverte, avec le bon total au pic de chevauchement', async () => {
+        await pageAvecDonnees.goto(BASE_URL + '/personnel.html');
+        await pageAvecDonnees.locator('#couvertureCreneaux').waitFor({ state: 'visible' });
+
+        const labels = await pageAvecDonnees.locator('.couverture-label').allTextContents();
+        expect(labels[0]).toBe('8h');
+        expect(labels[labels.length - 1]).toBe('21h');
+
+        const valeurs = await pageAvecDonnees.locator('.couverture-valeur').allTextContents();
+        const indexOnzeH = labels.indexOf('11h');
+        const indexQuatorzeH = labels.indexOf('14h');
+        expect(valeurs[indexOnzeH]).toBe('2');
+        expect(valeurs[indexQuatorzeH]).toBe('2');
+        expect(valeurs[0]).toBe('1');
+      });
+
+      const pageSansCreneaux = await browser.newPage();
+      await stubSupabaseAvecDonnees(pageSansCreneaux, {
+        commercantId,
+        tables: {
+          personnel: [],
+          ventes: [],
+          parametres_commercant: [],
+          evenements_commercant: [],
+          creneaux_personnel: [],
+        },
+      });
+
+      await test('reste masquée quand le jour affiché n\'a aucun créneau', async () => {
+        await pageSansCreneaux.goto(BASE_URL + '/personnel.html');
+        await pageSansCreneaux.waitForTimeout(600);
+        expect(await pageSansCreneaux.locator('#couvertureCreneaux').isVisible()).toBe(false);
+      });
+
+      await pageAvecDonnees.close();
+      await pageSansCreneaux.close();
     });
   } finally {
     await browser.close();

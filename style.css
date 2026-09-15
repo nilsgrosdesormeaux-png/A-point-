@@ -1016,6 +1016,57 @@ button.lien-supprimer:hover {
   border-color: var(--sombre-texte);
 }
 
+/* ---------- Couverture par heure (planning personnel) ---------- */
+
+.couverture-creneaux {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 90px;
+  padding: 10px 8px 0;
+  margin: 4px 0 6px;
+  background: var(--sombre-surface);
+  border: 1px solid var(--sombre-bordure);
+  border-radius: 14px;
+  overflow-x: auto;
+}
+
+.couverture-colonne {
+  flex: 1 0 22px;
+  min-width: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+}
+
+.couverture-valeur {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--sombre-texte-attenue);
+  margin-bottom: 2px;
+}
+
+.couverture-barre {
+  width: 100%;
+  max-width: 16px;
+  background: var(--sombre-hausse);
+  border-radius: 3px 3px 0 0;
+  min-height: 2px;
+}
+
+.couverture-barre--vide {
+  background: var(--sombre-bordure);
+}
+
+.couverture-label {
+  font-size: 9px;
+  color: var(--sombre-texte-attenue);
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
 /* ---------- Actions produit (éditer / supprimer) ---------- */
 
 .nom-produit {
