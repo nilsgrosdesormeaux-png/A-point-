@@ -767,6 +767,69 @@ button.lien-supprimer:hover {
   color: var(--sombre-texte-attenue);
 }
 
+/* ---------- Modal disponibilités (page Personnel) ---------- */
+
+.fond-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 5, 4, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 100;
+}
+
+.contenu-modal {
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-lg);
+  padding: 22px 20px;
+  max-width: 360px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-jours {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.modal-jour-ligne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.modal-jour-ligne label {
+  margin: 0;
+  color: var(--texte);
+  font-size: 14px;
+}
+
+.modal-jour-ligne input {
+  width: 70px;
+  padding: 6px 8px;
+  border: 1px solid var(--bordure);
+  border-radius: 6px;
+  font-size: 14px;
+  text-align: right;
+}
+
+.bouton-secondaire {
+  background: transparent;
+  border: 1px solid var(--bordure);
+  color: var(--texte);
+}
+
+.contenu-modal .ligne-form button {
+  flex: 1;
+}
+
 /* ---------- Navigation multi-jours (tableau de bord) ---------- */
 
 .nav-jours {

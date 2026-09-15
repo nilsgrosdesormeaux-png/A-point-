@@ -40,6 +40,7 @@
         <a href="semaine.html" class="nav-lien">Semaine</a>
         <a href="produits.html" class="nav-lien">Mes produits</a>
         <a href="ventes.html" class="nav-lien">Mes ventes</a>
+        <a href="personnel.html" class="nav-lien">Personnel</a>
         <a href="import.html" class="nav-lien nav-actif">Importer</a>
         <a href="parametres.html" class="nav-lien">Paramètres</a>
         <a href="aide.html" class="nav-lien">? Aide</a>
@@ -101,6 +102,12 @@
             <select id="selectUnite"></select>
           </div>
 
+          <div id="champCout">
+            <label for="selectCout">Colonne pour le coût unitaire en € (optionnelle)</label>
+            <select id="selectCout"></select>
+            <p class="texte-aide" style="margin-top:-4px;">Utile si ton fichier vient d'une facture fournisseur : le coût est alors mémorisé automatiquement et n'a plus besoin d'être ressaisi.</p>
+          </div>
+
           <div id="apercuBrut"></div>
 
           <button id="btnValiderMapping">Continuer</button>
@@ -132,9 +139,11 @@
       var selectIngredient = document.getElementById('selectIngredient');
       var selectQuantite = document.getElementById('selectQuantite');
       var selectUnite = document.getElementById('selectUnite');
+      var selectCout = document.getElementById('selectCout');
       var champDate = document.getElementById('champDate');
       var champIngredient = document.getElementById('champIngredient');
       var champUnite = document.getElementById('champUnite');
+      var champCout = document.getElementById('champCout');
       var detailDate = document.getElementById('detailDate');
       var detailProduit = document.getElementById('detailProduit');
       var detailQuantite = document.getElementById('detailQuantite');
@@ -184,6 +193,7 @@
       var aliasesQuantite = ['quantite', 'qte', 'nombre', 'nombrevendu', 'quantitevendue', 'qty', 'nbvendu', 'ventes', 'quantitevendu', 'vendu', 'vendus', 'vendue'];
       var aliasesIngredient = ['ingredient', 'ingredients', 'composant', 'matierepremiere', 'ingredientutilise'];
       var aliasesUnite = ['unite', 'unites', 'uom', 'mesure'];
+      var aliasesCout = ['cout', 'couts', 'coutunitaire', 'prix', 'prixunitaire', 'prixachat', 'tarif', 'montant', 'pu', 'puht', 'prixht'];
 
       function normaliserTexte(texte) {
         return (texte === null || texte === undefined ? '' : texte.toString())
@@ -579,6 +589,7 @@
         champDate.style.display = modeImport === 'ventes' ? 'block' : 'none';
         champIngredient.style.display = modeImport === 'fiches' ? 'block' : 'none';
         champUnite.style.display = modeImport === 'fiches' ? 'block' : 'none';
+        champCout.style.display = modeImport === 'fiches' ? 'block' : 'none';
         detailProduit.style.display = modeImport === 'ventes' ? 'block' : 'none';
         detailQuantite.style.display = modeImport === 'ventes' ? 'block' : 'none';
         banniereVerification.innerHTML = '';
@@ -633,10 +644,12 @@
           var colIngredientFiches = detecterColonne(entetes, aliasesIngredient);
           var colQuantiteFiches = detecterColonne(entetes, aliasesQuantite);
           var colUniteFiches = detecterColonne(entetes, aliasesUnite);
+          var colCoutFiches = detecterColonne(entetes, aliasesCout);
           remplirSelect(selectProduit, entetes, colProduitFiches, false);
           remplirSelect(selectIngredient, entetes, colIngredientFiches, false);
           remplirSelect(selectQuantite, entetes, colQuantiteFiches, false);
           remplirSelect(selectUnite, entetes, colUniteFiches, true);
+          remplirSelect(selectCout, entetes, colCoutFiches, true);
 
           confiant = !!(colProduitFiches && colIngredientFiches && colQuantiteFiches);
         }
@@ -848,6 +861,7 @@
         var colIngredient = selectIngredient.value;
         var colQuantite = selectQuantite.value;
         var colUnite = selectUnite.value;
+        var colCout = selectCout.value;
 
         if (!colProduit || !colIngredient || !colQuantite) {
           messageDiv.style.display = 'block';
@@ -864,13 +878,19 @@
           var ingredient = texteCellule(ligne[colIngredient]);
           var quantite = parserQuantiteDecimale(ligne[colQuantite]);
           var unite = colUnite ? texteCellule(ligne[colUnite]) : '';
+          // Coût facultatif : une valeur illisible ou absente ne doit jamais
+          // empêcher l'import de la ligne (seuls produit/ingrédient/quantité
+          // sont requis) — elle est juste ignorée pour ce champ précis.
+          var coutBrut = colCout ? parserQuantiteDecimale(ligne[colCout]) : NaN;
+          var cout = (!isNaN(coutBrut) && coutBrut >= 0) ? coutBrut : null;
 
           if (produit && ingredient && !isNaN(quantite) && quantite > 0) {
             lignesFichesAImporter.push({
               produit: produit,
               ingredient: ingredient,
               quantite: quantite,
-              unite: unite || null
+              unite: unite || null,
+              cout_unitaire: cout
             });
           } else {
             lignesInvalides++;
@@ -886,9 +906,9 @@
           return;
         }
 
-        var tableau = '<table><tr><th>Produit</th><th>Ingrédient</th><th>Quantité</th><th>Unité</th></tr>';
+        var tableau = '<table><tr><th>Produit</th><th>Ingrédient</th><th>Quantité</th><th>Unité</th><th>Coût unitaire</th></tr>';
         lignesFichesAImporter.slice(0, 5).forEach(function (l) {
-          tableau += '<tr><td>' + l.produit + '</td><td>' + l.ingredient + '</td><td>' + l.quantite + '</td><td>' + (l.unite || '-') + '</td></tr>';
+          tableau += '<tr><td>' + l.produit + '</td><td>' + l.ingredient + '</td><td>' + l.quantite + '</td><td>' + (l.unite || '-') + '</td><td>' + (l.cout_unitaire != null ? l.cout_unitaire + ' €' : '-') + '</td></tr>';
         });
         tableau += '</table>';
 
@@ -1019,7 +1039,8 @@
                   produit_id: nomVersId[l.produit],
                   nom_ingredient: l.ingredient,
                   quantite: l.quantite,
-                  unite: l.unite
+                  unite: l.unite,
+                  cout_unitaire: l.cout_unitaire
                 };
               });
 
