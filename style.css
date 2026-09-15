@@ -1,1 +1,1144 @@
+/* =========================================================
+   Ã€ Point â€” feuille de style commune Ã  toutes les pages
+   ========================================================= */
 
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --ink: #211d17;
+  --accent: #23211c;
+  --accent-fonce: #050504;
+  --accent-clair: #e7e2d5;
+  --fond: #f8f4ec;
+  --surface: #fffdf9;
+  --bordure: #eae1d1;
+  --texte: #211d17;
+  --texte-attenue: #77695a;
+  --texte-tres-attenue: #ac9f8c;
+  --succes-fond: #e7efe4;
+  --succes-texte: #2f8f52;
+  --erreur-fond: #fbeae7;
+  --erreur-texte: #d1483a;
+  --info-fond: #f1ece0;
+  --info-texte: #58503f;
+  --rayon: 10px;
+  --rayon-lg: 16px;
+  --ombre: 0 1px 2px rgba(33, 29, 23, 0.05), 0 4px 14px rgba(33, 29, 23, 0.06);
+  --police: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  --police-titre: 'Fraunces', Georgia, 'Times New Roman', serif;
+
+  /* Carte sombre (tableau de bord) */
+  --sombre-fond: #16140f;
+  --sombre-surface: #201d17;
+  --sombre-bordure: #322d23;
+  --sombre-texte: #f7f3ea;
+  --sombre-texte-attenue: #b3a996;
+  --sombre-hausse: #4caf6d;
+  --sombre-baisse: #e2584a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--police);
+  background-color: var(--fond);
+  color: var(--texte);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.conteneur {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 32px 20px 60px;
+}
+
+.conteneur--large {
+  max-width: 620px;
+}
+
+.conteneur--moyen {
+  max-width: 560px;
+}
+
+/* ---------- En-tÃªte / logo / navigation ---------- */
+
+.entete-site {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  margin-bottom: 28px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--bordure);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.logo-marque {
+  display: block;
+  flex-shrink: 0;
+}
+
+.nav-principale {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+}
+
+.nav-lien {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--texte-attenue);
+  text-decoration: none;
+  padding: 4px 0;
+  border-bottom: 2px solid transparent;
+}
+
+.nav-lien:hover {
+  color: var(--texte);
+}
+
+.nav-lien.nav-actif {
+  color: var(--accent);
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+}
+
+/* ---------- Typographie gÃ©nÃ©rale ---------- */
+
+h1 {
+  font-family: var(--police-titre);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0 0 6px;
+}
+
+h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 24px 0 10px;
+}
+
+p {
+  margin: 0 0 10px;
+}
+
+.sous-titre {
+  color: var(--texte-attenue);
+  font-size: 14px;
+  margin: 0 0 24px;
+}
+
+.section-titre {
+  font-size: 12px;
+  color: var(--texte-attenue);
+  margin: 28px 0 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.texte-aide {
+  font-size: 13px;
+  color: var(--texte-attenue);
+}
+
+/* ---------- Formulaires ---------- */
+
+label {
+  display: block;
+  margin-top: 16px;
+  margin-bottom: 6px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+textarea,
+select {
+  width: 100%;
+  padding: 10px 12px;
+  font-family: var(--police);
+  font-size: 14px;
+  color: var(--texte);
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  box-sizing: border-box;
+}
+
+textarea {
+  resize: vertical;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-clair);
+}
+
+input[type="file"] {
+  font-size: 13px;
+  color: var(--texte-attenue);
+  padding: 0;
+  border: none;
+}
+
+input[type="file"]::file-selector-button,
+input[type="file"]::-webkit-file-upload-button {
+  padding: 10px 18px;
+  margin-right: 14px;
+  font-family: var(--police);
+  font-size: 14px;
+  font-weight: 600;
+  background-color: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--rayon);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+input[type="file"]::file-selector-button:hover,
+input[type="file"]::-webkit-file-upload-button:hover {
+  background-color: var(--accent-fonce);
+}
+
+button {
+  margin-top: 22px;
+  padding: 11px 20px;
+  font-family: var(--police);
+  font-size: 14px;
+  font-weight: 600;
+  background-color: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--rayon);
+  cursor: pointer;
+  width: 100%;
+  transition: background-color 0.15s ease;
+}
+
+button:hover {
+  background-color: var(--accent-fonce);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ---------- Cartes / grilles (tableau de bord) ---------- */
+
+.grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.carte {
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-lg);
+  padding: 16px;
+  box-shadow: var(--ombre);
+}
+
+.carte .nom {
+  font-size: 13px;
+  color: var(--texte-attenue);
+  margin: 0 0 6px;
+}
+
+.carte .valeur {
+  font-family: var(--police-titre);
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.carte .detail {
+  font-size: 12px;
+  color: var(--texte-tres-attenue);
+  margin: 4px 0 0;
+}
+
+.carte-vide {
+  background: var(--surface);
+  border: 1px dashed var(--bordure);
+  border-radius: var(--rayon-lg);
+  padding: 22px;
+  text-align: center;
+  color: var(--texte-attenue);
+  font-size: 14px;
+}
+
+.carte-vide a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* ---------- Cadre de page (Mes produits / Mes ventes / Importer) ---------- */
+
+.carte-page {
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-lg);
+  box-shadow: var(--ombre);
+  padding: 26px 28px;
+}
+
+.entete-page {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.entete-page h1 {
+  margin: 0;
+}
+
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--texte-tres-attenue);
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.badge-page {
+  background: var(--info-fond);
+  color: var(--info-texte);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.ligne-form {
+  display: flex;
+  gap: 10px;
+}
+
+.ligne-form input {
+  margin: 0;
+  flex: 1;
+}
+
+.ligne-form button {
+  margin: 0;
+  width: auto;
+  padding: 11px 22px;
+  white-space: nowrap;
+}
+
+.lien-retour {
+  display: block;
+  margin-top: 32px;
+  font-size: 13px;
+  color: var(--texte-attenue);
+  text-decoration: none;
+}
+
+.lien-retour:hover {
+  color: var(--texte);
+}
+
+/* ---------- Messages ---------- */
+
+#message, .message {
+  margin-top: 15px;
+  padding: 11px 14px;
+  border-radius: var(--rayon);
+  font-size: 14px;
+  display: none;
+}
+
+.succes { background-color: var(--succes-fond); color: var(--succes-texte); }
+.erreur { background-color: var(--erreur-fond); color: var(--erreur-texte); }
+.info { background-color: var(--info-fond); color: var(--info-texte); }
+
+/* ---------- Zone d'import / upload ---------- */
+
+.zone-upload {
+  border: 2px dashed var(--bordure);
+  border-radius: var(--rayon-lg);
+  padding: 28px;
+  text-align: center;
+  margin-top: 20px;
+  background: var(--surface);
+}
+
+.zone-mapping {
+  margin-top: 20px;
+  padding: 16px;
+  background-color: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-lg);
+  display: none;
+}
+
+.zone-mapping label {
+  margin-top: 12px;
+}
+
+/* ---------- Tableaux ---------- */
+
+table {
+  width: 100%;
+  margin-top: 14px;
+  font-size: 13px;
+  border-collapse: collapse;
+}
+
+th, td {
+  border: 1px solid var(--bordure);
+  padding: 7px 8px;
+  text-align: left;
+}
+
+th {
+  background: var(--fond);
+  font-weight: 600;
+}
+
+/* ---------- Onglets (page de connexion) ---------- */
+
+.onglets {
+  display: flex;
+  border-bottom: 1px solid var(--bordure);
+  margin-bottom: 20px;
+}
+
+.onglet {
+  flex: 1;
+  text-align: center;
+  padding: 10px;
+  cursor: pointer;
+  color: var(--texte-tres-attenue);
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 2px solid transparent;
+}
+
+.onglet.actif {
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+
+/* ---------- Questions frÃ©quentes (bienvenue.html, aide.html) ---------- */
+
+.faq-item {
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  padding: 2px 16px;
+  margin-bottom: 10px;
+  background: var(--surface);
+}
+.faq-item summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 13px 0;
+  color: var(--texte);
+  list-style: none;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after { content: "+"; float: right; color: var(--texte-tres-attenue); font-weight: 400; }
+.faq-item[open] summary::after { content: "âˆ’"; }
+.faq-item p { margin: 0 0 14px; color: var(--texte-attenue); font-size: 14px; }
+
+/* ---------- Ligne produit (page ventes) ---------- */
+
+.ligne-produit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+}
+
+.ligne-produit label {
+  margin: 0;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.ligne-produit input {
+  width: 90px;
+  margin-top: 0;
+}
+
+/* ---------- Liste produits ---------- */
+
+ul.liste-produits {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+ul.liste-produits li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+ul.liste-produits li::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--succes-texte);
+  flex-shrink: 0;
+}
+
+ul.liste-produits li {
+  transition: border-color 0.15s ease;
+}
+
+ul.liste-produits li:hover {
+  border-color: var(--texte-tres-attenue);
+}
+
+/* ---------- Fiche technique (ingrÃ©dients d'un produit) ---------- */
+
+.ligne-ingredient {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+button.lien-supprimer {
+  margin: 0;
+  padding: 2px 9px;
+  width: auto;
+  background: transparent;
+  color: var(--erreur-texte);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+  border-radius: 6px;
+}
+
+button.lien-supprimer:hover {
+  background: var(--erreur-fond);
+}
+
+/* ---------- Marque sur la page de connexion ---------- */
+
+.logo-centre {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--ink);
+  margin-bottom: 22px;
+}
+
+/* ---------- Tableau de bord â€” carte sombre ---------- */
+
+.tableau-sombre {
+  background: var(--sombre-fond);
+  color: var(--sombre-texte);
+  border-radius: 20px;
+  padding: 26px 24px 28px;
+  box-shadow: var(--ombre);
+}
+
+.sombre-entete {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.sombre-date {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sombre-texte-attenue);
+  margin: 0 0 4px;
+}
+
+.sombre-titre {
+  font-family: var(--police-titre);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--sombre-texte);
+  margin: 0;
+}
+
+.sombre-badge {
+  font-size: 11px;
+  color: var(--sombre-texte-attenue);
+  background: var(--sombre-surface);
+  border: 1px solid var(--sombre-bordure);
+  border-radius: 999px;
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+
+.sombre-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sombre-texte-attenue);
+  font-weight: 600;
+  margin: 22px 0 10px;
+}
+
+.grille-sombre {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.carte-sombre {
+  background: var(--sombre-surface);
+  border: 1px solid var(--sombre-bordure);
+  border-radius: 14px;
+  padding: 15px;
+}
+
+.carte-sombre .nom {
+  font-size: 12px;
+  color: var(--sombre-texte-attenue);
+  margin: 0 0 6px;
+}
+
+.carte-sombre .valeur {
+  font-family: var(--police);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--sombre-texte);
+  margin: 0;
+}
+
+.carte-sombre .detail {
+  font-size: 11px;
+  color: var(--sombre-texte-attenue);
+  margin: 5px 0 0;
+}
+
+.carte-sombre .fourchette {
+  font-size: 12px;
+  color: var(--sombre-texte-attenue);
+  margin: 3px 0 0;
+}
+
+.carte-sombre .detail-meteo {
+  font-size: 11px;
+  color: var(--sombre-texte-attenue);
+  margin: 4px 0 0;
+}
+
+.carte-sombre--lien {
+  display: block;
+  text-decoration: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.carte-sombre--lien:hover {
+  border-color: var(--sombre-texte-attenue);
+  background: var(--sombre-fond);
+}
+
+.carte-sombre--lien .valeur {
+  color: var(--sombre-hausse);
+}
+
+.delta {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 5px 0 0;
+}
+
+.delta-hausse { color: var(--sombre-hausse); }
+.delta-baisse { color: var(--sombre-baisse); }
+.delta-stable { color: var(--sombre-texte-attenue); }
+
+.carte-vide-sombre {
+  background: var(--sombre-surface);
+  border: 1px dashed var(--sombre-bordure);
+  border-radius: 14px;
+  padding: 22px;
+  text-align: center;
+  color: var(--sombre-texte-attenue);
+  font-size: 14px;
+  grid-column: 1 / -1;
+}
+
+.carte-vide-sombre a {
+  color: var(--sombre-texte);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.carte-sombre.actif .valeur {
+  color: var(--sombre-hausse);
+}
+
+/* ---------- Signal d'affluence de la semaine (carte "Cette semaine") ---------- */
+
+.badge-jour {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin: 0 0 6px;
+}
+
+.badge-jour--charge {
+  background: rgba(226, 88, 74, 0.16);
+  color: var(--sombre-baisse);
+}
+
+.badge-jour--calme {
+  background: rgba(76, 175, 109, 0.16);
+  color: var(--sombre-hausse);
+}
+
+.badge-jour--normal {
+  background: var(--sombre-fond);
+  color: var(--sombre-texte-attenue);
+  border: 1px solid var(--sombre-bordure);
+}
+
+.badge-jour--ferie {
+  background: rgba(214, 168, 74, 0.18);
+  color: #d9b65c;
+}
+
+.badge-jour--vacances {
+  background: rgba(90, 158, 191, 0.18);
+  color: #6fb3d9;
+}
+
+.badge-jour--ferme {
+  background: transparent;
+  border: 1px dashed var(--sombre-bordure);
+  color: var(--sombre-texte-attenue);
+}
+
+/* ---------- Modal disponibilitÃ©s (page Personnel) ---------- */
+
+.fond-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 5, 4, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 100;
+}
+
+.contenu-modal {
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-lg);
+  padding: 22px 20px;
+  max-width: 360px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-jours {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.modal-jour-ligne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.modal-jour-ligne label {
+  margin: 0;
+  color: var(--texte);
+  font-size: 14px;
+}
+
+.modal-jour-ligne input {
+  width: 70px;
+  padding: 6px 8px;
+  border: 1px solid var(--bordure);
+  border-radius: 6px;
+  font-size: 14px;
+  text-align: right;
+}
+
+.bouton-secondaire {
+  background: transparent;
+  border: 1px solid var(--bordure);
+  color: var(--texte);
+}
+
+.contenu-modal .ligne-form button {
+  flex: 1;
+}
+
+/* ---------- Navigation multi-jours (tableau de bord) ---------- */
+
+.nav-jours {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 18px;
+}
+
+.nav-jours-fleche {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sombre-surface);
+  color: var(--sombre-texte);
+  border: 1px solid var(--sombre-bordure);
+  border-radius: 999px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.nav-jours-fleche:hover { background: var(--sombre-fond); }
+
+.nav-jours-fleche:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.nav-jours-pastilles {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+}
+
+.nav-jours-pastilles::-webkit-scrollbar { display: none; }
+
+.pastille-jour {
+  flex-shrink: 0;
+  margin: 0;
+  width: auto;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--sombre-surface);
+  color: var(--sombre-texte-attenue);
+  border: 1px solid var(--sombre-bordure);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.pastille-jour:hover { color: var(--sombre-texte); }
+
+.pastille-jour.actif {
+  background: var(--sombre-texte);
+  color: var(--sombre-fond);
+  border-color: var(--sombre-texte);
+}
+
+/* ---------- Actions produit (Ã©diter / supprimer) ---------- */
+
+.nom-produit {
+  flex: 1;
+  cursor: pointer;
+}
+
+.actions-produit {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.icone-action {
+  margin: 0;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--texte-attenue);
+  border: 1px solid var(--bordure);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.icone-action:hover {
+  background: var(--fond);
+  color: var(--texte);
+}
+
+.icone-action--supprimer:hover {
+  background: var(--erreur-fond);
+  color: var(--erreur-texte);
+  border-color: var(--erreur-texte);
+}
+
+/* ---------- Stepper (saisie manuelle des ventes) ---------- */
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stepper-bouton {
+  margin: 0;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 600;
+  background: var(--surface);
+  color: var(--texte);
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.stepper-bouton:hover {
+  background: var(--accent-clair);
+}
+
+.ligne-produit .stepper-valeur {
+  width: 56px;
+  margin: 0;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.stepper-valeur::-webkit-outer-spin-button,
+.stepper-valeur::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ---------- Page ParamÃ¨tres ---------- */
+
+.grille-jours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin: 6px 0 4px;
+}
+
+.case-jour {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.case-jour input {
+  width: auto;
+  margin: 0;
+}
+
+/* ---------- Page Semaine ---------- */
+
+.actions-jour {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.btn-mini {
+  margin: 0;
+  width: auto;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: transparent;
+  color: var(--sombre-texte-attenue);
+  border: 1px solid var(--sombre-bordure);
+  border-radius: 999px;
+}
+
+.btn-mini:hover {
+  background: var(--sombre-fond);
+  color: var(--sombre-texte);
+}
+
+.btn-mini--retirer {
+  color: var(--sombre-baisse);
+  border-color: var(--sombre-baisse);
+}
+
+/* ---------- Pied de page (lien CGU) ---------- */
+
+.pied-page {
+  margin-top: 28px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--texte-tres-attenue);
+}
+
+.pied-page a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.pied-page a:hover {
+  color: var(--texte-attenue);
+}
+
+/* ---------- Case Ã  cocher gÃ©nÃ©rique (consentement, options) ---------- */
+
+.case-consentement {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 18px 0 0;
+  font-size: 13px;
+  color: var(--texte-attenue);
+  cursor: pointer;
+}
+
+.case-consentement input {
+  width: auto;
+  margin: 2px 0 0;
+  flex-shrink: 0;
+}
+
+.case-consentement a {
+  color: var(--texte);
+  font-weight: 600;
+}
+
+/* ---------- Format tÃ©lÃ©phone ---------- */
+/* Le site n'avait jusqu'ici jamais Ã©tÃ© pensÃ© pour un Ã©cran Ã©troit (pas de
+   media query du tout) : un commerÃ§ant qui consulte son tableau de bord
+   depuis son tÃ©lÃ©phone entre deux clients aurait dÃ» zoomer pour tout lire.
+   Les rÃ¨gles ci-dessous resserrent l'espace, empilent ce qui Ã©tait cÃ´te Ã 
+   cÃ´te, et gardent tout lisible sans jamais faire dÃ©border la page. */
+@media (max-width: 560px) {
+  .conteneur {
+    padding: 20px 16px 44px;
+  }
+
+  h1 {
+    font-size: 23px;
+  }
+
+  .carte-page {
+    padding: 18px 16px;
+  }
+
+  .entete-site {
+    gap: 8px 14px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+  }
+
+  .nav-principale {
+    gap: 4px 12px;
+    width: 100%;
+  }
+
+  .nav-lien {
+    font-size: 12.5px;
+  }
+
+  /* Une ligne "champ + bouton" (ajouter un produit, changer d'email...)
+     reste cÃ´te Ã  cÃ´te sur grand Ã©cran, mais devient trop Ã©troite pour
+     rester lisible en dessous de ce seuil : on l'empile Ã  la place. */
+  .ligne-form {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .ligne-form button {
+    width: 100%;
+  }
+
+  .grille,
+  .grille-sombre {
+    grid-template-columns: 1fr;
+  }
+
+  .tableau-sombre {
+    padding: 20px 16px 22px;
+  }
+
+  .sombre-titre {
+    font-size: 22px;
+  }
+
+  ul.liste-produits {
+    grid-template-columns: 1fr;
+  }
+
+  table {
+    font-size: 12px;
+  }
+
+  th, td {
+    padding: 6px 7px;
+  }
+}
