@@ -78,14 +78,65 @@
         return d.getFullYear() + '-' + mm + '-' + jj;
       }
 
+      // Nettoie un nom de produit pour l'affichage uniquement (espaces
+      // superflus, casse hétérogène) — la valeur envoyée en base à
+      // l'enregistrement reste produit.nom, inchangée.
+      function formatNomAffichage(nom) {
+        var propre = (nom || '').toString().trim();
+        if (!propre) return propre;
+        return propre.charAt(0).toUpperCase() + propre.slice(1).toLowerCase();
+      }
+
       function afficherProduits() {
         listeProduits.innerHTML = '';
         produits.forEach(function (produit) {
           var div = document.createElement('div');
           div.className = 'ligne-produit';
-          div.innerHTML =
-            '<label>' + produit.nom + '</label>' +
-            '<input type="number" min="0" class="quantiteVendue" data-produit="' + produit.nom + '" placeholder="0">';
+
+          var label = document.createElement('label');
+          label.textContent = formatNomAffichage(produit.nom);
+
+          var stepper = document.createElement('div');
+          stepper.className = 'stepper';
+
+          var input = document.createElement('input');
+          input.type = 'number';
+          input.min = '0';
+          input.inputMode = 'numeric';
+          input.className = 'quantiteVendue stepper-valeur';
+          input.setAttribute('data-produit', produit.nom);
+          input.placeholder = '0';
+
+          // Boutons tactiles +/- : plus faciles à utiliser sur mobile/tablette
+          // qu'un champ numérique nu, notamment avec les mains occupées en
+          // cuisine. Le champ reste modifiable directement au clavier aussi.
+          var btnMoins = document.createElement('button');
+          btnMoins.type = 'button';
+          btnMoins.className = 'stepper-bouton';
+          btnMoins.setAttribute('aria-label', 'Diminuer la quantité de ' + formatNomAffichage(produit.nom));
+          btnMoins.textContent = '−';
+          btnMoins.addEventListener('click', function () {
+            var v = parseInt(input.value, 10);
+            if (isNaN(v)) v = 0;
+            input.value = Math.max(0, v - 1);
+          });
+
+          var btnPlus = document.createElement('button');
+          btnPlus.type = 'button';
+          btnPlus.className = 'stepper-bouton';
+          btnPlus.setAttribute('aria-label', 'Augmenter la quantité de ' + formatNomAffichage(produit.nom));
+          btnPlus.textContent = '+';
+          btnPlus.addEventListener('click', function () {
+            var v = parseInt(input.value, 10);
+            if (isNaN(v)) v = 0;
+            input.value = v + 1;
+          });
+
+          stepper.appendChild(btnMoins);
+          stepper.appendChild(input);
+          stepper.appendChild(btnPlus);
+          div.appendChild(label);
+          div.appendChild(stepper);
           listeProduits.appendChild(div);
         });
       }
