@@ -119,6 +119,77 @@ body {
   border-bottom-color: var(--accent);
 }
 
+/* ---------- Sous-menu de navigation (ex : "Activité") ---------- */
+
+.nav-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.nav-lien--menu {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.nav-menu-fleche {
+  font-size: 10px;
+  display: inline-block;
+}
+
+.nav-sous-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  min-width: 160px;
+  margin-top: 6px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre);
+  flex-direction: column;
+}
+
+/* Survol souris (desktop) */
+.nav-menu:hover .nav-sous-menu {
+  display: flex;
+}
+
+/* Tap mobile / clic desktop : nav.js bascule cette classe */
+.nav-menu--ouvert .nav-sous-menu {
+  display: flex;
+}
+
+.nav-sous-lien {
+  padding: 7px 10px;
+  border-radius: var(--rayon);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--texte-attenue);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.nav-sous-lien:hover {
+  color: var(--texte);
+  background: var(--fond);
+}
+
+.nav-sous-lien.nav-actif {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.nav-lien--discret {
+  opacity: 0.7;
+  font-size: 12px;
+}
+
 /* ---------- Typographie générale ---------- */
 
 h1 {
@@ -538,6 +609,17 @@ ul.liste-produits li:hover {
   border-color: var(--texte-tres-attenue);
 }
 
+/* Variante plus aérée (retour pilote : lignes "trop proches" sur
+   personnel.html) — isolée pour ne pas changer produits.html qui garde le
+   même style compact avec la même classe de base .liste-produits. */
+ul.liste-produits--espacee {
+  gap: 14px;
+}
+
+ul.liste-produits--espacee li {
+  padding: 16px 16px;
+}
+
 /* ---------- Fiche technique (ingrédients d'un produit) ---------- */
 
 .ligne-ingredient {
@@ -722,6 +804,46 @@ button.lien-supprimer:hover {
 
 .carte-sombre.actif .valeur {
   color: var(--sombre-hausse);
+}
+
+/* ---------- Carte sombre proéminente (page Commandes : économies /
+   invendus évités mis en avant, en haut de page) ---------- */
+
+.carte-sombre--proeminente {
+  padding: 20px;
+}
+
+.carte-sombre--proeminente .nom {
+  font-size: 13px;
+}
+
+.carte-sombre--proeminente .valeur {
+  font-size: 34px;
+}
+
+.carte-sombre--proeminente .detail {
+  font-size: 12px;
+}
+
+/* Lien "Voir le détail →" sur les cartes économies/invendus du tableau de
+   bord, vers la page Commandes qui détaille le calcul sur une période. */
+.lien-detail-carte {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sombre-hausse);
+  text-decoration: none;
+  margin-top: 8px;
+}
+
+.lien-detail-carte:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 560px) {
+  .carte-sombre--proeminente .valeur {
+    font-size: 28px;
+  }
 }
 
 /* ---------- Signal d'affluence de la semaine (carte "Cette semaine") ---------- */
@@ -1101,8 +1223,14 @@ button.lien-supprimer:hover {
     width: 100%;
   }
 
-  .nav-lien {
+  .nav-lien,
+  .nav-lien--menu {
     font-size: 12.5px;
+  }
+
+  .nav-sous-menu {
+    left: auto;
+    right: 0;
   }
 
   /* Une ligne "champ + bouton" (ajouter un produit, changer d'email...)
