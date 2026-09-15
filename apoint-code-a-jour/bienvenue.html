@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>À Point - Bienvenue</title>
+  <meta name="description" content="Découvre comment À Point prévoit la production, le stock et le besoin en personnel de ton restaurant ou de ta boulangerie à partir de tes propres ventes.">
+  <link rel="icon" href="logo.svg">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .barre-haut {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 24px 20px 0;
+    }
+    .barre-haut .logo { display: flex; align-items: center; gap: 8px; }
+    .barre-haut .logo-texte { font-family: var(--police-titre); font-weight: 600; font-size: 18px; color: var(--texte); }
+    .lien-passer { font-size: 13px; color: var(--texte-attenue); text-decoration: none; white-space: nowrap; }
+    .lien-passer:hover { color: var(--texte); text-decoration: underline; }
+
+    .hero-bienvenue {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 36px 20px 8px;
+      text-align: center;
+    }
+    .hero-bienvenue h1 { margin-bottom: 10px; }
+    .hero-bienvenue .sous-titre { max-width: 520px; margin: 0 auto; }
+
+    .onglets-bienvenue-wrap { max-width: 720px; margin: 22px auto 0; padding: 0 20px; }
+
+    .section-bienvenue {
+      max-width: 720px;
+      margin: 28px auto;
+      padding: 0 20px;
+    }
+    .section-bienvenue > .carte-page { margin: 0; }
+
+    .pitch-liste {
+      margin: 14px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+    .pitch-liste li {
+      padding: 10px 0 10px 26px;
+      position: relative;
+      color: var(--texte);
+      border-bottom: 1px solid var(--bordure);
+    }
+    .pitch-liste li:last-child { border-bottom: none; }
+    .pitch-liste li::before {
+      content: "→";
+      position: absolute;
+      left: 0;
+      color: var(--texte-tres-attenue);
+    }
+
+    .etape {
+      display: grid;
+      grid-template-columns: 40px 1fr;
+      gap: 4px 16px;
+      margin: 0 0 40px;
+    }
+    .etape:last-child { margin-bottom: 0; }
+    .etape-numero {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--police-titre);
+      font-weight: 600;
+      font-size: 15px;
+    }
+    .etape-titre { font-family: var(--police-titre); font-size: 18px; font-weight: 600; margin: 4px 0 6px; color: var(--texte); }
+    .etape-texte { grid-column: 2; color: var(--texte-attenue); margin: 0 0 14px; }
+    .etape-texte strong { color: var(--texte); }
+    .etape-capture {
+      grid-column: 2;
+    }
+    .etape-capture img {
+      width: 100%;
+      max-width: 480px;
+      border: 1px solid var(--bordure);
+      border-radius: var(--rayon);
+      box-shadow: var(--ombre);
+      display: block;
+    }
+    .etape-note {
+      grid-column: 2;
+      font-size: 13px;
+      color: var(--texte-tres-attenue);
+      margin: 10px 0 0;
+      padding: 10px 12px;
+      background: var(--info-fond);
+      border-radius: var(--rayon);
+    }
+
+    .bloc-choix {
+      grid-column: 2;
+      display: grid;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    @media (min-width: 560px) {
+      .bloc-choix { grid-template-columns: 1fr 1fr; }
+    }
+    .choix-carte {
+      border: 1px solid var(--bordure);
+      border-radius: var(--rayon);
+      padding: 14px 16px;
+      background: var(--surface);
+    }
+    .choix-carte p.titre-choix { font-weight: 600; margin: 0 0 6px; color: var(--texte); }
+    .choix-carte p { margin: 0; font-size: 14px; color: var(--texte-attenue); }
+
+    .honnetete {
+      background: var(--info-fond);
+      border-radius: var(--rayon-lg);
+      padding: 22px 24px;
+      color: var(--info-texte);
+    }
+    .honnetete p { margin: 0; }
+
+    .cta-finale {
+      text-align: center;
+      padding: 12px 20px 60px;
+    }
+    .cta-finale a.bouton-principal {
+      display: inline-block;
+      background: var(--accent);
+      color: var(--surface);
+      text-decoration: none;
+      padding: 14px 30px;
+      border-radius: var(--rayon);
+      font-weight: 600;
+      font-size: 16px;
+    }
+    .cta-finale a.bouton-principal:hover { background: var(--accent-fonce); }
+    .cta-finale p { margin-top: 14px; }
+  </style>
+</head>
+<body>
+
+  <div class="barre-haut">
+    <a href="bienvenue.html" class="logo">
+      <svg class="logo-marque" viewBox="0 0 100 100" width="22" height="22" aria-hidden="true">
+        <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <circle cx="50" cy="56" r="8" fill="currentColor"/>
+      </svg>
+      <span class="logo-texte">À Point</span>
+    </a>
+    <a href="connexion.html" class="lien-passer">Passer, aller directement à la connexion →</a>
+  </div>
+
+  <div class="hero-bienvenue">
+    <p class="eyebrow">GUIDE DE DÉMARRAGE</p>
+    <h1>Bienvenue sur À Point</h1>
+    <p class="sous-titre texte-aide">L'essentiel pour démarrer, en 2 minutes de lecture. Une question ? L'onglet « Questions fréquentes » ci-dessous répond aux plus courantes.</p>
+  </div>
+
+  <div class="onglets-bienvenue-wrap">
+    <div class="onglets">
+      <div class="onglet actif" id="ongletGuide">Guide</div>
+      <div class="onglet" id="ongletFaq">? Questions fréquentes</div>
+    </div>
+  </div>
+
+  <div id="contenuGuide">
+    <div class="section-bienvenue">
+      <div class="carte-page">
+        <p class="eyebrow">EN BREF</p>
+        <h1 style="font-size: 22px;">À quoi sert l'outil ?</h1>
+        <p class="texte-aide">À Point regarde ton historique de ventes et te dit, chaque jour, <strong style="color: var(--texte);">quelle quantité produire ou commander</strong> pour ton prochain jour d'ouverture, automatiquement, produit par produit.</p>
+        <ul class="pitch-liste">
+          <li>Basé sur <strong>tes propres ventes passées</strong>, jamais un modèle générique qui suppose que ton commerce ressemble à un autre.</li>
+          <li>Ajuste automatiquement pour les <strong>jours fériés</strong>, les <strong>vacances scolaires</strong> et la <strong>météo prévue</strong>, et tu peux aussi signaler toi-même un <strong>événement particulier</strong> attendu.</li>
+          <li>Toujours donné en <strong>fourchette</strong> plutôt qu'un chiffre unique : plus ton historique s'accumule, plus elle se resserre.</li>
+          <li>Une fois lancé, il suffit de garder ton historique à jour (30 secondes par jour, ou en réimportant un export de temps en temps) et de consulter le tableau de bord.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section-bienvenue">
+      <p class="eyebrow" style="padding: 0 4px;">POUR DÉMARRER</p>
+      <h1 style="font-size: 22px; padding: 0 4px; margin-bottom: 28px;">Étape par étape</h1>
+
+      <div class="etape">
+        <div class="etape-numero">1</div>
+        <div>
+          <p class="etape-titre">Créer ton compte</p>
+        </div>
+        <p class="etape-texte">Sur la page de connexion, onglet <strong>« Créer un compte »</strong> : email + mot de passe. Confirme via l'email reçu, puis reviens te connecter.</p>
+        <div class="etape-capture"><img src="2-inscription_2.png" alt="Écran de création de compte À Point"></div>
+      </div>
+
+      <div class="etape">
+        <div class="etape-numero">2</div>
+        <div>
+          <p class="etape-titre">Ajouter tes produits</p>
+        </div>
+        <p class="etape-texte">Dans <strong>« Mes produits »</strong>, ajoute ce que tu veux suivre (ex : Baguette tradition, Plat du jour, Café...). Pas besoin de tous les ajouter à la main : l'import de fichier (étape suivante) crée automatiquement ceux qu'il ne connaît pas encore.</p>
+        <p class="etape-texte">Un produit composé de plusieurs ingrédients (burger, plat préparé...) peut aussi avoir une <strong>fiche technique</strong> optionnelle : À Point calcule alors en plus la quantité d'ingrédients nécessaires.</p>
+        <div class="etape-capture"><img src="3-produits_2.png" alt="Écran Mes produits"></div>
+      </div>
+
+      <div class="etape">
+        <div class="etape-numero">3</div>
+        <div>
+          <p class="etape-titre">Renseigner ton historique de ventes</p>
+        </div>
+        <p class="etape-texte">L'étape la plus importante : plus cet historique est long, plus les prévisions seront fiables. Avec peu de données au départ, l'outil reste prudent : ça se resserre avec le temps. Deux façons de le charger :</p>
+        <div class="bloc-choix">
+          <div class="choix-carte">
+            <p class="titre-choix">Tu as un export de ta caisse</p>
+            <p>Va dans <strong>« Importer »</strong>, onglet « Mes ventes », dépose ton fichier (CSV, Excel...). Une colonne date, une colonne produit, une colonne quantité suffisent. L'ordre et le nom exact n'ont pas d'importance, c'est détecté automatiquement.</p>
+          </div>
+          <div class="choix-carte">
+            <p class="titre-choix">Tu n'as pas d'export</p>
+            <p>Va dans <strong>« Mes ventes »</strong> et note chaque jour ce que tu as vendu la veille. 30 secondes par jour ; l'historique se construit tout seul.</p>
+          </div>
+        </div>
+        <p class="etape-texte" style="margin-bottom: 8px;">Voici l'écran d'import :</p>
+        <div class="etape-capture" style="margin-bottom: 18px;"><img src="4-import_2.png" alt="Écran d'import de fichier de ventes"></div>
+        <p class="etape-texte" style="margin-bottom: 8px;">Et l'écran de saisie quotidienne :</p>
+        <div class="etape-capture"><img src="5-ventes_2.png" alt="Écran de saisie des ventes de la veille"></div>
+        <p class="etape-note">⚠️ Évite d'importer deux fois des dates qui se chevauchent : les ventes seraient comptées en double. En cas de doute, réimporte tout d'un coup avec un seul fichier complet.</p>
+        <p class="etape-texte" style="margin: 18px 0 0;">Un fichier de recettes ? Le même écran a un onglet <strong>« Mes fiches techniques »</strong> qui importe tout d'un coup (produit, ingrédient, quantité).</p>
+      </div>
+
+      <div class="etape">
+        <div class="etape-numero">4</div>
+        <div>
+          <p class="etape-titre">Régler tes paramètres <span style="font-weight: 400; color: var(--texte-tres-attenue); font-size: 14px;">(optionnel, mais conseillé)</span></p>
+        </div>
+        <p class="etape-texte">Dans <strong>« Paramètres »</strong> : nom de ton commerce, <strong>code postal et ville</strong> (zone de vacances scolaires, météo locale), et tes <strong>jours de fermeture</strong> habituels.</p>
+        <div class="etape-capture"><img src="6-parametres_2.png" alt="Écran Paramètres"></div>
+      </div>
+
+      <div class="etape">
+        <div class="etape-numero">5</div>
+        <div>
+          <p class="etape-titre">Consulter ton tableau de bord chaque jour</p>
+        </div>
+        <p class="etape-texte">L'écran que tu regarderas au quotidien : la <strong>quantité recommandée par produit</strong>, une <strong>fourchette</strong>, et, quand ça joue un rôle, la raison d'un ajustement (jour férié, vacances, météo, événement signalé). Le détail du calcul est dans la FAQ ci-dessus, si ça t'intéresse.</p>
+        <div class="etape-capture"><img src="7-tableau-de-bord_2.png" alt="Tableau de bord avec les recommandations du jour"></div>
+        <p class="etape-note">Un onglet <strong>« Semaine »</strong> donne aussi une vue sur les 7 prochains jours, avec un badge par jour et la possibilité de signaler toi-même un jour où tu attends plus ou moins de monde.</p>
+        <div class="etape-capture" style="margin-top: 14px;"><img src="8-semaine_2.png" alt="Vue de la semaine à venir"></div>
+      </div>
+    </div>
+
+    <div class="section-bienvenue">
+      <div class="honnetete">
+        <p class="eyebrow" style="color: var(--info-texte);">À SAVOIR AVANT DE COMMENCER</p>
+        <p>À Point est encore en version de test. Au début, avec peu d'historique, les recommandations sont prudentes : c'est normal, ça se resserre avec le temps. Utilise-le comme une aide à la décision, jamais une vérité absolue : ton jugement reste la référence. Tes retours sont ce qui fait avancer l'outil, n'hésite pas à les partager.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="contenuFaq" style="display:none;">
+    <div class="section-bienvenue">
+      <p class="eyebrow" style="padding: 0 4px;">QUESTIONS FRÉQUENTES</p>
+      <h1 style="font-size: 22px; padding: 0 4px; margin-bottom: 20px;">Les réponses aux questions les plus courantes</h1>
+
+      <details class="faq-item">
+        <summary>Est-ce que ça remplace mon propre jugement ?</summary>
+        <p>Non. C'est une aide à la décision : la recommandation te donne un repère basé sur tes vraies ventes passées, mais la décision finale (et la responsabilité) restent toujours les tiennes. Surtout les premières semaines, où l'historique est encore court.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>Combien de temps avant que ce soit vraiment fiable ?</summary>
+        <p>Ça dépend de la régularité de ton historique, mais compte quelques semaines pour que les fourchettes se resserrent vraiment. Au tout début, avec peu de données, l'outil reste volontairement prudent plutôt que de te donner un faux sentiment de précision.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>Je n'ai pas d'export de caisse, je peux quand même m'en servir ?</summary>
+        <p>Oui. Tu notes tes ventes de la veille chaque jour dans « Mes ventes » (30 secondes), et l'historique se construit progressivement. Ce sera juste un peu moins précis les toutes premières semaines, le temps d'accumuler des données.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>C'est payant ?</summary>
+        <p>Non, pas pendant cette phase de test. Si l'outil devient un jour payant, ce sera annoncé clairement à l'avance : rien ne change sans que tu sois prévenu.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>Mes données de vente sont-elles vues par d'autres commerçants, ou revendues ?</summary>
+        <p>Non. Tes données sont hébergées de façon sécurisée et ne sont accessibles qu'à toi ; elles ne sont ni partagées avec d'autres commerçants, ni revendues à qui que ce soit.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>Comment supprimer mon compte ou mes données ?</summary>
+        <p>Contacte-moi directement (voir les CGU pour l'adresse) et je m'en occupe.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>J'ai oublié mon mot de passe, comment faire ?</summary>
+        <p>Sur la page de connexion, clique sur « Mot de passe oublié ? », renseigne ton email : un lien pour en choisir un nouveau t'est envoyé.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>Pourquoi pas juste continuer à l'estimer moi-même, à l'instinct ?</summary>
+        <p>Ça marche, mais avec des limites réelles : la mémoire retient surtout les jours extrêmes, pas la moyenne ; il est difficile de comparer mentalement un samedi de pluie à un samedi ensoleillé ; et ce calcul est à refaire chaque jour, pour chaque produit. À Point fait ce travail de façon systématique, à partir de tout ton historique réel, sans prendre plus de temps qu'avant.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>Comment est calculée la quantité recommandée, en détail ?</summary>
+        <p>Pour chaque produit et chaque jour, l'outil part de tes ventes passées ce même jour de semaine (par exemple, tous tes jeudis), en moyenne pondérée : les ventes récentes comptent plus que les anciennes, pour suivre une tendance plutôt que rester bloqué sur une ancienne habitude. Un jour exceptionnel et isolé est écarté du calcul. Un seul ajustement est ensuite appliqué si la situation le justifie, jamais plusieurs à la fois, dans cet ordre : jour de fermeture connu, événement que tu as signalé, jour férié, vacances scolaires, puis météo prévue. Le résultat est toujours donné en fourchette plutôt qu'un chiffre unique.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>Est-ce que ça marche sur téléphone ?</summary>
+        <p>Oui, le site s'adapte à l'écran de ton téléphone, pratique pour consulter ton tableau de bord entre deux clients.</p>
+      </details>
+    </div>
+  </div>
+
+  <div class="cta-finale">
+    <a href="connexion.html" class="bouton-principal">Créer mon compte →</a>
+    <p class="texte-aide">Ça prend deux minutes.</p>
+    <p class="pied-page"><a href="cgu.html">Conditions générales d'utilisation</a></p>
+  </div>
+
+  <script>
+    (function () {
+      var ongletGuide = document.getElementById('ongletGuide');
+      var ongletFaq = document.getElementById('ongletFaq');
+      var contenuGuide = document.getElementById('contenuGuide');
+      var contenuFaq = document.getElementById('contenuFaq');
+
+      ongletGuide.addEventListener('click', function () {
+        ongletGuide.classList.add('actif');
+        ongletFaq.classList.remove('actif');
+        contenuGuide.style.display = 'block';
+        contenuFaq.style.display = 'none';
+      });
+
+      ongletFaq.addEventListener('click', function () {
+        ongletFaq.classList.add('actif');
+        ongletGuide.classList.remove('actif');
+        contenuFaq.style.display = 'block';
+        contenuGuide.style.display = 'none';
+      });
+    })();
+  </script>
+
+</body>
+</html>
