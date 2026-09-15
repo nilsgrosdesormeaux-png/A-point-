@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -215,10 +216,18 @@
       var produitsExistantsNormalises = {}; // clé normalisée -> nom canonique déjà en base
       var produitsExistantsPromise = null;
 
+      // Clé de comparaison pour repérer deux écritures d'un même produit :
+      // espaces superflus ignorés, casse ignorée, accents ignorés, et un
+      // éventuel "s"/"x" final ignoré aussi (singulier/pluriel : "Croissant",
+      // "croissants", "CROISSANT" doivent tous retomber sur la même clé).
       function cleNormaliseeProduit(nom) {
-        return (nom === null || nom === undefined ? '' : nom.toString())
+        var propre = (nom === null || nom === undefined ? '' : nom.toString())
           .trim().toLowerCase()
           .normalize('NFD').replace(/[̀-ͯ]/g, '');
+        if (propre.length > 3 && /[sx]$/.test(propre)) {
+          propre = propre.slice(0, -1);
+        }
+        return propre;
       }
 
       function chargerProduitsExistants() {
