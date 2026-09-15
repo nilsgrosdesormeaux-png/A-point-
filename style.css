@@ -1,5 +1,5 @@
 /* =========================================================
-   Ã€ Point â€” feuille de style commune Ã  toutes les pages
+   À Point — feuille de style commune à toutes les pages
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&display=swap');
@@ -68,7 +68,7 @@ body {
   max-width: 560px;
 }
 
-/* ---------- En-tÃªte / logo / navigation ---------- */
+/* ---------- En-tête / logo / navigation ---------- */
 
 .entete-site {
   display: flex;
@@ -119,7 +119,78 @@ body {
   border-bottom-color: var(--accent);
 }
 
-/* ---------- Typographie gÃ©nÃ©rale ---------- */
+/* ---------- Sous-menu de navigation (ex : "Activité") ---------- */
+
+.nav-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.nav-lien--menu {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.nav-menu-fleche {
+  font-size: 10px;
+  display: inline-block;
+}
+
+.nav-sous-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  min-width: 160px;
+  margin-top: 6px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre);
+  flex-direction: column;
+}
+
+/* Survol souris (desktop) */
+.nav-menu:hover .nav-sous-menu {
+  display: flex;
+}
+
+/* Tap mobile / clic desktop : nav.js bascule cette classe */
+.nav-menu--ouvert .nav-sous-menu {
+  display: flex;
+}
+
+.nav-sous-lien {
+  padding: 7px 10px;
+  border-radius: var(--rayon);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--texte-attenue);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.nav-sous-lien:hover {
+  color: var(--texte);
+  background: var(--fond);
+}
+
+.nav-sous-lien.nav-actif {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.nav-lien--discret {
+  opacity: 0.7;
+  font-size: 12px;
+}
+
+/* ---------- Typographie générale ---------- */
 
 h1 {
   font-family: var(--police-titre);
@@ -452,7 +523,7 @@ th {
   border-bottom: 2px solid var(--accent);
 }
 
-/* ---------- Questions frÃ©quentes (bienvenue.html, aide.html) ---------- */
+/* ---------- Questions fréquentes (bienvenue.html, aide.html) ---------- */
 
 .faq-item {
   border: 1px solid var(--bordure);
@@ -470,7 +541,7 @@ th {
 }
 .faq-item summary::-webkit-details-marker { display: none; }
 .faq-item summary::after { content: "+"; float: right; color: var(--texte-tres-attenue); font-weight: 400; }
-.faq-item[open] summary::after { content: "âˆ’"; }
+.faq-item[open] summary::after { content: "−"; }
 .faq-item p { margin: 0 0 14px; color: var(--texte-attenue); font-size: 14px; }
 
 /* ---------- Ligne produit (page ventes) ---------- */
@@ -538,7 +609,18 @@ ul.liste-produits li:hover {
   border-color: var(--texte-tres-attenue);
 }
 
-/* ---------- Fiche technique (ingrÃ©dients d'un produit) ---------- */
+/* Variante plus aérée (retour pilote : lignes "trop proches" sur
+   personnel.html) — isolée pour ne pas changer produits.html qui garde le
+   même style compact avec la même classe de base .liste-produits. */
+ul.liste-produits--espacee {
+  gap: 14px;
+}
+
+ul.liste-produits--espacee li {
+  padding: 16px 16px;
+}
+
+/* ---------- Fiche technique (ingrédients d'un produit) ---------- */
 
 .ligne-ingredient {
   display: flex;
@@ -579,7 +661,7 @@ button.lien-supprimer:hover {
   margin-bottom: 22px;
 }
 
-/* ---------- Tableau de bord â€” carte sombre ---------- */
+/* ---------- Tableau de bord — carte sombre ---------- */
 
 .tableau-sombre {
   background: var(--sombre-fond);
@@ -724,6 +806,46 @@ button.lien-supprimer:hover {
   color: var(--sombre-hausse);
 }
 
+/* ---------- Carte sombre proéminente (page Commandes : économies /
+   invendus évités mis en avant, en haut de page) ---------- */
+
+.carte-sombre--proeminente {
+  padding: 20px;
+}
+
+.carte-sombre--proeminente .nom {
+  font-size: 13px;
+}
+
+.carte-sombre--proeminente .valeur {
+  font-size: 34px;
+}
+
+.carte-sombre--proeminente .detail {
+  font-size: 12px;
+}
+
+/* Lien "Voir le détail →" sur les cartes économies/invendus du tableau de
+   bord, vers la page Commandes qui détaille le calcul sur une période. */
+.lien-detail-carte {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sombre-hausse);
+  text-decoration: none;
+  margin-top: 8px;
+}
+
+.lien-detail-carte:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 560px) {
+  .carte-sombre--proeminente .valeur {
+    font-size: 28px;
+  }
+}
+
 /* ---------- Signal d'affluence de la semaine (carte "Cette semaine") ---------- */
 
 .badge-jour {
@@ -767,7 +889,7 @@ button.lien-supprimer:hover {
   color: var(--sombre-texte-attenue);
 }
 
-/* ---------- Modal disponibilitÃ©s (page Personnel) ---------- */
+/* ---------- Modal disponibilités (page Personnel) ---------- */
 
 .fond-modal {
   position: fixed;
@@ -894,7 +1016,180 @@ button.lien-supprimer:hover {
   border-color: var(--sombre-texte);
 }
 
-/* ---------- Actions produit (Ã©diter / supprimer) ---------- */
+/* ---------- Gantt nominatif par personne (planning personnel) ---------- */
+
+.zone-scroll-gantt {
+  overflow-x: auto;
+  max-width: 100%;
+  margin: 4px 0 14px;
+  background: var(--sombre-surface);
+  border: 1px solid var(--sombre-bordure);
+  border-radius: 14px;
+  padding: 10px;
+}
+
+.gantt-personnel {
+  display: grid;
+  /* Largeur fluide par défaut (desktop/tablette) : toute la plage horaire
+     (5h à 3h, 22 colonnes) tient dans la largeur disponible, sans scroll.
+     Sur petit écran (media query plus bas), on repasse à une largeur fixe
+     et le conteneur redevient scrollable pour rester lisible. */
+  grid-template-columns: 110px repeat(var(--gantt-heures, 22), 1fr) 56px;
+  grid-auto-rows: 40px;
+  align-items: stretch;
+  column-gap: 0;
+  row-gap: 4px;
+  width: 100%;
+}
+
+@media (max-width: 700px) {
+  .gantt-personnel {
+    grid-template-columns: 90px repeat(var(--gantt-heures, 22), 34px) 48px;
+    width: max-content;
+    min-width: 100%;
+  }
+}
+
+.gantt-cellule-nom,
+.gantt-cellule-total,
+.gantt-label-heure {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: var(--sombre-texte);
+}
+
+.gantt-cellule-nom {
+  padding-right: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: sticky;
+  left: -10px;
+  background: var(--sombre-surface);
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.25);
+  z-index: 2;
+}
+
+.gantt-cellule-total {
+  justify-content: flex-end;
+  padding-left: 6px;
+  font-weight: 700;
+  color: var(--sombre-texte-attenue);
+  white-space: nowrap;
+  position: sticky;
+  right: -10px;
+  background: var(--sombre-surface);
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.25);
+  z-index: 2;
+}
+
+.gantt-label-heure {
+  justify-content: center;
+  font-size: 10px;
+  color: var(--sombre-texte-attenue);
+  white-space: nowrap;
+  overflow: hidden;
+  padding: 0 1px;
+}
+
+.gantt-entete {
+  align-items: flex-end;
+  padding-bottom: 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sombre-texte-attenue);
+}
+
+.gantt-piste {
+  position: relative;
+  height: 100%;
+  background-image: repeating-linear-gradient(to right, var(--sombre-bordure) 0, var(--sombre-bordure) 1px, transparent 1px, transparent 40px);
+}
+
+.gantt-barre {
+  /* Positionnée en absolu par rapport à .gantt-piste (position: relative),
+     donc sa taille ne participe jamais au calcul de largeur des colonnes
+     de la grille CSS — c'est ce qui permet aux colonnes 1fr de rétrécir
+     librement même quand le texte affiché ("19:00–02:00") est plus large
+     que la colonne elle-même sur un petit écran. */
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0 4px;
+  cursor: pointer;
+  min-width: 4px;
+  box-sizing: border-box;
+}
+
+.gantt-barre:hover,
+.gantt-barre:focus-visible {
+  outline: 2px solid var(--sombre-texte);
+  outline-offset: 1px;
+}
+
+/* ---------- Couverture par heure (planning personnel) ---------- */
+
+.couverture-creneaux {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 90px;
+  padding: 10px 8px 0;
+  margin: 4px 0 6px;
+  background: var(--sombre-surface);
+  border: 1px solid var(--sombre-bordure);
+  border-radius: 14px;
+  overflow-x: auto;
+}
+
+.couverture-colonne {
+  flex: 1 0 22px;
+  min-width: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+}
+
+.couverture-valeur {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--sombre-texte-attenue);
+  margin-bottom: 2px;
+}
+
+.couverture-barre {
+  width: 100%;
+  max-width: 16px;
+  background: var(--sombre-hausse);
+  border-radius: 3px 3px 0 0;
+  min-height: 2px;
+}
+
+.couverture-barre--vide {
+  background: var(--sombre-bordure);
+}
+
+.couverture-label {
+  font-size: 9px;
+  color: var(--sombre-texte-attenue);
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
+/* ---------- Actions produit (éditer / supprimer) ---------- */
 
 .nom-produit {
   flex: 1;
@@ -975,7 +1270,7 @@ button.lien-supprimer:hover {
   margin: 0;
 }
 
-/* ---------- Page ParamÃ¨tres ---------- */
+/* ---------- Page Paramètres ---------- */
 
 .grille-jours {
   display: flex;
@@ -1048,7 +1343,7 @@ button.lien-supprimer:hover {
   color: var(--texte-attenue);
 }
 
-/* ---------- Case Ã  cocher gÃ©nÃ©rique (consentement, options) ---------- */
+/* ---------- Case à cocher générique (consentement, options) ---------- */
 
 .case-consentement {
   display: flex;
@@ -1071,12 +1366,12 @@ button.lien-supprimer:hover {
   font-weight: 600;
 }
 
-/* ---------- Format tÃ©lÃ©phone ---------- */
-/* Le site n'avait jusqu'ici jamais Ã©tÃ© pensÃ© pour un Ã©cran Ã©troit (pas de
-   media query du tout) : un commerÃ§ant qui consulte son tableau de bord
-   depuis son tÃ©lÃ©phone entre deux clients aurait dÃ» zoomer pour tout lire.
-   Les rÃ¨gles ci-dessous resserrent l'espace, empilent ce qui Ã©tait cÃ´te Ã 
-   cÃ´te, et gardent tout lisible sans jamais faire dÃ©border la page. */
+/* ---------- Format téléphone ---------- */
+/* Le site n'avait jusqu'ici jamais été pensé pour un écran étroit (pas de
+   media query du tout) : un commerçant qui consulte son tableau de bord
+   depuis son téléphone entre deux clients aurait dû zoomer pour tout lire.
+   Les règles ci-dessous resserrent l'espace, empilent ce qui était côte à
+   côte, et gardent tout lisible sans jamais faire déborder la page. */
 @media (max-width: 560px) {
   .conteneur {
     padding: 20px 16px 44px;
@@ -1101,13 +1396,19 @@ button.lien-supprimer:hover {
     width: 100%;
   }
 
-  .nav-lien {
+  .nav-lien,
+  .nav-lien--menu {
     font-size: 12.5px;
   }
 
+  .nav-sous-menu {
+    left: auto;
+    right: 0;
+  }
+
   /* Une ligne "champ + bouton" (ajouter un produit, changer d'email...)
-     reste cÃ´te Ã  cÃ´te sur grand Ã©cran, mais devient trop Ã©troite pour
-     rester lisible en dessous de ce seuil : on l'empile Ã  la place. */
+     reste côte à côte sur grand écran, mais devient trop étroite pour
+     rester lisible en dessous de ce seuil : on l'empile à la place. */
   .ligne-form {
     flex-direction: column;
     gap: 8px;

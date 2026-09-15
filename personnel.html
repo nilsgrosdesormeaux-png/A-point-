@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -8,6 +7,7 @@
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="nav.js"></script>
 </head>
 <body>
   <div class="conteneur conteneur--moyen">
@@ -19,16 +19,7 @@
           <circle cx="50" cy="56" r="8" fill="currentColor"/>
         </svg>
       </a>
-      <nav class="nav-principale">
-        <a href="tableau-de-bord.html" class="nav-lien">Tableau de bord</a>
-        <a href="semaine.html" class="nav-lien">Semaine</a>
-        <a href="produits.html" class="nav-lien">Mes produits</a>
-        <a href="ventes.html" class="nav-lien">Mes ventes</a>
-        <a href="personnel.html" class="nav-lien nav-actif">Personnel</a>
-        <a href="import.html" class="nav-lien">Importer</a>
-        <a href="parametres.html" class="nav-lien">Paramètres</a>
-        <a href="aide.html" class="nav-lien">? Aide</a>
-      </nav>
+      <nav id="navPrincipale"></nav>
     </header>
 
     <div class="carte-page">
@@ -43,23 +34,77 @@
       <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
 
       <div id="zoneFormulaire" style="display:none;">
-        <p class="section-titre" style="margin-top:22px;">Ajouter une personne</p>
-        <div class="ligne-form" style="flex-wrap:wrap;">
-          <input type="text" id="nomPersonne" placeholder="Nom" aria-label="Nom" style="flex:1; min-width:140px;">
-          <input type="text" id="rolePersonne" placeholder="Rôle (ex : vendeur, tourier, cuisinier)" aria-label="Rôle" style="flex:1; min-width:180px;">
-          <button id="btnAjouterPersonne">Ajouter</button>
+        <div id="equipe">
+          <p class="section-titre" style="margin-top:22px;">Ajouter une personne</p>
+          <div class="ligne-form" style="flex-wrap:wrap;">
+            <input type="text" id="nomPersonne" placeholder="Nom" aria-label="Nom" style="flex:1; min-width:140px;">
+            <input type="text" id="rolePersonne" placeholder="Rôle (ex : vendeur, tourier, cuisinier)" aria-label="Rôle" style="flex:1; min-width:180px;">
+            <button id="btnAjouterPersonne">Ajouter</button>
+          </div>
+          <p class="texte-aide" style="margin-top:-6px;">Tu pourras préciser ses disponibilités juste après l'avoir ajoutée.</p>
+
+          <div id="message"></div>
+
+          <p class="section-titre">Mon équipe</p>
+          <ul id="listePersonnel" class="liste-produits liste-produits--espacee"></ul>
+
+          <div class="sombre-label" style="margin-top:28px;">Recommandation de renfort — 7 prochains jours</div>
+          <div class="grille-sombre" id="grilleRecommandationsRH"></div>
         </div>
-        <p class="texte-aide" style="margin-top:-6px;">Tu pourras préciser ses disponibilités juste après l'avoir ajoutée.</p>
 
-        <div id="message"></div>
+        <div id="planning" style="margin-top:34px;">
+          <p class="section-titre">Planning</p>
+          <p class="texte-aide" style="margin-top:-6px;">Une proposition de départ, jour par jour, à ajuster librement créneau par créneau — jamais figée.</p>
 
-        <p class="section-titre">Mon équipe</p>
-        <ul id="listePersonnel" class="liste-produits"></ul>
+          <div class="ligne-form" style="margin:10px 0 16px;">
+            <button type="button" id="btnGenererPlanning" class="bouton-secondaire">Générer une proposition automatique (7 prochains jours)</button>
+          </div>
 
-        <div class="sombre-label" style="margin-top:28px;">Recommandation de renfort — 7 prochains jours</div>
-        <div class="grille-sombre" id="grilleRecommandationsRH"></div>
+          <div class="nav-jours" id="navJoursPlanning">
+            <button type="button" class="nav-jours-fleche" id="btnPlanningJourPrec" aria-label="Jour précédent">‹</button>
+            <div class="nav-jours-pastilles" id="pastillesPlanningJours"></div>
+            <button type="button" class="nav-jours-fleche" id="btnPlanningJourSuiv" aria-label="Jour suivant">›</button>
+          </div>
+
+          <div id="zoneGanttPersonnel" class="zone-scroll-gantt" style="display:none;">
+            <div id="ganttPersonnel" class="gantt-personnel"></div>
+          </div>
+
+          <div id="couvertureCreneaux" class="couverture-creneaux" style="display:none;"></div>
+
+          <ul id="listeCreneaux" class="liste-produits liste-produits--espacee" style="margin-top:14px;"></ul>
+
+          <p class="section-titre" style="margin-top:22px;">Ajouter un créneau</p>
+          <div class="ligne-form" style="flex-wrap:wrap;">
+            <select id="selectPersonneCreneau" aria-label="Personne" style="flex:1; min-width:140px;"></select>
+            <input type="text" id="rolePersonneCreneau" placeholder="Poste (optionnel)" aria-label="Poste" style="flex:1; min-width:140px;">
+            <input type="time" id="heureDebutCreneau" aria-label="Heure de début" value="09:00">
+            <input type="time" id="heureFinCreneau" aria-label="Heure de fin" value="17:00">
+            <button type="button" id="btnAjouterCreneau">Ajouter</button>
+          </div>
+          <div id="messagePlanning"></div>
+        </div>
       </div>
       <p class="pied-page"><a href="cgu.html">Conditions générales d'utilisation</a></p>
+    </div>
+  </div>
+
+  <!-- Fenêtre d'édition d'un créneau existant -->
+  <div id="fondModalCreneau" class="fond-modal" style="display:none;">
+    <div class="contenu-modal">
+      <p class="section-titre" style="margin-top:0;">Modifier le créneau</p>
+      <div class="ligne-form" style="flex-wrap:wrap; margin-top:10px;">
+        <select id="modalSelectPersonneCreneau" aria-label="Personne" style="flex:1; min-width:140px;"></select>
+        <input type="text" id="modalRoleCreneau" placeholder="Poste (optionnel)" aria-label="Poste" style="flex:1; min-width:140px;">
+      </div>
+      <div class="ligne-form" style="margin-top:10px;">
+        <input type="time" id="modalHeureDebutCreneau" aria-label="Heure de début">
+        <input type="time" id="modalHeureFinCreneau" aria-label="Heure de fin">
+      </div>
+      <div class="ligne-form" style="margin-top:14px;">
+        <button id="btnFermerModalCreneau" class="bouton-secondaire" type="button">Annuler</button>
+        <button id="btnEnregistrerModalCreneau" type="button">Enregistrer</button>
+      </div>
     </div>
   </div>
 
@@ -94,6 +139,34 @@
       var commercantId = null;
       var personnel = [];
       var personneEnEdition = null;
+
+      // --- Planning (créneaux_personnel) -----------------------------------
+      var pastillesPlanningJoursEl = document.getElementById('pastillesPlanningJours');
+      var btnPlanningJourPrecEl = document.getElementById('btnPlanningJourPrec');
+      var btnPlanningJourSuivEl = document.getElementById('btnPlanningJourSuiv');
+      var listeCreneauxEl = document.getElementById('listeCreneaux');
+      var couvertureCreneauxEl = document.getElementById('couvertureCreneaux');
+      var zoneGanttPersonnelEl = document.getElementById('zoneGanttPersonnel');
+      var ganttPersonnelEl = document.getElementById('ganttPersonnel');
+      var selectPersonneCreneauEl = document.getElementById('selectPersonneCreneau');
+      var rolePersonneCreneauEl = document.getElementById('rolePersonneCreneau');
+      var heureDebutCreneauEl = document.getElementById('heureDebutCreneau');
+      var heureFinCreneauEl = document.getElementById('heureFinCreneau');
+      var btnAjouterCreneauEl = document.getElementById('btnAjouterCreneau');
+      var btnGenererPlanningEl = document.getElementById('btnGenererPlanning');
+      var messagePlanningEl = document.getElementById('messagePlanning');
+      var fondModalCreneauEl = document.getElementById('fondModalCreneau');
+      var modalSelectPersonneCreneauEl = document.getElementById('modalSelectPersonneCreneau');
+      var modalRoleCreneauEl = document.getElementById('modalRoleCreneau');
+      var modalHeureDebutCreneauEl = document.getElementById('modalHeureDebutCreneau');
+      var modalHeureFinCreneauEl = document.getElementById('modalHeureFinCreneau');
+      var btnFermerModalCreneauEl = document.getElementById('btnFermerModalCreneau');
+      var btnEnregistrerModalCreneauEl = document.getElementById('btnEnregistrerModalCreneau');
+
+      var joursPlanningAffichables = [];
+      var decalagePlanningActuel = 0;
+      var creneauxParJour = {};
+      var creneauEnEdition = null;
 
       var nomsJours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
       var nomsMois = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
@@ -561,8 +634,13 @@
         });
       });
 
+      var derniereEquipe = [];
+      var dernierePrevisionSemaine = [];
+
       function rafraichirTout() {
         chargerPersonnel().then(function (equipe) {
+          derniereEquipe = equipe;
+          remplirSelectsPersonnes(equipe);
           Promise.all([
             sbClient.from('ventes').select('*').eq('commercant_id', commercantId),
             sbClient.from('parametres_commercant').select('*').eq('commercant_id', commercantId),
@@ -577,14 +655,585 @@
 
             if (ventes.length === 0) {
               grilleRHEl.innerHTML = '<div class="carte-vide-sombre">Pas encore de ventes enregistrées : la recommandation de renfort a besoin d\'un peu d\'historique pour estimer l\'affluence.<br><a href="ventes.html">Ajouter tes premières ventes →</a></div>';
+              dernierePrevisionSemaine = [];
+              initPlanning();
               return;
             }
 
             var previsionSemaine = calculerPrevisionSemaine(ventes, zoneVacances, joursFermeture, evenements);
+            dernierePrevisionSemaine = previsionSemaine;
             var recommandations = calculerRecommandationsRH(previsionSemaine, equipe);
             afficherRecommandationsRH(recommandations);
+            initPlanning();
           });
         });
+      }
+
+      // --- Planning : calendrier jour par jour ------------------------------
+      // Réutilise le pattern visuel .nav-jours du tableau de bord (flèches +
+      // pastilles). Les 7 prochains jours (peu importe fermeture, l'équipe
+      // doit pouvoir voir/éditer un créneau même un jour normalement fermé,
+      // ex. événement exceptionnel).
+      function prochains7Jours() {
+        var jours = [];
+        for (var i = 1; i <= 7; i++) {
+          var d = new Date();
+          d.setDate(d.getDate() + i);
+          jours.push(d);
+        }
+        return jours;
+      }
+
+      function remplirSelectsPersonnes(equipe) {
+        [selectPersonneCreneauEl, modalSelectPersonneCreneauEl].forEach(function (select) {
+          var valeurActuelle = select.value;
+          select.innerHTML = '';
+          equipe.forEach(function (p) {
+            var option = document.createElement('option');
+            option.value = p.id;
+            option.textContent = formatNomAffichage(p.nom) + (p.role ? ' — ' + formatNomAffichage(p.role) : '');
+            select.appendChild(option);
+          });
+          if (valeurActuelle) select.value = valeurActuelle;
+        });
+      }
+
+      function nomPersonneParId(id) {
+        var p = derniereEquipe.filter(function (x) { return x.id === id; })[0];
+        return p ? formatNomAffichage(p.nom) : 'Personne supprimée';
+      }
+
+      function formatHeure(heure) {
+        // heure_debut/fin arrivent au format 'HH:MM:SS' depuis Postgres (type time).
+        return (heure || '').toString().slice(0, 5);
+      }
+
+      function afficherPastillesPlanning() {
+        pastillesPlanningJoursEl.innerHTML = '';
+        joursPlanningAffichables.forEach(function (date, index) {
+          var bouton = document.createElement('button');
+          bouton.type = 'button';
+          bouton.className = 'pastille-jour' + (index === decalagePlanningActuel ? ' actif' : '');
+          bouton.textContent = index === 0 ? 'Demain' : capitaliser(nomsJours[date.getDay()]);
+          bouton.addEventListener('click', function () {
+            decalagePlanningActuel = index;
+            afficherPastillesPlanning();
+            afficherCreneauxJourCourant();
+          });
+          pastillesPlanningJoursEl.appendChild(bouton);
+        });
+        btnPlanningJourPrecEl.disabled = decalagePlanningActuel === 0;
+        btnPlanningJourSuivEl.disabled = decalagePlanningActuel === joursPlanningAffichables.length - 1;
+      }
+
+      function jourPlanningCourantISO() {
+        var date = joursPlanningAffichables[decalagePlanningActuel];
+        return date ? versISO(date) : null;
+      }
+
+      function chargerCreneaux() {
+        var debut = versISO(joursPlanningAffichables[0]);
+        var fin = versISO(joursPlanningAffichables[joursPlanningAffichables.length - 1]);
+        return sbClient.from('creneaux_personnel').select('*')
+          .eq('commercant_id', commercantId)
+          .gte('date_creneau', debut)
+          .lte('date_creneau', fin)
+          .order('heure_debut', { ascending: true })
+          .then(function (result) {
+            creneauxParJour = {};
+            (result.data || []).forEach(function (c) {
+              if (!creneauxParJour[c.date_creneau]) creneauxParJour[c.date_creneau] = [];
+              creneauxParJour[c.date_creneau].push(c);
+            });
+            afficherCreneauxJourCourant();
+          });
+      }
+
+      // --- Couverture par heure (nombre de personnes présentes) ------------
+      // Dérivée directement des créneaux du jour affiché (pas d'heures
+      // d'ouverture/fermeture déclarées quelque part : on prend simplement
+      // la plage couverte par les créneaux existants). Une personne compte
+      // sur une heure entière dès qu'elle chevauche cette heure, même
+      // partiellement — ex. un créneau 8h30–12h compte dans les heures 8, 9,
+      // 10 et 11. Total global tous rôles confondus (pas de décomposition
+      // par poste ici, cf. discussion produit).
+      //
+      // Créneaux qui traversent minuit (ex. 19h00–02h00, un service du soir
+      // qui finit après minuit) : stockés sur une seule date_creneau (celle
+      // du début de service), heure_fin < heure_debut signale le passage à
+      // minuit. heureFinDecimaleAjustee ajoute alors 24h à la fin pour que
+      // toute comparaison début/fin reste cohérente (le créneau va bien de
+      // 19 à 26 en interne, jamais de 19 à 2).
+      function heureDecimale(heureStr) {
+        var parties = formatHeure(heureStr).split(':');
+        return parseInt(parties[0], 10) + (parseInt(parties[1], 10) || 0) / 60;
+      }
+
+      function heureFinDecimaleAjustee(heureDebutStr, heureFinStr) {
+        var debut = heureDecimale(heureDebutStr);
+        var fin = heureDecimale(heureFinStr);
+        return fin <= debut ? fin + 24 : fin;
+      }
+
+      function calculerCouverturePourJour(creneaux) {
+        if (creneaux.length === 0) return null;
+
+        var debutMin = Infinity, finMax = -Infinity;
+        creneaux.forEach(function (c) {
+          debutMin = Math.min(debutMin, Math.floor(heureDecimale(c.heure_debut)));
+          finMax = Math.max(finMax, Math.ceil(heureFinDecimaleAjustee(c.heure_debut, c.heure_fin)));
+        });
+
+        var heures = [];
+        for (var h = debutMin; h < finMax; h++) {
+          var compte = creneaux.filter(function (c) {
+            return heureDecimale(c.heure_debut) <= h && heureFinDecimaleAjustee(c.heure_debut, c.heure_fin) > h;
+          }).length;
+          heures.push({ heure: h, compte: compte });
+        }
+        return heures;
+      }
+
+      function afficherCouverture(creneaux) {
+        var couverture = calculerCouverturePourJour(creneaux);
+        if (!couverture || couverture.length === 0) {
+          couvertureCreneauxEl.style.display = 'none';
+          couvertureCreneauxEl.innerHTML = '';
+          return;
+        }
+
+        var maxCompte = Math.max.apply(null, couverture.map(function (h) { return h.compte; }));
+        couvertureCreneauxEl.innerHTML = '';
+        couvertureCreneauxEl.style.display = 'flex';
+
+        couverture.forEach(function (h) {
+          var colonne = document.createElement('div');
+          colonne.className = 'couverture-colonne';
+
+          var barre = document.createElement('div');
+          barre.className = 'couverture-barre';
+          var hauteurPct = maxCompte > 0 ? (h.compte / maxCompte) * 100 : 0;
+          barre.style.height = Math.max(hauteurPct, h.compte > 0 ? 8 : 0) + '%';
+          if (h.compte === 0) barre.classList.add('couverture-barre--vide');
+
+          var valeur = document.createElement('span');
+          valeur.className = 'couverture-valeur';
+          valeur.textContent = h.compte;
+
+          var label = document.createElement('span');
+          label.className = 'couverture-label';
+          label.textContent = (h.heure % 24) + 'h';
+
+          colonne.appendChild(valeur);
+          colonne.appendChild(barre);
+          colonne.appendChild(label);
+          couvertureCreneauxEl.appendChild(colonne);
+        });
+      }
+
+      // --- Gantt nominatif par personne (planning visuel du jour) ----------
+      // Une ligne par personne ayant au moins un créneau ce jour-là, barre
+      // positionnée selon heure_debut/heure_fin (gère le passage de minuit
+      // via heureFinDecimaleAjustee), couleur par rôle (palette fixe,
+      // assignée par ordre d'apparition), total d'heures planifiées par
+      // personne en fin de ligne — seule donnée de synthèse réaliste sans
+      // intégration de badgeuse/pointage réel.
+      var PALETTE_ROLES = ['#4caf6d', '#3b82c4', '#c9a227', '#a15a3f', '#7a5ca8', '#c4587a', '#4a9a9a', '#c47b3b'];
+      var couleursParRole = {};
+      function couleurPourRole(role) {
+        var cle = role || '(sans rôle)';
+        if (!couleursParRole[cle]) {
+          var index = Object.keys(couleursParRole).length % PALETTE_ROLES.length;
+          couleursParRole[cle] = PALETTE_ROLES[index];
+        }
+        return couleursParRole[cle];
+      }
+
+      function formatDureeHeures(heuresDecimales) {
+        var h = Math.floor(heuresDecimales);
+        var m = Math.round((heuresDecimales - h) * 60);
+        if (m === 60) { h += 1; m = 0; }
+        return m === 0 ? h + 'h' : h + 'h' + ('0' + m).slice(-2);
+      }
+
+      // Plage horaire fixe (5h à 3h du matin le lendemain, soit 22h), plutôt
+      // que déduite des créneaux du jour : demandé pour que la journée
+      // entière soit visible d'un coup, toujours au même endroit, sans que
+      // la largeur de la grille ne bouge d'un jour à l'autre. Élargie
+      // automatiquement si un créneau existant dépasse exceptionnellement
+      // cette plage (jamais tronqué silencieusement).
+      var GANTT_HEURE_DEBUT_DEFAUT = 5;
+      var GANTT_HEURE_FIN_DEFAUT = 27; // 3h du matin, exprimé en continu (24+3)
+
+      function afficherGanttPersonnel(creneaux) {
+        if (creneaux.length === 0) {
+          zoneGanttPersonnelEl.style.display = 'none';
+          ganttPersonnelEl.innerHTML = '';
+          return;
+        }
+
+        var debutMin = GANTT_HEURE_DEBUT_DEFAUT, finMax = GANTT_HEURE_FIN_DEFAUT;
+        creneaux.forEach(function (c) {
+          debutMin = Math.min(debutMin, Math.floor(heureDecimale(c.heure_debut)));
+          finMax = Math.max(finMax, Math.ceil(heureFinDecimaleAjustee(c.heure_debut, c.heure_fin)));
+        });
+        var nbHeuresAffichees = finMax - debutMin;
+
+        // Une ligne par personne, dans l'ordre de son premier créneau du jour.
+        var creneauxParPersonne = {};
+        var ordrePersonnes = [];
+        creneaux.forEach(function (c) {
+          if (!creneauxParPersonne[c.personnel_id]) {
+            creneauxParPersonne[c.personnel_id] = [];
+            ordrePersonnes.push(c.personnel_id);
+          }
+          creneauxParPersonne[c.personnel_id].push(c);
+        });
+
+        zoneGanttPersonnelEl.style.display = 'block';
+        ganttPersonnelEl.innerHTML = '';
+        ganttPersonnelEl.style.setProperty('--gantt-heures', nbHeuresAffichees);
+
+        // Ligne d'en-tête : une case vide au-dessus des noms, puis un label
+        // par heure. Sur une plage fixe de 22h affichée en largeur fluide,
+        // chaque colonne peut devenir trop étroite pour un texte comme
+        // "10h" (~13px de large sur desktop, moins sur mobile) : un label
+        // sur deux est alors masqué (mais la cellule reste dans la grille,
+        // pour ne pas décaler l'alignement des colonnes), le trait vertical
+        // de .gantt-piste continue de marquer chaque heure individuellement.
+        var espacementLabels = nbHeuresAffichees > 16 ? 3 : (nbHeuresAffichees > 10 ? 2 : 1);
+        var enteteNom = document.createElement('div');
+        enteteNom.className = 'gantt-cellule-nom gantt-entete';
+        ganttPersonnelEl.appendChild(enteteNom);
+        for (var h = debutMin; h < finMax; h++) {
+          var labelHeure = document.createElement('div');
+          labelHeure.className = 'gantt-label-heure';
+          if ((h - debutMin) % espacementLabels === 0) {
+            labelHeure.textContent = (h % 24) + 'h';
+          }
+          ganttPersonnelEl.appendChild(labelHeure);
+        }
+        var enteteTotal = document.createElement('div');
+        enteteTotal.className = 'gantt-cellule-total gantt-entete';
+        enteteTotal.textContent = 'Total';
+        ganttPersonnelEl.appendChild(enteteTotal);
+
+        ordrePersonnes.forEach(function (personnelId) {
+          var creneauxPersonne = creneauxParPersonne[personnelId];
+
+          var celluleNom = document.createElement('div');
+          celluleNom.className = 'gantt-cellule-nom';
+          celluleNom.textContent = nomPersonneParId(personnelId);
+          ganttPersonnelEl.appendChild(celluleNom);
+
+          var piste = document.createElement('div');
+          piste.className = 'gantt-piste';
+          piste.style.gridColumn = '2 / span ' + nbHeuresAffichees;
+
+          var totalHeures = 0;
+          creneauxPersonne.forEach(function (c) {
+            var debut = heureDecimale(c.heure_debut);
+            var fin = heureFinDecimaleAjustee(c.heure_debut, c.heure_fin);
+            totalHeures += (fin - debut);
+
+            var barre = document.createElement('div');
+            barre.className = 'gantt-barre';
+            barre.style.left = ((debut - debutMin) / nbHeuresAffichees * 100) + '%';
+            barre.style.width = ((fin - debut) / nbHeuresAffichees * 100) + '%';
+            barre.style.background = couleurPourRole(c.role);
+            barre.title = (c.role ? formatNomAffichage(c.role) + ' · ' : '') + formatHeure(c.heure_debut) + '–' + formatHeure(c.heure_fin);
+            barre.textContent = formatHeure(c.heure_debut) + '–' + formatHeure(c.heure_fin);
+            barre.setAttribute('tabindex', '0');
+            barre.setAttribute('role', 'button');
+            barre.setAttribute('aria-label', nomPersonneParId(personnelId) + ', ' + barre.title);
+            barre.addEventListener('click', function (cc) { return function () { ouvrirModalCreneau(cc); }; }(c));
+            piste.appendChild(barre);
+          });
+          ganttPersonnelEl.appendChild(piste);
+
+          var celluleTotal = document.createElement('div');
+          celluleTotal.className = 'gantt-cellule-total';
+          celluleTotal.textContent = formatDureeHeures(totalHeures);
+          ganttPersonnelEl.appendChild(celluleTotal);
+        });
+      }
+
+      function afficherCreneauxJourCourant() {
+        var iso = jourPlanningCourantISO();
+        listeCreneauxEl.innerHTML = '';
+        var creneaux = (iso && creneauxParJour[iso]) || [];
+        afficherCouverture(creneaux);
+        afficherGanttPersonnel(creneaux);
+        if (creneaux.length === 0) {
+          listeCreneauxEl.innerHTML = '<div class="carte-vide-sombre" style="grid-column:unset;">Aucun créneau pour ce jour. Ajoute-en un ci-dessous, ou génère une proposition automatique.</div>';
+          return;
+        }
+        creneaux.forEach(function (c) {
+          var li = document.createElement('li');
+
+          var nomSpan = document.createElement('span');
+          nomSpan.className = 'nom-produit';
+          nomSpan.textContent = nomPersonneParId(c.personnel_id) + (c.role ? ' — ' + formatNomAffichage(c.role) : '') +
+            ' · ' + formatHeure(c.heure_debut) + '–' + formatHeure(c.heure_fin) +
+            (c.origine === 'auto' ? ' (proposition)' : '');
+          nomSpan.title = 'Cliquer pour modifier ce créneau';
+          nomSpan.addEventListener('click', function () { ouvrirModalCreneau(c); });
+
+          var actions = document.createElement('span');
+          actions.className = 'actions-produit';
+
+          var btnSupprimer = document.createElement('button');
+          btnSupprimer.type = 'button';
+          btnSupprimer.className = 'icone-action icone-action--supprimer';
+          btnSupprimer.setAttribute('aria-label', 'Supprimer ce créneau');
+          btnSupprimer.textContent = '🗑';
+          btnSupprimer.addEventListener('click', function (e) {
+            e.stopPropagation();
+            supprimerCreneau(c);
+          });
+
+          actions.appendChild(btnSupprimer);
+          li.appendChild(nomSpan);
+          li.appendChild(actions);
+          listeCreneauxEl.appendChild(li);
+        });
+      }
+
+      function supprimerCreneau(c) {
+        if (!window.confirm('Supprimer ce créneau ?')) return;
+        sbClient.from('creneaux_personnel').delete().eq('id', c.id).then(function (result) {
+          if (result.error) {
+            messagePlanningEl.style.display = 'block';
+            messagePlanningEl.className = 'erreur';
+            messagePlanningEl.textContent = "Impossible de supprimer : " + result.error.message;
+          } else {
+            chargerCreneaux();
+          }
+        });
+      }
+
+      function ouvrirModalCreneau(c) {
+        creneauEnEdition = c;
+        modalSelectPersonneCreneauEl.value = c.personnel_id;
+        modalRoleCreneauEl.value = c.role || '';
+        modalHeureDebutCreneauEl.value = formatHeure(c.heure_debut);
+        modalHeureFinCreneauEl.value = formatHeure(c.heure_fin);
+        fondModalCreneauEl.style.display = 'flex';
+      }
+
+      btnFermerModalCreneauEl.addEventListener('click', function () {
+        fondModalCreneauEl.style.display = 'none';
+        creneauEnEdition = null;
+      });
+
+      btnEnregistrerModalCreneauEl.addEventListener('click', function () {
+        if (!creneauEnEdition) return;
+        var debut = modalHeureDebutCreneauEl.value;
+        var fin = modalHeureFinCreneauEl.value;
+        // fin <= debut n'est plus rejeté ici : ça signifie que le créneau
+        // traverse minuit (ex. 19h00–02h00), un cas réel pour un service du
+        // soir. Seule une durée nulle (fin === debut) reste invalide.
+        if (!debut || !fin || fin === debut) {
+          messagePlanningEl.style.display = 'block';
+          messagePlanningEl.className = 'erreur';
+          messagePlanningEl.textContent = "Heure de fin invalide (doit être différente de l'heure de début).";
+          return;
+        }
+        // Toute édition manuelle repasse le créneau en origine 'manuel' : il
+        // ne sera plus jamais écrasé par une régénération automatique future.
+        sbClient.from('creneaux_personnel').update({
+          personnel_id: modalSelectPersonneCreneauEl.value,
+          role: modalRoleCreneauEl.value.trim() || null,
+          heure_debut: debut,
+          heure_fin: fin,
+          origine: 'manuel'
+        }).eq('id', creneauEnEdition.id).then(function (result) {
+          fondModalCreneauEl.style.display = 'none';
+          creneauEnEdition = null;
+          if (result.error) {
+            messagePlanningEl.style.display = 'block';
+            messagePlanningEl.className = 'erreur';
+            messagePlanningEl.textContent = "Impossible d'enregistrer : " + result.error.message;
+          } else {
+            chargerCreneaux();
+          }
+        });
+      });
+
+      btnAjouterCreneauEl.addEventListener('click', function () {
+        var iso = jourPlanningCourantISO();
+        var personnelId = selectPersonneCreneauEl.value;
+        var debut = heureDebutCreneauEl.value;
+        var fin = heureFinCreneauEl.value;
+
+        if (!iso || !personnelId) {
+          messagePlanningEl.style.display = 'block';
+          messagePlanningEl.className = 'erreur';
+          messagePlanningEl.textContent = "Ajoute d'abord une personne à ton équipe.";
+          return;
+        }
+        if (!debut || !fin || fin === debut) {
+          messagePlanningEl.style.display = 'block';
+          messagePlanningEl.className = 'erreur';
+          messagePlanningEl.textContent = "Heure de fin invalide (doit être différente de l'heure de début).";
+          return;
+        }
+
+        sbClient.from('creneaux_personnel').insert({
+          commercant_id: commercantId,
+          personnel_id: personnelId,
+          date_creneau: iso,
+          heure_debut: debut,
+          heure_fin: fin,
+          role: rolePersonneCreneauEl.value.trim() || null,
+          origine: 'manuel'
+        }).then(function (result) {
+          messagePlanningEl.style.display = 'block';
+          if (result.error) {
+            messagePlanningEl.className = 'erreur';
+            messagePlanningEl.textContent = "Erreur : " + result.error.message;
+          } else {
+            messagePlanningEl.className = 'succes';
+            messagePlanningEl.textContent = 'Créneau ajouté.';
+            rolePersonneCreneauEl.value = '';
+            chargerCreneaux();
+          }
+        });
+      });
+
+      // --- Génération automatique d'une proposition de planning ------------
+      // Règle simple et vérifiable, pas un modèle : pour chaque personne
+      // disponible ce jour-là (heures_disponibles[jour] > 0), on propose un
+      // créneau de départ démarrant à une heure d'ouverture par défaut
+      // (8h00) et durant le nombre d'heures disponibles déclaré — c'est une
+      // approximation volontairement simple, seulement un POINT DE DÉPART
+      // que le commerçant modifie ensuite librement créneau par créneau
+      // (jamais présenté comme définitif). Si le jour est identifié comme
+      // "chargé" ou "événement +" (même tier que la recommandation RH
+      // ci-dessus), on allonge d'une heure les créneaux du rôle le plus
+      // représenté ce jour-là, pour matérialiser le besoin de renfort déjà
+      // signalé en texte par calculerRecommandationsRH.
+      var HEURE_OUVERTURE_DEFAUT = 8;
+
+      function genererCreneauxPourJour(jour, equipe) {
+        var disponibles = equipe.filter(function (p) {
+          var h = p.heures_disponibles && p.heures_disponibles[jour.nomJour];
+          return h && h > 0;
+        });
+        if (disponibles.length === 0) return [];
+
+        var parRole = {};
+        disponibles.forEach(function (p) {
+          var role = p.role ? formatNomAffichage(p.role) : 'Non précisé';
+          parRole[role] = (parRole[role] || 0) + 1;
+        });
+        var roleLePlusRepresente = Object.keys(parRole).sort(function (a, b) { return parRole[b] - parRole[a]; })[0];
+        var allongerRenfort = jour.tier === 'charge' || jour.tier === 'evenement-plus';
+
+        return disponibles.map(function (p) {
+          var heures = p.heures_disponibles[jour.nomJour];
+          var roleAffiche = p.role ? formatNomAffichage(p.role) : 'Non précisé';
+          if (allongerRenfort && roleAffiche === roleLePlusRepresente) heures += 1;
+          // Garde-fou : au-delà de 15h à partir de l'heure d'ouverture, le
+          // créneau franchirait minuit et heure_fin deviendrait antérieure à
+          // heure_debut sur la même date_creneau (créneau invalide en base).
+          // Une disponibilité déclarée aussi longue est de toute façon
+          // improbable pour une seule journée ; on plafonne plutôt que de
+          // générer un créneau incohérent — le commerçant l'ajuste ensuite
+          // librement si besoin.
+          heures = Math.min(heures, 15);
+
+          var debut = HEURE_OUVERTURE_DEFAUT;
+          var finTotal = debut + heures;
+          var finHeure = Math.floor(finTotal);
+          var finMinutes = Math.round((finTotal - Math.floor(finTotal)) * 60);
+          var debutStr = ('0' + debut).slice(-2) + ':00';
+          var finStr = ('0' + finHeure).slice(-2) + ':' + ('0' + finMinutes).slice(-2);
+
+          return {
+            commercant_id: commercantId,
+            personnel_id: p.id,
+            date_creneau: jour.iso,
+            heure_debut: debutStr,
+            heure_fin: finStr,
+            role: p.role || null,
+            origine: 'auto'
+          };
+        });
+      }
+
+      function genererPropositionPlanning(jours, equipe, previsionAffluence) {
+        var previsionParIso = {};
+        previsionAffluence.forEach(function (j) { previsionParIso[j.iso] = j; });
+
+        var tousCreneaux = [];
+        jours.forEach(function (date) {
+          var iso = versISO(date);
+          var jourInfo = previsionParIso[iso] || { iso: iso, nomJour: nomsJours[date.getDay()], tier: 'normal' };
+          tousCreneaux = tousCreneaux.concat(genererCreneauxPourJour(jourInfo, equipe));
+        });
+        return tousCreneaux;
+      }
+
+      btnGenererPlanningEl.addEventListener('click', function () {
+        if (derniereEquipe.length === 0) {
+          messagePlanningEl.style.display = 'block';
+          messagePlanningEl.className = 'erreur';
+          messagePlanningEl.textContent = "Ajoute d'abord au moins une personne à ton équipe.";
+          return;
+        }
+        if (!window.confirm("Générer une proposition pour les 7 prochains jours ? Les créneaux automatiques déjà présents sur cette période seront remplacés (les créneaux que tu as modifiés toi-même ne sont jamais touchés).")) return;
+
+        var jours = prochains7Jours();
+        var debut = versISO(jours[0]);
+        var fin = versISO(jours[jours.length - 1]);
+
+        // On ne supprime jamais les créneaux 'manuel' : seulement ceux
+        // encore marqués 'auto' sur cette période, avant d'insérer la
+        // nouvelle proposition.
+        sbClient.from('creneaux_personnel').delete()
+          .eq('commercant_id', commercantId)
+          .eq('origine', 'auto')
+          .gte('date_creneau', debut)
+          .lte('date_creneau', fin)
+          .then(function () {
+            var nouveauxCreneaux = genererPropositionPlanning(jours, derniereEquipe, dernierePrevisionSemaine);
+            if (nouveauxCreneaux.length === 0) {
+              messagePlanningEl.style.display = 'block';
+              messagePlanningEl.className = 'erreur';
+              messagePlanningEl.textContent = "Personne n'a de disponibilités déclarées sur cette période.";
+              chargerCreneaux();
+              return;
+            }
+            sbClient.from('creneaux_personnel').insert(nouveauxCreneaux).then(function (result) {
+              messagePlanningEl.style.display = 'block';
+              if (result.error) {
+                messagePlanningEl.className = 'erreur';
+                messagePlanningEl.textContent = "Erreur : " + result.error.message;
+              } else {
+                messagePlanningEl.className = 'succes';
+                messagePlanningEl.textContent = 'Proposition générée pour les 7 prochains jours — modifie librement chaque créneau si besoin.';
+                chargerCreneaux();
+              }
+            });
+          });
+      });
+
+      btnPlanningJourPrecEl.addEventListener('click', function () {
+        if (decalagePlanningActuel > 0) { decalagePlanningActuel--; afficherPastillesPlanning(); afficherCreneauxJourCourant(); }
+      });
+      btnPlanningJourSuivEl.addEventListener('click', function () {
+        if (decalagePlanningActuel < joursPlanningAffichables.length - 1) { decalagePlanningActuel++; afficherPastillesPlanning(); afficherCreneauxJourCourant(); }
+      });
+
+      var planningInitialise = false;
+      function initPlanning() {
+        if (planningInitialise) { chargerCreneaux(); return; }
+        planningInitialise = true;
+        joursPlanningAffichables = prochains7Jours();
+        decalagePlanningActuel = 0;
+        afficherPastillesPlanning();
+        chargerCreneaux();
       }
 
       sbClient.auth.getSession().then(function (result) {

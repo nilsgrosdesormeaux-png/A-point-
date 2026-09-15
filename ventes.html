@@ -10,6 +10,7 @@
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="nav.js"></script>
 </head>
 <body>
   <div class="conteneur conteneur--moyen">
@@ -21,16 +22,7 @@
           <circle cx="50" cy="56" r="8" fill="currentColor"/>
         </svg>
       </a>
-      <nav class="nav-principale">
-        <a href="tableau-de-bord.html" class="nav-lien">Tableau de bord</a>
-        <a href="semaine.html" class="nav-lien">Semaine</a>
-        <a href="produits.html" class="nav-lien">Mes produits</a>
-        <a href="ventes.html" class="nav-lien nav-actif">Mes ventes</a>
-        <a href="personnel.html" class="nav-lien">Personnel</a>
-        <a href="import.html" class="nav-lien">Importer</a>
-        <a href="parametres.html" class="nav-lien">Paramètres</a>
-        <a href="aide.html" class="nav-lien">? Aide</a>
-      </nav>
+      <nav id="navPrincipale"></nav>
     </header>
 
     <div class="carte-page">

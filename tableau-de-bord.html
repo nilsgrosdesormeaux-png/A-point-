@@ -8,6 +8,7 @@
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="nav.js"></script>
 </head>
 <body>
   <div class="conteneur conteneur--large">
@@ -19,16 +20,7 @@
           <circle cx="50" cy="56" r="8" fill="currentColor"/>
         </svg>
       </a>
-      <nav class="nav-principale">
-        <a href="tableau-de-bord.html" class="nav-lien nav-actif">Tableau de bord</a>
-        <a href="semaine.html" class="nav-lien">Semaine</a>
-        <a href="produits.html" class="nav-lien">Mes produits</a>
-        <a href="ventes.html" class="nav-lien">Mes ventes</a>
-        <a href="personnel.html" class="nav-lien">Personnel</a>
-        <a href="import.html" class="nav-lien">Importer</a>
-        <a href="parametres.html" class="nav-lien">Paramètres</a>
-        <a href="aide.html" class="nav-lien">? Aide</a>
-      </nav>
+      <nav id="navPrincipale"></nav>
     </header>
 
     <p id="statutConnexion" class="texte-aide">Chargement...</p>
@@ -62,11 +54,13 @@
           <p class="nom">Économisé grâce à l'outil</p>
           <p class="valeur" id="carteEconomieValeur">-</p>
           <p class="detail" id="carteEconomieDetail">Bientôt disponible (dès qu'on connaît le prix de tes produits)</p>
+          <a href="commandes.html" class="lien-detail-carte">Voir le détail →</a>
         </div>
         <div class="carte-sombre">
           <p class="nom">Invendus évités</p>
           <p class="valeur">-</p>
           <p class="detail">Bientôt disponible (dès qu'on suit tes stocks)</p>
+          <a href="commandes.html" class="lien-detail-carte">Voir le détail →</a>
         </div>
         <a class="carte-sombre carte-sombre--lien" href="semaine.html">
           <p class="nom">Cette semaine &amp; fiabilité</p>
