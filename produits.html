@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -108,6 +109,17 @@
       var commercantId = null;
       var produitSelectionne = null;
 
+      // Nettoie un nom de produit pour l'affichage (espaces superflus, casse
+      // hétérogène après un import CSV un peu sale) sans toucher à la valeur
+      // brute stockée en base — deux entrées mal saisies ("CROISSANT",
+      // "croissant") s'affichent donc pareil, ce qui aide justement à repérer
+      // les doublons à corriger avec les boutons éditer/supprimer ci-dessous.
+      function formatNomAffichage(nom) {
+        var propre = (nom || '').toString().trim();
+        if (!propre) return propre;
+        return propre.charAt(0).toUpperCase() + propre.slice(1).toLowerCase();
+      }
+
       // Suggère les noms d'ingrédients déjà utilisés (sur tous les produits), pour
       // éviter que "Tomate" et "tomates" soient comptés comme deux ingrédients
       // différents sur le tableau de bord.
@@ -133,12 +145,79 @@
           if (result.data) {
             result.data.forEach(function (produit) {
               var li = document.createElement('li');
-              li.textContent = produit.nom;
-              li.style.cursor = 'pointer';
-              li.title = 'Cliquer pour définir la fiche technique';
-              li.addEventListener('click', function () { afficherFicheTechnique(produit); });
+
+              var nomSpan = document.createElement('span');
+              nomSpan.className = 'nom-produit';
+              nomSpan.textContent = formatNomAffichage(produit.nom);
+              nomSpan.title = 'Cliquer pour définir la fiche technique';
+              nomSpan.addEventListener('click', function () { afficherFicheTechnique(produit); });
+
+              var actions = document.createElement('span');
+              actions.className = 'actions-produit';
+
+              var btnEditer = document.createElement('button');
+              btnEditer.type = 'button';
+              btnEditer.className = 'icone-action';
+              btnEditer.setAttribute('aria-label', 'Modifier le nom du produit');
+              btnEditer.textContent = '✎';
+              btnEditer.addEventListener('click', function (e) {
+                e.stopPropagation();
+                modifierProduit(produit);
+              });
+
+              var btnSupprimer = document.createElement('button');
+              btnSupprimer.type = 'button';
+              btnSupprimer.className = 'icone-action icone-action--supprimer';
+              btnSupprimer.setAttribute('aria-label', 'Supprimer le produit');
+              btnSupprimer.textContent = '🗑';
+              btnSupprimer.addEventListener('click', function (e) {
+                e.stopPropagation();
+                supprimerProduit(produit);
+              });
+
+              actions.appendChild(btnEditer);
+              actions.appendChild(btnSupprimer);
+              li.appendChild(nomSpan);
+              li.appendChild(actions);
               listeProduits.appendChild(li);
             });
+          }
+        });
+      }
+
+      // Renomme un produit existant (utile pour corriger un nom mal saisi ou
+      // fusionner visuellement des doublons issus d'un import CSV).
+      function modifierProduit(produit) {
+        var nouveauNom = window.prompt('Nouveau nom du produit :', produit.nom);
+        if (nouveauNom === null) return;
+        nouveauNom = nouveauNom.trim();
+        if (!nouveauNom || nouveauNom === produit.nom) return;
+        sbClient.from('produits').update({ nom: nouveauNom }).eq('id', produit.id).then(function (result) {
+          if (result.error) {
+            messageDiv.style.display = 'block';
+            messageDiv.className = 'erreur';
+            messageDiv.textContent = "Impossible de modifier : " + result.error.message;
+          } else {
+            chargerProduits();
+          }
+        });
+      }
+
+      // Supprime un produit (ex : doublon d'import CSV à nettoyer). Si le
+      // produit a une fiche technique ouverte, on la referme.
+      function supprimerProduit(produit) {
+        if (!window.confirm('Supprimer "' + formatNomAffichage(produit.nom) + '" ? Cette action est définitive.')) return;
+        sbClient.from('produits').delete().eq('id', produit.id).then(function (result) {
+          if (result.error) {
+            messageDiv.style.display = 'block';
+            messageDiv.className = 'erreur';
+            messageDiv.textContent = "Impossible de supprimer : " + result.error.message;
+          } else {
+            if (produitSelectionne && produitSelectionne.id === produit.id) {
+              produitSelectionne = null;
+              ficheTechniqueDiv.style.display = 'none';
+            }
+            chargerProduits();
           }
         });
       }
