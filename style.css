@@ -1016,6 +1016,128 @@ button.lien-supprimer:hover {
   border-color: var(--sombre-texte);
 }
 
+/* ---------- Gantt nominatif par personne (planning personnel) ---------- */
+
+.zone-scroll-gantt {
+  overflow-x: auto;
+  max-width: 100%;
+  margin: 4px 0 14px;
+  background: var(--sombre-surface);
+  border: 1px solid var(--sombre-bordure);
+  border-radius: 14px;
+  padding: 10px;
+}
+
+.gantt-personnel {
+  display: grid;
+  /* Largeur fluide par défaut (desktop/tablette) : toute la plage horaire
+     (5h à 3h, 22 colonnes) tient dans la largeur disponible, sans scroll.
+     Sur petit écran (media query plus bas), on repasse à une largeur fixe
+     et le conteneur redevient scrollable pour rester lisible. */
+  grid-template-columns: 110px repeat(var(--gantt-heures, 22), 1fr) 56px;
+  grid-auto-rows: 40px;
+  align-items: stretch;
+  column-gap: 0;
+  row-gap: 4px;
+  width: 100%;
+}
+
+@media (max-width: 700px) {
+  .gantt-personnel {
+    grid-template-columns: 90px repeat(var(--gantt-heures, 22), 34px) 48px;
+    width: max-content;
+    min-width: 100%;
+  }
+}
+
+.gantt-cellule-nom,
+.gantt-cellule-total,
+.gantt-label-heure {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: var(--sombre-texte);
+}
+
+.gantt-cellule-nom {
+  padding-right: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: sticky;
+  left: -10px;
+  background: var(--sombre-surface);
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.25);
+  z-index: 2;
+}
+
+.gantt-cellule-total {
+  justify-content: flex-end;
+  padding-left: 6px;
+  font-weight: 700;
+  color: var(--sombre-texte-attenue);
+  white-space: nowrap;
+  position: sticky;
+  right: -10px;
+  background: var(--sombre-surface);
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.25);
+  z-index: 2;
+}
+
+.gantt-label-heure {
+  justify-content: center;
+  font-size: 10px;
+  color: var(--sombre-texte-attenue);
+  white-space: nowrap;
+  overflow: hidden;
+  padding: 0 1px;
+}
+
+.gantt-entete {
+  align-items: flex-end;
+  padding-bottom: 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sombre-texte-attenue);
+}
+
+.gantt-piste {
+  position: relative;
+  height: 100%;
+  background-image: repeating-linear-gradient(to right, var(--sombre-bordure) 0, var(--sombre-bordure) 1px, transparent 1px, transparent 40px);
+}
+
+.gantt-barre {
+  /* Positionnée en absolu par rapport à .gantt-piste (position: relative),
+     donc sa taille ne participe jamais au calcul de largeur des colonnes
+     de la grille CSS — c'est ce qui permet aux colonnes 1fr de rétrécir
+     librement même quand le texte affiché ("19:00–02:00") est plus large
+     que la colonne elle-même sur un petit écran. */
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0 4px;
+  cursor: pointer;
+  min-width: 4px;
+  box-sizing: border-box;
+}
+
+.gantt-barre:hover,
+.gantt-barre:focus-visible {
+  outline: 2px solid var(--sombre-texte);
+  outline-offset: 1px;
+}
+
 /* ---------- Couverture par heure (planning personnel) ---------- */
 
 .couverture-creneaux {

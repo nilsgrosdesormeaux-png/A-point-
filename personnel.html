@@ -66,6 +66,10 @@
             <button type="button" class="nav-jours-fleche" id="btnPlanningJourSuiv" aria-label="Jour suivant">›</button>
           </div>
 
+          <div id="zoneGanttPersonnel" class="zone-scroll-gantt" style="display:none;">
+            <div id="ganttPersonnel" class="gantt-personnel"></div>
+          </div>
+
           <div id="couvertureCreneaux" class="couverture-creneaux" style="display:none;"></div>
 
           <ul id="listeCreneaux" class="liste-produits liste-produits--espacee" style="margin-top:14px;"></ul>
@@ -142,6 +146,8 @@
       var btnPlanningJourSuivEl = document.getElementById('btnPlanningJourSuiv');
       var listeCreneauxEl = document.getElementById('listeCreneaux');
       var couvertureCreneauxEl = document.getElementById('couvertureCreneaux');
+      var zoneGanttPersonnelEl = document.getElementById('zoneGanttPersonnel');
+      var ganttPersonnelEl = document.getElementById('ganttPersonnel');
       var selectPersonneCreneauEl = document.getElementById('selectPersonneCreneau');
       var rolePersonneCreneauEl = document.getElementById('rolePersonneCreneau');
       var heureDebutCreneauEl = document.getElementById('heureDebutCreneau');
@@ -751,9 +757,22 @@
       // partiellement — ex. un créneau 8h30–12h compte dans les heures 8, 9,
       // 10 et 11. Total global tous rôles confondus (pas de décomposition
       // par poste ici, cf. discussion produit).
+      //
+      // Créneaux qui traversent minuit (ex. 19h00–02h00, un service du soir
+      // qui finit après minuit) : stockés sur une seule date_creneau (celle
+      // du début de service), heure_fin < heure_debut signale le passage à
+      // minuit. heureFinDecimaleAjustee ajoute alors 24h à la fin pour que
+      // toute comparaison début/fin reste cohérente (le créneau va bien de
+      // 19 à 26 en interne, jamais de 19 à 2).
       function heureDecimale(heureStr) {
         var parties = formatHeure(heureStr).split(':');
         return parseInt(parties[0], 10) + (parseInt(parties[1], 10) || 0) / 60;
+      }
+
+      function heureFinDecimaleAjustee(heureDebutStr, heureFinStr) {
+        var debut = heureDecimale(heureDebutStr);
+        var fin = heureDecimale(heureFinStr);
+        return fin <= debut ? fin + 24 : fin;
       }
 
       function calculerCouverturePourJour(creneaux) {
@@ -762,13 +781,13 @@
         var debutMin = Infinity, finMax = -Infinity;
         creneaux.forEach(function (c) {
           debutMin = Math.min(debutMin, Math.floor(heureDecimale(c.heure_debut)));
-          finMax = Math.max(finMax, Math.ceil(heureDecimale(c.heure_fin)));
+          finMax = Math.max(finMax, Math.ceil(heureFinDecimaleAjustee(c.heure_debut, c.heure_fin)));
         });
 
         var heures = [];
         for (var h = debutMin; h < finMax; h++) {
           var compte = creneaux.filter(function (c) {
-            return heureDecimale(c.heure_debut) <= h && heureDecimale(c.heure_fin) > h;
+            return heureDecimale(c.heure_debut) <= h && heureFinDecimaleAjustee(c.heure_debut, c.heure_fin) > h;
           }).length;
           heures.push({ heure: h, compte: compte });
         }
@@ -803,7 +822,7 @@
 
           var label = document.createElement('span');
           label.className = 'couverture-label';
-          label.textContent = h.heure + 'h';
+          label.textContent = (h.heure % 24) + 'h';
 
           colonne.appendChild(valeur);
           colonne.appendChild(barre);
@@ -812,11 +831,139 @@
         });
       }
 
+      // --- Gantt nominatif par personne (planning visuel du jour) ----------
+      // Une ligne par personne ayant au moins un créneau ce jour-là, barre
+      // positionnée selon heure_debut/heure_fin (gère le passage de minuit
+      // via heureFinDecimaleAjustee), couleur par rôle (palette fixe,
+      // assignée par ordre d'apparition), total d'heures planifiées par
+      // personne en fin de ligne — seule donnée de synthèse réaliste sans
+      // intégration de badgeuse/pointage réel.
+      var PALETTE_ROLES = ['#4caf6d', '#3b82c4', '#c9a227', '#a15a3f', '#7a5ca8', '#c4587a', '#4a9a9a', '#c47b3b'];
+      var couleursParRole = {};
+      function couleurPourRole(role) {
+        var cle = role || '(sans rôle)';
+        if (!couleursParRole[cle]) {
+          var index = Object.keys(couleursParRole).length % PALETTE_ROLES.length;
+          couleursParRole[cle] = PALETTE_ROLES[index];
+        }
+        return couleursParRole[cle];
+      }
+
+      function formatDureeHeures(heuresDecimales) {
+        var h = Math.floor(heuresDecimales);
+        var m = Math.round((heuresDecimales - h) * 60);
+        if (m === 60) { h += 1; m = 0; }
+        return m === 0 ? h + 'h' : h + 'h' + ('0' + m).slice(-2);
+      }
+
+      // Plage horaire fixe (5h à 3h du matin le lendemain, soit 22h), plutôt
+      // que déduite des créneaux du jour : demandé pour que la journée
+      // entière soit visible d'un coup, toujours au même endroit, sans que
+      // la largeur de la grille ne bouge d'un jour à l'autre. Élargie
+      // automatiquement si un créneau existant dépasse exceptionnellement
+      // cette plage (jamais tronqué silencieusement).
+      var GANTT_HEURE_DEBUT_DEFAUT = 5;
+      var GANTT_HEURE_FIN_DEFAUT = 27; // 3h du matin, exprimé en continu (24+3)
+
+      function afficherGanttPersonnel(creneaux) {
+        if (creneaux.length === 0) {
+          zoneGanttPersonnelEl.style.display = 'none';
+          ganttPersonnelEl.innerHTML = '';
+          return;
+        }
+
+        var debutMin = GANTT_HEURE_DEBUT_DEFAUT, finMax = GANTT_HEURE_FIN_DEFAUT;
+        creneaux.forEach(function (c) {
+          debutMin = Math.min(debutMin, Math.floor(heureDecimale(c.heure_debut)));
+          finMax = Math.max(finMax, Math.ceil(heureFinDecimaleAjustee(c.heure_debut, c.heure_fin)));
+        });
+        var nbHeuresAffichees = finMax - debutMin;
+
+        // Une ligne par personne, dans l'ordre de son premier créneau du jour.
+        var creneauxParPersonne = {};
+        var ordrePersonnes = [];
+        creneaux.forEach(function (c) {
+          if (!creneauxParPersonne[c.personnel_id]) {
+            creneauxParPersonne[c.personnel_id] = [];
+            ordrePersonnes.push(c.personnel_id);
+          }
+          creneauxParPersonne[c.personnel_id].push(c);
+        });
+
+        zoneGanttPersonnelEl.style.display = 'block';
+        ganttPersonnelEl.innerHTML = '';
+        ganttPersonnelEl.style.setProperty('--gantt-heures', nbHeuresAffichees);
+
+        // Ligne d'en-tête : une case vide au-dessus des noms, puis un label
+        // par heure. Sur une plage fixe de 22h affichée en largeur fluide,
+        // chaque colonne peut devenir trop étroite pour un texte comme
+        // "10h" (~13px de large sur desktop, moins sur mobile) : un label
+        // sur deux est alors masqué (mais la cellule reste dans la grille,
+        // pour ne pas décaler l'alignement des colonnes), le trait vertical
+        // de .gantt-piste continue de marquer chaque heure individuellement.
+        var espacementLabels = nbHeuresAffichees > 16 ? 3 : (nbHeuresAffichees > 10 ? 2 : 1);
+        var enteteNom = document.createElement('div');
+        enteteNom.className = 'gantt-cellule-nom gantt-entete';
+        ganttPersonnelEl.appendChild(enteteNom);
+        for (var h = debutMin; h < finMax; h++) {
+          var labelHeure = document.createElement('div');
+          labelHeure.className = 'gantt-label-heure';
+          if ((h - debutMin) % espacementLabels === 0) {
+            labelHeure.textContent = (h % 24) + 'h';
+          }
+          ganttPersonnelEl.appendChild(labelHeure);
+        }
+        var enteteTotal = document.createElement('div');
+        enteteTotal.className = 'gantt-cellule-total gantt-entete';
+        enteteTotal.textContent = 'Total';
+        ganttPersonnelEl.appendChild(enteteTotal);
+
+        ordrePersonnes.forEach(function (personnelId) {
+          var creneauxPersonne = creneauxParPersonne[personnelId];
+
+          var celluleNom = document.createElement('div');
+          celluleNom.className = 'gantt-cellule-nom';
+          celluleNom.textContent = nomPersonneParId(personnelId);
+          ganttPersonnelEl.appendChild(celluleNom);
+
+          var piste = document.createElement('div');
+          piste.className = 'gantt-piste';
+          piste.style.gridColumn = '2 / span ' + nbHeuresAffichees;
+
+          var totalHeures = 0;
+          creneauxPersonne.forEach(function (c) {
+            var debut = heureDecimale(c.heure_debut);
+            var fin = heureFinDecimaleAjustee(c.heure_debut, c.heure_fin);
+            totalHeures += (fin - debut);
+
+            var barre = document.createElement('div');
+            barre.className = 'gantt-barre';
+            barre.style.left = ((debut - debutMin) / nbHeuresAffichees * 100) + '%';
+            barre.style.width = ((fin - debut) / nbHeuresAffichees * 100) + '%';
+            barre.style.background = couleurPourRole(c.role);
+            barre.title = (c.role ? formatNomAffichage(c.role) + ' · ' : '') + formatHeure(c.heure_debut) + '–' + formatHeure(c.heure_fin);
+            barre.textContent = formatHeure(c.heure_debut) + '–' + formatHeure(c.heure_fin);
+            barre.setAttribute('tabindex', '0');
+            barre.setAttribute('role', 'button');
+            barre.setAttribute('aria-label', nomPersonneParId(personnelId) + ', ' + barre.title);
+            barre.addEventListener('click', function (cc) { return function () { ouvrirModalCreneau(cc); }; }(c));
+            piste.appendChild(barre);
+          });
+          ganttPersonnelEl.appendChild(piste);
+
+          var celluleTotal = document.createElement('div');
+          celluleTotal.className = 'gantt-cellule-total';
+          celluleTotal.textContent = formatDureeHeures(totalHeures);
+          ganttPersonnelEl.appendChild(celluleTotal);
+        });
+      }
+
       function afficherCreneauxJourCourant() {
         var iso = jourPlanningCourantISO();
         listeCreneauxEl.innerHTML = '';
         var creneaux = (iso && creneauxParJour[iso]) || [];
         afficherCouverture(creneaux);
+        afficherGanttPersonnel(creneaux);
         if (creneaux.length === 0) {
           listeCreneauxEl.innerHTML = '<div class="carte-vide-sombre" style="grid-column:unset;">Aucun créneau pour ce jour. Ajoute-en un ci-dessous, ou génère une proposition automatique.</div>';
           return;
@@ -883,10 +1030,13 @@
         if (!creneauEnEdition) return;
         var debut = modalHeureDebutCreneauEl.value;
         var fin = modalHeureFinCreneauEl.value;
-        if (!debut || !fin || fin <= debut) {
+        // fin <= debut n'est plus rejeté ici : ça signifie que le créneau
+        // traverse minuit (ex. 19h00–02h00), un cas réel pour un service du
+        // soir. Seule une durée nulle (fin === debut) reste invalide.
+        if (!debut || !fin || fin === debut) {
           messagePlanningEl.style.display = 'block';
           messagePlanningEl.className = 'erreur';
-          messagePlanningEl.textContent = "Heure de fin invalide (doit être après l'heure de début).";
+          messagePlanningEl.textContent = "Heure de fin invalide (doit être différente de l'heure de début).";
           return;
         }
         // Toute édition manuelle repasse le créneau en origine 'manuel' : il
@@ -922,10 +1072,10 @@
           messagePlanningEl.textContent = "Ajoute d'abord une personne à ton équipe.";
           return;
         }
-        if (!debut || !fin || fin <= debut) {
+        if (!debut || !fin || fin === debut) {
           messagePlanningEl.style.display = 'block';
           messagePlanningEl.className = 'erreur';
-          messagePlanningEl.textContent = "Heure de fin invalide (doit être après l'heure de début).";
+          messagePlanningEl.textContent = "Heure de fin invalide (doit être différente de l'heure de début).";
           return;
         }
 

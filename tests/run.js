@@ -442,6 +442,86 @@ async function main() {
       await pageAvecDonnees.close();
       await pageSansCreneaux.close();
     });
+
+    await describe('personnel.html — Gantt nominatif par personne', async () => {
+      const commercantId = 'test-commercant-gantt';
+      const demain = new Date();
+      demain.setDate(demain.getDate() + 1);
+      const isoDemain = demain.toISOString().slice(0, 10);
+
+      const pageGantt = await browser.newPage();
+      await stubSupabaseAvecDonnees(pageGantt, {
+        commercantId,
+        tables: {
+          personnel: [
+            { id: 'p1', nom: 'Vincent', role: 'salle', heures_disponibles: {} },
+            { id: 'p2', nom: 'Océane', role: 'manager', heures_disponibles: {} },
+            { id: 'p4', nom: 'Mirella', role: 'bar', heures_disponibles: {} },
+          ],
+          ventes: [],
+          parametres_commercant: [],
+          evenements_commercant: [],
+          creneaux_personnel: [
+            { id: 'c1', commercant_id: commercantId, personnel_id: 'p1', date_creneau: isoDemain, heure_debut: '11:00:00', heure_fin: '15:00:00', role: 'salle', origine: 'manuel' },
+            { id: 'c1b', commercant_id: commercantId, personnel_id: 'p1', date_creneau: isoDemain, heure_debut: '18:00:00', heure_fin: '23:00:00', role: 'salle', origine: 'manuel' },
+            { id: 'c2', commercant_id: commercantId, personnel_id: 'p2', date_creneau: isoDemain, heure_debut: '10:00:00', heure_fin: '18:00:00', role: 'manager', origine: 'manuel' },
+            // Créneau traversant minuit : cas piège trouvé en développant (heure_fin < heure_debut).
+            { id: 'c4', commercant_id: commercantId, personnel_id: 'p4', date_creneau: isoDemain, heure_debut: '19:00:00', heure_fin: '02:00:00', role: 'bar', origine: 'manuel' },
+          ],
+        },
+      });
+
+      await test('affiche une ligne par personne avec ses créneaux, total d\'heures inclus', async () => {
+        await pageGantt.goto(BASE_URL + '/personnel.html');
+        await pageGantt.locator('#zoneGanttPersonnel').waitFor({ state: 'visible' });
+
+        const noms = await pageGantt.locator('.gantt-cellule-nom:not(.gantt-entete)').allTextContents();
+        expect(noms.join(',')).toContain('Vincent');
+        expect(noms.join(',')).toContain('Océane');
+        expect(noms.join(',')).toContain('Mirella');
+
+        // Vincent a 2 créneaux (11h-15h + 18h-23h) : 2 barres sur sa ligne.
+        const barresVincent = await pageGantt.locator('.gantt-piste').first().locator('.gantt-barre').count();
+        expect(barresVincent).toBe(2);
+      });
+
+      await test('un créneau traversant minuit (19h-02h) est rendu avec une largeur cohérente, pas rejeté', async () => {
+        await pageGantt.goto(BASE_URL + '/personnel.html');
+        await pageGantt.locator('#zoneGanttPersonnel').waitFor({ state: 'visible' });
+
+        // La ligne de Mirella est la 3e (après Vincent et Océane) : une seule barre, 19:00–02:00.
+        const pistes = pageGantt.locator('.gantt-piste');
+        const barreMirella = pistes.nth(2).locator('.gantt-barre');
+        expect(await barreMirella.count()).toBe(1);
+        expect(await barreMirella.textContent()).toContain('19:00');
+        expect(await barreMirella.textContent()).toContain('02:00');
+
+        // La grille d'heures doit s'étendre jusqu'après minuit (au moins jusqu'à "1h"),
+        // pas s'arrêter à 24h — sinon le créneau de Mirella serait tronqué visuellement.
+        const labelsHeure = await pageGantt.locator('.gantt-label-heure').allTextContents();
+        expect(labelsHeure.join(',')).toContain('1h');
+      });
+
+      await test('la colonne des noms et le total restent en position sticky (scrollables horizontalement)', async () => {
+        await pageGantt.goto(BASE_URL + '/personnel.html');
+        await pageGantt.locator('#zoneGanttPersonnel').waitFor({ state: 'visible' });
+        const position = await pageGantt.locator('.gantt-cellule-nom').first().evaluate((el) => getComputedStyle(el).position);
+        expect(position).toBe('sticky');
+      });
+
+      await test('reste masqué quand le jour affiché n\'a aucun créneau', async () => {
+        await pageGantt.goto(BASE_URL + '/personnel.html');
+        await pageGantt.evaluate(() => {
+          document.getElementById('btnPlanningJourSuiv').click();
+          document.getElementById('btnPlanningJourSuiv').click();
+          document.getElementById('btnPlanningJourSuiv').click();
+        });
+        await pageGantt.waitForTimeout(400);
+        expect(await pageGantt.locator('#zoneGanttPersonnel').isVisible()).toBe(false);
+      });
+
+      await pageGantt.close();
+    });
   } finally {
     await browser.close();
     server.close();
