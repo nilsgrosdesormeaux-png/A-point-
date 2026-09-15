@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+.git/
+.next/
+out/
+coverage/
+*.log
+.env
+.env.*
+.DS_Store
+*.min.js
+*.min.css
+vendor/
+__pycache__/
+*.pyc
