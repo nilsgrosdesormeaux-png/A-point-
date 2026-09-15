@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -23,6 +24,7 @@
         <a href="semaine.html" class="nav-lien">Semaine</a>
         <a href="produits.html" class="nav-lien">Mes produits</a>
         <a href="ventes.html" class="nav-lien">Mes ventes</a>
+        <a href="personnel.html" class="nav-lien">Personnel</a>
         <a href="import.html" class="nav-lien">Importer</a>
         <a href="parametres.html" class="nav-lien">Paramètres</a>
         <a href="aide.html" class="nav-lien">? Aide</a>
@@ -58,8 +60,8 @@
       <div class="grille-sombre" id="grilleResultats">
         <div class="carte-sombre">
           <p class="nom">Économisé grâce à l'outil</p>
-          <p class="valeur">-</p>
-          <p class="detail">Bientôt disponible (dès qu'on connaît le prix de tes produits)</p>
+          <p class="valeur" id="carteEconomieValeur">-</p>
+          <p class="detail" id="carteEconomieDetail">Bientôt disponible (dès qu'on connaît le prix de tes produits)</p>
         </div>
         <div class="carte-sombre">
           <p class="nom">Invendus évités</p>
@@ -656,8 +658,19 @@
           delta = quantite - trie[0].quantite;
         }
 
+        // Référence "instinct" (mémoire fatiguée) utilisée uniquement pour le
+        // calcul d'économies ci-dessous : une moyenne simple, NON pondérée et
+        // SANS exclusion des valeurs aberrantes, sur le même jour de semaine —
+        // c'est-à-dire ce qu'un commerçant produirait probablement en se fiant
+        // à "à peu près ce que je fais d'habitude un tel jour", sans le calcul
+        // statistique de l'outil. Jamais affichée comme recommandation.
+        var sommeInstinct = 0;
+        baseVentes.forEach(function (v) { sommeInstinct += v.quantite; });
+        var quantiteInstinct = baseVentes.length > 0 ? Math.round(sommeInstinct / baseVentes.length) : quantite;
+
         return {
           quantite: quantite,
+          quantiteInstinct: quantiteInstinct,
           nbJoursUtilises: baseVentes.length,
           memeJourSemaine: ventesMemeJour.length > 0,
           nomJourCible: nomJourCible,
@@ -710,6 +723,57 @@
         return Object.keys(totaux).map(function (cle) { return totaux[cle]; }).sort(function (a, b) {
           return b.total - a.total;
         });
+      }
+
+      // Économie réelle estimée (Mission 1) : compare, ingrédient par
+      // ingrédient, la consommation qu'entraînerait une production "à
+      // l'instinct" (quantiteInstinct : moyenne simple, sans le calcul
+      // pondéré/anti-aberrations de l'outil) à celle qu'entraîne la
+      // prévision de l'outil (quantite), puis valorise l'écart avec le
+      // dernier coût unitaire mémorisé sur chaque ingrédient — jamais un prix
+      // deviné. Un ingrédient sans coût renseigné est tout simplement ignoré
+      // (ni sur-, ni sous-estimé) : on préfère une économie partielle mais
+      // honnête à un chiffre gonflé par une hypothèse. Renvoie null tant
+      // qu'aucun coût n'est connu nulle part, pour garder le placeholder
+      // "bientôt disponible" plutôt que d'afficher un faux zéro.
+      function calculerEconomieReelle(recommandationsParNom, recommandationsInstinctParNom, produits, ingredientsLignes) {
+        var consommationPrevue = calculerConsommationIngredients(recommandationsParNom, produits, ingredientsLignes);
+        var consommationInstinct = calculerConsommationIngredients(recommandationsInstinctParNom, produits, ingredientsLignes);
+
+        var coutParCle = {};
+        var aAuMoinsUnCout = false;
+        ingredientsLignes.forEach(function (ligne) {
+          if (ligne.cout_unitaire == null) return;
+          aAuMoinsUnCout = true;
+          var cle = ligne.nom_ingredient.trim().toLowerCase() + '|' + (ligne.unite || '').trim().toLowerCase();
+          // Plusieurs fiches techniques peuvent citer le même ingrédient avec
+          // des coûts légèrement différents saisis à des moments différents ;
+          // on garde le plus récent (déjà l'ordre naturel du tableau, la
+          // dernière valeur rencontrée l'emporte) plutôt qu'une moyenne, pour
+          // rester cohérent avec "coût mémorisé" au sens le plus à jour.
+          coutParCle[cle] = ligne.cout_unitaire;
+        });
+
+        if (!aAuMoinsUnCout) return null;
+
+        var instinctParCle = {};
+        consommationInstinct.forEach(function (ing) {
+          var cle = ing.nom.trim().toLowerCase() + '|' + (ing.unite || '').trim().toLowerCase();
+          instinctParCle[cle] = ing.total;
+        });
+
+        var economieTotale = 0;
+        var nbIngredientsValorises = 0;
+        consommationPrevue.forEach(function (ing) {
+          var cle = ing.nom.trim().toLowerCase() + '|' + (ing.unite || '').trim().toLowerCase();
+          var cout = coutParCle[cle];
+          if (cout == null) return;
+          var quantiteInstinctIng = instinctParCle[cle] || 0;
+          economieTotale += (quantiteInstinctIng - ing.total) * cout;
+          nbIngredientsValorises++;
+        });
+
+        return { economie: economieTotale, nbIngredients: nbIngredientsValorises };
       }
 
       sombreDateEl.textContent = "Aujourd'hui " + formatDateLongue(new Date());
@@ -783,9 +847,11 @@
 
             grille.innerHTML = '';
             var recommandationsParNom = {};
+            var recommandationsInstinctParNom = {};
             Object.keys(parProduit).forEach(function (nomProduit) {
               var r = calculerRecommandation(parProduit[nomProduit], jourCible, zoneVacances, evenements, meteoPassee, meteoPrevue);
               recommandationsParNom[nomProduit] = r.quantite;
+              recommandationsInstinctParNom[nomProduit] = r.quantiteInstinct;
 
               var deltaHTML = '';
               if (r.delta !== null) {
@@ -841,6 +907,34 @@
               labelIngredientsEl.style.display = 'none';
               grilleIngredientsEl.style.display = 'none';
               grilleIngredientsEl.innerHTML = '';
+            }
+
+            afficherEconomie(recommandationsParNom, recommandationsInstinctParNom);
+          }
+
+          // Mission 1 : carte "Économisé grâce à l'outil", remplacée par un
+          // vrai calcul dès qu'au moins un coût unitaire est mémorisé quelque
+          // part (voir calculerEconomieReelle) ; sinon la carte reste sur son
+          // message d'attente d'origine, jamais un faux chiffre.
+          function afficherEconomie(recommandationsParNom, recommandationsInstinctParNom) {
+            var carteEconomieValeur = document.getElementById('carteEconomieValeur');
+            var carteEconomieDetail = document.getElementById('carteEconomieDetail');
+            if (!carteEconomieValeur) return;
+
+            var resultat = calculerEconomieReelle(recommandationsParNom, recommandationsInstinctParNom, produits, ingredientsLignes);
+            if (!resultat) {
+              carteEconomieValeur.textContent = '-';
+              carteEconomieDetail.textContent = "Bientôt disponible (dès qu'on connaît le prix de tes produits)";
+              return;
+            }
+
+            var signe = resultat.economie >= 0 ? '+' : '−';
+            var montantAffiche = Math.abs(Math.round(resultat.economie * 100) / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            carteEconomieValeur.textContent = signe + montantAffiche + ' €';
+            if (resultat.economie >= 0) {
+              carteEconomieDetail.textContent = "Estimation pour " + nomsJours[jourCible.getDay()] + ", vs une production à l'instinct (" + resultat.nbIngredients + " ingrédient(s) valorisé(s)).";
+            } else {
+              carteEconomieDetail.textContent = "La prévision recommande plus que l'instinct pour " + nomsJours[jourCible.getDay()] + " (" + resultat.nbIngredients + " ingrédient(s) valorisé(s)) : mieux vaut ne pas manquer de stock que d'économiser à tort.";
             }
           }
 
