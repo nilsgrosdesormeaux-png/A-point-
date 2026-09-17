@@ -1580,16 +1580,19 @@ button.lien-supprimer:hover {
 }
 
 .btn-cta-commandes {
-  display: inline-block;
-  width: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
   margin: 0;
-  padding: 12px 22px;
-  font-size: 14px;
+  padding: 15px 22px;
+  font-size: 14.5px;
   font-weight: 600;
   color: white;
   background-color: var(--accent);
-  border-radius: var(--rayon);
+  border-radius: var(--rayon-lg);
   text-decoration: none;
+  text-align: center;
   transition: background-color 0.15s ease;
 }
 
