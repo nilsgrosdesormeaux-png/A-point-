@@ -32,7 +32,10 @@
       <div class="claire-entete">
         <div>
           <p class="claire-date" id="sombreDate"></p>
-          <p class="claire-titre" id="sombreTitre">Prévision</p>
+          <p class="claire-titre" id="sombreTitre">
+            <span id="sombreTitreTexte">Prévision</span>
+            <span class="info-bulle" tabindex="0">ⓘ<span class="info-bulle-texte">Calculée à partir de la moyenne pondérée de tes ventes passées pour ce jour de la semaine (les plus récentes comptent plus), en excluant les valeurs exceptionnelles. Jamais une certitude : une fourchette plutôt qu'un chiffre figé.</span></span>
+          </p>
         </div>
         <div class="claire-badge" id="sombreBadge">... jour(s) d'historique</div>
       </div>
@@ -41,9 +44,8 @@
 
       <div class="filtres-categories" id="filtresCategories" style="display:none;"></div>
 
-      <div class="section-titre-clair" id="labelProduction">
-        Production
-        <span class="info-bulle" tabindex="0">ⓘ<span class="info-bulle-texte">Calculée à partir de la moyenne pondérée de tes ventes passées pour ce jour de la semaine (les plus récentes comptent plus), en excluant les valeurs exceptionnelles. Jamais une certitude : une fourchette plutôt qu'un chiffre figé.</span></span>
+      <div class="ligne-titre-categorie" id="labelProduction">
+        <button type="button" class="btn-ajouter-categorie" id="btnAjouterCategorieProduction">+ Catégorie</button>
       </div>
       <div class="liste-production" id="listeProduction"></div>
 
@@ -72,7 +74,10 @@
 
       var statutDiv = document.getElementById('statutConnexion');
       var sombreDateEl = document.getElementById('sombreDate');
-      var sombreTitreEl = document.getElementById('sombreTitre');
+      // sombreTitreEl cible le texte seul (pas le conteneur, qui porte
+      // aussi l'infobulle ⓘ juste à côté du titre) : un .textContent dessus
+      // ne doit jamais effacer l'infobulle.
+      var sombreTitreEl = document.getElementById('sombreTitreTexte');
       var sombreBadgeEl = document.getElementById('sombreBadge');
       var semaineStripEl = document.getElementById('semaineStrip');
       var filtresCategoriesEl = document.getElementById('filtresCategories');
@@ -97,6 +102,12 @@
       var contexteAffichage = null;
       var categorieActive = 'Tous';
       var donneesGlobales = null;
+      // CATEGORIES : catégories créées par le commerçant (table
+      // categories_produit), rechargées à chaque chargerEtAfficher().
+      // produitParNom : résout un nom affiché vers le produit complet
+      // (id, categorie_id) pour pouvoir le ranger depuis cette page.
+      var CATEGORIES = [];
+      var produitParNom = {};
 
       var MP = window.MoteurPrevision;
       var nomsJours = MP.nomsJours;
@@ -202,10 +213,13 @@
             // commerçant (glisser-déposer dans Mes produits) : un produit
             // sans catégorie_id, ou pointant vers une catégorie depuis
             // supprimée, tombe sous "Non classé".
+            CATEGORIES = categoriesProduit;
             var nomCategoriePourId = {};
             categoriesProduit.forEach(function (c) { nomCategoriePourId[c.id] = c.nom; });
             categorieParNom = {};
+            produitParNom = {};
             produits.forEach(function (p) {
+              produitParNom[formatNomAffichage(p.nom)] = p;
               var nomCat = p.categorie_id ? nomCategoriePourId[p.categorie_id] : null;
               if (nomCat) categorieParNom[formatNomAffichage(p.nom)] = nomCat;
             });
@@ -317,16 +331,45 @@
             (actionsHTML ? '<div class="actions-jour">' + actionsHTML + '</div>' : '');
         }
 
+        function slugifierCategorie(nom) {
+          return nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || ('categorie-' + Date.now());
+        }
+
+        // Créer une catégorie à la volée, directement depuis Prévisions —
+        // aucune liste imposée, le commerçant choisit lui-même ses rayons
+        // (Poisson, Viande, ce qu'il veut). Recharge ensuite les pastilles
+        // et les sélecteurs par produit pour la rendre utilisable
+        // immédiatement, sans recharger toute la page.
+        function creerCategorieDepuisPrevisions() {
+          var nom = window.prompt('Nom de la nouvelle catégorie (ex : Poisson, Viande) ?');
+          if (!nom) return;
+          nom = nom.trim();
+          if (!nom) return;
+          var id = slugifierCategorie(nom);
+          if (CATEGORIES.some(function (c) { return c.id === id; })) {
+            window.alert('Une catégorie "' + nom + '" existe déjà.');
+            return;
+          }
+          var categorie = { id: id, commercant_id: commercantId, nom: nom, ordre: CATEGORIES.length };
+          CATEGORIES.push(categorie);
+          sbClient.from('categories_produit').insert(categorie).then(function () {});
+          construireFiltresCategories(donneesGlobales ? donneesGlobales.ventes : []);
+          afficherJourActif();
+        }
+
+        document.getElementById('btnAjouterCategorieProduction').addEventListener('click', creerCategorieDepuisPrevisions);
+
         function construireFiltresCategories(ventes) {
-          // Pastilles de catégories : construites une fois à partir du
-          // catalogue réel du commerce (jamais une liste figée). "Tous"
-          // toujours en premier.
+          // Pastilles de catégories : "Tous" toujours en premier, puis
+          // toute catégorie que le commerçant a créée (même si elle n'a
+          // encore aucun produit dedans) — jamais une liste devinée.
           var categoriesPresentes = {};
           ventes.forEach(function (v) {
             categoriesPresentes[categorieDeduite(v.nom_produit)] = true;
           });
+          CATEGORIES.forEach(function (c) { categoriesPresentes[c.nom] = true; });
           var listeCategories = ['Tous'].concat(Object.keys(categoriesPresentes).sort());
-          if (listeCategories.length <= 2) return;
+          if (listeCategories.length <= 1) return;
 
           filtresCategoriesEl.style.display = 'flex';
           filtresCategoriesEl.innerHTML = '';
@@ -364,9 +407,8 @@
             return;
           }
 
-          labelProductionEl.style.display = 'block';
+          labelProductionEl.style.display = 'flex';
           sombreTitreEl.textContent = "Prévision pour " + formatDateLongue(j.date);
-          labelProductionEl.childNodes[0].textContent = "Production pour " + nomsJours[j.date.getDay()] + " ";
 
           var ventes = donneesGlobales.ventes, zoneVacances = donneesGlobales.zoneVacances, evenements = donneesGlobales.evenements;
 
@@ -405,6 +447,38 @@
             ligne.innerHTML =
               '<span class="ligne-prod-jour-nom">' + nomProduit + '</span>' +
               '<span class="ligne-prod-jour-quantite">' + deltaHTML + quantiteAffichee + '</span>';
+
+            // Rangement manuel dans une catégorie créée par le commerçant
+            // (ou "Non classé") : un simple sélecteur, jamais de
+            // déduction — le produit doit exister en base (créé sur la
+            // page Mes produits) pour être rangeable ici.
+            var produit = produitParNom[nomProduit];
+            if (produit && CATEGORIES.length > 0) {
+              var selecteur = document.createElement('select');
+              selecteur.className = 'select-categorie-produit';
+              var optionNonClasse = document.createElement('option');
+              optionNonClasse.value = '';
+              optionNonClasse.textContent = 'Non classé';
+              selecteur.appendChild(optionNonClasse);
+              CATEGORIES.forEach(function (c) {
+                var option = document.createElement('option');
+                option.value = c.id;
+                option.textContent = c.nom;
+                if (produit.categorie_id === c.id) option.selected = true;
+                selecteur.appendChild(option);
+              });
+              selecteur.addEventListener('click', function (e) { e.stopPropagation(); });
+              selecteur.addEventListener('change', function () {
+                var nouveauId = selecteur.value || null;
+                produit.categorie_id = nouveauId;
+                sbClient.from('produits').update({ categorie_id: nouveauId }).eq('id', produit.id).then(function () {});
+                categorieParNom[nomProduit] = nouveauId ? (CATEGORIES.find(function (c) { return c.id === nouveauId; }) || {}).nom : null;
+                construireFiltresCategories(donneesGlobales.ventes);
+                afficherJourActif();
+              });
+              ligne.appendChild(selecteur);
+            }
+
             listeProductionEl.appendChild(ligne);
           });
 

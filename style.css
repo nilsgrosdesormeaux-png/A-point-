@@ -1516,6 +1516,27 @@ button.lien-supprimer:hover {
   z-index: 10;
 }
 
+.ligne-titre-categorie {
+  display: flex;
+  justify-content: flex-end;
+  margin: 22px 0 10px;
+}
+
+.btn-ajouter-categorie {
+  width: auto;
+  margin-top: 0;
+  padding: 5px 12px;
+  background: transparent;
+  border: 1px dashed var(--texte-tres-attenue);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--texte-attenue);
+  cursor: pointer;
+}
+
+.btn-ajouter-categorie:hover { background: var(--fond); border-color: var(--texte); color: var(--texte); }
+
 .liste-production {
   display: flex;
   flex-direction: column;
@@ -1532,6 +1553,19 @@ button.lien-supprimer:hover {
   gap: 12px;
   background: var(--surface);
   padding: 13px 16px;
+}
+
+.select-categorie-produit {
+  width: auto;
+  margin: 0;
+  padding: 4px 8px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--texte-attenue);
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+  flex-shrink: 0;
 }
 
 .ligne-prod-jour + .ligne-prod-jour {

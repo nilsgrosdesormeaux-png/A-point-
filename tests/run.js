@@ -682,6 +682,43 @@ async function main() {
         expect(classeBouton).not.toContain('actif');
       });
 
+      await test('l\'infobulle explicative est à côté du titre "Prévision pour...", pas au-dessus de la liste', async () => {
+        await pagePrevisions.goto(BASE_URL + '/previsions.html');
+        await pagePrevisions.locator('.ligne-prod-jour').first().waitFor({ state: 'visible' });
+        const titre = await pagePrevisions.locator('#sombreTitre').innerText();
+        expect(titre).toContain('ⓘ');
+        expect(await pagePrevisions.locator('#labelProduction .info-bulle').count()).toBe(0);
+      });
+
+      await test('le label "Production pour..." a disparu, remplacé par un bouton "+ Catégorie"', async () => {
+        await pagePrevisions.goto(BASE_URL + '/previsions.html');
+        await pagePrevisions.locator('.ligne-prod-jour').first().waitFor({ state: 'visible' });
+        const zone = await pagePrevisions.locator('#labelProduction').innerText();
+        expect(zone.toLowerCase()).not.toContain('production pour');
+        expect(zone).toContain('+ Catégorie');
+      });
+
+      await test('chaque produit ayant une fiche (Mes produits) affiche un sélecteur pour le ranger dans une catégorie existante', async () => {
+        await pagePrevisions.goto(BASE_URL + '/previsions.html');
+        await pagePrevisions.locator('.ligne-prod-jour').first().waitFor({ state: 'visible' });
+        // Tradition et Croissant ont une fiche produit (donc un sélecteur) ;
+        // Sandwich n'en a pas dans ce jeu de données et n'en affiche donc
+        // pas — rien à ranger sans fiche produit derrière.
+        expect(await pagePrevisions.locator('.select-categorie-produit').count()).toBe(2);
+        const optionsTradition = await pagePrevisions.locator('.ligne-prod-jour', { hasText: 'Tradition' }).locator('.select-categorie-produit').inputValue();
+        expect(optionsTradition).toBe('boulangerie');
+      });
+
+      await test('le bouton "+ Catégorie" crée une catégorie à la volée, utilisable immédiatement comme pastille et comme choix de rangement', async () => {
+        pagePrevisions.once('dialog', (dialog) => dialog.accept('Poisson'));
+        await pagePrevisions.goto(BASE_URL + '/previsions.html');
+        await pagePrevisions.locator('.ligne-prod-jour').first().waitFor({ state: 'visible' });
+        await pagePrevisions.locator('#btnAjouterCategorieProduction').click();
+        await pagePrevisions.locator('.pill-categorie', { hasText: 'Poisson' }).waitFor({ state: 'visible' });
+        const options = await pagePrevisions.locator('.select-categorie-produit').first().locator('option').allTextContents();
+        expect(options.join(',')).toContain('Poisson');
+      });
+
       await pagePrevisions.close();
     });
 
