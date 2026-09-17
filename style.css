@@ -1942,6 +1942,49 @@ button.lien-supprimer:hover {
 
 .btn-ajouter-poste-config:hover { border-color: var(--texte); color: var(--texte); }
 
+/* ---------- Mes produits : blocs de catégorie (glisser-déposer) ---------- */
+
+.bloc-categorie-produits {
+  margin-top: 18px;
+  padding: 12px;
+  border: 1px dashed var(--bordure);
+  border-radius: var(--rayon);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.bloc-categorie-produits--survole {
+  border-color: var(--accent);
+  background: var(--accent-clair);
+}
+
+.entete-bloc-categorie-produits {
+  margin: 0 0 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--texte-attenue);
+}
+
+.bloc-categorie-produits ul.liste-produits li {
+  cursor: grab;
+}
+
+.ligne-produit--glissee {
+  opacity: 0.4;
+}
+
+.ligne-produit-vide {
+  grid-column: 1 / -1;
+  color: var(--texte-tres-attenue);
+  font-size: 13px;
+  font-style: italic;
+  border-style: dashed;
+  justify-content: center;
+}
+
+.ligne-produit-vide::before { display: none; }
+
 /* ---------- Planning : immersion pleine largeur ----------
    Le Gantt sort volontairement du .conteneur--moyen (560px) : c'est
    l'unique écran de travail réel de la page, il a besoin de toute la
@@ -2111,6 +2154,7 @@ button.lien-supprimer:hover {
 .btn-ajouter-poste:hover { border-color: var(--texte); color: var(--texte); }
 
 .btn-gerer-postes {
+  width: auto;
   padding: 6px 13px;
   background: transparent;
   border: 1px solid transparent;

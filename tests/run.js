@@ -547,6 +547,56 @@ async function main() {
       await pageTop3.close();
     });
 
+    await describe('produits.html — catégories librement créées et rangement manuel (glisser-déposer)', async () => {
+      const commercantId = 'test-commercant-categories-produits';
+      const tables = {
+        ventes: [],
+        produits: [
+          { id: 'p1', commercant_id: commercantId, nom: 'Margherita', categorie_id: 'pizzas' },
+          { id: 'p2', commercant_id: commercantId, nom: 'Tiramisu', categorie_id: null },
+        ],
+        categories_produit: [
+          { id: 'pizzas', commercant_id: commercantId, nom: 'Pizzas', ordre: 0 },
+        ],
+        ingredients_produit: [],
+        parametres_commercant: [],
+        evenements_commercant: [],
+      };
+
+      const pageProduits = await browser.newPage();
+      await stubSupabaseAvecDonnees(pageProduits, { commercantId, tables });
+
+      await test('affiche un bloc par catégorie créée, plus un bloc "Non classé" toujours présent', async () => {
+        await pageProduits.goto(BASE_URL + '/produits.html');
+        await pageProduits.locator('.bloc-categorie-produits').first().waitFor({ state: 'visible' });
+        const entetes = await pageProduits.locator('.entete-bloc-categorie-produits').allTextContents();
+        expect(entetes.join(',')).toContain('Pizzas');
+        expect(entetes.join(',')).toContain('Non classé');
+      });
+
+      await test('le produit rangé apparaît dans le bloc de sa catégorie, le produit non rangé dans "Non classé"', async () => {
+        await pageProduits.goto(BASE_URL + '/produits.html');
+        await pageProduits.locator('.bloc-categorie-produits').first().waitFor({ state: 'visible' });
+        const blocPizzas = pageProduits.locator('.bloc-categorie-produits', { hasText: 'Pizzas' });
+        expect((await blocPizzas.locator('.nom-produit').allTextContents()).join(',')).toContain('Margherita');
+        const blocNonClasse = pageProduits.locator('.bloc-categorie-produits', { hasText: 'Non classé' });
+        expect((await blocNonClasse.locator('.nom-produit').allTextContents()).join(',')).toContain('Tiramisu');
+      });
+
+      await test('le bouton "Gérer les catégories" ouvre une fenêtre pour créer/renommer/supprimer des catégories', async () => {
+        await pageProduits.goto(BASE_URL + '/produits.html');
+        await pageProduits.locator('.bloc-categorie-produits').first().waitFor({ state: 'visible' });
+        await pageProduits.locator('#btnGererCategories').click();
+        await pageProduits.locator('#modalCategories').waitFor({ state: 'visible' });
+        const etiquettes = await pageProduits.locator('#listeCategoriesConfig .etiquette-poste-config').allTextContents();
+        expect(etiquettes.join(',')).toContain('Pizzas');
+        await pageProduits.locator('#btnFermerModalCategories').click();
+        expect(await pageProduits.locator('#modalCategories').isHidden()).toBeTruthy();
+      });
+
+      await pageProduits.close();
+    });
+
     await describe('previsions.html — production du jour, catégories déduites et ingrédients', async () => {
       const commercantId = 'test-commercant-previsions';
       const lundis = ['2026-08-03', '2026-08-10', '2026-08-17', '2026-08-24', '2026-08-31'];
@@ -557,12 +607,17 @@ async function main() {
 
       const tables = {
         ventes: ventes,
-        // Catégories strictement issues de la fiche produit (plus aucune
-        // déduction par mots-clés) : Sandwich n'a pas de catégorie
-        // renseignée et doit tomber sous "Non classé".
+        // Catégories strictement issues du rangement manuel du commerçant
+        // (Mes produits, glisser-déposer) — plus aucune déduction par
+        // mots-clés : Sandwich n'a pas été rangé et doit tomber sous
+        // "Non classé".
         produits: [
-          { id: 'p1', commercant_id: commercantId, nom: 'Tradition', categorie: 'Boulangerie' },
-          { id: 'p2', commercant_id: commercantId, nom: 'Croissant', categorie: 'Viennoiserie' },
+          { id: 'p1', commercant_id: commercantId, nom: 'Tradition', categorie_id: 'boulangerie' },
+          { id: 'p2', commercant_id: commercantId, nom: 'Croissant', categorie_id: 'viennoiserie' },
+        ],
+        categories_produit: [
+          { id: 'boulangerie', commercant_id: commercantId, nom: 'Boulangerie' },
+          { id: 'viennoiserie', commercant_id: commercantId, nom: 'Viennoiserie' },
         ],
         ingredients_produit: [],
         parametres_commercant: [],
@@ -630,20 +685,21 @@ async function main() {
       await pagePrevisions.close();
     });
 
-    await describe('previsions.html — catégorie du produit prioritaire sur la déduction par mots-clés', async () => {
+    await describe('previsions.html — catégorie du produit librement créée par le commerçant (pas une liste imposée)', async () => {
       const commercantId = 'test-commercant-categorie-produit';
       const lundis = ['2026-08-03', '2026-08-10', '2026-08-17', '2026-08-24', '2026-08-31'];
       const tables = {
-        // Aucune déduction par mots-clés n'existe plus : la catégorie vient
-        // strictement de la fiche produit ("Mes Produits"). "Margherita"
-        // doit apparaître sous "Pizzas", la catégorie choisie par le
-        // commerçant. Un deuxième produit est nécessaire pour que les
-        // pastilles s'affichent (aucun filtre n'a de sens avec une seule
-        // catégorie détectée).
+        // La catégorie vient strictement du rangement manuel du commerçant
+        // dans Mes produits (catégorie créée par lui, produit glissé
+        // dedans) : "Margherita" doit apparaître sous "Pizzas", une
+        // catégorie qui n'existe dans aucune liste prédéfinie. Un deuxième
+        // produit est nécessaire pour que les pastilles s'affichent (aucun
+        // filtre n'a de sens avec une seule catégorie détectée).
         ventes: []
           .concat(lundis.map((d) => ({ commercant_id: commercantId, nom_produit: 'Margherita', date_vente: d, quantite: 30 })))
           .concat(lundis.map((d) => ({ commercant_id: commercantId, nom_produit: 'Croissant', date_vente: d, quantite: 20 }))),
-        produits: [{ id: 'p1', commercant_id: commercantId, nom: 'Margherita', categorie: 'Pizzas' }],
+        produits: [{ id: 'p1', commercant_id: commercantId, nom: 'Margherita', categorie_id: 'pizzas' }],
+        categories_produit: [{ id: 'pizzas', commercant_id: commercantId, nom: 'Pizzas' }],
         ingredients_produit: [],
         parametres_commercant: [],
         evenements_commercant: [],
@@ -652,7 +708,7 @@ async function main() {
       const pageCategorieProduit = await browser.newPage();
       await stubSupabaseAvecDonnees(pageCategorieProduit, { commercantId, tables });
 
-      await test('la pastille utilise la catégorie déclarée sur la fiche produit, pas une liste figée', async () => {
+      await test('la pastille utilise la catégorie créée par le commerçant, pas une liste figée', async () => {
         await pageCategorieProduit.goto(BASE_URL + '/previsions.html');
         await pageCategorieProduit.locator('.pill-categorie').first().waitFor({ state: 'visible' });
         const categories = (await pageCategorieProduit.locator('.pill-categorie').allTextContents()).join(',');

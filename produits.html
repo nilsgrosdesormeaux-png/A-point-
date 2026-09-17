@@ -45,9 +45,13 @@
 
         <div id="message"></div>
 
-        <p class="section-titre">Mes produits actuels</p>
-        <p class="texte-aide" style="margin-top:-6px;">Clique sur un produit pour lui définir une fiche technique (les ingrédients qui le composent), utile pour un plat composé comme un burger, inutile pour un produit simple comme un croissant.</p>
-        <ul id="listeProduits" class="liste-produits"></ul>
+        <div class="entete-page" style="margin-top:22px; margin-bottom:0;">
+          <p class="section-titre" style="margin:0;">Mes produits actuels</p>
+          <button type="button" class="btn-gerer-postes" id="btnGererCategories">⚙️ Gérer les catégories</button>
+        </div>
+        <p class="texte-aide" style="margin-top:6px;">Clique sur un produit pour lui définir une fiche technique. Range-le dans une catégorie par glisser-déposer, si tu en as créé — c'est entièrement facultatif.</p>
+        <div id="listeProduitsParCategorie"></div>
+        <ul id="listeProduits" class="liste-produits" style="display:none;"></ul>
 
         <div id="ficheTechnique" style="display:none;">
           <p class="section-titre">Fiche technique : <span id="ficheProduitNom"></span></p>
@@ -89,6 +93,17 @@
     </div>
   </div>
 
+  <div class="fond-modal" id="modalCategories" hidden>
+    <div class="contenu-modal contenu-modal--large">
+      <h3>Gérer les catégories</h3>
+      <p class="sous-titre-modal">Crée tes propres catégories pour ranger tes produits (ex : Boissons, Plats, Desserts) — libre à toi de ne pas en créer, ou d'en supprimer si elle ne te sert pas. Les produits d'une catégorie supprimée repassent simplement en "Non classé".</p>
+      <div id="listeCategoriesConfig"></div>
+      <div class="actions-modal actions-modal--simple">
+        <button type="button" class="btn-modal-enregistrer" id="btnFermerModalCategories">Fermer</button>
+      </div>
+    </div>
+  </div>
+
   <script>
         (function () {
       var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
@@ -105,8 +120,16 @@
       var listeIngredientsDiv = document.getElementById('listeIngredients');
       var messageIngredientDiv = document.getElementById('messageIngredient');
       var ingredientsConnusEl = document.getElementById('ingredientsConnus');
+      var listeProduitsParCategorieEl = document.getElementById('listeProduitsParCategorie');
+      var modalCategoriesEl = document.getElementById('modalCategories');
       var commercantId = null;
       var produitSelectionne = null;
+      // CATEGORIES : catégories librement créées par le commerçant (jamais
+      // devinées). produitsCourants : dernier chargement, réutilisé pour
+      // re-rendre les blocs sans recharger Supabase après un simple
+      // glisser-déposer.
+      var CATEGORIES = [];
+      var produitsCourants = [];
 
       // Nettoie un nom de produit pour l'affichage (espaces superflus, casse
       // hétérogène après un import CSV un peu sale) sans toucher à la valeur
@@ -161,53 +184,217 @@
       }
 
       function chargerProduits() {
-        sbClient.from('produits').select('*').eq('commercant_id', commercantId).then(function (result) {
-          listeProduits.innerHTML = '';
-          var nb = result.data ? result.data.length : 0;
+        Promise.all([
+          sbClient.from('produits').select('*').eq('commercant_id', commercantId),
+          sbClient.from('categories_produit').select('*').eq('commercant_id', commercantId).order('ordre', { ascending: true })
+        ]).then(function (resultats) {
+          produitsCourants = resultats[0].data || [];
+          CATEGORIES = resultats[1].data || [];
+
+          var nb = produitsCourants.length;
           badgeProduits.textContent = nb + (nb > 1 ? ' produits' : ' produit');
           badgeProduits.style.display = 'inline-block';
-          if (result.data) {
-            result.data.forEach(function (produit) {
-              var li = document.createElement('li');
 
-              var nomSpan = document.createElement('span');
-              nomSpan.className = 'nom-produit';
-              nomSpan.textContent = formatNomAffichage(produit.nom);
-              nomSpan.title = 'Cliquer pour définir la fiche technique';
-              nomSpan.addEventListener('click', function () { afficherFicheTechnique(produit); });
-
-              var actions = document.createElement('span');
-              actions.className = 'actions-produit';
-
-              var btnEditer = document.createElement('button');
-              btnEditer.type = 'button';
-              btnEditer.className = 'icone-action';
-              btnEditer.setAttribute('aria-label', 'Modifier le nom du produit');
-              btnEditer.textContent = '✎';
-              btnEditer.addEventListener('click', function (e) {
-                e.stopPropagation();
-                modifierProduit(produit);
-              });
-
-              var btnSupprimer = document.createElement('button');
-              btnSupprimer.type = 'button';
-              btnSupprimer.className = 'icone-action icone-action--supprimer';
-              btnSupprimer.setAttribute('aria-label', 'Supprimer le produit');
-              btnSupprimer.textContent = '🗑';
-              btnSupprimer.addEventListener('click', function (e) {
-                e.stopPropagation();
-                supprimerProduit(produit);
-              });
-
-              actions.appendChild(btnEditer);
-              actions.appendChild(btnSupprimer);
-              li.appendChild(nomSpan);
-              li.appendChild(actions);
-              listeProduits.appendChild(li);
-            });
-          }
+          rendreProduitsParCategorie();
         });
       }
+
+      // Construit une <li> produit identique à l'ancienne liste plate
+      // (même fiche technique, mêmes boutons éditer/supprimer), rendue
+      // déplaçable (drag & drop) vers un autre bloc de catégorie.
+      function creerLigneProduit(produit) {
+        var li = document.createElement('li');
+        li.draggable = true;
+        li.dataset.produitId = produit.id;
+        li.addEventListener('dragstart', function (e) {
+          li.classList.add('ligne-produit--glissee');
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', String(produit.id));
+        });
+        li.addEventListener('dragend', function () { li.classList.remove('ligne-produit--glissee'); });
+
+        var nomSpan = document.createElement('span');
+        nomSpan.className = 'nom-produit';
+        nomSpan.textContent = formatNomAffichage(produit.nom);
+        nomSpan.title = 'Cliquer pour définir la fiche technique';
+        nomSpan.addEventListener('click', function () { afficherFicheTechnique(produit); });
+
+        var actions = document.createElement('span');
+        actions.className = 'actions-produit';
+
+        var btnEditer = document.createElement('button');
+        btnEditer.type = 'button';
+        btnEditer.className = 'icone-action';
+        btnEditer.setAttribute('aria-label', 'Modifier le nom du produit');
+        btnEditer.textContent = '✎';
+        btnEditer.addEventListener('click', function (e) {
+          e.stopPropagation();
+          modifierProduit(produit);
+        });
+
+        var btnSupprimer = document.createElement('button');
+        btnSupprimer.type = 'button';
+        btnSupprimer.className = 'icone-action icone-action--supprimer';
+        btnSupprimer.setAttribute('aria-label', 'Supprimer le produit');
+        btnSupprimer.textContent = '🗑';
+        btnSupprimer.addEventListener('click', function (e) {
+          e.stopPropagation();
+          supprimerProduit(produit);
+        });
+
+        actions.appendChild(btnEditer);
+        actions.appendChild(btnSupprimer);
+        li.appendChild(nomSpan);
+        li.appendChild(actions);
+        return li;
+      }
+
+      // Range un produit dans une catégorie (ou null = "Non classé") par
+      // glisser-déposer. Mise à jour optimiste locale puis écriture en
+      // base ; jamais de rechargement complet (on garde le focus/scroll).
+      function deplacerProduitVersCategorie(produitId, categorieId) {
+        var produit = produitsCourants.find(function (p) { return String(p.id) === String(produitId); });
+        if (!produit) return;
+        produit.categorie_id = categorieId;
+        sbClient.from('produits').update({ categorie_id: categorieId }).eq('id', produit.id).then(function () {});
+        rendreProduitsParCategorie();
+      }
+
+      function rendreBlocDropCategorie(bloc) {
+        bloc.addEventListener('dragover', function (e) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          bloc.classList.add('bloc-categorie-produits--survole');
+        });
+        bloc.addEventListener('dragleave', function () { bloc.classList.remove('bloc-categorie-produits--survole'); });
+        bloc.addEventListener('drop', function (e) {
+          e.preventDefault();
+          bloc.classList.remove('bloc-categorie-produits--survole');
+          var produitId = e.dataTransfer.getData('text/plain');
+          var categorieId = bloc.dataset.categorieId || null;
+          deplacerProduitVersCategorie(produitId, categorieId);
+        });
+      }
+
+      // Un bloc par catégorie créée, plus un bloc "Non classé" toujours
+      // présent en dernier (jamais masqué : sinon un produit qu'on vient de
+      // sortir de sa catégorie n'aurait nulle part où atterrir).
+      function rendreProduitsParCategorie() {
+        listeProduitsParCategorieEl.innerHTML = '';
+
+        var parCategorie = {};
+        produitsCourants.forEach(function (p) {
+          var cle = p.categorie_id || '__non_classe__';
+          if (!parCategorie[cle]) parCategorie[cle] = [];
+          parCategorie[cle].push(p);
+        });
+
+        var blocs = CATEGORIES.map(function (cat) { return { id: cat.id, nom: cat.nom }; });
+        blocs.push({ id: null, nom: 'Non classé' });
+
+        blocs.forEach(function (cat) {
+          var cle = cat.id || '__non_classe__';
+          var produitsCat = parCategorie[cle] || [];
+
+          var bloc = document.createElement('div');
+          bloc.className = 'bloc-categorie-produits';
+          if (cat.id) bloc.dataset.categorieId = cat.id;
+
+          var entete = document.createElement('p');
+          entete.className = 'entete-bloc-categorie-produits';
+          entete.textContent = cat.nom + ' (' + produitsCat.length + ')';
+          bloc.appendChild(entete);
+
+          var ul = document.createElement('ul');
+          ul.className = 'liste-produits';
+          if (produitsCat.length === 0) {
+            var videLi = document.createElement('li');
+            videLi.className = 'ligne-produit-vide';
+            videLi.textContent = 'Glisse un produit ici.';
+            ul.appendChild(videLi);
+          } else {
+            produitsCat.forEach(function (p) { ul.appendChild(creerLigneProduit(p)); });
+          }
+          bloc.appendChild(ul);
+
+          rendreBlocDropCategorie(bloc);
+          listeProduitsParCategorieEl.appendChild(bloc);
+        });
+      }
+
+      function slugifierCategorie(nom) {
+        return nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || ('categorie-' + Date.now());
+      }
+
+      // Créer/renommer/supprimer une catégorie : jamais de liste imposée,
+      // chaque commerçant range ses produits comme il l'entend.
+      function creerCategorie(nom) {
+        var id = slugifierCategorie(nom);
+        if (CATEGORIES.some(function (c) { return c.id === id; })) {
+          window.alert('Une catégorie "' + nom + '" existe déjà.');
+          return;
+        }
+        var categorie = { id: id, commercant_id: commercantId, nom: nom, ordre: CATEGORIES.length };
+        CATEGORIES.push(categorie);
+        sbClient.from('categories_produit').insert(categorie).then(function () {});
+      }
+
+      function renommerCategorie(categorie, nouveauNom) {
+        categorie.nom = nouveauNom;
+        sbClient.from('categories_produit').update({ nom: nouveauNom }).eq('commercant_id', commercantId).eq('id', categorie.id).then(function () {});
+      }
+
+      function supprimerCategorie(categorie) {
+        CATEGORIES = CATEGORIES.filter(function (c) { return c.id !== categorie.id; });
+        // Les produits qui y étaient rangés repassent en "Non classé" côté
+        // affichage local ; la base le fait automatiquement (ON DELETE SET
+        // NULL sur produits.categorie_id).
+        produitsCourants.forEach(function (p) { if (p.categorie_id === categorie.id) p.categorie_id = null; });
+        sbClient.from('categories_produit').delete().eq('commercant_id', commercantId).eq('id', categorie.id).then(function () {});
+      }
+
+      function rendreContenuModalCategories() {
+        var conteneur = document.getElementById('listeCategoriesConfig');
+        conteneur.innerHTML = '';
+
+        CATEGORIES.forEach(function (categorie) {
+          var ligne = document.createElement('span');
+          ligne.className = 'etiquette-poste-config';
+          ligne.textContent = categorie.nom;
+          ligne.title = 'Cliquer pour renommer ou supprimer';
+          ligne.addEventListener('click', function () {
+            var action = window.prompt('Renommer cette catégorie (laisser vide pour la supprimer) :', categorie.nom);
+            if (action === null) return;
+            if (action.trim() === '') {
+              if (!window.confirm('Supprimer la catégorie "' + categorie.nom + '" ? Les produits qu\'elle contient repasseront en "Non classé".')) return;
+              supprimerCategorie(categorie);
+            } else {
+              renommerCategorie(categorie, action.trim());
+            }
+            rendreContenuModalCategories();
+            rendreProduitsParCategorie();
+          });
+          conteneur.appendChild(ligne);
+        });
+
+        var ajouterCategorie = document.createElement('button');
+        ajouterCategorie.type = 'button';
+        ajouterCategorie.className = 'btn-ajouter-poste-config';
+        ajouterCategorie.textContent = '+ Catégorie';
+        ajouterCategorie.addEventListener('click', function () {
+          var nom = window.prompt('Nom de la nouvelle catégorie ?');
+          if (!nom) return;
+          creerCategorie(nom.trim());
+          rendreContenuModalCategories();
+          rendreProduitsParCategorie();
+        });
+        conteneur.appendChild(ajouterCategorie);
+      }
+
+      function ouvrirModalCategories() { rendreContenuModalCategories(); modalCategoriesEl.hidden = false; }
+      function fermerModalCategories() { modalCategoriesEl.hidden = true; }
+      document.getElementById('btnGererCategories').addEventListener('click', ouvrirModalCategories);
+      document.getElementById('btnFermerModalCategories').addEventListener('click', fermerModalCategories);
 
       // Renomme un produit existant (utile pour corriger un nom mal saisi ou
       // fusionner visuellement des doublons issus d'un import CSV).
