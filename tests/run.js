@@ -18,7 +18,7 @@ const BASE_URL = 'http://127.0.0.1:' + PORT;
 const PAGES_PROTEGEES = [
   'tableau-de-bord.html',
   'produits.html',
-  'semaine.html',
+  'previsions.html',
   'ventes.html',
   'parametres.html',
   'aide.html',
@@ -82,18 +82,28 @@ async function stubSupabaseAvecDonnees(page, { commercantId, tables }) {
               eq: function () { return chain; },
               gte: function () { return chain; },
               lte: function () { return chain; },
+              lt: function () { return chain; },
+              in: function () { return chain; },
               then: function (cb) { return Promise.resolve({ data: chain._data, error: null }).then(cb); },
-              insert: function () { return Promise.resolve({ data: [], error: null }); },
+              insert: function (lignes) {
+                var inserted = { data: Array.isArray(lignes) ? lignes : [lignes], error: null };
+                return {
+                  select: function () { return Promise.resolve(inserted); },
+                  then: function (cb) { return Promise.resolve(inserted).then(cb); },
+                };
+              },
               delete: function () {
                 var d = {
                   eq: function () { return d; },
                   gte: function () { return d; },
-                  lte: function () { return Promise.resolve({ data: [], error: null }); },
+                  lte: function () { return d; },
+                  then: function (cb) { return Promise.resolve({ data: [], error: null }).then(cb); },
                 };
                 return d;
               },
               update: function () {
-                return { eq: function () { return Promise.resolve({ data: [], error: null }); } };
+                var u = { eq: function () { return Promise.resolve({ data: [], error: null }); } };
+                return u;
               },
             };
             return chain;
@@ -267,65 +277,85 @@ async function main() {
         });
       }
 
-      await test('marque "Produits" actif sur produits.html', async () => {
-        await page.goto(BASE_URL + '/produits.html');
-        const actif = page.locator('#navPrincipale a.nav-actif');
-        expect(await actif.textContent()).toBe('Produits');
+      // Refonte sept. 2026 (maquette validée) : Accueil / Prévisions /
+      // Planning toujours visibles ; Mes produits / Commandes / Imports
+      // passent en repli sous 720px ; Paramètres / Aide en nav secondaire ;
+      // le ☰ ne contient jamais les 3 liens principaux.
+      await test('Accueil, Prévisions et Planning sont toujours visibles (classe nav-lien-g, pas --repli)', async () => {
+        await page.goto(BASE_URL + '/tableau-de-bord.html');
+        const liens = await page.locator('#navPrincipale a.nav-lien-g:not(.nav-lien-g--repli)').allTextContents();
+        expect(liens.join(',')).toBe('Accueil,Prévisions,Planning');
+      });
+
+      await test('marque "Accueil" actif sur tableau-de-bord.html', async () => {
+        await page.goto(BASE_URL + '/tableau-de-bord.html');
+        const actif = page.locator('#navPrincipale a.nav-lien-g.actif');
+        expect(await actif.textContent()).toBe('Accueil');
+      });
+
+      await test('marque "Prévisions" actif sur previsions.html', async () => {
+        await page.goto(BASE_URL + '/previsions.html');
+        const actif = page.locator('#navPrincipale a.nav-lien-g.actif');
+        expect(await actif.textContent()).toBe('Prévisions');
       });
 
       await test('marque "Commandes" actif sur commandes.html', async () => {
         await page.goto(BASE_URL + '/commandes.html');
-        const actif = page.locator('#navPrincipale a.nav-actif, #navPrincipale button.nav-actif');
-        await actif.first().waitFor({ state: 'attached' });
-        expect(await actif.first().textContent()).toContain('Commandes');
+        const actif = page.locator('#navPrincipale a.nav-lien-g.actif');
+        expect(await actif.textContent()).toBe('Commandes');
       });
 
-      await test('regroupe Semaine et Personnel sous le menu "Activité"', async () => {
-        await page.goto(BASE_URL + '/semaine.html');
-        const bouton = page.locator('#navPrincipale button.nav-lien--menu');
-        expect(await bouton.textContent()).toContain('Activité');
-      });
-
-      await test('menu "Activité" est marqué actif sur semaine.html et personnel.html', async () => {
-        await page.goto(BASE_URL + '/semaine.html');
-        expect(await page.locator('#navPrincipale button.nav-lien--menu').getAttribute('class')).toContain('nav-actif');
-
-        await page.goto(BASE_URL + '/personnel.html');
-        expect(await page.locator('#navPrincipale button.nav-lien--menu').getAttribute('class')).toContain('nav-actif');
-      });
-
-      await test('sous-menu Activité contient les liens Affluence, Équipe, Planning', async () => {
-        await page.goto(BASE_URL + '/semaine.html');
-        const sousLiens = page.locator('#navPrincipale .nav-sous-lien');
-        expect(await sousLiens.count()).toBe(3);
-        const textes = await sousLiens.allTextContents();
-        expect(textes.join(',')).toContain('Affluence');
-        expect(textes.join(',')).toContain('Équipe');
-        expect(textes.join(',')).toContain('Planning');
-      });
-
-      await test('clic sur le bouton "Activité" ouvre le sous-menu', async () => {
-        await page.goto(BASE_URL + '/produits.html');
-        const menu = page.locator('#navPrincipale .nav-menu');
-        const bouton = menu.locator('.nav-lien--menu');
-        await bouton.click();
-        expect(await menu.getAttribute('class')).toContain('nav-menu--ouvert');
-        expect(await bouton.getAttribute('aria-expanded')).toBe('true');
-      });
-
-      await test('clic en dehors du menu le referme', async () => {
-        await page.goto(BASE_URL + '/produits.html');
-        const menu = page.locator('#navPrincipale .nav-menu');
-        await menu.locator('.nav-lien--menu').click();
-        expect(await menu.getAttribute('class')).toContain('nav-menu--ouvert');
-        await page.locator('body').click({ position: { x: 5, y: 5 } });
-        expect(await menu.getAttribute('class')).not.toContain('nav-menu--ouvert');
-      });
-
-      await test('lien Aide toujours présent et discret', async () => {
+      await test('Mes produits / Commandes / Imports sont en repli (cachés sous 720px)', async () => {
         await page.goto(BASE_URL + '/tableau-de-bord.html');
-        const lienAide = page.locator('#navPrincipale a.nav-lien--discret');
-        expect(await lienAide.textContent()).toContain('Aide');
+        const liens = await page.locator('#navPrincipale a.nav-lien-g--repli').allTextContents();
+        expect(liens.join(',')).toBe('Mes produits,Commandes,Imports');
+      });
+
+      await test('nav secondaire contient Paramètres et Aide', async () => {
+        await page.goto(BASE_URL + '/tableau-de-bord.html');
+        const liens = await page.locator('.entete-site .nav-secondaire a.nav-lien-s').allTextContents();
+        expect(liens.join(',')).toContain('Paramètres');
+        expect(liens.join(',')).toContain('Aide');
+      });
+
+      await test('nav-secondaire et btn-hamburger sont des siblings de #navPrincipale (pas imbriqués, maquette validée)', async () => {
+        await page.goto(BASE_URL + '/tableau-de-bord.html');
+        const imbrique = await page.locator('#navPrincipale .nav-secondaire, #navPrincipale .btn-hamburger').count();
+        expect(imbrique).toBe(0);
+        const siblings = await page.locator('.entete-site > .nav-secondaire, .entete-site > .btn-hamburger').count();
+        expect(siblings).toBe(2);
+      });
+
+      await test('le panneau ☰ ne contient jamais Accueil, Prévisions ou Planning', async () => {
+        await page.goto(BASE_URL + '/tableau-de-bord.html');
+        const liensHamburger = await page.locator('.panneau-hamburger a').allTextContents();
+        expect(liensHamburger).not.toContain('Accueil');
+        expect(liensHamburger).not.toContain('Prévisions');
+        expect(liensHamburger).not.toContain('Planning');
+        expect(liensHamburger.join(',')).toContain('Commandes');
+        expect(liensHamburger.join(',')).toContain('Paramètres');
+      });
+
+      await test('clic sur le bouton ☰ ouvre le panneau, clic en dehors le referme', async () => {
+        // Le bouton ☰ n'est visible que sous 720px (voir style.css) : il
+        // faut un viewport mobile pour pouvoir cliquer dessus.
+        await page.setViewportSize({ width: 400, height: 800 });
+        await page.goto(BASE_URL + '/tableau-de-bord.html');
+        const panneau = page.locator('.panneau-hamburger');
+        await page.locator('.entete-site .btn-hamburger').click();
+        expect(await panneau.getAttribute('class')).toContain('panneau-hamburger--ouvert');
+        await page.locator('body').click({ position: { x: 5, y: 5 } });
+        expect(await panneau.getAttribute('class')).not.toContain('panneau-hamburger--ouvert');
+        await page.setViewportSize({ width: 1280, height: 800 });
+      });
+
+      await test('en mobile, le ☰ reste sur la même ligne que le logo (pas sur sa propre ligne sous la nav)', async () => {
+        await page.setViewportSize({ width: 400, height: 800 });
+        await page.goto(BASE_URL + '/tableau-de-bord.html');
+        const logoBox = await page.locator('.entete-site .logo').boundingBox();
+        const boutonBox = await page.locator('.entete-site .btn-hamburger').boundingBox();
+        expect(Math.abs(logoBox.y - boutonBox.y) < 10).toBeTruthy();
+        await page.setViewportSize({ width: 1280, height: 800 });
       });
     });
 
@@ -379,148 +409,449 @@ async function main() {
       });
     });
 
-    await describe('personnel.html — couverture par heure', async () => {
-      const commercantId = 'test-commercant-couverture';
-      const demain = new Date();
-      demain.setDate(demain.getDate() + 1);
-      const isoDemain = demain.toISOString().slice(0, 10);
+    // Cadencier Intelligent (16 septembre 2026) : sélecteur de période de
+    // couverture, aperçu "Habitude" recalculé dynamiquement et regroupé par
+    // famille déduite (sans jargon, sans fournisseur — cf. décision produit :
+    // "catégorie déduite, pas de fournisseur"), et pont Semaine → Commandes.
+    await describe('commandes.html — Cadencier : période de couverture et aperçu Habitude', async () => {
+      const commercantId = 'test-commercant-cadencier';
+      const lundis = ['2026-08-03', '2026-08-10', '2026-08-17', '2026-08-24', '2026-08-31'];
+      const ventesCroissant = lundis.map((d) => ({ commercant_id: commercantId, nom_produit: 'Croissant', date_vente: d, quantite: 40 }));
 
-      const pageAvecDonnees = await browser.newPage();
-      await stubSupabaseAvecDonnees(pageAvecDonnees, {
-        commercantId,
-        tables: {
-          personnel: [
-            { id: 'p1', nom: 'Alice', role: 'vendeur', heures_disponibles: {} },
-            { id: 'p2', nom: 'Bob', role: 'cuisinier', heures_disponibles: {} },
-            { id: 'p3', nom: 'Chloe', role: 'vendeur', heures_disponibles: {} },
-          ],
-          ventes: [],
-          parametres_commercant: [],
-          evenements_commercant: [],
-          creneaux_personnel: [
-            { id: 'c1', commercant_id: commercantId, personnel_id: 'p1', date_creneau: isoDemain, heure_debut: '08:00:00', heure_fin: '12:00:00', role: 'vendeur', origine: 'manuel' },
-            { id: 'c2', commercant_id: commercantId, personnel_id: 'p2', date_creneau: isoDemain, heure_debut: '10:30:00', heure_fin: '15:00:00', role: 'cuisinier', origine: 'manuel' },
-            { id: 'c3', commercant_id: commercantId, personnel_id: 'p3', date_creneau: isoDemain, heure_debut: '14:00:00', heure_fin: '22:00:00', role: 'vendeur', origine: 'manuel' },
-          ],
-        },
+      const tables = {
+        ventes: ventesCroissant,
+        produits: [{ id: 'prod-croissant', commercant_id: commercantId, nom: 'Croissant' }],
+        ingredients_produit: [
+          { id: 'ing1', commercant_id: commercantId, produit_id: 'prod-croissant', nom_ingredient: 'Beurre', quantite: 0.02, unite: 'kg' },
+          { id: 'ing2', commercant_id: commercantId, produit_id: 'prod-croissant', nom_ingredient: 'Farine', quantite: 0.05, unite: 'kg' },
+        ],
+        parametres_commercant: [],
+        evenements_commercant: [],
+      };
+
+      const pageCadencier = await browser.newPage();
+      await stubSupabaseAvecDonnees(pageCadencier, { commercantId, tables });
+
+      await test('le sélecteur de couverture existe, propose 1 à 14 jours et vaut 3 par défaut', async () => {
+        await pageCadencier.goto(BASE_URL + '/commandes.html');
+        const select = pageCadencier.locator('#selectCouverture');
+        await select.locator('option').first().waitFor({ state: 'attached' });
+        const valeurs = await select.locator('option').evaluateAll((opts) => opts.map((o) => o.value));
+        expect(valeurs.join(',')).toBe('1,2,3,4,5,6,7,8,9,10,11,12,13,14');
+        expect(await select.inputValue()).toBe('3');
       });
 
-      await test('affiche une colonne par heure couverte, avec le bon total au pic de chevauchement', async () => {
-        await pageAvecDonnees.goto(BASE_URL + '/personnel.html');
-        await pageAvecDonnees.locator('#couvertureCreneaux').waitFor({ state: 'visible' });
-
-        const labels = await pageAvecDonnees.locator('.couverture-label').allTextContents();
-        expect(labels[0]).toBe('8h');
-        expect(labels[labels.length - 1]).toBe('21h');
-
-        const valeurs = await pageAvecDonnees.locator('.couverture-valeur').allTextContents();
-        const indexOnzeH = labels.indexOf('11h');
-        const indexQuatorzeH = labels.indexOf('14h');
-        expect(valeurs[indexOnzeH]).toBe('2');
-        expect(valeurs[indexQuatorzeH]).toBe('2');
-        expect(valeurs[0]).toBe('1');
+      await test('l\'aperçu Habitude affiche un ingrédient regroupé sous une famille déduite, jargon-free', async () => {
+        await pageCadencier.goto(BASE_URL + '/commandes.html');
+        await pageCadencier.locator('#tableauApercuHabitude table').waitFor({ state: 'attached' });
+        const texteTableau = await pageCadencier.locator('#tableauApercuHabitude').innerText();
+        expect(texteTableau).toContain('Beurre');
+        expect(texteTableau).toContain('Farine');
+        // .apercu-habitude-famille est en text-transform: uppercase (CSS) ;
+        // innerText reflète le rendu visuel, donc les libellés remontent en
+        // majuscules ici — c'est le contenu textuel réel (familleDeduite)
+        // qui compte, pas la casse d'affichage.
+        expect(texteTableau.toUpperCase()).toContain('LAITAGES & ŒUFS');
+        expect(texteTableau.toUpperCase()).toContain('ÉPICERIE & PRODUITS SECS');
+        expect(texteTableau).not.toContain('B.O.F');
+        // Décision produit : pas de fournisseur affiché (aucune donnée en base).
+        expect(texteTableau.toLowerCase()).not.toContain('fournisseur');
       });
 
-      const pageSansCreneaux = await browser.newPage();
-      await stubSupabaseAvecDonnees(pageSansCreneaux, {
-        commercantId,
-        tables: {
-          personnel: [],
-          ventes: [],
-          parametres_commercant: [],
-          evenements_commercant: [],
-          creneaux_personnel: [],
-        },
+      await test('changer la période de couverture recalcule réellement l\'aperçu (pas un rendu statique)', async () => {
+        await pageCadencier.goto(BASE_URL + '/commandes.html');
+        await pageCadencier.locator('#tableauApercuHabitude table').waitFor({ state: 'attached' });
+        const totalAvant = await pageCadencier.locator('#tableauApercuHabitude').innerText();
+        await pageCadencier.selectOption('#selectCouverture', '10');
+        await pageCadencier.waitForTimeout(200);
+        const totalApres = await pageCadencier.locator('#tableauApercuHabitude').innerText();
+        expect(totalApres).not.toBe(totalAvant);
+        const texteApercu = await pageCadencier.locator('#texteApercuHabitude').innerText();
+        expect(texteApercu).toContain('10 jours');
       });
 
-      await test('reste masquée quand le jour affiché n\'a aucun créneau', async () => {
-        await pageSansCreneaux.goto(BASE_URL + '/personnel.html');
-        await pageSansCreneaux.waitForTimeout(600);
-        expect(await pageSansCreneaux.locator('#couvertureCreneaux').isVisible()).toBe(false);
-      });
-
-      await pageAvecDonnees.close();
-      await pageSansCreneaux.close();
+      await pageCadencier.close();
     });
 
-    await describe('personnel.html — Gantt nominatif par personne', async () => {
+    // Refonte sept. 2026 : l'Accueil devient minimal (2 cartes d'action + 3
+    // KPI, jamais de liste de produits — voir tableau-de-bord.html). La
+    // liste de production déménage sur previsions.html, avec des pastilles
+    // de catégorie déduites par mots-clés (même principe que familleDeduide
+    // pour les ingrédients — décision produit : "zéro friction", jamais de
+    // saisie ni de colonne "catégorie" en base).
+    await describe('tableau-de-bord.html — Accueil minimal (2 actions + 3 KPI)', async () => {
+      const commercantId = 'test-commercant-accueil';
+      const tables = {
+        ventes: [],
+        produits: [],
+        ingredients_produit: [],
+        parametres_commercant: [],
+        evenements_commercant: [],
+      };
+
+      const pageAccueil = await browser.newPage();
+      await stubSupabaseAvecDonnees(pageAccueil, { commercantId, tables });
+
+      await test("affiche exactement 2 cartes d'action et 3 cartes KPI, jamais de liste de produits", async () => {
+        await pageAccueil.goto(BASE_URL + '/tableau-de-bord.html');
+        await pageAccueil.locator('.action-carte').first().waitFor({ state: 'visible' });
+
+        expect(await pageAccueil.locator('.action-carte').count()).toBe(2);
+        expect(await pageAccueil.locator('.carte-kpi').count()).toBe(3);
+        // Pas de résidu de l'ancienne grille de produits (voir previsions.html).
+        expect(await pageAccueil.locator('#grilleTop3, #grilleRecommandations, .ligne-prod-jour').count()).toBe(0);
+      });
+
+      await test('les cartes d\'action mènent vers Prévisions et Commandes', async () => {
+        await pageAccueil.goto(BASE_URL + '/tableau-de-bord.html');
+        const hrefs = await pageAccueil.locator('.action-carte').evaluateAll((els) => els.map((e) => e.getAttribute('href')));
+        expect(hrefs.join(',')).toContain('previsions.html');
+        expect(hrefs.join(',')).toContain('commandes.html');
+      });
+
+      await pageAccueil.close();
+    });
+
+    await describe('previsions.html — production du jour, catégories déduites et ingrédients', async () => {
+      const commercantId = 'test-commercant-previsions';
+      const lundis = ['2026-08-03', '2026-08-10', '2026-08-17', '2026-08-24', '2026-08-31'];
+      const ventes = []
+        .concat(lundis.map((d) => ({ commercant_id: commercantId, nom_produit: 'Tradition', date_vente: d, quantite: 80 })))
+        .concat(lundis.map((d) => ({ commercant_id: commercantId, nom_produit: 'Croissant', date_vente: d, quantite: 50 })))
+        .concat(lundis.map((d) => ({ commercant_id: commercantId, nom_produit: 'Sandwich', date_vente: d, quantite: 20 })));
+
+      const tables = {
+        ventes: ventes,
+        produits: [],
+        ingredients_produit: [],
+        parametres_commercant: [],
+        evenements_commercant: [],
+      };
+
+      const pagePrevisions = await browser.newPage();
+      await stubSupabaseAvecDonnees(pagePrevisions, { commercantId, tables });
+
+      await test('affiche la production du jour en liste compacte (pas de cartes), tous produits confondus', async () => {
+        await pagePrevisions.goto(BASE_URL + '/previsions.html');
+        await pagePrevisions.locator('.ligne-prod-jour').first().waitFor({ state: 'visible' });
+        const noms = await pagePrevisions.locator('.ligne-prod-jour-nom').allTextContents();
+        expect(noms.sort().join(',')).toBe(['Croissant', 'Sandwich', 'Tradition'].sort().join(','));
+      });
+
+      await test('les pastilles de catégorie sont déduites du nom des produits, "Tous" en premier', async () => {
+        await pagePrevisions.goto(BASE_URL + '/previsions.html');
+        await pagePrevisions.locator('.pill-categorie').first().waitFor({ state: 'visible' });
+        const categories = await pagePrevisions.locator('.pill-categorie').allTextContents();
+        expect(categories[0]).toBe('Tous');
+        const texteCategories = categories.join(',');
+        expect(texteCategories).toContain('Boulangerie');
+        expect(texteCategories).toContain('Viennoiserie');
+        expect(texteCategories).toContain('Snacking');
+      });
+
+      await test('cliquer une pastille filtre la liste de production sur cette catégorie', async () => {
+        await pagePrevisions.goto(BASE_URL + '/previsions.html');
+        await pagePrevisions.locator('.pill-categorie').first().waitFor({ state: 'visible' });
+        await pagePrevisions.locator('.pill-categorie', { hasText: 'Snacking' }).click();
+        const noms = await pagePrevisions.locator('.ligne-prod-jour-nom').allTextContents();
+        expect(noms.join(',')).toBe('Sandwich');
+      });
+
+      await pagePrevisions.close();
+    });
+
+    await describe('commandes.html — pont depuis previsions.html (contexte jour + affluence)', async () => {
+      const commercantId = 'test-commercant-pont';
+      const tables = {
+        ventes: [],
+        produits: [],
+        ingredients_produit: [],
+        parametres_commercant: [],
+        evenements_commercant: [],
+      };
+
+      await test('le bandeau de contexte affiche le jour et l\'affluence transmis par l\'URL', async () => {
+        const pagePont = await browser.newPage();
+        await stubSupabaseAvecDonnees(pagePont, { commercantId, tables });
+        await pagePont.goto(BASE_URL + '/commandes.html?jour=2026-09-21&affluence=charge');
+        const bandeau = pagePont.locator('#bandeauContexteJour');
+        await bandeau.waitFor({ state: 'visible' });
+        const texte = await bandeau.innerText();
+        // capitaliser() met une majuscule initiale au nom du jour.
+        expect(texte).toContain('Lundi');
+        expect(texte).toContain('21/9');
+        expect(texte).toContain('jour chargé');
+        await pagePont.close();
+      });
+
+      await test('sans paramètres dans l\'URL, le bandeau de contexte reste masqué', async () => {
+        const pageSansContexte = await browser.newPage();
+        await stubSupabaseAvecDonnees(pageSansContexte, { commercantId, tables });
+        await pageSansContexte.goto(BASE_URL + '/commandes.html');
+        await pageSansContexte.waitForTimeout(500);
+        expect(await pageSansContexte.locator('#bandeauContexteJour').isVisible()).toBe(false);
+        await pageSansContexte.close();
+      });
+    });
+
+    await describe('previsions.html — pont vers Commandes (production du jour + semaine)', async () => {
+      const commercantId = 'test-commercant-previsions-pont';
+      const tables = {
+        ventes: [{ commercant_id: commercantId, nom_produit: 'Croissant', date_vente: '2026-08-03', quantite: 40 }],
+        produits: [],
+        ingredients_produit: [],
+        parametres_commercant: [],
+        evenements_commercant: [],
+      };
+
+      const pagePrevisionsPont = await browser.newPage();
+      await stubSupabaseAvecDonnees(pagePrevisionsPont, { commercantId, tables });
+
+      await test('un seul CTA "Préparer la commande" pour le jour sélectionné, avec jour + affluence dans l\'URL', async () => {
+        await pagePrevisionsPont.goto(BASE_URL + '/previsions.html');
+        const lien = pagePrevisionsPont.locator('#blocPontCommandes a.btn-cta-commandes');
+        await lien.waitFor({ state: 'visible' });
+        expect(await lien.count()).toBe(1);
+        const href = await lien.getAttribute('href');
+        expect(href.indexOf('commandes.html?jour=') === 0).toBe(true);
+        expect(href).toContain('&affluence=');
+      });
+
+      await test('cliquer un autre jour du bandeau change le jour sélectionné et le CTA associé', async () => {
+        await pagePrevisionsPont.goto(BASE_URL + '/previsions.html');
+        await pagePrevisionsPont.locator('.chip-jour').first().waitFor({ state: 'visible' });
+        const hrefAvant = await pagePrevisionsPont.locator('#blocPontCommandes a.btn-cta-commandes').getAttribute('href');
+
+        const chips = pagePrevisionsPont.locator('.chip-jour:not(.chip-jour--ferme)');
+        await chips.nth(1).click();
+
+        const hrefApres = pagePrevisionsPont.locator('#blocPontCommandes a.btn-cta-commandes');
+        await hrefApres.waitFor({ state: 'visible' });
+        expect(await hrefApres.getAttribute('href')).not.toBe(hrefAvant);
+        // Toujours un seul CTA, jamais un par jour.
+        expect(await pagePrevisionsPont.locator('#blocPontCommandes a.btn-cta-commandes').count()).toBe(1);
+      });
+
+      await pagePrevisionsPont.close();
+    });
+
+    await describe('semaine.html — redirection vers Prévisions (page absorbée)', async () => {
+      await test('semaine.html redirige vers previsions.html', async () => {
+        const pageRedir = await browser.newPage();
+        await pageRedir.goto(BASE_URL + '/semaine.html');
+        await pageRedir.waitForURL('**/previsions.html');
+        await pageRedir.close();
+      });
+    });
+
+    await describe('personnel.html — Planning nominatif (Secteur > Poste)', async () => {
       const commercantId = 'test-commercant-gantt';
       const demain = new Date();
       demain.setDate(demain.getDate() + 1);
       const isoDemain = demain.toISOString().slice(0, 10);
+
+      const secteursFixture = [
+        { id: 'salle', commercant_id: commercantId, nom: 'Salle', couleur: '#4caf6d', ordre: 0 },
+        { id: 'bar', commercant_id: commercantId, nom: 'Bar', couleur: '#5a9ebf', ordre: 1 },
+      ];
+      const postesFixture = [
+        { id: 'generique', commercant_id: commercantId, secteur_id: 'salle', nom: 'Générique', ordre: 0 },
+        { id: 'generique', commercant_id: commercantId, secteur_id: 'bar', nom: 'Générique', ordre: 0 },
+      ];
 
       const pageGantt = await browser.newPage();
       await stubSupabaseAvecDonnees(pageGantt, {
         commercantId,
         tables: {
           personnel: [
-            { id: 'p1', nom: 'Vincent', role: 'salle', heures_disponibles: {} },
-            { id: 'p2', nom: 'Océane', role: 'manager', heures_disponibles: {} },
-            { id: 'p4', nom: 'Mirella', role: 'bar', heures_disponibles: {} },
+            { id: 'p1', nom: 'Vincent', secteur_id: 'salle', poste_id: 'generique', type_contrat: 'Fixe', niveau_hierarchie: 1, contrat_hebdo: 35, jours_repos: [], alternance_weekend: false, statut_compte: 'actif', heures_disponibles: {} },
+            { id: 'p2', nom: 'Océane', secteur_id: 'salle', poste_id: 'generique', type_contrat: 'Fixe', niveau_hierarchie: 2, contrat_hebdo: 35, jours_repos: [], alternance_weekend: false, statut_compte: 'non_invite', heures_disponibles: {} },
+            { id: 'p4', nom: 'Mirella', secteur_id: 'bar', poste_id: 'generique', type_contrat: 'Extra', niveau_hierarchie: 3, contrat_hebdo: 0, jours_repos: [], alternance_weekend: false, statut_compte: 'non_invite', heures_disponibles: {} },
           ],
           ventes: [],
           parametres_commercant: [],
           evenements_commercant: [],
+          secteurs_personnel: secteursFixture,
+          postes_personnel: postesFixture,
           creneaux_personnel: [
-            { id: 'c1', commercant_id: commercantId, personnel_id: 'p1', date_creneau: isoDemain, heure_debut: '11:00:00', heure_fin: '15:00:00', role: 'salle', origine: 'manuel' },
-            { id: 'c1b', commercant_id: commercantId, personnel_id: 'p1', date_creneau: isoDemain, heure_debut: '18:00:00', heure_fin: '23:00:00', role: 'salle', origine: 'manuel' },
-            { id: 'c2', commercant_id: commercantId, personnel_id: 'p2', date_creneau: isoDemain, heure_debut: '10:00:00', heure_fin: '18:00:00', role: 'manager', origine: 'manuel' },
+            { id: 'c1', commercant_id: commercantId, personnel_id: 'p1', date_creneau: isoDemain, heure_debut: '11:00:00', heure_fin: '15:00:00', secteur_id: 'salle', poste_id: 'generique', origine: 'manuel' },
+            { id: 'c1b', commercant_id: commercantId, personnel_id: 'p1', date_creneau: isoDemain, heure_debut: '18:00:00', heure_fin: '23:00:00', secteur_id: 'salle', poste_id: 'generique', origine: 'manuel' },
+            { id: 'c2', commercant_id: commercantId, personnel_id: 'p2', date_creneau: isoDemain, heure_debut: '10:00:00', heure_fin: '18:00:00', secteur_id: 'salle', poste_id: 'generique', origine: 'manuel' },
             // Créneau traversant minuit : cas piège trouvé en développant (heure_fin < heure_debut).
-            { id: 'c4', commercant_id: commercantId, personnel_id: 'p4', date_creneau: isoDemain, heure_debut: '19:00:00', heure_fin: '02:00:00', role: 'bar', origine: 'manuel' },
+            { id: 'c4', commercant_id: commercantId, personnel_id: 'p4', date_creneau: isoDemain, heure_debut: '19:00:00', heure_fin: '02:00:00', secteur_id: 'bar', poste_id: 'generique', origine: 'manuel' },
           ],
         },
       });
 
       await test('affiche une ligne par personne avec ses créneaux, total d\'heures inclus', async () => {
         await pageGantt.goto(BASE_URL + '/personnel.html');
-        await pageGantt.locator('#zoneGanttPersonnel').waitFor({ state: 'visible' });
+        await pageGantt.locator('#ganttGrille .gantt-nom-cell').first().waitFor({ state: 'visible' });
 
-        const noms = await pageGantt.locator('.gantt-cellule-nom:not(.gantt-entete)').allTextContents();
+        const noms = await pageGantt.locator('.gantt-nom').allTextContents();
         expect(noms.join(',')).toContain('Vincent');
         expect(noms.join(',')).toContain('Océane');
         expect(noms.join(',')).toContain('Mirella');
 
-        // Vincent a 2 créneaux (11h-15h + 18h-23h) : 2 barres sur sa ligne.
-        const barresVincent = await pageGantt.locator('.gantt-piste').first().locator('.gantt-barre').count();
-        expect(barresVincent).toBe(2);
+        // Vincent a 2 créneaux (11h-15h + 18h-23h) : 2 blocs sur sa ligne.
+        const blocsVincent = await pageGantt.locator('.gantt-piste').first().locator('.gantt-bloc').count();
+        expect(blocsVincent).toBe(2);
       });
 
       await test('un créneau traversant minuit (19h-02h) est rendu avec une largeur cohérente, pas rejeté', async () => {
         await pageGantt.goto(BASE_URL + '/personnel.html');
-        await pageGantt.locator('#zoneGanttPersonnel').waitFor({ state: 'visible' });
+        await pageGantt.locator('#ganttGrille .gantt-nom-cell').first().waitFor({ state: 'visible' });
 
-        // La ligne de Mirella est la 3e (après Vincent et Océane) : une seule barre, 19:00–02:00.
         const pistes = pageGantt.locator('.gantt-piste');
-        const barreMirella = pistes.nth(2).locator('.gantt-barre');
-        expect(await barreMirella.count()).toBe(1);
-        expect(await barreMirella.textContent()).toContain('19:00');
-        expect(await barreMirella.textContent()).toContain('02:00');
+        const blocMirella = pistes.nth(2).locator('.gantt-bloc');
+        expect(await blocMirella.count()).toBe(1);
+        expect(await blocMirella.textContent()).toContain('19h');
+        expect(await blocMirella.textContent()).toContain('02h');
 
-        // La grille d'heures doit s'étendre jusqu'après minuit (au moins jusqu'à "1h"),
-        // pas s'arrêter à 24h — sinon le créneau de Mirella serait tronqué visuellement.
-        const labelsHeure = await pageGantt.locator('.gantt-label-heure').allTextContents();
-        expect(labelsHeure.join(',')).toContain('1h');
+        // L'axe des heures s'étend de 3h à 3h le lendemain : doit couvrir l'après-minuit.
+        const entetesHeure = await pageGantt.locator('.gantt-heure-entete').allTextContents();
+        expect(entetesHeure.join(',')).toContain('01h');
       });
 
-      await test('la colonne des noms et le total restent en position sticky (scrollables horizontalement)', async () => {
+      await test('la colonne des noms reste en position sticky (scrollable horizontalement)', async () => {
         await pageGantt.goto(BASE_URL + '/personnel.html');
-        await pageGantt.locator('#zoneGanttPersonnel').waitFor({ state: 'visible' });
-        const position = await pageGantt.locator('.gantt-cellule-nom').first().evaluate((el) => getComputedStyle(el).position);
+        await pageGantt.locator('#ganttGrille .gantt-nom-cell').first().waitFor({ state: 'visible' });
+        const position = await pageGantt.locator('.gantt-nom-cell').first().evaluate((el) => getComputedStyle(el).position);
         expect(position).toBe('sticky');
       });
 
-      await test('reste masqué quand le jour affiché n\'a aucun créneau', async () => {
+      await test('un Extra affiche son badge de type de contrat', async () => {
         await pageGantt.goto(BASE_URL + '/personnel.html');
-        await pageGantt.evaluate(() => {
-          document.getElementById('btnPlanningJourSuiv').click();
-          document.getElementById('btnPlanningJourSuiv').click();
-          document.getElementById('btnPlanningJourSuiv').click();
-        });
-        await pageGantt.waitForTimeout(400);
-        expect(await pageGantt.locator('#zoneGanttPersonnel').isVisible()).toBe(false);
+        await pageGantt.locator('.badge-typecontrat--extra').waitFor({ state: 'visible' });
+        expect(await pageGantt.locator('.badge-typecontrat--extra').textContent()).toBe('Extra');
+      });
+
+      await test('la légende affiche un secteur par pastille, plus le bouton de gestion des postes', async () => {
+        await pageGantt.goto(BASE_URL + '/personnel.html');
+        await pageGantt.locator('.pastille-poste-nom').first().waitFor({ state: 'visible' });
+        const nomsSecteurs = await pageGantt.locator('.pastille-poste-nom').allTextContents();
+        expect(nomsSecteurs.join(',')).toContain('Salle');
+        expect(nomsSecteurs.join(',')).toContain('Bar');
+        expect(await pageGantt.locator('.btn-gerer-postes').isVisible()).toBe(true);
       });
 
       await pageGantt.close();
+    });
+
+    // Module partagé introduit le 16 septembre 2026 : avant, le moteur de
+    // prévision (moyenne pondérée, exclusion des valeurs aberrantes, jours
+    // fériés/vacances scolaires, recommandations...) était copié-collé à
+    // l'identique dans tableau-de-bord.html, semaine.html, commandes.html et
+    // personnel.html. Ces tests valident directement moteur-prevision.js
+    // (chargé par tableau-de-bord.html, donc déjà présent sur window), pour
+    // qu'une régression du calcul soit détectée une seule fois, au même
+    // endroit que le calcul lui-même.
+    await describe('moteur-prevision.js — module partagé', async () => {
+      const pageMP = await browser.newPage();
+      await stubSupabase(pageMP);
+      await pageMP.goto(BASE_URL + '/tableau-de-bord.html');
+
+      await test('expose toutes les fonctions attendues sur window.MoteurPrevision', async () => {
+        const cles = await pageMP.evaluate(() => Object.keys(window.MoteurPrevision).sort());
+        [
+          'calculerRecommandation', 'calculerConsommationIngredients', 'calculerFourchette',
+          'exclureValeursAberrantes', 'moyennePonderee', 'estJourFerie', 'zoneVacancesPourCodePostal',
+          'estEnVacances', 'calculerPrevisionSemaine', 'calculerFiabilite', 'obtenirCoordonnees',
+          'prochainsJoursOuverts', 'formatNomAffichage',
+        ].forEach((nom) => expect(cles.indexOf(nom) !== -1).toBe(true));
+      });
+
+      await test('estJourFerie reconnaît les jours fériés à date fixe', async () => {
+        const resultats = await pageMP.evaluate(() => {
+          const MP = window.MoteurPrevision;
+          return [
+            MP.estJourFerie(new Date(2026, 0, 1)),   // 1er janvier
+            MP.estJourFerie(new Date(2026, 4, 1)),   // 1er mai
+            MP.estJourFerie(new Date(2026, 6, 14)),  // 14 juillet
+            MP.estJourFerie(new Date(2026, 11, 25)), // 25 décembre
+            MP.estJourFerie(new Date(2026, 6, 20)),  // 20 juillet : jour ordinaire
+          ];
+        });
+        expect(resultats[0]).toBe(true);
+        expect(resultats[1]).toBe(true);
+        expect(resultats[2]).toBe(true);
+        expect(resultats[3]).toBe(true);
+        expect(resultats[4]).toBe(false);
+      });
+
+      await test('zoneVacancesPourCodePostal renvoie la bonne zone, ou null si non couvert', async () => {
+        const resultats = await pageMP.evaluate(() => {
+          const MP = window.MoteurPrevision;
+          return [
+            MP.zoneVacancesPourCodePostal('75001'), // Paris → zone C
+            MP.zoneVacancesPourCodePostal('69001'), // Lyon → zone A
+            MP.zoneVacancesPourCodePostal('20000'), // Corse → non couvert
+            MP.zoneVacancesPourCodePostal('abcde'), // invalide
+          ];
+        });
+        expect(resultats[0]).toBe('C');
+        expect(resultats[1]).toBe('A');
+        expect(resultats[2]).toBe(null);
+        expect(resultats[3]).toBe(null);
+      });
+
+      await test('exclureValeursAberrantes écarte une valeur isolée très éloignée du reste', async () => {
+        const resultat = await pageMP.evaluate(() => {
+          const ventes = [10, 11, 9, 10, 12, 100].map((q, i) => ({ date_vente: '2026-01-0' + (i + 1), quantite: q }));
+          return window.MoteurPrevision.exclureValeursAberrantes(ventes);
+        });
+        expect(resultat.nbExclus).toBe(1);
+        expect(resultat.ventesFiltrees).toHaveLength(5);
+      });
+
+      await test('exclureValeursAberrantes ne filtre rien sous 5 points (historique trop court)', async () => {
+        const resultat = await pageMP.evaluate(() => {
+          const ventes = [10, 11, 200].map((q, i) => ({ date_vente: '2026-01-0' + (i + 1), quantite: q }));
+          return window.MoteurPrevision.exclureValeursAberrantes(ventes);
+        });
+        expect(resultat.nbExclus).toBe(0);
+        expect(resultat.ventesFiltrees).toHaveLength(3);
+      });
+
+      await test('moyennePonderee d\'une série constante renvoie cette constante', async () => {
+        const moyenne = await pageMP.evaluate(() => {
+          const ventes = [10, 10, 10, 10].map((q, i) => ({ date_vente: '2026-01-0' + (i + 1), quantite: q }));
+          return window.MoteurPrevision.moyennePonderee(ventes);
+        });
+        expect(moyenne).toBe(10);
+      });
+
+      await test('calculerFourchette renvoie null sous 2 points d\'historique', async () => {
+        const resultat = await pageMP.evaluate(() => {
+          return window.MoteurPrevision.calculerFourchette([{ date_vente: '2026-01-01', quantite: 10 }], 10, 11);
+        });
+        expect(resultat).toBe(null);
+      });
+
+      await test('calculerRecommandation renvoie une structure complète et un delta cohérent', async () => {
+        const resultat = await pageMP.evaluate(() => {
+          // 5 lundis consécutifs, quantités stables autour de 20 : le lundi
+          // suivant doit être calculé sur cette base, sans férié/vacances.
+          const lundis = ['2025-08-04', '2025-08-11', '2025-08-18', '2025-08-25', '2025-09-01'];
+          const ventes = lundis.map((d) => ({ date_vente: d, quantite: 20 }));
+          const jourCible = new Date(2025, 8, 8); // lundi 8 septembre 2025
+          return window.MoteurPrevision.calculerRecommandation(ventes, jourCible, null, {}, {}, {});
+        });
+        expect(resultat.quantite).toBeGreaterThan(0);
+        expect(resultat.memeJourSemaine).toBe(true);
+        expect(resultat.nomJourCible).toBe('lundi');
+        expect(resultat.delta).toBe(resultat.quantite - 20);
+      });
+
+      await test('formatNomAffichage normalise la casse et les espaces superflus', async () => {
+        const resultats = await pageMP.evaluate(() => {
+          const MP = window.MoteurPrevision;
+          return [MP.formatNomAffichage('  CROISSANT  '), MP.formatNomAffichage('pain au chocolat')];
+        });
+        expect(resultats[0]).toBe('Croissant');
+        expect(resultats[1]).toBe('Pain au chocolat');
+      });
+
+      await pageMP.close();
     });
   } finally {
     await browser.close();

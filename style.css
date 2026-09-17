@@ -60,8 +60,12 @@ body {
   padding: 32px 20px 60px;
 }
 
+/* 1040px : largeur de la maquette validée pour Accueil / Prévisions /
+   Commandes (le nav-globale à 4 liens + les grilles à 2-3 colonnes ont
+   besoin de cette largeur pour tenir sur une ligne en desktop, voir
+   .nav-globale). */
 .conteneur--large {
-  max-width: 620px;
+  max-width: 1040px;
 }
 
 .conteneur--moyen {
@@ -74,8 +78,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px 20px;
+  flex-wrap: nowrap;
+  gap: 18px 28px;
   margin-bottom: 28px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--bordure);
@@ -87,6 +91,7 @@ body {
   gap: 7px;
   text-decoration: none;
   color: var(--ink);
+  flex-shrink: 0;
 }
 
 .logo-marque {
@@ -94,100 +99,178 @@ body {
   flex-shrink: 0;
 }
 
+/* #navPrincipale : nav peuplée dynamiquement par nav.js sur les pages
+   connectées (classe .nav-globale ajoutée par nav.js). .nav-principale :
+   nav statique restante sur cgu.html (page publique, sans nav.js) — garde
+   l'ancien style simple, cette page n'a pas la nouvelle structure à 3
+   niveaux. */
 .nav-principale {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 4px 18px;
 }
 
-.nav-lien {
-  font-size: 13px;
+/* ---------- Nav globale (refonte sept. 2026, maquette validée) ----------
+   Accueil / Prévisions / Planning : toujours visibles (.nav-lien-g).
+   Mes produits / Commandes / Imports : visibles en desktop, repliés dans
+   le ☰ sous 720px (.nav-lien-g--repli).
+   Nav secondaire (Paramètres / Aide) : bloc à part, toujours visible en
+   desktop, repliée elle aussi dans le ☰ sous 720px.
+   ☰ : bouton + panneau, visibles uniquement sous 720px.
+   .nav-globale / .nav-secondaire / .btn-hamburger sont des SIBLINGS de
+   .logo dans .entete-site (nav.js les ajoute ainsi, jamais imbriqués) :
+   .nav-globale prend toute la place restante (flex:1, défilement
+   horizontal en dernier recours) pour que tout tienne sur une seule ligne
+   en desktop, quelle que soit la largeur. */
+.nav-globale {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.nav-globale::-webkit-scrollbar {
+  display: none;
+}
+
+.nav-lien-g {
+  font-size: 13.5px;
   font-weight: 500;
   color: var(--texte-attenue);
   text-decoration: none;
+  white-space: nowrap;
   padding: 4px 0;
   border-bottom: 2px solid transparent;
 }
 
-.nav-lien:hover {
+.nav-lien-g:hover {
   color: var(--texte);
 }
 
-.nav-lien.nav-actif {
+.nav-lien-g.actif {
   color: var(--accent);
   font-weight: 600;
   border-bottom-color: var(--accent);
 }
 
-/* ---------- Sous-menu de navigation (ex : "Activité") ---------- */
-
-.nav-menu {
-  position: relative;
-  display: inline-flex;
-}
-
-.nav-lien--menu {
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.nav-menu-fleche {
-  font-size: 10px;
-  display: inline-block;
-}
-
-.nav-sous-menu {
-  display: none;
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 20;
-  min-width: 160px;
-  margin-top: 6px;
-  padding: 6px;
-  background: var(--surface);
-  border: 1px solid var(--bordure);
-  border-radius: var(--rayon);
-  box-shadow: var(--ombre);
-  flex-direction: column;
-}
-
-/* Survol souris (desktop) */
-.nav-menu:hover .nav-sous-menu {
+.nav-secondaire {
   display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
 }
 
-/* Tap mobile / clic desktop : nav.js bascule cette classe */
-.nav-menu--ouvert .nav-sous-menu {
-  display: flex;
-}
-
-.nav-sous-lien {
-  padding: 7px 10px;
-  border-radius: var(--rayon);
-  font-size: 13px;
+.nav-lien-s {
+  font-size: 12.5px;
   font-weight: 500;
-  color: var(--texte-attenue);
+  color: var(--texte-tres-attenue);
   text-decoration: none;
-  white-space: nowrap;
 }
 
-.nav-sous-lien:hover {
-  color: var(--texte);
-  background: var(--fond);
+.nav-lien-s:hover {
+  color: var(--texte-attenue);
 }
 
-.nav-sous-lien.nav-actif {
+.nav-lien-s.actif {
   color: var(--accent);
   font-weight: 600;
 }
 
-.nav-lien--discret {
-  opacity: 0.7;
-  font-size: 12px;
+.btn-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* .panneau-hamburger : sibling du <header class="entete-site"> lui-même
+   (nav.js l'insère juste après), pas un dropdown accroché au bouton —
+   pleine largeur, sous la barre, comme dans la maquette validée. */
+.panneau-hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0 18px;
+}
+
+.panneau-hamburger--ouvert {
+  display: flex;
+}
+
+.nav-lien-h {
+  padding: 11px 4px;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--texte);
+  text-decoration: none;
+  border-bottom: 1px solid var(--bordure);
+}
+
+.nav-lien-h:last-child {
+  border-bottom: none;
+}
+
+.nav-lien-h:hover {
+  color: var(--accent);
+}
+
+.nav-lien-h.actif {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Au-delà de 720px : jamais de burger, jamais de deuxième ligne, quelle que
+   soit la largeur (.nav-globale défile horizontalement en dernier recours
+   plutôt que de casser la ligne). Filet de sécurité si le panneau était
+   resté ouvert avant un agrandissement de fenêtre. */
+@media (min-width: 721px) {
+  .panneau-hamburger {
+    display: none !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .entete-site {
+    flex-wrap: wrap;
+  }
+
+  .nav-secondaire,
+  .nav-lien-g--repli {
+    display: none;
+  }
+
+  .btn-hamburger {
+    display: inline-flex;
+    order: 2;
+    margin-left: auto;
+  }
+
+  .logo {
+    order: 1;
+  }
+
+  /* La nav rapide passe systématiquement sur sa propre ligne, sous la
+     ligne logo/burger : jamais sur la même ligne que le burger, jamais
+     responsable de le pousser en dessous (bug retour utilisateur, sept.
+     2026, corrigé en alignant la structure sur la maquette validée). */
+  .nav-globale {
+    order: 3;
+    flex-basis: 100%;
+    margin-top: 2px;
+  }
 }
 
 /* ---------- Typographie générale ---------- */
@@ -394,8 +477,8 @@ button:disabled {
 }
 
 .eyebrow {
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-size: 12px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--texte-tres-attenue);
   margin: 0 0 4px;
@@ -846,7 +929,502 @@ button.lien-supprimer:hover {
   }
 }
 
-/* ---------- Signal d'affluence de la semaine (carte "Cette semaine") ---------- */
+/* ---------- Accueil (refonte sept. 2026) : 2 cartes d'action + 3 KPI,
+   jamais de liste de produits ici (voir previsions.html). ---------- */
+
+.pill-tendance {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+  margin-top: 4px;
+}
+
+.pill-tendance--charge {
+  background: rgba(226, 88, 74, 0.12);
+  color: #c14a3a;
+}
+
+.pill-tendance--calme {
+  background: rgba(76, 175, 109, 0.14);
+  color: #2f8f52;
+}
+
+.pill-tendance--neutre {
+  background: var(--fond);
+  color: var(--texte-attenue);
+  border: 1px solid var(--bordure);
+}
+
+.actions-prioritaires {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin: 28px 0 34px;
+}
+
+.action-carte {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--accent-fonce);
+  border: 1px solid var(--accent-fonce);
+  border-radius: var(--rayon-lg);
+  box-shadow: var(--ombre);
+  padding: 22px 24px;
+  text-decoration: none;
+  color: var(--sombre-texte);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.action-carte:hover {
+  background-color: #16140f;
+  transform: translateY(-1px);
+}
+
+.action-carte-texte {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.action-carte-titre {
+  font-family: var(--police-titre);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.action-carte-detail {
+  font-size: 12.5px;
+  color: var(--sombre-texte-attenue);
+}
+
+.action-carte-fleche {
+  font-size: 22px;
+  color: var(--sombre-texte-attenue);
+  flex-shrink: 0;
+}
+
+.section-bilan h2 {
+  font-family: var(--police-titre);
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 14px;
+}
+
+.grille-kpi {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.carte-kpi {
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-lg);
+  box-shadow: var(--ombre);
+  padding: 16px 18px;
+}
+
+.carte-kpi-titre {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--texte-attenue);
+  margin: 0 0 6px;
+}
+
+.carte-kpi-valeur {
+  font-family: var(--police-titre);
+  font-size: 26px;
+  font-weight: 600;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.carte-kpi-valeur--hausse {
+  color: #2f8f52;
+}
+
+.carte-kpi-valeur--neutre {
+  color: var(--ink);
+}
+
+.carte-kpi-detail {
+  font-size: 11.5px;
+  color: var(--texte-tres-attenue);
+  margin: 5px 0 0;
+}
+
+@media (max-width: 620px) {
+  .actions-prioritaires,
+  .grille-kpi {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Prévisions (refonte sept. 2026, v2 claire) ----------
+   Remplace l'ancien habillage sombre "tableau-sombre" hérité du tableau de
+   bord et de semaine.html : sur une page aussi dense (production +
+   ingrédients + semaine + fiabilité), de gros aplats noirs empilés
+   étouffent la lecture. On repasse sur des cartes claires, ombre douce,
+   bordure discrète — cohérent avec le reste du site (voir .carte-page). */
+
+.carte-claire {
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-lg);
+  box-shadow: var(--ombre);
+  padding: 22px 20px;
+}
+
+.claire-entete {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.claire-date {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--texte-tres-attenue);
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.claire-titre {
+  font-family: var(--police-titre);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--texte);
+  margin: 0;
+}
+
+.claire-titre--petit {
+  font-size: 14px;
+  font-family: var(--police);
+  font-weight: 600;
+  color: var(--texte-attenue);
+  margin-bottom: 10px;
+}
+
+.claire-badge {
+  font-size: 11px;
+  color: var(--texte-attenue);
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+
+.section-titre-clair {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--texte-tres-attenue);
+  font-weight: 600;
+  margin: 22px 0 10px;
+}
+
+/* ---------- Bandeau des 7 prochains jours : chips compactes avec un point
+   de couleur pour l'affluence, jamais de texte répété. Défile
+   horizontalement plutôt que de forcer 7 cartes sur une grille. ---------- */
+
+.semaine-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px 12px;
+  margin-bottom: 4px;
+}
+
+.chip-jour {
+  width: auto;
+  margin: 0;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 9px 14px;
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-radius: 14px;
+  cursor: pointer;
+  font-family: var(--police);
+}
+
+.chip-jour-nom {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--texte);
+}
+
+.chip-jour-date {
+  font-size: 10.5px;
+  color: var(--texte-attenue);
+}
+
+.chip-jour-point {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--texte-tres-attenue);
+  margin-top: 2px;
+}
+
+.chip-jour--charge .chip-jour-point { background: #d1483a; }
+.chip-jour--calme .chip-jour-point { background: #2f8f52; }
+.chip-jour--ferie .chip-jour-point { background: #c99a3a; }
+.chip-jour--vacances .chip-jour-point { background: #5a9ebf; }
+.chip-jour--ferme .chip-jour-point { background: var(--texte-tres-attenue); }
+
+.chip-jour--ferme {
+  opacity: 0.55;
+}
+
+.chip-jour.actif {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.chip-jour.actif .chip-jour-nom,
+.chip-jour.actif .chip-jour-date {
+  color: var(--surface);
+}
+
+/* ---------- Détail du jour sélectionné (affluence + signalement) ---------- */
+
+.bloc-jour-detail {
+  margin: 4px 0 4px;
+}
+
+.detail-jour-texte {
+  font-size: 13px;
+  color: var(--texte-attenue);
+  margin: 6px 0 0;
+}
+
+.detail-meteo {
+  font-size: 12.5px;
+  color: var(--texte-attenue);
+  margin: 4px 0 0;
+}
+
+.actions-jour {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* ---------- Filtres catégories + liste de production compacte ---------- */
+
+.filtres-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 20px;
+}
+
+.pill-categorie {
+  width: auto;
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--bordure);
+  background: var(--fond);
+  color: var(--texte-attenue);
+  cursor: pointer;
+}
+
+.pill-categorie:hover {
+  border-color: var(--texte-attenue);
+}
+
+.pill-categorie.actif {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+}
+
+.info-bulle {
+  display: inline-block;
+  position: relative;
+  font-size: 12px;
+  color: var(--texte-tres-attenue);
+  border: 1px solid var(--bordure);
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  line-height: 15px;
+  text-align: center;
+  cursor: help;
+  margin-left: 4px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.info-bulle:hover .info-bulle-texte {
+  display: block;
+}
+
+.info-bulle-texte {
+  display: none;
+  position: absolute;
+  bottom: 130%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  padding: 10px 12px;
+  font-size: 11.5px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--texte-attenue);
+  box-shadow: var(--ombre);
+  z-index: 10;
+}
+
+.liste-production {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--bordure);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.ligne-prod-jour {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--surface);
+  padding: 13px 16px;
+}
+
+.ligne-prod-jour + .ligne-prod-jour {
+  border-top: 1px solid var(--bordure);
+}
+
+.ligne-prod-jour-nom {
+  font-size: 13.5px;
+  color: var(--texte);
+  font-weight: 500;
+}
+
+.ligne-prod-jour-quantite {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--police);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--texte);
+  white-space: nowrap;
+}
+
+.carte-vide-claire {
+  background: var(--fond);
+  border: 1px dashed var(--bordure);
+  border-radius: 14px;
+  padding: 22px;
+  text-align: center;
+  color: var(--texte-attenue);
+  font-size: 14px;
+}
+
+.carte-vide-claire a {
+  color: var(--texte);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tags-ingredients {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.tag-ingredient {
+  font-size: 12px;
+  color: var(--texte-attenue);
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+  padding: 5px 12px;
+}
+
+.tag-ingredient strong {
+  color: var(--texte);
+  font-weight: 700;
+}
+
+.bloc-pont-commandes {
+  margin-top: 20px;
+}
+
+.btn-cta-commandes {
+  display: inline-block;
+  width: auto;
+  margin: 0;
+  padding: 12px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  background-color: var(--accent);
+  border-radius: var(--rayon);
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.btn-cta-commandes:hover {
+  background-color: var(--accent-fonce);
+}
+
+.ligne-fiabilite {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ligne-fiabilite .valeur {
+  font-family: var(--police);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--texte);
+  margin: 0;
+}
+
+.ligne-fiabilite .detail {
+  font-size: 12.5px;
+  color: var(--texte-attenue);
+  margin: 0;
+}
+
+.ligne-fiabilite.actif .valeur {
+  color: #2f8f52;
+}
+
+/* ---------- Signal d'affluence du jour sélectionné (Prévisions) ---------- */
 
 .badge-jour {
   display: inline-block;
@@ -854,39 +1432,38 @@ button.lien-supprimer:hover {
   font-weight: 700;
   padding: 3px 10px;
   border-radius: 999px;
-  margin: 0 0 6px;
 }
 
 .badge-jour--charge {
-  background: rgba(226, 88, 74, 0.16);
-  color: var(--sombre-baisse);
+  background: rgba(209, 72, 58, 0.1);
+  color: #b23f30;
 }
 
 .badge-jour--calme {
-  background: rgba(76, 175, 109, 0.16);
-  color: var(--sombre-hausse);
+  background: rgba(47, 143, 82, 0.1);
+  color: #2f8f52;
 }
 
 .badge-jour--normal {
-  background: var(--sombre-fond);
-  color: var(--sombre-texte-attenue);
-  border: 1px solid var(--sombre-bordure);
+  background: var(--fond);
+  color: var(--texte-attenue);
+  border: 1px solid var(--bordure);
 }
 
 .badge-jour--ferie {
-  background: rgba(214, 168, 74, 0.18);
-  color: #d9b65c;
+  background: rgba(201, 154, 58, 0.14);
+  color: #a67a2a;
 }
 
 .badge-jour--vacances {
-  background: rgba(90, 158, 191, 0.18);
-  color: #6fb3d9;
+  background: rgba(90, 158, 191, 0.14);
+  color: #3f7f9e;
 }
 
 .badge-jour--ferme {
   background: transparent;
-  border: 1px dashed var(--sombre-bordure);
-  color: var(--sombre-texte-attenue);
+  border: 1px dashed var(--bordure);
+  color: var(--texte-attenue);
 }
 
 /* ---------- Modal disponibilités (page Personnel) ---------- */
@@ -901,6 +1478,12 @@ button.lien-supprimer:hover {
   padding: 16px;
   z-index: 100;
 }
+
+/* Les modales du Planning nominatif (maquette) sont masquées via l'attribut
+   [hidden], pas via style="display:none" comme les anciennes modales de
+   cette page — sans cette règle, .fond-modal { display:flex } l'emporterait
+   sur le display:none par défaut du navigateur pour [hidden]. */
+.fond-modal[hidden] { display: none; }
 
 .contenu-modal {
   background: var(--fond);
@@ -952,191 +1535,589 @@ button.lien-supprimer:hover {
   flex: 1;
 }
 
-/* ---------- Navigation multi-jours (tableau de bord) ---------- */
+.contenu-modal--large { max-width: 480px; }
 
-.nav-jours {
+/* ---------- Formulaires de modale (planning nominatif, maquette validée) ---------- */
+
+.champ-modal { margin-bottom: 12px; }
+
+.champ-modal label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--texte-attenue);
+  margin-bottom: 4px;
+}
+
+.champ-modal select,
+.champ-modal input[type="text"],
+.champ-modal input[type="number"],
+.champ-modal input[type="email"] {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--surface);
+  color: var(--texte);
+}
+
+.champ-modal input:focus,
+.champ-modal select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.champ-modal--case label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--texte);
+  cursor: pointer;
+}
+
+.champ-modal--case input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--ink);
+}
+
+/* Statut de compte employé (invitation) : un badge + un lien d'action,
+   jamais deux boutons séparés qui feraient double emploi avec
+   "Enregistrer" en bas de la modale. */
+.champ-statut-compte {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.badge-statut-compte {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.badge-statut-compte--non-invite {
+  background: var(--fond);
+  color: var(--texte-tres-attenue);
+}
+
+.badge-statut-compte--invite {
+  background: #f3e6c8;
+  color: #8a6a1f;
+}
+
+.badge-statut-compte--actif {
+  background: rgba(76, 175, 109, 0.16);
+  color: #2f8f52;
+}
+
+.champs-pause {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 4px 0 18px;
+  background: var(--fond);
+  border-radius: var(--rayon);
+  padding: 10px;
 }
 
-.nav-jours-fleche {
+.champs-pause label {
+  margin-bottom: 0;
   flex-shrink: 0;
-  width: 30px;
-  height: 30px;
+}
+
+.champs-pause select { width: auto; flex: 1; }
+
+.actions-modal {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.actions-modal button {
+  flex: 1;
+  padding: 10px;
+  border-radius: var(--rayon);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.actions-modal--simple { justify-content: flex-end; }
+
+.btn-modal-enregistrer { background: var(--ink); color: #fff; }
+.btn-modal-enregistrer:hover { background: var(--accent-fonce); }
+
+.btn-modal-supprimer { background: transparent; border: 1px solid var(--bordure) !important; color: #c14a3a; }
+.btn-modal-supprimer:hover { border-color: #c14a3a !important; }
+
+.btn-lien-discret {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--texte-tres-attenue);
+  text-decoration: underline;
+  cursor: pointer;
   padding: 0;
+}
+
+.btn-lien-discret:hover { color: #c14a3a; }
+
+.btn-absent-jour-modal {
+  display: block;
+  margin: 4px 0 14px;
+  font-size: 12.5px;
+}
+
+/* ---------- Modale "Gérer les postes" : hiérarchie Secteur > Poste ---------- */
+
+.bloc-secteur-postes {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--bordure);
+}
+
+.bloc-secteur-postes:last-of-type { border-bottom: none; }
+
+.entete-bloc-secteur {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.entete-bloc-secteur strong { font-size: 14px; }
+
+.pastille-couleur-inline {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,0.15);
+}
+
+.liste-postes-secteur {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-left: 22px;
+}
+
+.etiquette-poste-config {
+  padding: 4px 10px;
+  background: var(--fond);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.etiquette-poste-config:hover { background: var(--bordure); }
+
+.etiquette-poste-config--generique {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.etiquette-poste-config--generique:hover { background: var(--fond); }
+
+.btn-ajouter-poste-config {
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px dashed var(--texte-tres-attenue);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--texte-attenue);
+  cursor: pointer;
+}
+
+.btn-ajouter-poste-config:hover { border-color: var(--texte); color: var(--texte); }
+
+/* ---------- Planning : sélecteur de jour unique + contrôles ---------- */
+
+.controles-planning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.selecteur-jour-unique {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.selecteur-jour-unique-libelle {
+  font-family: var(--police-titre);
+  font-size: 16px;
+  font-weight: 600;
+  min-width: 80px;
+  text-align: center;
+}
+
+.selecteur-jour-unique-meteo {
+  font-size: 17px;
+  line-height: 1;
+  margin-left: 2px;
+}
+
+.jour-fleche {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--sombre-surface);
-  color: var(--sombre-texte);
-  border: 1px solid var(--sombre-bordure);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--bordure);
   border-radius: 999px;
   font-size: 16px;
   line-height: 1;
 }
 
-.nav-jours-fleche:hover { background: var(--sombre-fond); }
+.jour-fleche:hover { background: var(--fond); }
 
-.nav-jours-fleche:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.nav-jours-pastilles {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  flex: 1;
-}
-
-.nav-jours-pastilles::-webkit-scrollbar { display: none; }
-
-.pastille-jour {
-  flex-shrink: 0;
-  margin: 0;
-  width: auto;
-  padding: 7px 14px;
+.btn-reinitialiser {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  color: var(--texte-tres-attenue);
   font-size: 12px;
   font-weight: 600;
-  background: var(--sombre-surface);
-  color: var(--sombre-texte-attenue);
-  border: 1px solid var(--sombre-bordure);
+  cursor: pointer;
+  padding: 4px 2px;
+}
+
+.btn-reinitialiser:hover { color: var(--texte-attenue); }
+
+.total-effectif-jour {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--texte);
+  background: var(--surface);
+  border: 1px solid var(--bordure);
   border-radius: 999px;
+  padding: 7px 14px;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
-.pastille-jour:hover { color: var(--sombre-texte); }
+/* ---------- Planning : légende des secteurs (éditable) ---------- */
 
-.pastille-jour.actif {
-  background: var(--sombre-texte);
-  color: var(--sombre-fond);
-  border-color: var(--sombre-texte);
+.legende-postes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 22px;
 }
 
-/* ---------- Gantt nominatif par personne (planning personnel) ---------- */
+.pastille-poste {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 6px;
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
 
-.zone-scroll-gantt {
+.pastille-poste-couleur {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid rgba(0,0,0,0.15);
+  border-radius: 50%;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.pastille-poste-nom {
+  background: none;
+  border: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--texte);
+  cursor: text;
+  padding: 0;
+}
+
+.btn-ajouter-poste {
+  padding: 6px 13px;
+  background: transparent;
+  border: 1px dashed var(--texte-tres-attenue);
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--texte-attenue);
+  cursor: pointer;
+}
+
+.btn-ajouter-poste:hover { border-color: var(--texte); color: var(--texte); }
+
+.btn-gerer-postes {
+  padding: 6px 13px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--texte-attenue);
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.btn-gerer-postes:hover { background: var(--fond); color: var(--texte); }
+
+/* ---------- Planning : le Gantt nominatif (maquette validée) ---------- */
+
+.gantt-scroll {
   overflow-x: auto;
-  max-width: 100%;
-  margin: 4px 0 14px;
-  background: var(--sombre-surface);
-  border: 1px solid var(--sombre-bordure);
-  border-radius: 14px;
-  padding: 10px;
+  overflow-y: auto;
+  /* Scalabilité grandes équipes (15-20 personnes) : le conteneur grandit
+     avec la liste mais se plafonne pour garder le Gantt du jour visible
+     sans avaler toute la page ; l'en-tête des heures reste sticky au
+     scroll vertical grâce à .gantt-coin/.gantt-heure-entete (top: 0). */
+  max-height: 70vh;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-lg);
+  box-shadow: var(--ombre);
+  background: var(--surface);
+  margin-bottom: 4px;
 }
 
-.gantt-personnel {
+.gantt-grille {
   display: grid;
-  /* Largeur fluide par défaut (desktop/tablette) : toute la plage horaire
-     (5h à 3h, 22 colonnes) tient dans la largeur disponible, sans scroll.
-     Sur petit écran (media query plus bas), on repasse à une largeur fixe
-     et le conteneur redevient scrollable pour rester lisible. */
-  grid-template-columns: 110px repeat(var(--gantt-heures, 22), 1fr) 56px;
-  grid-auto-rows: 40px;
-  align-items: stretch;
-  column-gap: 0;
-  row-gap: 4px;
-  width: 100%;
+  /* 1 colonne fixe (noms) + 1 colonne par heure, largeur posée en JS via
+     --gantt-heures et --gantt-px-heure pour rester calculée, jamais fixe
+     en dur dans le CSS. */
+  grid-template-columns: 168px repeat(var(--gantt-heures), var(--gantt-px-heure));
+  width: max-content;
+  min-width: 100%;
 }
 
-@media (max-width: 700px) {
-  .gantt-personnel {
-    grid-template-columns: 90px repeat(var(--gantt-heures, 22), 34px) 48px;
-    width: max-content;
-    min-width: 100%;
-  }
+.gantt-coin,
+.gantt-heure-entete {
+  position: sticky;
+  top: 0;
+  background: var(--fond);
+  border-bottom: 1px solid var(--bordure);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--texte-tres-attenue);
+  text-align: center;
+  padding: 8px 4px;
+  z-index: 2;
 }
 
-.gantt-cellule-nom,
-.gantt-cellule-total,
-.gantt-label-heure {
+.gantt-coin {
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  text-align: left;
+  padding-left: 14px;
+}
+
+.gantt-nom-cell {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--bordure);
+  border-right: 1px solid var(--bordure);
+  padding: 10px 8px 10px 12px;
   display: flex;
   align-items: center;
-  font-size: 12px;
-  color: var(--sombre-texte);
+  justify-content: space-between;
+  gap: 6px;
 }
 
-.gantt-cellule-nom {
-  padding-right: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  position: sticky;
-  left: -10px;
-  background: var(--sombre-surface);
-  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.25);
-  z-index: 2;
-}
+.gantt-nom-cell:hover { background: var(--fond); }
 
-.gantt-cellule-total {
-  justify-content: flex-end;
-  padding-left: 6px;
-  font-weight: 700;
-  color: var(--sombre-texte-attenue);
-  white-space: nowrap;
-  position: sticky;
-  right: -10px;
-  background: var(--sombre-surface);
-  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.25);
-  z-index: 2;
-}
-
-.gantt-label-heure {
+.gantt-nom-texte {
+  display: flex;
+  flex-direction: column;
   justify-content: center;
-  font-size: 10px;
-  color: var(--sombre-texte-attenue);
-  white-space: nowrap;
-  overflow: hidden;
-  padding: 0 1px;
+  gap: 2px;
+  cursor: pointer;
+  min-width: 0;
 }
 
-.gantt-entete {
-  align-items: flex-end;
-  padding-bottom: 4px;
-  font-size: 10px;
+.gantt-nom {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.badge-typecontrat {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--sombre-texte-attenue);
+  letter-spacing: 0.02em;
+  padding: 1px 5px;
+  border-radius: 999px;
+  vertical-align: middle;
+  margin-left: 3px;
+}
+
+.badge-typecontrat--extra {
+  background: #f3e6c8;
+  color: #8a6a1f;
+}
+
+.badge-typecontrat--saisonnier {
+  background: #dbe9f7;
+  color: #2c5d85;
+}
+
+.gantt-nom-detail {
+  font-size: 11px;
+  color: var(--texte-attenue);
+}
+
+.gantt-nom-detail--alerte {
+  color: var(--sombre-baisse, #e2584a);
+  font-weight: 600;
 }
 
 .gantt-piste {
   position: relative;
-  height: 100%;
-  background-image: repeating-linear-gradient(to right, var(--sombre-bordure) 0, var(--sombre-bordure) 1px, transparent 1px, transparent 40px);
+  border-bottom: 1px solid var(--bordure);
+  grid-column: 2 / -1;
+  height: 52px;
+  cursor: pointer;
 }
 
-.gantt-barre {
-  /* Positionnée en absolu par rapport à .gantt-piste (position: relative),
-     donc sa taille ne participe jamais au calcul de largeur des colonnes
-     de la grille CSS — c'est ce qui permet aux colonnes 1fr de rétrécir
-     librement même quand le texte affiché ("19:00–02:00") est plus large
-     que la colonne elle-même sur un petit écran. */
+.gantt-piste:hover { background: color-mix(in srgb, var(--fond) 60%, transparent); }
+
+.gantt-piste--vide {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 7px,
+    rgba(119, 105, 90, 0.05) 7px,
+    rgba(119, 105, 90, 0.05) 14px
+  );
+}
+
+.gantt-piste--vide:hover {
+  background-color: color-mix(in srgb, var(--fond) 60%, transparent);
+}
+
+.gantt-piste-filigrane {
   position: absolute;
-  top: 4px;
-  bottom: 4px;
-  border-radius: 6px;
-  font-size: 10px;
-  font-weight: 600;
-  color: #ffffff;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--texte-tres-attenue);
+  opacity: 0.55;
+  pointer-events: none;
   white-space: nowrap;
-  padding: 0 4px;
-  cursor: pointer;
-  min-width: 4px;
-  box-sizing: border-box;
 }
 
-.gantt-barre:hover,
-.gantt-barre:focus-visible {
-  outline: 2px solid var(--sombre-texte);
-  outline-offset: 1px;
+.gantt-piste-filigrane--alerte {
+  color: var(--sombre-baisse, #e2584a);
+  opacity: 0.6;
 }
+
+.gantt-piste-heure {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-right: 1px dashed var(--bordure);
+}
+
+.gantt-bloc {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid rgba(0,0,0,0.12);
+  min-width: 18px;
+}
+
+.gantt-bloc:hover { filter: brightness(1.08); }
+
+.gantt-bloc-texte {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.gantt-bloc-pause {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--surface),
+    var(--surface) 4px,
+    var(--bordure) 4px,
+    var(--bordure) 8px
+  );
+  border-left: 1px solid rgba(0,0,0,0.18);
+  border-right: 1px solid rgba(0,0,0,0.18);
+  pointer-events: none;
+}
+
+.gantt-ligne-ajout {
+  grid-column: 1;
+  position: sticky;
+  left: 0;
+  background: var(--fond);
+  padding: 8px;
+}
+
+.btn-ajouter-membre {
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  border: 1px dashed var(--texte-tres-attenue);
+  border-radius: var(--rayon);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--texte-attenue);
+  cursor: pointer;
+}
+
+.btn-ajouter-membre:hover { border-color: var(--texte); color: var(--texte); }
 
 /* ---------- Couverture par heure (planning personnel) ---------- */
 
@@ -1294,14 +2275,7 @@ button.lien-supprimer:hover {
   margin: 0;
 }
 
-/* ---------- Page Semaine ---------- */
-
-.actions-jour {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-}
+/* ---------- Signalement d'événement (page Prévisions) ---------- */
 
 .btn-mini {
   margin: 0;
@@ -1310,19 +2284,19 @@ button.lien-supprimer:hover {
   font-size: 11px;
   font-weight: 600;
   background: transparent;
-  color: var(--sombre-texte-attenue);
-  border: 1px solid var(--sombre-bordure);
+  color: var(--texte-attenue);
+  border: 1px solid var(--bordure);
   border-radius: 999px;
 }
 
 .btn-mini:hover {
-  background: var(--sombre-fond);
-  color: var(--sombre-texte);
+  background: var(--fond);
+  color: var(--texte);
 }
 
 .btn-mini--retirer {
-  color: var(--sombre-baisse);
-  border-color: var(--sombre-baisse);
+  color: #b23f30;
+  border-color: #b23f30;
 }
 
 /* ---------- Pied de page (lien CGU) ---------- */
@@ -1391,19 +2365,14 @@ button.lien-supprimer:hover {
     padding-bottom: 12px;
   }
 
+  .nav-globale,
   .nav-principale {
     gap: 4px 12px;
     width: 100%;
   }
 
-  .nav-lien,
-  .nav-lien--menu {
+  .nav-lien-g {
     font-size: 12.5px;
-  }
-
-  .nav-sous-menu {
-    left: auto;
-    right: 0;
   }
 
   /* Une ligne "champ + bouton" (ajouter un produit, changer d'email...)
@@ -1416,6 +2385,13 @@ button.lien-supprimer:hover {
 
   .ligne-form button {
     width: 100%;
+    /* Sur grand écran, .ligne-form button force "white-space: nowrap" pour
+       garder un bouton court (ex: "Ajouter") compact à côté de son champ.
+       Empilé en colonne ici, un bouton au texte plus long (ex: "Générer une
+       proposition automatique (7 prochains jours)" sur la page Personnel)
+       débordait au lieu de passer à la ligne : on autorise le retour à la
+       ligne dès que le bouton prend toute la largeur. */
+    white-space: normal;
   }
 
   .grille,

@@ -7,6 +7,7 @@
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="moteur-prevision.js"></script>
   <script src="nav.js"></script>
 </head>
 <body>
@@ -54,34 +55,25 @@
 
         <div id="planning" style="margin-top:34px;">
           <p class="section-titre">Planning</p>
-          <p class="texte-aide" style="margin-top:-6px;">Une proposition de départ, jour par jour, à ajuster librement créneau par créneau — jamais figée.</p>
+          <p class="texte-aide" style="margin-top:-6px;">Une esquisse automatique, jour par jour, à ajuster librement créneau par créneau — jamais figée. Après 3 semaines de vécu réel, l'esquisse apprend de tes plannings passés au lieu d'appliquer des règles fixes.</p>
 
-          <div class="ligne-form" style="margin:10px 0 16px;">
-            <button type="button" id="btnGenererPlanning" class="bouton-secondaire">Générer une proposition automatique (7 prochains jours)</button>
+          <div class="controles-planning">
+            <div class="selecteur-jour-unique">
+              <button type="button" class="jour-fleche" id="ganttJourPrec" aria-label="Jour précédent">‹</button>
+              <span class="selecteur-jour-unique-libelle" id="ganttJourLibelle"></span>
+              <button type="button" class="jour-fleche" id="ganttJourSuiv" aria-label="Jour suivant">›</button>
+              <span class="selecteur-jour-unique-meteo" id="ganttMeteoIcone" title="Météo prévue ce jour-là"></span>
+            </div>
+            <span class="total-effectif-jour" id="ganttTotalEffectif" title="Somme des heures nettes de pause de toute l'équipe visible, pour le jour affiché"></span>
+            <button type="button" class="btn-reinitialiser" id="btnReinitialiser">↺ Réinitialiser (auto)</button>
           </div>
 
-          <div class="nav-jours" id="navJoursPlanning">
-            <button type="button" class="nav-jours-fleche" id="btnPlanningJourPrec" aria-label="Jour précédent">‹</button>
-            <div class="nav-jours-pastilles" id="pastillesPlanningJours"></div>
-            <button type="button" class="nav-jours-fleche" id="btnPlanningJourSuiv" aria-label="Jour suivant">›</button>
+          <div class="legende-postes" id="legendePostes"></div>
+
+          <div class="gantt-scroll">
+            <div class="gantt-grille" id="ganttGrille"></div>
           </div>
 
-          <div id="zoneGanttPersonnel" class="zone-scroll-gantt" style="display:none;">
-            <div id="ganttPersonnel" class="gantt-personnel"></div>
-          </div>
-
-          <div id="couvertureCreneaux" class="couverture-creneaux" style="display:none;"></div>
-
-          <ul id="listeCreneaux" class="liste-produits liste-produits--espacee" style="margin-top:14px;"></ul>
-
-          <p class="section-titre" style="margin-top:22px;">Ajouter un créneau</p>
-          <div class="ligne-form" style="flex-wrap:wrap;">
-            <select id="selectPersonneCreneau" aria-label="Personne" style="flex:1; min-width:140px;"></select>
-            <input type="text" id="rolePersonneCreneau" placeholder="Poste (optionnel)" aria-label="Poste" style="flex:1; min-width:140px;">
-            <input type="time" id="heureDebutCreneau" aria-label="Heure de début" value="09:00">
-            <input type="time" id="heureFinCreneau" aria-label="Heure de fin" value="17:00">
-            <button type="button" id="btnAjouterCreneau">Ajouter</button>
-          </div>
           <div id="messagePlanning"></div>
         </div>
       </div>
@@ -90,20 +82,131 @@
   </div>
 
   <!-- Fenêtre d'édition d'un créneau existant -->
-  <div id="fondModalCreneau" class="fond-modal" style="display:none;">
+  <div class="fond-modal" id="modalCreneau" hidden>
     <div class="contenu-modal">
-      <p class="section-titre" style="margin-top:0;">Modifier le créneau</p>
-      <div class="ligne-form" style="flex-wrap:wrap; margin-top:10px;">
-        <select id="modalSelectPersonneCreneau" aria-label="Personne" style="flex:1; min-width:140px;"></select>
-        <input type="text" id="modalRoleCreneau" placeholder="Poste (optionnel)" aria-label="Poste" style="flex:1; min-width:140px;">
+      <h3 id="modalTitre">Modifier le créneau</h3>
+      <p class="sous-titre-modal" id="modalSousTitre"></p>
+      <div class="champ-modal">
+        <label for="modalDebut">Heure de début</label>
+        <select id="modalDebut"></select>
       </div>
-      <div class="ligne-form" style="margin-top:10px;">
-        <input type="time" id="modalHeureDebutCreneau" aria-label="Heure de début">
-        <input type="time" id="modalHeureFinCreneau" aria-label="Heure de fin">
+      <div class="champ-modal">
+        <label for="modalFin">Heure de fin</label>
+        <select id="modalFin"></select>
       </div>
-      <div class="ligne-form" style="margin-top:14px;">
-        <button id="btnFermerModalCreneau" class="bouton-secondaire" type="button">Annuler</button>
-        <button id="btnEnregistrerModalCreneau" type="button">Enregistrer</button>
+      <div class="champ-modal">
+        <label for="modalSecteur">Secteur</label>
+        <select id="modalSecteur"></select>
+      </div>
+      <div class="champ-modal">
+        <label for="modalPoste">Poste précis</label>
+        <select id="modalPoste"></select>
+      </div>
+      <div class="champ-modal champ-modal--case">
+        <label for="modalPauseActive"><input type="checkbox" id="modalPauseActive" /> Pause dans ce créneau (ex : pause déjeuner)</label>
+      </div>
+      <div class="champ-modal champs-pause" id="champsPause" hidden>
+        <label for="modalPauseDebut">Pause de</label>
+        <select id="modalPauseDebut"></select>
+        <label for="modalPauseFin">à</label>
+        <select id="modalPauseFin"></select>
+      </div>
+      <div class="actions-modal">
+        <button type="button" class="btn-modal-supprimer" id="btnModalSupprimer">Supprimer</button>
+        <button type="button" class="btn-modal-enregistrer" id="btnModalEnregistrer">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fenêtre d'édition d'un employé (profil, contrat, invitation, suppression) -->
+  <div class="fond-modal" id="modalEmploye" hidden>
+    <div class="contenu-modal">
+      <h3>Modifier cet employé</h3>
+      <p class="sous-titre-modal" id="modalEmployeSousTitre"></p>
+      <div class="champ-modal">
+        <label for="modalEmployeNom">Prénom</label>
+        <input type="text" id="modalEmployeNom" autocomplete="off" />
+      </div>
+      <div class="champ-modal">
+        <label for="modalEmployeEmail">E-mail (pour son accès au planning)</label>
+        <input type="email" id="modalEmployeEmail" placeholder="prenom@example.com" autocomplete="off" />
+      </div>
+      <div class="champ-modal champ-statut-compte">
+        <span class="badge-statut-compte" id="badgeStatutCompteEmploye"></span>
+        <button type="button" class="btn-lien-discret" id="btnModalEmployeInviter">Inviter</button>
+      </div>
+      <div class="champ-modal">
+        <label for="modalEmployeSecteur">Secteur principal</label>
+        <select id="modalEmployeSecteur"></select>
+      </div>
+      <div class="champ-modal">
+        <label for="modalEmployePoste">Poste principal</label>
+        <select id="modalEmployePoste"></select>
+      </div>
+      <div class="champ-modal">
+        <label for="modalEmployeContrat">Type de contrat</label>
+        <select id="modalEmployeContrat">
+          <option value="Fixe">Fixe</option>
+          <option value="Saisonnier">Saisonnier</option>
+          <option value="Extra">Extra</option>
+        </select>
+      </div>
+      <div class="champ-modal" id="champContratHebdoEmploye">
+        <label for="modalEmployeContratHebdo">Contrat hebdomadaire (heures)</label>
+        <input type="number" id="modalEmployeContratHebdo" min="0" max="48" step="1" />
+      </div>
+      <button type="button" class="btn-lien-discret btn-absent-jour-modal" id="btnModalEmployeAbsentJour">Marquer absent(e) aujourd'hui (retire ses créneaux de ce jour uniquement)</button>
+      <div class="actions-modal">
+        <button type="button" class="btn-modal-supprimer" id="btnModalEmployeSupprimer">Supprimer cet employé</button>
+        <button type="button" class="btn-modal-enregistrer" id="btnModalEmployeEnregistrer">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fenêtre d'ajout d'un nouveau membre -->
+  <div class="fond-modal" id="modalMembre" hidden>
+    <div class="contenu-modal">
+      <h3>Ajouter un membre</h3>
+      <p class="sous-titre-modal">Il apparaît tout de suite dans l'équipe, avec un premier créneau du jour à ajuster ensuite.</p>
+      <div class="champ-modal">
+        <label for="modalMembreNom">Prénom</label>
+        <input type="text" id="modalMembreNom" placeholder="Ex : Sophie" autocomplete="off" />
+      </div>
+      <div class="champ-modal">
+        <label for="modalMembreEmail">E-mail (facultatif, pour lui donner accès à son planning)</label>
+        <input type="email" id="modalMembreEmail" placeholder="prenom@example.com" autocomplete="off" />
+      </div>
+      <div class="champ-modal">
+        <label for="modalMembreSecteur">Secteur principal</label>
+        <select id="modalMembreSecteur"></select>
+      </div>
+      <div class="champ-modal">
+        <label for="modalMembrePoste">Poste principal</label>
+        <select id="modalMembrePoste"></select>
+      </div>
+      <div class="champ-modal">
+        <label for="modalMembreContrat">Type de contrat</label>
+        <select id="modalMembreContrat">
+          <option value="Fixe">Fixe</option>
+          <option value="Saisonnier">Saisonnier</option>
+          <option value="Extra">Extra</option>
+        </select>
+      </div>
+      <div class="actions-modal">
+        <button type="button" class="btn-modal-supprimer" id="btnModalMembreAnnuler">Annuler</button>
+        <button type="button" class="btn-modal-enregistrer" id="btnModalMembreValider">Ajouter et inviter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fenêtre de gestion des secteurs/postes -->
+  <div class="fond-modal" id="modalPostes" hidden>
+    <div class="contenu-modal contenu-modal--large">
+      <h3>Gérer les postes</h3>
+      <p class="sous-titre-modal">Configure les rôles précis à l'intérieur de chaque secteur (ex : Runner et Chef de rang dans Salle). La couleur et le nom du secteur se changent depuis la légende principale.</p>
+      <div id="listeSecteursPostes"></div>
+      <div class="actions-modal actions-modal--simple">
+        <button type="button" class="btn-modal-enregistrer" id="btnFermerModalPostes">Fermer</button>
       </div>
     </div>
   </div>
@@ -140,254 +243,21 @@
       var personnel = [];
       var personneEnEdition = null;
 
-      // --- Planning (créneaux_personnel) -----------------------------------
-      var pastillesPlanningJoursEl = document.getElementById('pastillesPlanningJours');
-      var btnPlanningJourPrecEl = document.getElementById('btnPlanningJourPrec');
-      var btnPlanningJourSuivEl = document.getElementById('btnPlanningJourSuiv');
-      var listeCreneauxEl = document.getElementById('listeCreneaux');
-      var couvertureCreneauxEl = document.getElementById('couvertureCreneaux');
-      var zoneGanttPersonnelEl = document.getElementById('zoneGanttPersonnel');
-      var ganttPersonnelEl = document.getElementById('ganttPersonnel');
-      var selectPersonneCreneauEl = document.getElementById('selectPersonneCreneau');
-      var rolePersonneCreneauEl = document.getElementById('rolePersonneCreneau');
-      var heureDebutCreneauEl = document.getElementById('heureDebutCreneau');
-      var heureFinCreneauEl = document.getElementById('heureFinCreneau');
-      var btnAjouterCreneauEl = document.getElementById('btnAjouterCreneau');
-      var btnGenererPlanningEl = document.getElementById('btnGenererPlanning');
       var messagePlanningEl = document.getElementById('messagePlanning');
-      var fondModalCreneauEl = document.getElementById('fondModalCreneau');
-      var modalSelectPersonneCreneauEl = document.getElementById('modalSelectPersonneCreneau');
-      var modalRoleCreneauEl = document.getElementById('modalRoleCreneau');
-      var modalHeureDebutCreneauEl = document.getElementById('modalHeureDebutCreneau');
-      var modalHeureFinCreneauEl = document.getElementById('modalHeureFinCreneau');
-      var btnFermerModalCreneauEl = document.getElementById('btnFermerModalCreneau');
-      var btnEnregistrerModalCreneauEl = document.getElementById('btnEnregistrerModalCreneau');
 
-      var joursPlanningAffichables = [];
-      var decalagePlanningActuel = 0;
-      var creneauxParJour = {};
-      var creneauEnEdition = null;
-
-      var nomsJours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
-      var nomsMois = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-
-      function capitaliser(texte) {
-        return texte.charAt(0).toUpperCase() + texte.slice(1);
-      }
-
-      function formatDateLongue(date) {
-        return capitaliser(nomsJours[date.getDay()]) + ' ' + date.getDate() + ' ' + nomsMois[date.getMonth()];
-      }
-
-      function formatNomAffichage(nom) {
-        var propre = (nom || '').toString().trim();
-        if (!propre) return propre;
-        return propre.charAt(0).toUpperCase() + propre.slice(1).toLowerCase();
-      }
-
-      // --- Logique de prévision d'affluence (dupliquée depuis semaine.html —
-      // le site n'a pas de module JS partagé) : sert de signal d'entrée à la
-      // recommandation RH ci-dessous. Voir tableau-de-bord.html pour le détail
-      // des sources et limites assumées des jours fériés/vacances scolaires.
-      var DECALAGE_PONDERATION = 0.75;
-
-      function moyennePonderee(ventesTriees) {
-        var n = ventesTriees.length;
-        var sommePonderee = 0;
-        var sommePoids = 0;
-        ventesTriees.forEach(function (v, i) {
-          var positionDepuisLaFin = n - 1 - i;
-          var poids = Math.pow(DECALAGE_PONDERATION, positionDepuisLaFin);
-          sommePonderee += v.quantite * poids;
-          sommePoids += poids;
-        });
-        return sommePonderee / sommePoids;
-      }
-
-      function percentileValeur(triees, p) {
-        var idx = (triees.length - 1) * p;
-        var lo = Math.floor(idx), hi = Math.ceil(idx);
-        if (lo === hi) return triees[lo];
-        return triees[lo] + (triees[hi] - triees[lo]) * (idx - lo);
-      }
-
-      function datePaques(annee) {
-        var a = annee % 19;
-        var b = Math.floor(annee / 100);
-        var c = annee % 100;
-        var d = Math.floor(b / 4);
-        var e = b % 4;
-        var f = Math.floor((b + 8) / 25);
-        var g = Math.floor((b - f + 1) / 3);
-        var h = (19 * a + b - d - g + 15) % 30;
-        var i = Math.floor(c / 4);
-        var k = c % 4;
-        var l = (32 + 2 * e + 2 * i - h - k) % 7;
-        var m = Math.floor((a + 11 * h + 22 * l) / 451);
-        var mois = Math.floor((h + l - 7 * m + 114) / 31);
-        var jour = ((h + l - 7 * m + 114) % 31) + 1;
-        return new Date(annee, mois - 1, jour);
-      }
-
-      function ajouterJours(date, n) {
-        var d = new Date(date);
-        d.setDate(d.getDate() + n);
-        return d;
-      }
-
-      function versISO(date) {
-        var mm = ('0' + (date.getMonth() + 1)).slice(-2);
-        var dd = ('0' + date.getDate()).slice(-2);
-        return date.getFullYear() + '-' + mm + '-' + dd;
-      }
-
-      function joursFeriesAnnee(annee) {
-        var paques = datePaques(annee);
-        var dates = [
-          new Date(annee, 0, 1),
-          ajouterJours(paques, 1),
-          new Date(annee, 4, 1),
-          new Date(annee, 4, 8),
-          ajouterJours(paques, 39),
-          ajouterJours(paques, 50),
-          new Date(annee, 6, 14),
-          new Date(annee, 7, 15),
-          new Date(annee, 10, 1),
-          new Date(annee, 10, 11),
-          new Date(annee, 11, 25)
-        ];
-        return dates.map(versISO);
-      }
-
-      var CACHE_JOURS_FERIES = {};
-      function estJourFerie(date) {
-        var annee = date.getFullYear();
-        if (!CACHE_JOURS_FERIES[annee]) {
-          CACHE_JOURS_FERIES[annee] = joursFeriesAnnee(annee);
-        }
-        return CACHE_JOURS_FERIES[annee].indexOf(versISO(date)) !== -1;
-      }
-
-      var PERIODES_VACANCES = [
-        { debut: '2025-10-18', fin: '2025-11-03', zones: 'toutes' },
-        { debut: '2025-12-20', fin: '2026-01-05', zones: 'toutes' },
-        { debut: '2026-02-07', fin: '2026-02-23', zones: ['A'] },
-        { debut: '2026-02-14', fin: '2026-03-02', zones: ['B'] },
-        { debut: '2026-02-21', fin: '2026-03-09', zones: ['C'] },
-        { debut: '2026-04-04', fin: '2026-04-20', zones: ['A'] },
-        { debut: '2026-04-11', fin: '2026-04-27', zones: ['B'] },
-        { debut: '2026-04-18', fin: '2026-05-04', zones: ['C'] },
-        { debut: '2026-07-04', fin: '2026-08-31', zones: 'toutes' },
-        { debut: '2026-10-17', fin: '2026-11-02', zones: 'toutes' },
-        { debut: '2026-12-19', fin: '2027-01-04', zones: 'toutes' },
-        { debut: '2027-02-13', fin: '2027-03-01', zones: ['A'] },
-        { debut: '2027-02-20', fin: '2027-03-08', zones: ['B'] },
-        { debut: '2027-02-06', fin: '2027-02-22', zones: ['C'] },
-        { debut: '2027-04-10', fin: '2027-04-26', zones: ['A'] },
-        { debut: '2027-04-17', fin: '2027-05-03', zones: ['B'] },
-        { debut: '2027-04-03', fin: '2027-04-19', zones: ['C'] },
-        { debut: '2027-07-03', fin: '2027-08-31', zones: 'toutes' }
-      ];
-
-      var DEPARTEMENT_VERS_ZONE = {};
-      (function () {
-        var parZone = {
-          A: ['25','39','70','90', '24','33','40','47','64', '03','15','43','63', '21','58','71','89', '07','26','38','73','74', '19','23','87', '01','42','69', '16','17','79','86'],
-          B: ['04','05','13', '02','60','80', '59','62', '54','55','57','88', '44','49','53','72','85', '06','83','84', '14','50','61','27','76', '18','28','36','37','41','45', '08','10','51','52', '22','29','35','56', '67','68'],
-          C: ['77','93','94', '11','30','34','48','66', '75', '09','12','31','32','46','65','81','82', '78','91','92','95']
-        };
-        Object.keys(parZone).forEach(function (zone) {
-          parZone[zone].forEach(function (dep) { DEPARTEMENT_VERS_ZONE[dep] = zone; });
-        });
-      })();
-
-      function codePostalVersDepartement(codePostal) {
-        var cp = (codePostal || '').trim();
-        if (!/^[0-9]{5}$/.test(cp)) return null;
-        if (cp.substring(0, 2) === '97' || cp.substring(0, 2) === '98') return cp.substring(0, 3);
-        if (cp.substring(0, 2) === '20') return null;
-        return cp.substring(0, 2);
-      }
-
-      function zoneVacancesPourCodePostal(codePostal) {
-        var dep = codePostalVersDepartement(codePostal);
-        if (!dep) return null;
-        return DEPARTEMENT_VERS_ZONE[dep] || null;
-      }
-
-      function estEnVacances(date, zone) {
-        if (!zone) return false;
-        var iso = versISO(date);
-        for (var i = 0; i < PERIODES_VACANCES.length; i++) {
-          var p = PERIODES_VACANCES[i];
-          if (iso >= p.debut && iso <= p.fin) {
-            if (p.zones === 'toutes' || p.zones.indexOf(zone) !== -1) return true;
-          }
-        }
-        return false;
-      }
-
-      // Même calcul de tier (charge / calme / normal / férié / vacances /
-      // événement / fermé / insuffisant) que sur la page Semaine, appliqué ici
-      // sur le volume total de ventes (tous produits confondus) — l'entrée
-      // pertinente pour une recommandation de renfort en personnel, qui
-      // raisonne en affluence globale plutôt que produit par produit.
-      function calculerPrevisionSemaine(ventes, zoneVacances, joursFermeture, evenements) {
-        var totauxParDate = {};
-        ventes.forEach(function (v) {
-          totauxParDate[v.date_vente] = (totauxParDate[v.date_vente] || 0) + v.quantite;
-        });
-        var historiqueTotal = Object.keys(totauxParDate).map(function (d) {
-          return { date_vente: d, quantite: totauxParDate[d] };
-        }).sort(function (a, b) { return new Date(a.date_vente) - new Date(b.date_vente); });
-
-        if (historiqueTotal.length === 0) return [];
-
-        var jours = [];
-        for (var offset = 1; offset <= 7; offset++) {
-          var dateCible = new Date();
-          dateCible.setDate(dateCible.getDate() + offset);
-          var numeroJour = dateCible.getDay();
-          var isoCible = versISO(dateCible);
-          var cibleFermee = !!(joursFermeture && joursFermeture.indexOf(numeroJour) !== -1);
-          var evenementCible = !cibleFermee && evenements ? evenements[isoCible] : undefined;
-          var cibleFeriee = !cibleFermee && !evenementCible && estJourFerie(dateCible);
-          var cibleVacances = !cibleFermee && !evenementCible && !cibleFeriee && estEnVacances(dateCible, zoneVacances);
-
-          var memeJour = historiqueTotal.filter(function (t) {
-            var d = new Date(t.date_vente);
-            return d.getDay() === numeroJour && !estJourFerie(d) && !estEnVacances(d, zoneVacances);
-          });
-          var base = memeJour.length > 0 ? memeJour : historiqueTotal;
-          var moyenne = moyennePonderee(base);
-
-          var tier = 'normal';
-          if (cibleFermee) {
-            tier = 'ferme';
-          } else if (evenementCible === 'plus') {
-            tier = 'evenement-plus';
-          } else if (evenementCible === 'moins') {
-            tier = 'evenement-moins';
-          } else if (cibleFeriee) {
-            tier = 'ferie';
-          } else if (cibleVacances) {
-            tier = 'vacances';
-          } else if (memeJour.length >= 4) {
-            var quantitesTriees = base.map(function (v) { return v.quantite; }).sort(function (a, b) { return a - b; });
-            var q1 = percentileValeur(quantitesTriees, 0.25);
-            var q3 = percentileValeur(quantitesTriees, 0.75);
-            if (q3 > q1) {
-              if (moyenne > q3) tier = 'charge';
-              else if (moyenne < q1) tier = 'calme';
-            }
-          } else {
-            tier = 'insuffisant';
-          }
-
-          jours.push({ date: dateCible, iso: isoCible, numeroJour: numeroJour, nomJour: nomsJours[numeroJour], tier: tier });
-        }
-        return jours;
-      }
+      var MP = window.MoteurPrevision;
+      var nomsJours = MP.nomsJours;
+      var nomsMois = MP.nomsMois;
+      var capitaliser = MP.capitaliser;
+      var formatDateLongue = MP.formatDateLongue;
+      var formatNomAffichage = MP.formatNomAffichage;
+      var moyennePonderee = MP.moyennePonderee;
+      var percentileValeur = MP.percentileValeur;
+      var versISO = MP.versISO;
+      var estJourFerie = MP.estJourFerie;
+      var zoneVacancesPourCodePostal = MP.zoneVacancesPourCodePostal;
+      var estEnVacances = MP.estEnVacances;
+      var calculerPrevisionSemaine = MP.calculerPrevisionSemaine;
 
       // --- Recommandation RH (Mission 2, étape B) ------------------------
       // Croise le signal d'affluence (tier ci-dessus) avec l'équipe
@@ -637,10 +507,11 @@
       var derniereEquipe = [];
       var dernierePrevisionSemaine = [];
 
+      var dernieresParametres = null;
+
       function rafraichirTout() {
         chargerPersonnel().then(function (equipe) {
           derniereEquipe = equipe;
-          remplirSelectsPersonnes(equipe);
           Promise.all([
             sbClient.from('ventes').select('*').eq('commercant_id', commercantId),
             sbClient.from('parametres_commercant').select('*').eq('commercant_id', commercantId),
@@ -648,6 +519,7 @@
           ]).then(function (resultats) {
             var ventes = resultats[0].data || [];
             var parametres = (resultats[1].data && resultats[1].data[0]) || null;
+            dernieresParametres = parametres;
             var zoneVacances = parametres ? zoneVacancesPourCodePostal(parametres.code_postal) : null;
             var joursFermeture = (parametres && parametres.jours_fermeture) || [];
             var evenements = {};
@@ -656,7 +528,7 @@
             if (ventes.length === 0) {
               grilleRHEl.innerHTML = '<div class="carte-vide-sombre">Pas encore de ventes enregistrées : la recommandation de renfort a besoin d\'un peu d\'historique pour estimer l\'affluence.<br><a href="ventes.html">Ajouter tes premières ventes →</a></div>';
               dernierePrevisionSemaine = [];
-              initPlanning();
+              initPlanning(equipe, parametres);
               return;
             }
 
@@ -664,577 +536,1404 @@
             dernierePrevisionSemaine = previsionSemaine;
             var recommandations = calculerRecommandationsRH(previsionSemaine, equipe);
             afficherRecommandationsRH(recommandations);
-            initPlanning();
+            initPlanning(equipe, parametres);
           });
         });
       }
 
-      // --- Planning : calendrier jour par jour ------------------------------
-      // Réutilise le pattern visuel .nav-jours du tableau de bord (flèches +
-      // pastilles). Les 7 prochains jours (peu importe fermeture, l'équipe
-      // doit pouvoir voir/éditer un créneau même un jour normalement fermé,
-      // ex. événement exceptionnel).
-      function prochains7Jours() {
-        var jours = [];
-        for (var i = 1; i <= 7; i++) {
-          var d = new Date();
-          d.setDate(d.getDate() + i);
-          jours.push(d);
+      // --- Planning nominatif : Secteur > Poste, mémoire, esquisse ---------
+      // Reconstruction complète (revirement du 15 septembre 2026, voir
+      // roadmap-produit.md section -2) : remplace l'ancien Gantt simple par
+      // rôle libre par le système complet de la maquette validée — secteurs/
+      // postes gérés, comptes employés (invitation UI, pas d'envoi réel tant
+      // qu'aucune Edge Function n'existe côté serveur), anti-chevauchement,
+      // équité contrat/heures calculée en direct, et esquisse automatique
+      // qui apprend des plannings manuels passés au lieu d'appliquer des
+      // règles figées dès que 3 semaines de vécu réel existent.
+      var SECTEURS = [];
+      var secteursCharges = false;
+
+      function trouverSecteur(id) {
+        for (var i = 0; i < SECTEURS.length; i++) { if (SECTEURS[i].id === id) return SECTEURS[i]; }
+        return SECTEURS[0];
+      }
+
+      function trouverPosteDansSecteur(secteur, posteId) {
+        if (!secteur) return { id: 'generique', nom: 'Générique' };
+        for (var i = 0; i < secteur.postes.length; i++) { if (secteur.postes[i].id === posteId) return secteur.postes[i]; }
+        return secteur.postes[0];
+      }
+
+      function libellePoste(secteurId, posteId) {
+        var secteur = trouverSecteur(secteurId);
+        var poste = trouverPosteDansSecteur(secteur, posteId);
+        if (!secteur) return '(secteur supprimé)';
+        if (poste.id === 'generique') return secteur.nom;
+        return poste.nom;
+      }
+
+      function slugifier(nom) {
+        return nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || ('secteur-' + Date.now());
+      }
+
+      // --- Chargement / bootstrap des secteurs & postes depuis Supabase ----
+      function chargerSecteursEtPostes() {
+        return Promise.all([
+          sbClient.from('secteurs_personnel').select('*').eq('commercant_id', commercantId).order('ordre', { ascending: true }),
+          sbClient.from('postes_personnel').select('*').eq('commercant_id', commercantId).order('ordre', { ascending: true })
+        ]).then(function (resultats) {
+          var lignesSecteurs = resultats[0].data || [];
+          var lignesPostes = resultats[1].data || [];
+          if (lignesSecteurs.length === 0) {
+            return bootstrapSecteursParDefaut();
+          }
+          SECTEURS = lignesSecteurs.map(function (s) {
+            return {
+              id: s.id, nom: s.nom, couleur: s.couleur,
+              postes: lignesPostes.filter(function (p) { return p.secteur_id === s.id; })
+                .map(function (p) { return { id: p.id, nom: p.nom }; })
+            };
+          });
+          SECTEURS.forEach(function (s) {
+            if (s.postes.length === 0) s.postes.push({ id: 'generique', nom: 'Générique' });
+          });
+          secteursCharges = true;
+        });
+      }
+
+      // Premier chargement pour un commerçant sans secteur : crée les 4
+      // secteurs par défaut de la maquette (Salle/Bar/Cuisine/Caisse), chacun
+      // avec son poste "Générique" — persistés tout de suite en base, jamais
+      // seulement en mémoire (sinon perdus au rechargement de la page).
+      function bootstrapSecteursParDefaut() {
+        var defaut = [
+          { id: 'salle', nom: 'Salle', couleur: '#4caf6d' },
+          { id: 'bar', nom: 'Bar', couleur: '#5a9ebf' },
+          { id: 'cuisine', nom: 'Cuisine', couleur: '#d9a54c' },
+          { id: 'caisse', nom: 'Caisse', couleur: '#c17fb0' }
+        ];
+        var lignesSecteurs = defaut.map(function (s, i) {
+          return { id: s.id, commercant_id: commercantId, nom: s.nom, couleur: s.couleur, ordre: i };
+        });
+        var lignesPostes = defaut.map(function (s, i) {
+          return { id: 'generique', commercant_id: commercantId, secteur_id: s.id, nom: 'Générique', ordre: 0 };
+        });
+        return sbClient.from('secteurs_personnel').insert(lignesSecteurs).then(function () {
+          return sbClient.from('postes_personnel').insert(lignesPostes);
+        }).then(function () {
+          SECTEURS = defaut.map(function (s) { return { id: s.id, nom: s.nom, couleur: s.couleur, postes: [{ id: 'generique', nom: 'Générique' }] }; });
+          secteursCharges = true;
+        });
+      }
+
+      function creerSecteur(nom, couleur) {
+        var id = slugifier(nom);
+        var secteur = { id: id, nom: nom, couleur: couleur || '#8a7cc7', postes: [{ id: 'generique', nom: 'Générique' }] };
+        SECTEURS.push(secteur);
+        sbClient.from('secteurs_personnel').insert({ id: id, commercant_id: commercantId, nom: nom, couleur: secteur.couleur, ordre: SECTEURS.length }).then(function () {
+          sbClient.from('postes_personnel').insert({ id: 'generique', commercant_id: commercantId, secteur_id: id, nom: 'Générique', ordre: 0 });
+        });
+        return secteur;
+      }
+
+      function ajouterPosteASecteur(secteur, nom) {
+        var id = slugifier(nom);
+        var poste = { id: id, nom: nom };
+        secteur.postes.push(poste);
+        sbClient.from('postes_personnel').insert({ id: id, commercant_id: commercantId, secteur_id: secteur.id, nom: nom, ordre: secteur.postes.length });
+        return poste;
+      }
+
+      function renommerSecteur(secteur, nouveauNom) {
+        secteur.nom = nouveauNom;
+        sbClient.from('secteurs_personnel').update({ nom: nouveauNom }).eq('commercant_id', commercantId).eq('id', secteur.id);
+      }
+
+      function changerCouleurSecteur(secteur, couleur) {
+        secteur.couleur = couleur;
+        sbClient.from('secteurs_personnel').update({ couleur: couleur }).eq('commercant_id', commercantId).eq('id', secteur.id);
+      }
+
+      function supprimerSecteurDistant(secteur) {
+        SECTEURS = SECTEURS.filter(function (s) { return s.id !== secteur.id; });
+        sbClient.from('secteurs_personnel').delete().eq('commercant_id', commercantId).eq('id', secteur.id);
+      }
+
+      function renommerPoste(secteur, poste, nouveauNom) {
+        poste.nom = nouveauNom;
+        sbClient.from('postes_personnel').update({ nom: nouveauNom }).eq('commercant_id', commercantId).eq('secteur_id', secteur.id).eq('id', poste.id);
+      }
+
+      function supprimerPosteDistant(secteur, poste) {
+        secteur.postes = secteur.postes.filter(function (p) { return p.id !== poste.id; });
+        sbClient.from('postes_personnel').delete().eq('commercant_id', commercantId).eq('secteur_id', secteur.id).eq('id', poste.id);
+      }
+
+      // --- Équipe : mapping personnel Supabase → objet employé de travail --
+      var LIBELLES_STATUT_COMPTE = {
+        non_invite: { texte: 'Pas encore invité', classe: 'badge-statut-compte--non-invite' },
+        invite: { texte: 'Invité · en attente', classe: 'badge-statut-compte--invite' },
+        actif: { texte: 'Compte actif', classe: 'badge-statut-compte--actif' }
+      };
+
+      function niveauParDefaut(typeContrat) {
+        if (typeContrat === 'Extra') return 3;
+        return 2;
+      }
+
+      // --- Jours / météo / volume : données réelles, jamais de fixture -----
+      var decalageJour = 1; // "Demain", cohérent avec les autres vues
+      var NOMS_JOURS_COURTS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+      var NOMS_JOURS_LONGS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+
+      function dateDuJour(decalage) {
+        var d = new Date();
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() + decalage);
+        return d;
+      }
+
+      function cleDate(date) { return versISO(date); }
+
+      function libelleJour(decalage) {
+        if (decalage === 0) return "Aujourd'hui";
+        if (decalage === 1) return 'Demain';
+        var d = dateDuJour(decalage);
+        var nom = NOMS_JOURS_COURTS[d.getDay()];
+        return nom.charAt(0).toUpperCase() + nom.slice(1) + ' ' + d.getDate();
+      }
+
+      // Tier de calculerPrevisionSemaine → facteur volume + emoji météo
+      // simple (le moteur donne un signal relatif "chargé/calme", pas un
+      // pourcentage : on retombe donc sur des facteurs prudents, cohérents
+      // avec la légende déjà affichée ailleurs dans l'app).
+      var meteoParIso = {};
+      var previsionParIso = {};
+
+      function facteurVolumePourJour(decalage) {
+        var iso = versISO(dateDuJour(decalage));
+        var jour = previsionParIso[iso];
+        if (!jour) return 1;
+        switch (jour.tier) {
+          case 'charge': case 'evenement-plus': return 1.3;
+          case 'calme': case 'evenement-moins': return 0.75;
+          case 'ferme': return 0;
+          default: return 1;
         }
-        return jours;
       }
 
-      function remplirSelectsPersonnes(equipe) {
-        [selectPersonneCreneauEl, modalSelectPersonneCreneauEl].forEach(function (select) {
-          var valeurActuelle = select.value;
-          select.innerHTML = '';
-          equipe.forEach(function (p) {
-            var option = document.createElement('option');
-            option.value = p.id;
-            option.textContent = formatNomAffichage(p.nom) + (p.role ? ' — ' + formatNomAffichage(p.role) : '');
-            select.appendChild(option);
-          });
-          if (valeurActuelle) select.value = valeurActuelle;
-        });
+      function meteoDuJour(decalage) {
+        var iso = versISO(dateDuJour(decalage));
+        var cat = meteoParIso[iso];
+        if (cat === 'pluvieux') return '🌧️ Pluie';
+        if (cat === 'chaud') return '☀️ Chaud';
+        if (cat) return '⛅ Nuageux';
+        return '– Météo indisponible';
       }
 
-      function nomPersonneParId(id) {
-        var p = derniereEquipe.filter(function (x) { return x.id === id; })[0];
-        return p ? formatNomAffichage(p.nom) : 'Personne supprimée';
+      // --- Créneaux du jour affiché : chargés depuis Supabase, tenus en
+      // mémoire pendant l'édition, ré-enregistrés à chaque mutation ---------
+      var creneauxDuJourCache = {}; // { employeId: [{id?, debut, fin, secteurId, posteId, pauseDebut?, pauseFin?}] }
+      var creneauxBrutsParEmploye = {}; // lignes Supabase brutes, pour retrouver l'id à l'update/delete
+      var jourCourantCharge = null; // iso du jour dont creneauxDuJourCache est le reflet
+
+      function creneauxDuJour() { return creneauxDuJourCache; }
+
+      function heureVersDecimale(heureStr) {
+        var p = (heureStr || '').toString().split(':');
+        return parseInt(p[0], 10) + (parseInt(p[1], 10) || 0) / 60;
+      }
+      function decimaleVersHeureSQL(h) {
+        var reel = ((h % 24) + 24) % 24;
+        var heureEntiere = Math.floor(reel);
+        var minutes = Math.round((reel - heureEntiere) * 60);
+        if (minutes === 60) { heureEntiere = (heureEntiere + 1) % 24; minutes = 0; }
+        return ('0' + heureEntiere).slice(-2) + ':' + ('0' + minutes).slice(-2) + ':00';
       }
 
-      function formatHeure(heure) {
-        // heure_debut/fin arrivent au format 'HH:MM:SS' depuis Postgres (type time).
-        return (heure || '').toString().slice(0, 5);
-      }
-
-      function afficherPastillesPlanning() {
-        pastillesPlanningJoursEl.innerHTML = '';
-        joursPlanningAffichables.forEach(function (date, index) {
-          var bouton = document.createElement('button');
-          bouton.type = 'button';
-          bouton.className = 'pastille-jour' + (index === decalagePlanningActuel ? ' actif' : '');
-          bouton.textContent = index === 0 ? 'Demain' : capitaliser(nomsJours[date.getDay()]);
-          bouton.addEventListener('click', function () {
-            decalagePlanningActuel = index;
-            afficherPastillesPlanning();
-            afficherCreneauxJourCourant();
-          });
-          pastillesPlanningJoursEl.appendChild(bouton);
-        });
-        btnPlanningJourPrecEl.disabled = decalagePlanningActuel === 0;
-        btnPlanningJourSuivEl.disabled = decalagePlanningActuel === joursPlanningAffichables.length - 1;
-      }
-
-      function jourPlanningCourantISO() {
-        var date = joursPlanningAffichables[decalagePlanningActuel];
-        return date ? versISO(date) : null;
-      }
-
-      function chargerCreneaux() {
-        var debut = versISO(joursPlanningAffichables[0]);
-        var fin = versISO(joursPlanningAffichables[joursPlanningAffichables.length - 1]);
+      // Charge les créneaux réels du jour affiché depuis creneaux_personnel,
+      // les convertit au format de travail decimal (gère le passage de
+      // minuit : heure_fin <= heure_debut ⇒ +24h).
+      function chargerCreneauxJourCourant() {
+        var iso = versISO(dateDuJour(decalageJour));
         return sbClient.from('creneaux_personnel').select('*')
           .eq('commercant_id', commercantId)
-          .gte('date_creneau', debut)
-          .lte('date_creneau', fin)
-          .order('heure_debut', { ascending: true })
+          .eq('date_creneau', iso)
           .then(function (result) {
-            creneauxParJour = {};
-            (result.data || []).forEach(function (c) {
-              if (!creneauxParJour[c.date_creneau]) creneauxParJour[c.date_creneau] = [];
-              creneauxParJour[c.date_creneau].push(c);
+            var lignes = result.data || [];
+            creneauxDuJourCache = {};
+            creneauxBrutsParEmploye = {};
+            lignes.forEach(function (c) {
+              var debut = heureVersDecimale(c.heure_debut);
+              var fin = heureVersDecimale(c.heure_fin);
+              if (fin <= debut) fin += 24;
+              var travail = { id: c.id, debut: debut, fin: fin, secteurId: c.secteur_id || 'salle', posteId: c.poste_id || 'generique' };
+              if (c.pause_debut != null && c.pause_fin != null) {
+                travail.pauseDebut = heureVersDecimale(c.pause_debut);
+                travail.pauseFin = heureVersDecimale(c.pause_fin);
+              }
+              if (!creneauxDuJourCache[c.personnel_id]) creneauxDuJourCache[c.personnel_id] = [];
+              creneauxDuJourCache[c.personnel_id].push(travail);
+              if (!creneauxBrutsParEmploye[c.personnel_id]) creneauxBrutsParEmploye[c.personnel_id] = [];
+              creneauxBrutsParEmploye[c.personnel_id].push(c);
             });
-            afficherCreneauxJourCourant();
+            jourCourantCharge = iso;
           });
       }
 
-      // --- Couverture par heure (nombre de personnes présentes) ------------
-      // Dérivée directement des créneaux du jour affiché (pas d'heures
-      // d'ouverture/fermeture déclarées quelque part : on prend simplement
-      // la plage couverte par les créneaux existants). Une personne compte
-      // sur une heure entière dès qu'elle chevauche cette heure, même
-      // partiellement — ex. un créneau 8h30–12h compte dans les heures 8, 9,
-      // 10 et 11. Total global tous rôles confondus (pas de décomposition
-      // par poste ici, cf. discussion produit).
-      //
-      // Créneaux qui traversent minuit (ex. 19h00–02h00, un service du soir
-      // qui finit après minuit) : stockés sur une seule date_creneau (celle
-      // du début de service), heure_fin < heure_debut signale le passage à
-      // minuit. heureFinDecimaleAjustee ajoute alors 24h à la fin pour que
-      // toute comparaison début/fin reste cohérente (le créneau va bien de
-      // 19 à 26 en interne, jamais de 19 à 2).
-      function heureDecimale(heureStr) {
-        var parties = formatHeure(heureStr).split(':');
-        return parseInt(parties[0], 10) + (parseInt(parties[1], 10) || 0) / 60;
+      // --- MÉMOIRE : lit directement les créneaux_personnel passés
+      // (origine = 'manuel') du commerçant — pas de table séparée : "ce qui
+      // a été vécu et ajusté à la main" EST la mémoire. -----------------
+      var SEMAINES_MIN_AVANT_ROBOT = 3;
+      var premiereDateMemoireCache = undefined; // undefined = pas encore chargée, null = aucune
+
+      function ancienneteMemoireEnSemaines() {
+        if (!premiereDateMemoireCache) return 0;
+        var joursEcart = Math.round((new Date() - new Date(premiereDateMemoireCache)) / 86400000);
+        return Math.floor(joursEcart / 7);
       }
 
-      function heureFinDecimaleAjustee(heureDebutStr, heureFinStr) {
-        var debut = heureDecimale(heureDebutStr);
-        var fin = heureDecimale(heureFinStr);
-        return fin <= debut ? fin + 24 : fin;
+      function chargerAncienneteMemoire() {
+        return sbClient.from('creneaux_personnel').select('date_creneau')
+          .eq('commercant_id', commercantId)
+          .eq('origine', 'manuel')
+          .order('date_creneau', { ascending: true })
+          .then(function (result) {
+            var lignes = result.data || [];
+            premiereDateMemoireCache = lignes.length ? lignes[0].date_creneau : null;
+          });
       }
 
-      function calculerCouverturePourJour(creneaux) {
-        if (creneaux.length === 0) return null;
+      // Cherche, pour une date cible, le jour le plus récent parmi les 8
+      // dernières semaines à même jour de semaine ayant du vécu réel
+      // (origine = 'manuel') en mémoire.
+      function trouverJourSimilaireEnMemoire(dateCible) {
+        var candidats = [];
+        for (var s = 1; s <= 8; s++) {
+          var d = new Date(dateCible.getTime());
+          d.setDate(d.getDate() - 7 * s);
+          candidats.push(versISO(d));
+        }
+        return sbClient.from('creneaux_personnel').select('*')
+          .eq('commercant_id', commercantId)
+          .eq('origine', 'manuel')
+          .in('date_creneau', candidats)
+          .then(function (result) {
+            var lignes = result.data || [];
+            if (lignes.length === 0) return null;
+            // Le plus récent candidat qui a effectivement du vécu.
+            for (var i = 0; i < candidats.length; i++) {
+              var lignesCeJour = lignes.filter(function (l) { return l.date_creneau === candidats[i]; });
+              if (lignesCeJour.length > 0) {
+                var squelette = {};
+                lignesCeJour.forEach(function (c) {
+                  var debut = heureVersDecimale(c.heure_debut);
+                  var fin = heureVersDecimale(c.heure_fin);
+                  if (fin <= debut) fin += 24;
+                  var creneau = { debut: debut, fin: fin, secteurId: c.secteur_id, posteId: c.poste_id };
+                  if (c.pause_debut != null && c.pause_fin != null) {
+                    creneau.pauseDebut = heureVersDecimale(c.pause_debut);
+                    creneau.pauseFin = heureVersDecimale(c.pause_fin);
+                  }
+                  if (!squelette[c.personnel_id]) squelette[c.personnel_id] = [];
+                  squelette[c.personnel_id].push(creneau);
+                });
+                return { iso: candidats[i], squelette: squelette };
+              }
+            }
+            return null;
+          });
+      }
 
-        var debutMin = Infinity, finMax = -Infinity;
-        creneaux.forEach(function (c) {
-          debutMin = Math.min(debutMin, Math.floor(heureDecimale(c.heure_debut)));
-          finMax = Math.max(finMax, Math.ceil(heureFinDecimaleAjustee(c.heure_debut, c.heure_fin)));
+      // --- Repos consécutifs & seuil extra (mêmes règles que la maquette) --
+      var EFFECTIF_MINIMUM_SERVICE = 1;
+      var CACHE_REPOS_SEMAINE = {};
+
+      function joursReposDeclares(employe) {
+        return employe.jours_repos || [];
+      }
+
+      function joursDeReposDejaDecides(equipe, employeId) {
+        var parEmploye = {};
+        equipe.forEach(function (e) {
+          if (e.type_contrat === 'Extra') return;
+          parEmploye[e.id] = CACHE_REPOS_SEMAINE[e.id] || joursReposDeclares(e);
         });
-
-        var heures = [];
-        for (var h = debutMin; h < finMax; h++) {
-          var compte = creneaux.filter(function (c) {
-            return heureDecimale(c.heure_debut) <= h && heureFinDecimaleAjustee(c.heure_debut, c.heure_fin) > h;
-          }).length;
-          heures.push({ heure: h, compte: compte });
-        }
-        return heures;
+        return parEmploye;
       }
 
-      function afficherCouverture(creneaux) {
-        var couverture = calculerCouverturePourJour(creneaux);
-        if (!couverture || couverture.length === 0) {
-          couvertureCreneauxEl.style.display = 'none';
-          couvertureCreneauxEl.innerHTML = '';
-          return;
-        }
-
-        var maxCompte = Math.max.apply(null, couverture.map(function (h) { return h.compte; }));
-        couvertureCreneauxEl.innerHTML = '';
-        couvertureCreneauxEl.style.display = 'flex';
-
-        couverture.forEach(function (h) {
-          var colonne = document.createElement('div');
-          colonne.className = 'couverture-colonne';
-
-          var barre = document.createElement('div');
-          barre.className = 'couverture-barre';
-          var hauteurPct = maxCompte > 0 ? (h.compte / maxCompte) * 100 : 0;
-          barre.style.height = Math.max(hauteurPct, h.compte > 0 ? 8 : 0) + '%';
-          if (h.compte === 0) barre.classList.add('couverture-barre--vide');
-
-          var valeur = document.createElement('span');
-          valeur.className = 'couverture-valeur';
-          valeur.textContent = h.compte;
-
-          var label = document.createElement('span');
-          label.className = 'couverture-label';
-          label.textContent = (h.heure % 24) + 'h';
-
-          colonne.appendChild(valeur);
-          colonne.appendChild(barre);
-          colonne.appendChild(label);
-          couvertureCreneauxEl.appendChild(colonne);
-        });
+      function jourAccoleEstEnvisageable(equipe, employe, nomJourAccole) {
+        var reposActuels = joursDeReposDejaDecides(equipe, employe.id);
+        var presentsSansLui = equipe.filter(function (autre) {
+          if (autre.type_contrat === 'Extra') return false;
+          if (autre.id === employe.id) return false;
+          return (reposActuels[autre.id] || []).indexOf(nomJourAccole) === -1;
+        }).length;
+        return presentsSansLui >= EFFECTIF_MINIMUM_SERVICE;
       }
 
-      // --- Gantt nominatif par personne (planning visuel du jour) ----------
-      // Une ligne par personne ayant au moins un créneau ce jour-là, barre
-      // positionnée selon heure_debut/heure_fin (gère le passage de minuit
-      // via heureFinDecimaleAjustee), couleur par rôle (palette fixe,
-      // assignée par ordre d'apparition), total d'heures planifiées par
-      // personne en fin de ligne — seule donnée de synthèse réaliste sans
-      // intégration de badgeuse/pointage réel.
-      var PALETTE_ROLES = ['#4caf6d', '#3b82c4', '#c9a227', '#a15a3f', '#7a5ca8', '#c4587a', '#4a9a9a', '#c47b3b'];
-      var couleursParRole = {};
-      function couleurPourRole(role) {
-        var cle = role || '(sans rôle)';
-        if (!couleursParRole[cle]) {
-          var index = Object.keys(couleursParRole).length % PALETTE_ROLES.length;
-          couleursParRole[cle] = PALETTE_ROLES[index];
-        }
-        return couleursParRole[cle];
-      }
-
-      function formatDureeHeures(heuresDecimales) {
-        var h = Math.floor(heuresDecimales);
-        var m = Math.round((heuresDecimales - h) * 60);
-        if (m === 60) { h += 1; m = 0; }
-        return m === 0 ? h + 'h' : h + 'h' + ('0' + m).slice(-2);
-      }
-
-      // Plage horaire fixe (5h à 3h du matin le lendemain, soit 22h), plutôt
-      // que déduite des créneaux du jour : demandé pour que la journée
-      // entière soit visible d'un coup, toujours au même endroit, sans que
-      // la largeur de la grille ne bouge d'un jour à l'autre. Élargie
-      // automatiquement si un créneau existant dépasse exceptionnellement
-      // cette plage (jamais tronqué silencieusement).
-      var GANTT_HEURE_DEBUT_DEFAUT = 5;
-      var GANTT_HEURE_FIN_DEFAUT = 27; // 3h du matin, exprimé en continu (24+3)
-
-      function afficherGanttPersonnel(creneaux) {
-        if (creneaux.length === 0) {
-          zoneGanttPersonnelEl.style.display = 'none';
-          ganttPersonnelEl.innerHTML = '';
-          return;
-        }
-
-        var debutMin = GANTT_HEURE_DEBUT_DEFAUT, finMax = GANTT_HEURE_FIN_DEFAUT;
-        creneaux.forEach(function (c) {
-          debutMin = Math.min(debutMin, Math.floor(heureDecimale(c.heure_debut)));
-          finMax = Math.max(finMax, Math.ceil(heureFinDecimaleAjustee(c.heure_debut, c.heure_fin)));
-        });
-        var nbHeuresAffichees = finMax - debutMin;
-
-        // Une ligne par personne, dans l'ordre de son premier créneau du jour.
-        var creneauxParPersonne = {};
-        var ordrePersonnes = [];
-        creneaux.forEach(function (c) {
-          if (!creneauxParPersonne[c.personnel_id]) {
-            creneauxParPersonne[c.personnel_id] = [];
-            ordrePersonnes.push(c.personnel_id);
+      function joursDeReposConsecutifs(equipe, employe) {
+        if (CACHE_REPOS_SEMAINE[employe.id]) return CACHE_REPOS_SEMAINE[employe.id];
+        var declares = joursReposDeclares(employe);
+        var ancre = declares[0];
+        var resultat = declares.slice();
+        if (ancre && employe.type_contrat !== 'Extra') {
+          var indexAncre = NOMS_JOURS_LONGS.indexOf(ancre);
+          var lendemain = NOMS_JOURS_LONGS[(indexAncre + 1) % 7];
+          var veille = NOMS_JOURS_LONGS[(indexAncre + 6) % 7];
+          if (resultat.indexOf(lendemain) === -1 && jourAccoleEstEnvisageable(equipe, employe, lendemain)) {
+            resultat.push(lendemain);
+          } else if (resultat.indexOf(veille) === -1 && jourAccoleEstEnvisageable(equipe, employe, veille)) {
+            resultat.push(veille);
           }
-          creneauxParPersonne[c.personnel_id].push(c);
+        }
+        CACHE_REPOS_SEMAINE[employe.id] = resultat;
+        return resultat;
+      }
+
+      function calculerReposConsecutifsEquipe(equipe) {
+        CACHE_REPOS_SEMAINE = {};
+        equipe.slice().sort(function (a, b) { return a.id < b.id ? -1 : 1; }).forEach(function (e) {
+          joursDeReposConsecutifs(equipe, e);
+        });
+      }
+
+      var SEUIL_AFFLUENCE_NECESSITANT_EXTRA = 2;
+      function equipeFixeSuffisante(equipe, nomJourLong) {
+        var presents = equipe.filter(function (e) {
+          if (e.type_contrat === 'Extra') return false;
+          var repos = CACHE_REPOS_SEMAINE[e.id] || joursReposDeclares(e);
+          return repos.indexOf(nomJourLong) === -1;
+        });
+        return presents.length >= SEUIL_AFFLUENCE_NECESSITANT_EXTRA;
+      }
+
+      function choisirSecteurSelonMeteo(meteo, secteurIdEmploye, posteIdEmploye) {
+        var motsClesFavorises = meteo.indexOf('Chaud') !== -1 || meteo.indexOf('Soleil') !== -1
+          ? ['salle', 'terrasse']
+          : ['production', 'caisse', 'cuisine'];
+        var favori = SECTEURS.filter(function (s) {
+          return motsClesFavorises.some(function (mot) { return s.nom.toLowerCase().indexOf(mot) !== -1; });
+        })[0];
+        var secteurChoisi = favori || trouverSecteur(secteurIdEmploye);
+        if (!secteurChoisi) return { secteurId: secteurIdEmploye, posteId: posteIdEmploye };
+        if (secteurChoisi.id === secteurIdEmploye) {
+          return { secteurId: secteurChoisi.id, posteId: trouverPosteDansSecteur(secteurChoisi, posteIdEmploye).id };
+        }
+        return { secteurId: secteurChoisi.id, posteId: secteurChoisi.postes[0].id };
+      }
+
+      var CRENEAUX_PAUSE_DEJEUNER = [{ debut: 12, fin: 13 }, { debut: 12.5, fin: 13.5 }, { debut: 13, fin: 14 }];
+
+      // --- Filet de secours par règles (phase d'apprentissage < 3 semaines,
+      // ou aucun jour similaire trouvé en mémoire) --------------------------
+      function genererEsquisseParRegles(equipe) {
+        var esquisse = {};
+        calculerReposConsecutifsEquipe(equipe);
+        var meteo = meteoDuJour(decalageJour);
+        var date = dateDuJour(decalageJour);
+        var nomJourLong = NOMS_JOURS_LONGS[date.getDay()];
+        var estWeekend = date.getDay() === 0 || date.getDay() === 6;
+        var estDimanche = date.getDay() === 0;
+        var rangPause = 0;
+        var equipeSuffisante = equipeFixeSuffisante(equipe, nomJourLong);
+
+        equipe.forEach(function (e) {
+          if (e.type_contrat === 'Extra') {
+            if (equipeSuffisante) { esquisse[e.id] = []; return; }
+            var sp = choisirSecteurSelonMeteo(meteo, e.secteur_id, e.poste_id);
+            esquisse[e.id] = [{ debut: 11, fin: 15, secteurId: sp.secteurId, posteId: sp.posteId }];
+            return;
+          }
+          if (joursDeReposConsecutifs(equipe, e).indexOf(nomJourLong) !== -1) { esquisse[e.id] = []; return; }
+          if (e.alternance_weekend && estWeekend && estDimanche) { esquisse[e.id] = []; return; }
+
+          var sp = choisirSecteurSelonMeteo(meteo, e.secteur_id, e.poste_id);
+          var cumul = cumulSemaineReel(e.id);
+          var heuresRestantes = Math.max((e.contrat_hebdo || 0) - cumul, 0);
+          var creneau;
+          if (heuresRestantes >= 8) {
+            creneau = { debut: 9, fin: 17, secteurId: sp.secteurId, posteId: sp.posteId };
+          } else if (heuresRestantes >= 3) {
+            creneau = { debut: 9, fin: 9 + heuresRestantes, secteurId: sp.secteurId, posteId: sp.posteId };
+          } else {
+            esquisse[e.id] = [];
+            return;
+          }
+          var couvreMidi = creneau.debut <= 12 && creneau.fin >= 14;
+          if (couvreMidi && (creneau.fin - creneau.debut) >= 6) {
+            var pause = CRENEAUX_PAUSE_DEJEUNER[rangPause % CRENEAUX_PAUSE_DEJEUNER.length];
+            creneau.pauseDebut = pause.debut; creneau.pauseFin = pause.fin;
+            rangPause++;
+          }
+          esquisse[e.id] = [creneau];
+        });
+        return esquisse;
+      }
+
+      function ajusterCreneauSelonVolume(creneau, facteurVolume) {
+        var ajuste = { debut: creneau.debut, fin: creneau.fin, secteurId: creneau.secteurId, posteId: creneau.posteId };
+        if (creneau.pauseDebut != null) { ajuste.pauseDebut = creneau.pauseDebut; ajuste.pauseFin = creneau.pauseFin; }
+        var ecart = facteurVolume - 1;
+        var etirement = Math.max(-2, Math.min(2, Math.round(ecart * 2)));
+        if (etirement > 0) {
+          ajuste.debut = Math.max(HEURE_DEBUT, ajuste.debut - Math.ceil(etirement / 2));
+          ajuste.fin = ajuste.fin + Math.floor(etirement / 2) + 1;
+        } else if (etirement < 0) {
+          var reduction = Math.min(-etirement, (ajuste.fin - ajuste.debut) - 3);
+          if (reduction > 0) ajuste.fin -= reduction;
+        }
+        if (ajuste.pauseDebut != null && (ajuste.pauseDebut < ajuste.debut || ajuste.pauseFin > ajuste.fin)) {
+          delete ajuste.pauseDebut; delete ajuste.pauseFin;
+        }
+        return ajuste;
+      }
+
+      // --- Esquisse automatique : mémoire d'abord, règles en filet ---------
+      function genererEsquisse(equipe) {
+        if (ancienneteMemoireEnSemaines() < SEMAINES_MIN_AVANT_ROBOT) {
+          return Promise.resolve(genererEsquisseParRegles(equipe));
+        }
+        var dateCible = dateDuJour(decalageJour);
+        return trouverJourSimilaireEnMemoire(dateCible).then(function (similaire) {
+          if (!similaire) return genererEsquisseParRegles(equipe);
+
+          var squelette = similaire.squelette;
+          var meteo = meteoDuJour(decalageJour);
+          var facteurVolume = facteurVolumePourJour(decalageJour);
+          if (meteo.indexOf('Chaud') !== -1 || meteo.indexOf('Soleil') !== -1) facteurVolume *= 1.08;
+          if (meteo.indexOf('Pluie') !== -1) facteurVolume *= 0.92;
+
+          var esquisse = {};
+          var employesConnus = {};
+          equipe.forEach(function (e) { employesConnus[e.id] = e; });
+
+          Object.keys(squelette).forEach(function (employeIdTexte) {
+            var employe = employesConnus[employeIdTexte];
+            if (!employe) return;
+            if (employe.type_contrat === 'Extra') return;
+            esquisse[employe.id] = squelette[employeIdTexte].map(function (creneau) {
+              var secteurExiste = creneau.secteurId && trouverSecteur(creneau.secteurId) && trouverSecteur(creneau.secteurId).id === creneau.secteurId;
+              var secteurMemoire = secteurExiste ? creneau.secteurId : employe.secteur_id;
+              var posteMemoire = trouverPosteDansSecteur(trouverSecteur(secteurMemoire), creneau.posteId).id;
+              var sp = choisirSecteurSelonMeteo(meteo, secteurMemoire, posteMemoire);
+              var base = { debut: creneau.debut, fin: creneau.fin, secteurId: sp.secteurId, posteId: sp.posteId };
+              if (creneau.pauseDebut != null) { base.pauseDebut = creneau.pauseDebut; base.pauseFin = creneau.pauseFin; }
+              return ajusterCreneauSelonVolume(base, facteurVolume);
+            });
+          });
+
+          equipe.forEach(function (e) {
+            if (e.type_contrat === 'Extra') return;
+            if (!esquisse.hasOwnProperty(e.id)) esquisse[e.id] = [];
+          });
+
+          calculerReposConsecutifsEquipe(equipe);
+          var nomJourLong = NOMS_JOURS_LONGS[dateCible.getDay()];
+          var equipeSuffisante = equipeFixeSuffisante(equipe, nomJourLong);
+          equipe.forEach(function (e) {
+            if (e.type_contrat !== 'Extra') return;
+            if (equipeSuffisante) { esquisse[e.id] = []; return; }
+            var sp = choisirSecteurSelonMeteo(meteo, e.secteur_id, e.poste_id);
+            esquisse[e.id] = [{ debut: 11, fin: 15, secteurId: sp.secteurId, posteId: sp.posteId }];
+          });
+
+          return esquisse;
+        });
+      }
+
+      // Persiste une esquisse générée (une seule fois, au premier affichage
+      // d'un jour vide) : insertion en base avec origine='auto', jamais
+      // marquée comme vécu réel tant que le patron n'y touche pas.
+      function persisterEsquisse(esquisse, iso) {
+        var lignes = [];
+        Object.keys(esquisse).forEach(function (employeId) {
+          esquisse[employeId].forEach(function (c) {
+            var ligne = {
+              commercant_id: commercantId,
+              personnel_id: employeId,
+              date_creneau: iso,
+              heure_debut: decimaleVersHeureSQL(c.debut),
+              heure_fin: decimaleVersHeureSQL(c.fin),
+              secteur_id: c.secteurId,
+              poste_id: c.posteId,
+              origine: 'auto'
+            };
+            if (c.pauseDebut != null) { ligne.pause_debut = decimaleVersHeureSQL(c.pauseDebut); ligne.pause_fin = decimaleVersHeureSQL(c.pauseFin); }
+            lignes.push(ligne);
+          });
+        });
+        if (lignes.length === 0) return Promise.resolve();
+        return sbClient.from('creneaux_personnel').insert(lignes);
+      }
+
+      // --- Équité : cumul de la semaine ISO en cours calculé EN DIRECT à
+      // partir des créneaux réels (jamais stocké : évite toute donnée
+      // périmée si un créneau passé est modifié après coup). ---------------
+      function debutSemaineISO(date) {
+        var d = new Date(date.getTime());
+        var jour = (d.getDay() + 6) % 7; // lundi = 0
+        d.setDate(d.getDate() - jour);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      }
+
+      var cumulSemaineCache = {};
+      function cumulSemaineReel(employeId) {
+        return cumulSemaineCache[employeId] || 0;
+      }
+
+      // Charge, pour toute l'équipe, le cumul d'heures déjà travaillées
+      // cette semaine ISO AVANT le jour affiché (les créneaux du jour
+      // affiché lui-même sont ajoutés séparément par libelleEquite, pour
+      // rester cohérent avec un jour qu'on peut encore éditer).
+      function chargerCumulSemaine(equipe) {
+        var dateAffichee = dateDuJour(decalageJour);
+        var debutSemaine = versISO(debutSemaineISO(dateAffichee));
+        var isoAffiche = versISO(dateAffichee);
+        return sbClient.from('creneaux_personnel').select('*')
+          .eq('commercant_id', commercantId)
+          .gte('date_creneau', debutSemaine)
+          .lt('date_creneau', isoAffiche)
+          .then(function (result) {
+            cumulSemaineCache = {};
+            (result.data || []).forEach(function (c) {
+              var debut = heureVersDecimale(c.heure_debut);
+              var fin = heureVersDecimale(c.heure_fin);
+              if (fin <= debut) fin += 24;
+              var duree = fin - debut;
+              if (c.pause_debut != null && c.pause_fin != null) {
+                duree -= (heureVersDecimale(c.pause_fin) - heureVersDecimale(c.pause_debut));
+              }
+              cumulSemaineCache[c.personnel_id] = (cumulSemaineCache[c.personnel_id] || 0) + duree;
+            });
+          });
+      }
+
+      function totalHeuresEmploye(employeId) {
+        var creneaux = creneauxDuJour()[employeId] || [];
+        var total = 0;
+        creneaux.forEach(function (c) {
+          var duree = c.fin - c.debut;
+          if (c.pauseDebut != null && c.pauseFin != null) duree -= (c.pauseFin - c.pauseDebut);
+          total += duree;
+        });
+        return total;
+      }
+
+      function libelleEquite(employe) {
+        var heuresJour = totalHeuresEmploye(employe.id);
+        if (employe.type_contrat === 'Extra') {
+          return { texte: heuresJour + 'h ce jour', depasse: false };
+        }
+        var cumulProjete = Math.round((cumulSemaineReel(employe.id) + heuresJour) * 10) / 10;
+        var depasse = cumulProjete > (employe.contrat_hebdo || 0);
+        return { texte: heuresJour + 'h ce jour · ' + cumulProjete + 'h/' + (employe.contrat_hebdo || 0) + 'h sem.', depasse: depasse };
+      }
+
+      // --- Légende Secteur ---------------------------------------------
+      function rendreLegende() {
+        var conteneur = document.getElementById('legendePostes');
+        conteneur.innerHTML = '';
+        SECTEURS.forEach(function (secteur) {
+          var pastille = document.createElement('span');
+          pastille.className = 'pastille-poste';
+
+          var couleur = document.createElement('input');
+          couleur.type = 'color';
+          couleur.className = 'pastille-poste-couleur';
+          couleur.value = secteur.couleur;
+          couleur.title = 'Changer la couleur de ' + secteur.nom;
+          couleur.addEventListener('input', function () {
+            changerCouleurSecteur(secteur, couleur.value);
+            rendreGantt();
+          });
+
+          var nom = document.createElement('button');
+          nom.type = 'button';
+          nom.className = 'pastille-poste-nom';
+          nom.textContent = secteur.nom;
+          nom.title = 'Renommer ce secteur';
+          nom.addEventListener('click', function () {
+            var nouveauNom = window.prompt('Renommer ce secteur :', secteur.nom);
+            if (nouveauNom) { renommerSecteur(secteur, nouveauNom); rendreLegende(); rendreGantt(); }
+          });
+
+          pastille.appendChild(couleur);
+          pastille.appendChild(nom);
+          conteneur.appendChild(pastille);
         });
 
-        zoneGanttPersonnelEl.style.display = 'block';
-        ganttPersonnelEl.innerHTML = '';
-        ganttPersonnelEl.style.setProperty('--gantt-heures', nbHeuresAffichees);
+        var gererPostes = document.createElement('button');
+        gererPostes.type = 'button';
+        gererPostes.className = 'btn-gerer-postes';
+        gererPostes.textContent = '⚙️ Gérer les postes';
+        gererPostes.title = "Configurer les postes précis à l'intérieur de chaque secteur";
+        gererPostes.addEventListener('click', ouvrirModalPostes);
+        conteneur.appendChild(gererPostes);
+      }
 
-        // Ligne d'en-tête : une case vide au-dessus des noms, puis un label
-        // par heure. Sur une plage fixe de 22h affichée en largeur fluide,
-        // chaque colonne peut devenir trop étroite pour un texte comme
-        // "10h" (~13px de large sur desktop, moins sur mobile) : un label
-        // sur deux est alors masqué (mais la cellule reste dans la grille,
-        // pour ne pas décaler l'alignement des colonnes), le trait vertical
-        // de .gantt-piste continue de marquer chaque heure individuellement.
-        var espacementLabels = nbHeuresAffichees > 16 ? 3 : (nbHeuresAffichees > 10 ? 2 : 1);
-        var enteteNom = document.createElement('div');
-        enteteNom.className = 'gantt-cellule-nom gantt-entete';
-        ganttPersonnelEl.appendChild(enteteNom);
-        for (var h = debutMin; h < finMax; h++) {
-          var labelHeure = document.createElement('div');
-          labelHeure.className = 'gantt-label-heure';
-          if ((h - debutMin) % espacementLabels === 0) {
-            labelHeure.textContent = (h % 24) + 'h';
-          }
-          ganttPersonnelEl.appendChild(labelHeure);
+      // --- Modale : gestion secteurs/postes ---------------------------
+      var modalPostes = document.getElementById('modalPostes');
+
+      function rendreContenuModalPostes() {
+        var conteneur = document.getElementById('listeSecteursPostes');
+        conteneur.innerHTML = '';
+        SECTEURS.forEach(function (secteur) {
+          var bloc = document.createElement('div');
+          bloc.className = 'bloc-secteur-postes';
+
+          var entete = document.createElement('div');
+          entete.className = 'entete-bloc-secteur';
+          var pastilleCouleur = document.createElement('span');
+          pastilleCouleur.className = 'pastille-couleur-inline';
+          pastilleCouleur.style.background = secteur.couleur;
+          var nomSecteur = document.createElement('strong');
+          nomSecteur.textContent = secteur.nom;
+          entete.appendChild(pastilleCouleur);
+          entete.appendChild(nomSecteur);
+
+          var supprimerSecteur = document.createElement('button');
+          supprimerSecteur.type = 'button';
+          supprimerSecteur.className = 'btn-lien-discret';
+          supprimerSecteur.textContent = 'Supprimer le secteur';
+          supprimerSecteur.addEventListener('click', function () {
+            if (SECTEURS.length <= 1) { window.alert('Il faut garder au moins un secteur.'); return; }
+            if (!window.confirm('Supprimer le secteur "' + secteur.nom + '" ?')) return;
+            supprimerSecteurDistant(secteur);
+            rendreContenuModalPostes();
+            rendreLegende();
+            rendreGantt();
+          });
+          entete.appendChild(supprimerSecteur);
+          bloc.appendChild(entete);
+
+          var listePostes = document.createElement('div');
+          listePostes.className = 'liste-postes-secteur';
+          secteur.postes.forEach(function (poste) {
+            var ligne = document.createElement('span');
+            ligne.className = 'etiquette-poste-config';
+            ligne.textContent = poste.nom;
+            if (poste.id !== 'generique') {
+              ligne.title = 'Cliquer pour renommer ou supprimer';
+              ligne.addEventListener('click', function () {
+                var action = window.prompt('Renommer ce poste (laisser vide pour le supprimer) :', poste.nom);
+                if (action === null) return;
+                if (action.trim() === '') {
+                  if (!window.confirm('Supprimer le poste "' + poste.nom + '" ?')) return;
+                  supprimerPosteDistant(secteur, poste);
+                } else {
+                  renommerPoste(secteur, poste, action.trim());
+                }
+                rendreContenuModalPostes();
+                rendreGantt();
+              });
+            } else {
+              ligne.className += ' etiquette-poste-config--generique';
+              ligne.title = "Poste par défaut de ce secteur, utilisé quand aucun poste précis n'est choisi";
+            }
+            listePostes.appendChild(ligne);
+          });
+
+          var ajouterPoste = document.createElement('button');
+          ajouterPoste.type = 'button';
+          ajouterPoste.className = 'btn-ajouter-poste-config';
+          ajouterPoste.textContent = '+ Poste';
+          ajouterPoste.addEventListener('click', function () {
+            var nomPoste = window.prompt('Nom du nouveau poste dans "' + secteur.nom + '" ?');
+            if (!nomPoste) return;
+            ajouterPosteASecteur(secteur, nomPoste);
+            rendreContenuModalPostes();
+          });
+          listePostes.appendChild(ajouterPoste);
+
+          bloc.appendChild(listePostes);
+          conteneur.appendChild(bloc);
+        });
+
+        var ajouterSecteur = document.createElement('button');
+        ajouterSecteur.type = 'button';
+        ajouterSecteur.className = 'btn-ajouter-poste';
+        ajouterSecteur.textContent = '+ Secteur';
+        ajouterSecteur.addEventListener('click', function () {
+          var nom = window.prompt('Nom du nouveau secteur ?');
+          if (!nom) return;
+          creerSecteur(nom);
+          rendreContenuModalPostes();
+          rendreLegende();
+        });
+        conteneur.appendChild(ajouterSecteur);
+      }
+
+      function ouvrirModalPostes() { rendreContenuModalPostes(); modalPostes.hidden = false; }
+      function fermerModalPostes() { modalPostes.hidden = true; }
+      document.getElementById('btnFermerModalPostes').addEventListener('click', fermerModalPostes);
+      modalPostes.addEventListener('click', function (e) { if (e.target === modalPostes) fermerModalPostes(); });
+
+      // --- Axe des heures : 03h → 03h le lendemain --------------------
+      var HEURE_DEBUT = 3;
+      var HEURE_FIN = 27;
+      var PX_PAR_HEURE_MOBILE = 46;
+      var PX_PAR_HEURE = PX_PAR_HEURE_MOBILE;
+      var SEUIL_DESKTOP = 900;
+
+      function ajusterLargeurHeures() {
+        var zoneScroll = document.querySelector('.gantt-scroll');
+        if (!zoneScroll) return;
+        if (window.innerWidth >= SEUIL_DESKTOP) {
+          var largeurDisponible = zoneScroll.clientWidth - 168;
+          var totalHeuresAxe = HEURE_FIN - HEURE_DEBUT;
+          PX_PAR_HEURE = Math.max(largeurDisponible / totalHeuresAxe, 30);
+        } else {
+          PX_PAR_HEURE = PX_PAR_HEURE_MOBILE;
         }
-        var enteteTotal = document.createElement('div');
-        enteteTotal.className = 'gantt-cellule-total gantt-entete';
-        enteteTotal.textContent = 'Total';
-        ganttPersonnelEl.appendChild(enteteTotal);
+      }
 
-        ordrePersonnes.forEach(function (personnelId) {
-          var creneauxPersonne = creneauxParPersonne[personnelId];
+      function formatHeureAxe(h) {
+        var reel = h % 24;
+        var heureEntiere = Math.floor(reel);
+        var minutes = (reel % 1 === 0.5) ? '30' : '00';
+        return (heureEntiere < 10 ? '0' : '') + heureEntiere + 'h' + (minutes === '30' ? minutes : '');
+      }
 
+      // --- Rendu du Gantt ------------------------------------------------
+      var jourEnCoursDeRendu = null; // évite un double rendreGantt() concurrent pendant le chargement async
+
+      function rendreGantt() {
+        var iso = versISO(dateDuJour(decalageJour));
+        if (jourEnCoursDeRendu === iso) return;
+        jourEnCoursDeRendu = iso;
+
+        Promise.all([
+          jourCourantCharge === iso ? Promise.resolve() : chargerCreneauxJourCourant(),
+          chargerCumulSemaine(derniereEquipe)
+        ]).then(function () {
+          var aDejaDesCreneaux = Object.keys(creneauxDuJourCache).some(function (id) { return creneauxDuJourCache[id].length > 0; });
+          if (!aDejaDesCreneaux) {
+            return genererEsquisse(derniereEquipe).then(function (esquisse) {
+              creneauxDuJourCache = esquisse;
+              return persisterEsquisse(esquisse, iso).then(function () { return chargerCreneauxJourCourant(); });
+            });
+          }
+        }).then(function () {
+          jourEnCoursDeRendu = null;
+          dessinerGantt();
+        });
+      }
+
+      function dessinerGantt() {
+        document.getElementById('ganttJourLibelle').textContent = libelleJour(decalageJour);
+        var iconeMeteo = document.getElementById('ganttMeteoIcone');
+        if (iconeMeteo) {
+          var meteoJour = meteoDuJour(decalageJour);
+          iconeMeteo.textContent = meteoJour.split(' ')[0];
+          iconeMeteo.title = 'Météo prévue : ' + meteoJour.split(' ').slice(1).join(' ');
+        }
+
+        ajusterLargeurHeures();
+        var grille = document.getElementById('ganttGrille');
+        grille.style.setProperty('--gantt-heures', HEURE_FIN - HEURE_DEBUT);
+        grille.style.setProperty('--gantt-px-heure', PX_PAR_HEURE + 'px');
+        grille.innerHTML = '';
+
+        var coin = document.createElement('div');
+        coin.className = 'gantt-coin';
+        coin.textContent = 'Équipe';
+        grille.appendChild(coin);
+
+        for (var h = HEURE_DEBUT; h < HEURE_FIN; h++) {
+          var entete = document.createElement('div');
+          entete.className = 'gantt-heure-entete';
+          entete.textContent = formatHeureAxe(h);
+          grille.appendChild(entete);
+        }
+
+        var creneaux = creneauxDuJour();
+        var employesTries = derniereEquipe.slice().sort(function (a, b) {
+          return (a.niveau_hierarchie || 2) - (b.niveau_hierarchie || 2);
+        });
+
+        calculerReposConsecutifsEquipe(derniereEquipe);
+        var nomJourLongAffiche = NOMS_JOURS_LONGS[dateDuJour(decalageJour).getDay()];
+
+        var totalEffectifJour = derniereEquipe.reduce(function (somme, e) { return somme + totalHeuresEmploye(e.id); }, 0);
+        var elementTotalEffectif = document.getElementById('ganttTotalEffectif');
+        if (elementTotalEffectif) {
+          var totalArrondi = Math.round(totalEffectifJour * 10) / 10;
+          elementTotalEffectif.textContent = 'Total Effectif du jour : ' + String(totalArrondi).replace('.', ',') + ' h';
+        }
+
+        employesTries.forEach(function (employe) {
           var celluleNom = document.createElement('div');
-          celluleNom.className = 'gantt-cellule-nom';
-          celluleNom.textContent = nomPersonneParId(personnelId);
-          ganttPersonnelEl.appendChild(celluleNom);
+          celluleNom.className = 'gantt-nom-cell';
+
+          var equite = libelleEquite(employe);
+          var estExtraOuSaisonnier = employe.type_contrat === 'Extra' || employe.type_contrat === 'Saisonnier';
+          var texte = document.createElement('div');
+          texte.className = 'gantt-nom-texte';
+          texte.innerHTML =
+            '<span class="gantt-nom">' + formatNomAffichage(employe.nom) +
+            (estExtraOuSaisonnier ? ' <span class="badge-typecontrat badge-typecontrat--' + employe.type_contrat.toLowerCase() + '">' + employe.type_contrat + '</span>' : '') +
+            '</span>' +
+            '<span class="gantt-nom-detail' + (equite.depasse ? ' gantt-nom-detail--alerte' : '') + '">' + equite.texte + '</span>';
+          texte.addEventListener('click', function () { ouvrirModalEmploye(employe.id); });
+          celluleNom.appendChild(texte);
+          grille.appendChild(celluleNom);
 
           var piste = document.createElement('div');
           piste.className = 'gantt-piste';
-          piste.style.gridColumn = '2 / span ' + nbHeuresAffichees;
+          piste.title = 'Cliquer une zone vide pour ajouter un créneau à cette heure';
 
-          var totalHeures = 0;
-          creneauxPersonne.forEach(function (c) {
-            var debut = heureDecimale(c.heure_debut);
-            var fin = heureFinDecimaleAjustee(c.heure_debut, c.heure_fin);
-            totalHeures += (fin - debut);
+          if (totalHeuresEmploye(employe.id) === 0) {
+            piste.classList.add('gantt-piste--vide');
+            var estRepos = employe.type_contrat === 'Extra' ||
+              joursDeReposConsecutifs(derniereEquipe, employe).indexOf(nomJourLongAffiche) !== -1;
+            var filigrane = document.createElement('span');
+            filigrane.className = 'gantt-piste-filigrane' + (estRepos ? '' : ' gantt-piste-filigrane--alerte');
+            filigrane.textContent = estRepos ? 'Repos' : 'Non planifié';
+            piste.appendChild(filigrane);
+          }
 
-            var barre = document.createElement('div');
-            barre.className = 'gantt-barre';
-            barre.style.left = ((debut - debutMin) / nbHeuresAffichees * 100) + '%';
-            barre.style.width = ((fin - debut) / nbHeuresAffichees * 100) + '%';
-            barre.style.background = couleurPourRole(c.role);
-            barre.title = (c.role ? formatNomAffichage(c.role) + ' · ' : '') + formatHeure(c.heure_debut) + '–' + formatHeure(c.heure_fin);
-            barre.textContent = formatHeure(c.heure_debut) + '–' + formatHeure(c.heure_fin);
-            barre.setAttribute('tabindex', '0');
-            barre.setAttribute('role', 'button');
-            barre.setAttribute('aria-label', nomPersonneParId(personnelId) + ', ' + barre.title);
-            barre.addEventListener('click', function (cc) { return function () { ouvrirModalCreneau(cc); }; }(c));
-            piste.appendChild(barre);
-          });
-          ganttPersonnelEl.appendChild(piste);
-
-          var celluleTotal = document.createElement('div');
-          celluleTotal.className = 'gantt-cellule-total';
-          celluleTotal.textContent = formatDureeHeures(totalHeures);
-          ganttPersonnelEl.appendChild(celluleTotal);
-        });
-      }
-
-      function afficherCreneauxJourCourant() {
-        var iso = jourPlanningCourantISO();
-        listeCreneauxEl.innerHTML = '';
-        var creneaux = (iso && creneauxParJour[iso]) || [];
-        afficherCouverture(creneaux);
-        afficherGanttPersonnel(creneaux);
-        if (creneaux.length === 0) {
-          listeCreneauxEl.innerHTML = '<div class="carte-vide-sombre" style="grid-column:unset;">Aucun créneau pour ce jour. Ajoute-en un ci-dessous, ou génère une proposition automatique.</div>';
-          return;
-        }
-        creneaux.forEach(function (c) {
-          var li = document.createElement('li');
-
-          var nomSpan = document.createElement('span');
-          nomSpan.className = 'nom-produit';
-          nomSpan.textContent = nomPersonneParId(c.personnel_id) + (c.role ? ' — ' + formatNomAffichage(c.role) : '') +
-            ' · ' + formatHeure(c.heure_debut) + '–' + formatHeure(c.heure_fin) +
-            (c.origine === 'auto' ? ' (proposition)' : '');
-          nomSpan.title = 'Cliquer pour modifier ce créneau';
-          nomSpan.addEventListener('click', function () { ouvrirModalCreneau(c); });
-
-          var actions = document.createElement('span');
-          actions.className = 'actions-produit';
-
-          var btnSupprimer = document.createElement('button');
-          btnSupprimer.type = 'button';
-          btnSupprimer.className = 'icone-action icone-action--supprimer';
-          btnSupprimer.setAttribute('aria-label', 'Supprimer ce créneau');
-          btnSupprimer.textContent = '🗑';
-          btnSupprimer.addEventListener('click', function (e) {
-            e.stopPropagation();
-            supprimerCreneau(c);
+          piste.addEventListener('click', function (e) {
+            var rect = piste.getBoundingClientRect();
+            var xRelatif = e.clientX - rect.left;
+            var heureCliquee = HEURE_DEBUT + (xRelatif / PX_PAR_HEURE);
+            var heureArrondie = Math.round(heureCliquee * 2) / 2;
+            heureArrondie = Math.max(HEURE_DEBUT, Math.min(heureArrondie, HEURE_FIN - 1));
+            ajouterCreneauEtOuvrirModal(employe.id, heureArrondie);
           });
 
-          actions.appendChild(btnSupprimer);
-          li.appendChild(nomSpan);
-          li.appendChild(actions);
-          listeCreneauxEl.appendChild(li);
-        });
-      }
-
-      function supprimerCreneau(c) {
-        if (!window.confirm('Supprimer ce créneau ?')) return;
-        sbClient.from('creneaux_personnel').delete().eq('id', c.id).then(function (result) {
-          if (result.error) {
-            messagePlanningEl.style.display = 'block';
-            messagePlanningEl.className = 'erreur';
-            messagePlanningEl.textContent = "Impossible de supprimer : " + result.error.message;
-          } else {
-            chargerCreneaux();
+          for (var hh = HEURE_DEBUT + 1; hh < HEURE_FIN; hh++) {
+            var trait = document.createElement('div');
+            trait.className = 'gantt-piste-heure';
+            trait.style.left = ((hh - HEURE_DEBUT) * PX_PAR_HEURE) + 'px';
+            piste.appendChild(trait);
           }
-        });
-      }
 
-      function ouvrirModalCreneau(c) {
-        creneauEnEdition = c;
-        modalSelectPersonneCreneauEl.value = c.personnel_id;
-        modalRoleCreneauEl.value = c.role || '';
-        modalHeureDebutCreneauEl.value = formatHeure(c.heure_debut);
-        modalHeureFinCreneauEl.value = formatHeure(c.heure_fin);
-        fondModalCreneauEl.style.display = 'flex';
-      }
+          (creneaux[employe.id] || []).forEach(function (creneau, index) {
+            var secteur = trouverSecteur(creneau.secteurId);
+            var bloc = document.createElement('div');
+            bloc.className = 'gantt-bloc';
+            bloc.style.left = ((creneau.debut - HEURE_DEBUT) * PX_PAR_HEURE) + 'px';
+            bloc.style.width = ((creneau.fin - creneau.debut) * PX_PAR_HEURE - 4) + 'px';
+            bloc.style.background = secteur ? secteur.couleur : '#8a7cc7';
 
-      btnFermerModalCreneauEl.addEventListener('click', function () {
-        fondModalCreneauEl.style.display = 'none';
-        creneauEnEdition = null;
-      });
+            var aPause = creneau.pauseDebut != null && creneau.pauseFin != null;
+            var libelleTexte = formatHeureAxe(creneau.debut) + '–' + formatHeureAxe(creneau.fin) + ' · ' + libellePoste(creneau.secteurId, creneau.posteId) +
+              (aPause ? ' (pause ' + formatHeureAxe(creneau.pauseDebut) + '–' + formatHeureAxe(creneau.pauseFin) + ')' : '');
+            var texteBloc = document.createElement('span');
+            texteBloc.className = 'gantt-bloc-texte';
+            texteBloc.textContent = libelleTexte;
+            bloc.appendChild(texteBloc);
 
-      btnEnregistrerModalCreneauEl.addEventListener('click', function () {
-        if (!creneauEnEdition) return;
-        var debut = modalHeureDebutCreneauEl.value;
-        var fin = modalHeureFinCreneauEl.value;
-        // fin <= debut n'est plus rejeté ici : ça signifie que le créneau
-        // traverse minuit (ex. 19h00–02h00), un cas réel pour un service du
-        // soir. Seule une durée nulle (fin === debut) reste invalide.
-        if (!debut || !fin || fin === debut) {
-          messagePlanningEl.style.display = 'block';
-          messagePlanningEl.className = 'erreur';
-          messagePlanningEl.textContent = "Heure de fin invalide (doit être différente de l'heure de début).";
-          return;
-        }
-        // Toute édition manuelle repasse le créneau en origine 'manuel' : il
-        // ne sera plus jamais écrasé par une régénération automatique future.
-        sbClient.from('creneaux_personnel').update({
-          personnel_id: modalSelectPersonneCreneauEl.value,
-          role: modalRoleCreneauEl.value.trim() || null,
-          heure_debut: debut,
-          heure_fin: fin,
-          origine: 'manuel'
-        }).eq('id', creneauEnEdition.id).then(function (result) {
-          fondModalCreneauEl.style.display = 'none';
-          creneauEnEdition = null;
-          if (result.error) {
-            messagePlanningEl.style.display = 'block';
-            messagePlanningEl.className = 'erreur';
-            messagePlanningEl.textContent = "Impossible d'enregistrer : " + result.error.message;
-          } else {
-            chargerCreneaux();
-          }
-        });
-      });
-
-      btnAjouterCreneauEl.addEventListener('click', function () {
-        var iso = jourPlanningCourantISO();
-        var personnelId = selectPersonneCreneauEl.value;
-        var debut = heureDebutCreneauEl.value;
-        var fin = heureFinCreneauEl.value;
-
-        if (!iso || !personnelId) {
-          messagePlanningEl.style.display = 'block';
-          messagePlanningEl.className = 'erreur';
-          messagePlanningEl.textContent = "Ajoute d'abord une personne à ton équipe.";
-          return;
-        }
-        if (!debut || !fin || fin === debut) {
-          messagePlanningEl.style.display = 'block';
-          messagePlanningEl.className = 'erreur';
-          messagePlanningEl.textContent = "Heure de fin invalide (doit être différente de l'heure de début).";
-          return;
-        }
-
-        sbClient.from('creneaux_personnel').insert({
-          commercant_id: commercantId,
-          personnel_id: personnelId,
-          date_creneau: iso,
-          heure_debut: debut,
-          heure_fin: fin,
-          role: rolePersonneCreneauEl.value.trim() || null,
-          origine: 'manuel'
-        }).then(function (result) {
-          messagePlanningEl.style.display = 'block';
-          if (result.error) {
-            messagePlanningEl.className = 'erreur';
-            messagePlanningEl.textContent = "Erreur : " + result.error.message;
-          } else {
-            messagePlanningEl.className = 'succes';
-            messagePlanningEl.textContent = 'Créneau ajouté.';
-            rolePersonneCreneauEl.value = '';
-            chargerCreneaux();
-          }
-        });
-      });
-
-      // --- Génération automatique d'une proposition de planning ------------
-      // Règle simple et vérifiable, pas un modèle : pour chaque personne
-      // disponible ce jour-là (heures_disponibles[jour] > 0), on propose un
-      // créneau de départ démarrant à une heure d'ouverture par défaut
-      // (8h00) et durant le nombre d'heures disponibles déclaré — c'est une
-      // approximation volontairement simple, seulement un POINT DE DÉPART
-      // que le commerçant modifie ensuite librement créneau par créneau
-      // (jamais présenté comme définitif). Si le jour est identifié comme
-      // "chargé" ou "événement +" (même tier que la recommandation RH
-      // ci-dessus), on allonge d'une heure les créneaux du rôle le plus
-      // représenté ce jour-là, pour matérialiser le besoin de renfort déjà
-      // signalé en texte par calculerRecommandationsRH.
-      var HEURE_OUVERTURE_DEFAUT = 8;
-
-      function genererCreneauxPourJour(jour, equipe) {
-        var disponibles = equipe.filter(function (p) {
-          var h = p.heures_disponibles && p.heures_disponibles[jour.nomJour];
-          return h && h > 0;
-        });
-        if (disponibles.length === 0) return [];
-
-        var parRole = {};
-        disponibles.forEach(function (p) {
-          var role = p.role ? formatNomAffichage(p.role) : 'Non précisé';
-          parRole[role] = (parRole[role] || 0) + 1;
-        });
-        var roleLePlusRepresente = Object.keys(parRole).sort(function (a, b) { return parRole[b] - parRole[a]; })[0];
-        var allongerRenfort = jour.tier === 'charge' || jour.tier === 'evenement-plus';
-
-        return disponibles.map(function (p) {
-          var heures = p.heures_disponibles[jour.nomJour];
-          var roleAffiche = p.role ? formatNomAffichage(p.role) : 'Non précisé';
-          if (allongerRenfort && roleAffiche === roleLePlusRepresente) heures += 1;
-          // Garde-fou : au-delà de 15h à partir de l'heure d'ouverture, le
-          // créneau franchirait minuit et heure_fin deviendrait antérieure à
-          // heure_debut sur la même date_creneau (créneau invalide en base).
-          // Une disponibilité déclarée aussi longue est de toute façon
-          // improbable pour une seule journée ; on plafonne plutôt que de
-          // générer un créneau incohérent — le commerçant l'ajuste ensuite
-          // librement si besoin.
-          heures = Math.min(heures, 15);
-
-          var debut = HEURE_OUVERTURE_DEFAUT;
-          var finTotal = debut + heures;
-          var finHeure = Math.floor(finTotal);
-          var finMinutes = Math.round((finTotal - Math.floor(finTotal)) * 60);
-          var debutStr = ('0' + debut).slice(-2) + ':00';
-          var finStr = ('0' + finHeure).slice(-2) + ':' + ('0' + finMinutes).slice(-2);
-
-          return {
-            commercant_id: commercantId,
-            personnel_id: p.id,
-            date_creneau: jour.iso,
-            heure_debut: debutStr,
-            heure_fin: finStr,
-            role: p.role || null,
-            origine: 'auto'
-          };
-        });
-      }
-
-      function genererPropositionPlanning(jours, equipe, previsionAffluence) {
-        var previsionParIso = {};
-        previsionAffluence.forEach(function (j) { previsionParIso[j.iso] = j; });
-
-        var tousCreneaux = [];
-        jours.forEach(function (date) {
-          var iso = versISO(date);
-          var jourInfo = previsionParIso[iso] || { iso: iso, nomJour: nomsJours[date.getDay()], tier: 'normal' };
-          tousCreneaux = tousCreneaux.concat(genererCreneauxPourJour(jourInfo, equipe));
-        });
-        return tousCreneaux;
-      }
-
-      btnGenererPlanningEl.addEventListener('click', function () {
-        if (derniereEquipe.length === 0) {
-          messagePlanningEl.style.display = 'block';
-          messagePlanningEl.className = 'erreur';
-          messagePlanningEl.textContent = "Ajoute d'abord au moins une personne à ton équipe.";
-          return;
-        }
-        if (!window.confirm("Générer une proposition pour les 7 prochains jours ? Les créneaux automatiques déjà présents sur cette période seront remplacés (les créneaux que tu as modifiés toi-même ne sont jamais touchés).")) return;
-
-        var jours = prochains7Jours();
-        var debut = versISO(jours[0]);
-        var fin = versISO(jours[jours.length - 1]);
-
-        // On ne supprime jamais les créneaux 'manuel' : seulement ceux
-        // encore marqués 'auto' sur cette période, avant d'insérer la
-        // nouvelle proposition.
-        sbClient.from('creneaux_personnel').delete()
-          .eq('commercant_id', commercantId)
-          .eq('origine', 'auto')
-          .gte('date_creneau', debut)
-          .lte('date_creneau', fin)
-          .then(function () {
-            var nouveauxCreneaux = genererPropositionPlanning(jours, derniereEquipe, dernierePrevisionSemaine);
-            if (nouveauxCreneaux.length === 0) {
-              messagePlanningEl.style.display = 'block';
-              messagePlanningEl.className = 'erreur';
-              messagePlanningEl.textContent = "Personne n'a de disponibilités déclarées sur cette période.";
-              chargerCreneaux();
-              return;
+            if (aPause) {
+              var pauseEl = document.createElement('div');
+              pauseEl.className = 'gantt-bloc-pause';
+              pauseEl.style.left = ((creneau.pauseDebut - creneau.debut) * PX_PAR_HEURE) + 'px';
+              pauseEl.style.width = ((creneau.pauseFin - creneau.pauseDebut) * PX_PAR_HEURE) + 'px';
+              bloc.appendChild(pauseEl);
             }
-            sbClient.from('creneaux_personnel').insert(nouveauxCreneaux).then(function (result) {
-              messagePlanningEl.style.display = 'block';
-              if (result.error) {
-                messagePlanningEl.className = 'erreur';
-                messagePlanningEl.textContent = "Erreur : " + result.error.message;
-              } else {
-                messagePlanningEl.className = 'succes';
-                messagePlanningEl.textContent = 'Proposition générée pour les 7 prochains jours — modifie librement chaque créneau si besoin.';
-                chargerCreneaux();
-              }
+
+            bloc.addEventListener('click', function (e) {
+              e.stopPropagation();
+              ouvrirModal(employe.id, index);
             });
+            piste.appendChild(bloc);
           });
-      });
 
-      btnPlanningJourPrecEl.addEventListener('click', function () {
-        if (decalagePlanningActuel > 0) { decalagePlanningActuel--; afficherPastillesPlanning(); afficherCreneauxJourCourant(); }
-      });
-      btnPlanningJourSuivEl.addEventListener('click', function () {
-        if (decalagePlanningActuel < joursPlanningAffichables.length - 1) { decalagePlanningActuel++; afficherPastillesPlanning(); afficherCreneauxJourCourant(); }
-      });
+          grille.appendChild(piste);
+        });
 
-      var planningInitialise = false;
-      function initPlanning() {
-        if (planningInitialise) { chargerCreneaux(); return; }
-        planningInitialise = true;
-        joursPlanningAffichables = prochains7Jours();
-        decalagePlanningActuel = 0;
-        afficherPastillesPlanning();
-        chargerCreneaux();
+        var ligneAjout = document.createElement('div');
+        ligneAjout.className = 'gantt-ligne-ajout';
+        var boutonAjout = document.createElement('button');
+        boutonAjout.type = 'button';
+        boutonAjout.className = 'btn-ajouter-membre';
+        boutonAjout.textContent = '+ Ajouter un membre';
+        boutonAjout.addEventListener('click', ouvrirModalMembre);
+        ligneAjout.appendChild(boutonAjout);
+        grille.appendChild(ligneAjout);
       }
+
+      // --- Secteur/Poste liés (selects) --------------------------------
+      function remplirOptionsSecteurs(select) {
+        select.innerHTML = '';
+        SECTEURS.forEach(function (secteur) {
+          var option = document.createElement('option');
+          option.value = secteur.id;
+          option.textContent = secteur.nom;
+          select.appendChild(option);
+        });
+      }
+
+      function remplirOptionsPostesDuSecteur(select, secteurId) {
+        var secteur = trouverSecteur(secteurId);
+        select.innerHTML = '';
+        (secteur ? secteur.postes : []).forEach(function (poste) {
+          var option = document.createElement('option');
+          option.value = poste.id;
+          option.textContent = poste.nom;
+          select.appendChild(option);
+        });
+      }
+
+      function lierSelectsSecteurPoste(selectSecteur, selectPoste) {
+        selectSecteur.addEventListener('change', function () {
+          remplirOptionsPostesDuSecteur(selectPoste, selectSecteur.value);
+        });
+      }
+
+      function emailParaitValide(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      }
+
+      // --- Modale : ajout d'un membre -----------------------------------
+      var modalMembre = document.getElementById('modalMembre');
+      var champNomMembre = document.getElementById('modalMembreNom');
+      var champEmailMembre = document.getElementById('modalMembreEmail');
+      var champSecteurMembre = document.getElementById('modalMembreSecteur');
+      var champPosteMembre = document.getElementById('modalMembrePoste');
+      var champContratMembre = document.getElementById('modalMembreContrat');
+      lierSelectsSecteurPoste(champSecteurMembre, champPosteMembre);
+
+      function ouvrirModalMembre() {
+        champNomMembre.value = '';
+        champEmailMembre.value = '';
+        remplirOptionsSecteurs(champSecteurMembre);
+        champSecteurMembre.value = SECTEURS[0].id;
+        remplirOptionsPostesDuSecteur(champPosteMembre, champSecteurMembre.value);
+        champContratMembre.value = 'Fixe';
+        modalMembre.hidden = false;
+        champNomMembre.focus();
+      }
+      function fermerModalMembre() { modalMembre.hidden = true; }
+
+      function validerAjoutMembre() {
+        var nom = champNomMembre.value.trim();
+        if (!nom) { champNomMembre.focus(); return; }
+        var email = champEmailMembre.value.trim();
+        if (email && !emailParaitValide(email)) {
+          window.alert('Cette adresse e-mail ne semble pas valide.');
+          champEmailMembre.focus();
+          return;
+        }
+        var secteurId = champSecteurMembre.value;
+        var posteId = champPosteMembre.value;
+        var typeContrat = champContratMembre.value;
+        var estExtra = typeContrat === 'Extra';
+
+        sbClient.from('personnel').insert({
+          commercant_id: commercantId,
+          nom: nom,
+          email: email || null,
+          statut_compte: email ? 'invite' : 'non_invite',
+          secteur_id: secteurId,
+          poste_id: posteId,
+          type_contrat: typeContrat,
+          niveau_hierarchie: niveauParDefaut(typeContrat),
+          contrat_hebdo: estExtra ? 0 : 35,
+          jours_repos: [],
+          alternance_weekend: false,
+          heures_disponibles: {}
+        }).select().then(function (result) {
+          if (result.error || !result.data || !result.data[0]) {
+            window.alert("Erreur à l'ajout : " + (result.error ? result.error.message : 'inconnue'));
+            return;
+          }
+          var nouvel = result.data[0];
+          fermerModalMembre();
+          rafraichirTout();
+          // Premier créneau de départ, en origine 'manuel' (geste du patron,
+          // nourrit la mémoire tout de suite) plutôt qu'attendre une future
+          // esquisse automatique pour ce nouvel arrivant.
+          sbClient.from('creneaux_personnel').insert({
+            commercant_id: commercantId,
+            personnel_id: nouvel.id,
+            date_creneau: versISO(dateDuJour(decalageJour)),
+            heure_debut: '09:00:00',
+            heure_fin: '17:00:00',
+            secteur_id: secteurId,
+            poste_id: posteId,
+            origine: 'manuel'
+          }).then(function () { rendreGantt(); });
+          if (email) window.alert('Invitation à préparer pour ' + nom + ' (' + email + ') — statut mis à jour ; aucun e-mail réel n\'est envoyé pour l\'instant.');
+        });
+      }
+
+      document.getElementById('btnModalMembreValider').addEventListener('click', validerAjoutMembre);
+      document.getElementById('btnModalMembreAnnuler').addEventListener('click', fermerModalMembre);
+      champNomMembre.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); validerAjoutMembre(); } });
+      modalMembre.addEventListener('click', function (e) { if (e.target === modalMembre) fermerModalMembre(); });
+
+      // --- Modale : édition/suppression d'un employé --------------------
+      var modalEmploye = document.getElementById('modalEmploye');
+      var champNomEmploye = document.getElementById('modalEmployeNom');
+      var champEmailEmploye = document.getElementById('modalEmployeEmail');
+      var badgeStatutCompteEmploye = document.getElementById('badgeStatutCompteEmploye');
+      var btnModalEmployeInviter = document.getElementById('btnModalEmployeInviter');
+      var champSecteurEmploye = document.getElementById('modalEmployeSecteur');
+      var champPosteEmploye = document.getElementById('modalEmployePoste');
+      var champContratEmploye = document.getElementById('modalEmployeContrat');
+      lierSelectsSecteurPoste(champSecteurEmploye, champPosteEmploye);
+      var champContratHebdoEmploye = document.getElementById('modalEmployeContratHebdo');
+      var blocContratHebdoEmploye = document.getElementById('champContratHebdoEmploye');
+      var employeEnEdition = null;
+
+      function actualiserStatutCompteEmploye(employe) {
+        var statut = employe.statut_compte || 'non_invite';
+        var infos = LIBELLES_STATUT_COMPTE[statut];
+        badgeStatutCompteEmploye.textContent = infos.texte;
+        badgeStatutCompteEmploye.className = 'badge-statut-compte ' + infos.classe;
+        btnModalEmployeInviter.hidden = statut === 'actif';
+        btnModalEmployeInviter.textContent = statut === 'invite' ? "Renvoyer l'invitation" : 'Inviter';
+      }
+
+      function actualiserVisibiliteContratHebdo() {
+        blocContratHebdoEmploye.hidden = champContratEmploye.value === 'Extra';
+      }
+      champContratEmploye.addEventListener('change', actualiserVisibiliteContratHebdo);
+
+      function ouvrirModalEmploye(employeId) {
+        var employe = derniereEquipe.filter(function (e) { return e.id === employeId; })[0];
+        if (!employe) return;
+        employeEnEdition = employeId;
+        document.getElementById('modalEmployeSousTitre').textContent = "Modifie son profil de façon permanente (poste principal, contrat), ou retire-le définitivement de l'équipe.";
+        champNomEmploye.value = formatNomAffichage(employe.nom);
+        champEmailEmploye.value = employe.email || '';
+        actualiserStatutCompteEmploye(employe);
+        remplirOptionsSecteurs(champSecteurEmploye);
+        champSecteurEmploye.value = employe.secteur_id || SECTEURS[0].id;
+        remplirOptionsPostesDuSecteur(champPosteEmploye, champSecteurEmploye.value);
+        champPosteEmploye.value = employe.poste_id || 'generique';
+        champContratEmploye.value = employe.type_contrat || 'Fixe';
+        champContratHebdoEmploye.value = employe.contrat_hebdo || 0;
+        actualiserVisibiliteContratHebdo();
+        modalEmploye.hidden = false;
+        champNomEmploye.focus();
+      }
+      function fermerModalEmploye() { modalEmploye.hidden = true; employeEnEdition = null; }
+
+      document.getElementById('btnModalEmployeEnregistrer').addEventListener('click', function () {
+        if (employeEnEdition === null) return;
+        var employe = derniereEquipe.filter(function (e) { return e.id === employeEnEdition; })[0];
+        if (!employe) return;
+        var nom = champNomEmploye.value.trim();
+        if (!nom) { champNomEmploye.focus(); return; }
+        var emailSaisi = champEmailEmploye.value.trim();
+        if (emailSaisi && !emailParaitValide(emailSaisi)) {
+          window.alert('Cette adresse e-mail ne semble pas valide.');
+          champEmailEmploye.focus();
+          return;
+        }
+        var nouveauStatut = employe.statut_compte;
+        if (emailSaisi !== (employe.email || '') && employe.statut_compte !== 'non_invite') {
+          nouveauStatut = 'non_invite';
+        }
+        var nouveauType = champContratEmploye.value;
+        var nouveauNiveau = employe.niveau_hierarchie === 1 ? 1 : niveauParDefaut(nouveauType);
+        var nouveauContratHebdo;
+        if (nouveauType === 'Extra') {
+          nouveauContratHebdo = 0;
+        } else {
+          var saisi = parseInt(champContratHebdoEmploye.value, 10);
+          nouveauContratHebdo = isNaN(saisi) || saisi < 0 ? 35 : saisi;
+        }
+
+        sbClient.from('personnel').update({
+          nom: nom,
+          email: emailSaisi || null,
+          statut_compte: nouveauStatut,
+          secteur_id: champSecteurEmploye.value,
+          poste_id: champPosteEmploye.value,
+          type_contrat: nouveauType,
+          niveau_hierarchie: nouveauNiveau,
+          contrat_hebdo: nouveauContratHebdo
+        }).eq('id', employe.id).then(function (result) {
+          if (result.error) { window.alert("Impossible d'enregistrer : " + result.error.message); return; }
+          fermerModalEmploye();
+          rafraichirTout();
+        });
+      });
+
+      btnModalEmployeInviter.addEventListener('click', function () {
+        if (employeEnEdition === null) return;
+        var employe = derniereEquipe.filter(function (e) { return e.id === employeEnEdition; })[0];
+        if (!employe) return;
+        var emailActuel = champEmailEmploye.value.trim();
+        if (!emailActuel || !emailParaitValide(emailActuel)) {
+          window.alert('Renseigne d\'abord une adresse e-mail valide, puis clique sur "Enregistrer" avant d\'inviter.');
+          champEmailEmploye.focus();
+          return;
+        }
+        if (emailActuel !== (employe.email || '')) {
+          window.alert('L\'e-mail a changé : clique d\'abord sur "Enregistrer" pour le confirmer, puis réessaie d\'inviter.');
+          return;
+        }
+        sbClient.from('personnel').update({ statut_compte: 'invite' }).eq('id', employe.id).then(function (result) {
+          if (result.error) { window.alert("Erreur : " + result.error.message); return; }
+          employe.statut_compte = 'invite';
+          actualiserStatutCompteEmploye(employe);
+          window.alert("Statut mis à jour pour " + formatNomAffichage(employe.nom) + " (" + employe.email + "). L'envoi d'un e-mail réel n'est pas encore disponible — à faire manuellement pour l'instant.");
+        });
+      });
+
+      document.getElementById('btnModalEmployeSupprimer').addEventListener('click', function () {
+        if (employeEnEdition === null) return;
+        var employe = derniereEquipe.filter(function (e) { return e.id === employeEnEdition; })[0];
+        if (!employe) return;
+        if (!window.confirm('Retirer définitivement ' + formatNomAffichage(employe.nom) + " de l'équipe ? Ses créneaux sur tous les jours seront supprimés. Cette action ne peut pas être annulée.")) return;
+        sbClient.from('creneaux_personnel').delete().eq('commercant_id', commercantId).eq('personnel_id', employe.id).then(function () {
+          return sbClient.from('personnel').delete().eq('id', employe.id);
+        }).then(function (result) {
+          if (result.error) { window.alert('Impossible de supprimer : ' + result.error.message); return; }
+          fermerModalEmploye();
+          rafraichirTout();
+        });
+      });
+
+      document.getElementById('btnModalEmployeAbsentJour').addEventListener('click', function () {
+        if (employeEnEdition === null) return;
+        var employe = derniereEquipe.filter(function (e) { return e.id === employeEnEdition; })[0];
+        if (!employe) return;
+        var lignes = creneauxBrutsParEmploye[employe.id] || [];
+        Promise.all(lignes.map(function (l) { return sbClient.from('creneaux_personnel').delete().eq('id', l.id); })).then(function () {
+          fermerModalEmploye();
+          rendreGantt();
+        });
+      });
+
+      champNomEmploye.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btnModalEmployeEnregistrer').click(); } });
+      modalEmploye.addEventListener('click', function (e) { if (e.target === modalEmploye) fermerModalEmploye(); });
+
+      // --- Modale : édition d'un créneau (avec anti-chevauchement) -------
+      var modal = document.getElementById('modalCreneau');
+      var editionEnCours = null;
+      lierSelectsSecteurPoste(document.getElementById('modalSecteur'), document.getElementById('modalPoste'));
+
+      function remplirOptionsHeures(select) {
+        select.innerHTML = '';
+        for (var h = HEURE_DEBUT; h <= HEURE_FIN; h++) {
+          var option = document.createElement('option');
+          option.value = h;
+          option.textContent = formatHeureAxe(h) + (h >= 24 ? ' (lendemain)' : '');
+          select.appendChild(option);
+        }
+      }
+      function remplirOptionsHeuresPause(select) {
+        select.innerHTML = '';
+        for (var h = HEURE_DEBUT * 2; h <= HEURE_FIN * 2; h++) {
+          var valeur = h / 2;
+          var option = document.createElement('option');
+          option.value = valeur;
+          option.textContent = formatHeureAxe(valeur) + (valeur >= 24 ? ' (lendemain)' : '');
+          select.appendChild(option);
+        }
+      }
+
+      var creneauEnCoursDeCreation = false;
+
+      function ajouterCreneauEtOuvrirModal(employeId, heureSouhaitee) {
+        var employe = derniereEquipe.filter(function (e) { return e.id === employeId; })[0];
+        if (!employe) return;
+        var liste = creneauxDuJour()[employeId] || (creneauxDuJour()[employeId] = []);
+        var debutSuggere;
+        if (heureSouhaitee != null) {
+          debutSuggere = Math.min(heureSouhaitee, HEURE_FIN - 2);
+        } else {
+          var dernier = liste.length ? liste[liste.length - 1] : null;
+          debutSuggere = dernier ? Math.min(dernier.fin, HEURE_FIN - 2) : 9;
+        }
+        liste.push({ debut: debutSuggere, fin: Math.min(debutSuggere + 2, HEURE_FIN), secteurId: employe.secteur_id || SECTEURS[0].id, posteId: employe.poste_id || 'generique' });
+        creneauEnCoursDeCreation = true;
+        ouvrirModal(employeId, liste.length - 1);
+        document.getElementById('modalTitre').textContent = 'Nouveau créneau';
+      }
+
+      function ouvrirModal(employeId, index) {
+        editionEnCours = { employeId: employeId, index: index };
+        var employe = derniereEquipe.filter(function (e) { return e.id === employeId; })[0];
+        var creneau = creneauxDuJour()[employeId][index];
+
+        document.getElementById('modalTitre').textContent = 'Modifier le créneau';
+        document.getElementById('modalSousTitre').textContent = formatNomAffichage(employe.nom) + ' · ' + libelleJour(decalageJour);
+
+        var selectDebut = document.getElementById('modalDebut');
+        var selectFin = document.getElementById('modalFin');
+        var selectSecteur = document.getElementById('modalSecteur');
+        var selectPoste = document.getElementById('modalPoste');
+        var caseAvecPause = document.getElementById('modalPauseActive');
+        var champsPause = document.getElementById('champsPause');
+        var selectPauseDebut = document.getElementById('modalPauseDebut');
+        var selectPauseFin = document.getElementById('modalPauseFin');
+        remplirOptionsHeures(selectDebut);
+        remplirOptionsHeures(selectFin);
+        remplirOptionsHeuresPause(selectPauseDebut);
+        remplirOptionsHeuresPause(selectPauseFin);
+        remplirOptionsSecteurs(selectSecteur);
+        selectDebut.value = creneau.debut;
+        selectFin.value = creneau.fin;
+        selectSecteur.value = creneau.secteurId;
+        remplirOptionsPostesDuSecteur(selectPoste, creneau.secteurId);
+        selectPoste.value = creneau.posteId;
+
+        var aPause = creneau.pauseDebut != null && creneau.pauseFin != null;
+        caseAvecPause.checked = aPause;
+        champsPause.hidden = !aPause;
+        selectPauseDebut.value = aPause ? creneau.pauseDebut : 12;
+        selectPauseFin.value = aPause ? creneau.pauseFin : 13;
+
+        modal.hidden = false;
+      }
+
+      document.getElementById('modalPauseActive').addEventListener('change', function () {
+        document.getElementById('champsPause').hidden = !this.checked;
+      });
+
+      function fermerModal(annulEnCours) {
+        if (annulEnCours && creneauEnCoursDeCreation && editionEnCours) {
+          var liste = creneauxDuJour()[editionEnCours.employeId];
+          if (liste) liste.splice(editionEnCours.index, 1);
+          dessinerGantt();
+        }
+        modal.hidden = true;
+        editionEnCours = null;
+        creneauEnCoursDeCreation = false;
+      }
+
+      document.getElementById('btnModalEnregistrer').addEventListener('click', function () {
+        if (!editionEnCours) return;
+        var creneau = creneauxDuJour()[editionEnCours.employeId][editionEnCours.index];
+        var debut = parseInt(document.getElementById('modalDebut').value, 10);
+        var fin = parseInt(document.getElementById('modalFin').value, 10);
+        if (fin <= debut) { window.alert("L'heure de fin doit être après l'heure de début."); return; }
+
+        // Anti-chevauchement : uniquement contre les AUTRES créneaux du même
+        // employé, le même jour (jamais celui en cours d'édition lui-même).
+        var autresCreneauxDuJour = creneauxDuJour()[editionEnCours.employeId] || [];
+        for (var iAutre = 0; iAutre < autresCreneauxDuJour.length; iAutre++) {
+          if (iAutre === editionEnCours.index) continue;
+          var autre = autresCreneauxDuJour[iAutre];
+          if (debut < autre.fin && autre.debut < fin) {
+            window.alert(
+              'Ce créneau chevauche un autre créneau déjà existant (' +
+              formatHeureAxe(autre.debut) + '–' + formatHeureAxe(autre.fin) + ' · ' + libellePoste(autre.secteurId, autre.posteId) +
+              ') pour cette personne.'
+            );
+            return;
+          }
+        }
+
+        var avecPause = document.getElementById('modalPauseActive').checked;
+        var pauseDebut = null, pauseFin = null;
+        if (avecPause) {
+          pauseDebut = parseFloat(document.getElementById('modalPauseDebut').value);
+          pauseFin = parseFloat(document.getElementById('modalPauseFin').value);
+          if (pauseFin <= pauseDebut) { window.alert('La pause doit finir après avoir commencé.'); return; }
+          if (pauseDebut < debut || pauseFin > fin) { window.alert("La pause doit rester à l'intérieur du créneau."); return; }
+        }
+
+        var secteurId = document.getElementById('modalSecteur').value;
+        var posteId = document.getElementById('modalPoste').value;
+        var iso = versISO(dateDuJour(decalageJour));
+        var ligneAEnvoyer = {
+          commercant_id: commercantId,
+          personnel_id: editionEnCours.employeId,
+          date_creneau: iso,
+          heure_debut: decimaleVersHeureSQL(debut),
+          heure_fin: decimaleVersHeureSQL(fin),
+          secteur_id: secteurId,
+          poste_id: posteId,
+          pause_debut: avecPause ? decimaleVersHeureSQL(pauseDebut) : null,
+          pause_fin: avecPause ? decimaleVersHeureSQL(pauseFin) : null,
+          origine: 'manuel'
+        };
+
+        var lignesBrutes = creneauxBrutsParEmploye[editionEnCours.employeId] || [];
+        var ligneExistante = lignesBrutes[editionEnCours.index];
+        var requete = ligneExistante
+          ? sbClient.from('creneaux_personnel').update(ligneAEnvoyer).eq('id', ligneExistante.id)
+          : sbClient.from('creneaux_personnel').insert(ligneAEnvoyer);
+
+        requete.then(function (result) {
+          if (result.error) { window.alert("Impossible d'enregistrer : " + result.error.message); return; }
+          creneauEnCoursDeCreation = false;
+          fermerModal();
+          chargerCreneauxJourCourant().then(dessinerGantt);
+        });
+      });
+
+      document.getElementById('btnModalSupprimer').addEventListener('click', function () {
+        if (!editionEnCours) return;
+        var lignesBrutes = creneauxBrutsParEmploye[editionEnCours.employeId] || [];
+        var ligneExistante = lignesBrutes[editionEnCours.index];
+        creneauEnCoursDeCreation = false;
+        fermerModal();
+        if (!ligneExistante) { dessinerGantt(); return; }
+        sbClient.from('creneaux_personnel').delete().eq('id', ligneExistante.id).then(function () {
+          chargerCreneauxJourCourant().then(dessinerGantt);
+        });
+      });
+
+      modal.addEventListener('click', function (e) { if (e.target === modal) fermerModal(true); });
+
+      // --- Contrôles : navigation de jour + réinitialisation --------------
+      document.getElementById('ganttJourPrec').addEventListener('click', function () { decalageJour--; rendreGantt(); });
+      document.getElementById('ganttJourSuiv').addEventListener('click', function () { decalageJour++; rendreGantt(); });
+
+      document.getElementById('btnReinitialiser').addEventListener('click', function () {
+        if (!window.confirm("Repartir de l'esquisse automatique pour " + libelleJour(decalageJour) + ' ? Les modifications manuelles de ce jour seront perdues.')) return;
+        var iso = versISO(dateDuJour(decalageJour));
+        sbClient.from('creneaux_personnel').delete().eq('commercant_id', commercantId).eq('date_creneau', iso).then(function () {
+          return genererEsquisse(derniereEquipe);
+        }).then(function (esquisse) {
+          return persisterEsquisse(esquisse, iso);
+        }).then(function () {
+          return chargerCreneauxJourCourant();
+        }).then(dessinerGantt);
+      });
+
+      var delaiRedimensionGantt;
+      window.addEventListener('resize', function () {
+        window.clearTimeout(delaiRedimensionGantt);
+        delaiRedimensionGantt = window.setTimeout(dessinerGantt, 120);
+      });
+
+      // --- Initialisation du module Planning ------------------------------
+      var planningInitialise = false;
+      function initPlanning(equipe, parametres) {
+        var chainePreparation = secteursCharges ? Promise.resolve() : chargerSecteursEtPostes();
+        chainePreparation = chainePreparation.then(function () {
+          if (premiereDateMemoireCache === undefined) return chargerAncienneteMemoire();
+        });
+
+        // Météo + volume prévu réels : géocode une seule fois via le code
+        // postal (paramètres commerçant déjà chargés par rafraichirTout),
+        // recoupés dans previsionParIso/meteoParIso pour les 7 prochains
+        // jours affichables (facteurVolumePourJour/meteoDuJour les lisent).
+        if (dernierePrevisionSemaine && dernierePrevisionSemaine.length) {
+          previsionParIso = {};
+          dernierePrevisionSemaine.forEach(function (j) { previsionParIso[j.iso] = j; });
+        }
+        if (parametres && parametres.code_postal) {
+          chainePreparation = chainePreparation.then(function () {
+            return MP.obtenirCoordonnees(sbClient, parametres, commercantId);
+          }).then(function (coords) {
+            if (!coords) return;
+            return MP.recupererMeteoPrevue(coords.latitude, coords.longitude).then(function (meteo) {
+              meteoParIso = meteo || {};
+            });
+          }).catch(function () { /* météo indisponible : le Gantt reste utilisable sans */ });
+        }
+
+        chainePreparation.then(function () {
+          if (!planningInitialise) {
+            planningInitialise = true;
+            rendreLegende();
+          }
+          rendreGantt();
+        });
+      }
+
 
       sbClient.auth.getSession().then(function (result) {
         var session = result.data.session;
