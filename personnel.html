@@ -11,74 +11,62 @@
   <script src="nav.js"></script>
 </head>
 <body>
-  <div class="conteneur conteneur--moyen">
-    <header class="entete-site">
-      <a href="tableau-de-bord.html" class="logo">
-        <svg class="logo-marque" viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
-          <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
-          <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
-          <circle cx="50" cy="56" r="8" fill="currentColor"/>
-        </svg>
-      </a>
-      <nav id="navPrincipale"></nav>
-    </header>
+  <header class="entete-site entete-site--pleine-largeur">
+    <a href="tableau-de-bord.html" class="logo">
+      <svg class="logo-marque" viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
+        <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <circle cx="50" cy="56" r="8" fill="currentColor"/>
+      </svg>
+    </a>
+    <nav id="navPrincipale"></nav>
+  </header>
 
-    <div class="carte-page">
-      <div class="entete-page">
-        <div>
-          <p class="eyebrow">Équipe</p>
-          <h1>Personnel</h1>
+  <p id="statutConnexion" class="texte-aide statut-connexion-planning">Vérification de la connexion...</p>
+
+  <div id="planning" class="planning-plein-ecran" style="display:none;">
+    <div class="controles-planning">
+      <div class="controles-planning-ligne1">
+        <div class="selecteur-jour-unique">
+          <button type="button" class="jour-fleche" id="ganttJourPrec" aria-label="Jour précédent">‹</button>
+          <span class="selecteur-jour-unique-libelle" id="ganttJourLibelle"></span>
+          <button type="button" class="jour-fleche" id="ganttJourSuiv" aria-label="Jour suivant">›</button>
+          <span class="selecteur-jour-unique-meteo" id="ganttMeteoIcone" title="Météo prévue ce jour-là"></span>
         </div>
-        <div class="badge-page" id="badgePersonnel" style="display:none;"></div>
+        <span class="total-effectif-jour" id="ganttTotalEffectif" title="Somme des heures nettes de pause de toute l'équipe visible, pour le jour affiché"></span>
+        <span class="conseil-renfort" id="conseilRenfort" style="display:none;"></span>
+        <button type="button" class="btn-reinitialiser" id="btnReinitialiser">↺ Réinitialiser (auto)</button>
+        <button type="button" class="btn-gerer-postes" id="btnGererPostesLigne1">⚙️ Gérer les postes</button>
       </div>
-      <p class="texte-aide">Renseigne ton équipe pour recevoir une recommandation de renfort par jour, en fonction de l'affluence prévue. À Point ne planifie personne nommément (qui travaille, à quel poste précis) : ça reste à toi, avec l'outil de ton choix — on te dit seulement combien de personnes prévoir, et pour quel type de poste.</p>
-      <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
+      <div class="legende-postes" id="legendePostes"></div>
+    </div>
 
-      <div id="zoneFormulaire" style="display:none;">
-        <div id="equipe">
-          <p class="section-titre" style="margin-top:22px;">Ajouter une personne</p>
-          <div class="ligne-form" style="flex-wrap:wrap;">
-            <input type="text" id="nomPersonne" placeholder="Nom" aria-label="Nom" style="flex:1; min-width:140px;">
-            <input type="text" id="rolePersonne" placeholder="Rôle (ex : vendeur, tourier, cuisinier)" aria-label="Rôle" style="flex:1; min-width:180px;">
-            <button id="btnAjouterPersonne">Ajouter</button>
-          </div>
-          <p class="texte-aide" style="margin-top:-6px;">Tu pourras préciser ses disponibilités juste après l'avoir ajoutée.</p>
+    <div class="gantt-scroll">
+      <div class="gantt-grille" id="ganttGrille"></div>
+    </div>
 
-          <div id="message"></div>
+    <div id="messagePlanning"></div>
+  </div>
 
-          <p class="section-titre">Mon équipe</p>
-          <ul id="listePersonnel" class="liste-produits liste-produits--espacee"></ul>
-
-          <div class="sombre-label" style="margin-top:28px;">Recommandation de renfort — 7 prochains jours</div>
-          <div class="grille-sombre" id="grilleRecommandationsRH"></div>
-        </div>
-
-        <div id="planning" style="margin-top:34px;">
-          <p class="section-titre">Planning</p>
-          <p class="texte-aide" style="margin-top:-6px;">Une esquisse automatique, jour par jour, à ajuster librement créneau par créneau — jamais figée. Après 3 semaines de vécu réel, l'esquisse apprend de tes plannings passés au lieu d'appliquer des règles fixes.</p>
-
-          <div class="controles-planning">
-            <div class="selecteur-jour-unique">
-              <button type="button" class="jour-fleche" id="ganttJourPrec" aria-label="Jour précédent">‹</button>
-              <span class="selecteur-jour-unique-libelle" id="ganttJourLibelle"></span>
-              <button type="button" class="jour-fleche" id="ganttJourSuiv" aria-label="Jour suivant">›</button>
-              <span class="selecteur-jour-unique-meteo" id="ganttMeteoIcone" title="Météo prévue ce jour-là"></span>
-            </div>
-            <span class="total-effectif-jour" id="ganttTotalEffectif" title="Somme des heures nettes de pause de toute l'équipe visible, pour le jour affiché"></span>
-            <button type="button" class="btn-reinitialiser" id="btnReinitialiser">↺ Réinitialiser (auto)</button>
-          </div>
-
-          <div class="legende-postes" id="legendePostes"></div>
-
-          <div class="gantt-scroll">
-            <div class="gantt-grille" id="ganttGrille"></div>
-          </div>
-
-          <div id="messagePlanning"></div>
-        </div>
-      </div>
+  <div id="zoneFormulaire" style="display:none;">
+    <div class="conteneur conteneur--moyen">
       <p class="pied-page"><a href="cgu.html">Conditions générales d'utilisation</a></p>
     </div>
+  </div>
+
+  <!-- Données historiques conservées mais retirées de l'UI (étape "Gantt
+       d'abord") : la liste "Mon équipe" et l'ancien formulaire d'ajout par
+       rôle/disponibilités hebdo sont remplacés par le bouton "+ Ajouter un
+       membre" du Gantt et sa modale. Champs cachés gardés pour ne pas casser
+       le JS existant (afficherPersonnel, chargerPersonnel...) sans réécrire
+       ces fonctions ici. -->
+  <div id="equipe" hidden>
+    <div class="badge-page" id="badgePersonnel"></div>
+    <input type="text" id="nomPersonne">
+    <input type="text" id="rolePersonne">
+    <button id="btnAjouterPersonne" type="button"></button>
+    <div id="message"></div>
+    <ul id="listePersonnel"></ul>
   </div>
 
   <!-- Fenêtre d'édition d'un créneau existant -->
@@ -235,7 +223,6 @@
       var messageDiv = document.getElementById('message');
       var listePersonnelEl = document.getElementById('listePersonnel');
       var badgePersonnelEl = document.getElementById('badgePersonnel');
-      var grilleRHEl = document.getElementById('grilleRecommandationsRH');
       var fondModalEl = document.getElementById('fondModal');
       var modalNomPersonneEl = document.getElementById('modalNomPersonne');
       var modalJoursEl = document.getElementById('modalJours');
@@ -259,113 +246,39 @@
       var estEnVacances = MP.estEnVacances;
       var calculerPrevisionSemaine = MP.calculerPrevisionSemaine;
 
-      // --- Recommandation RH (Mission 2, étape B) ------------------------
-      // Croise le signal d'affluence (tier ci-dessus) avec l'équipe
-      // disponible ce jour-là (heures_disponibles > 0 pour ce jour de
-      // semaine) pour suggérer un NOMBRE de personnes par rôle, jamais une
-      // affectation nominative (qui travaille précisément) : ça reste
-      // volontairement hors du périmètre d'À Point (voir Skello/Zelty pour
-      // le planning nominatif).
-      //
-      // Règle simple et vérifiable, pas un modèle : un jour "chargé" ou
-      // "événement +" demande un renfort (+1 personne par rôle représenté
-      // dans l'équipe disponible ce jour-là, dans la limite du nombre de
-      // personnes déjà disponibles pour ce rôle) ; un jour "calme" ou
-      // "événement -" suggère qu'une personne de moins peut suffire (jamais
-      // en dessous de 1 si quelqu'un est disponible, jamais de suggestion de
-      // retirer la seule personne disponible) ; les autres jours (normal,
-      // férié, vacances, historique insuffisant) gardent l'effectif habituel
-      // tel que déclaré disponible, sans ajustement — on ne majore/minore que
-      // lorsque le signal d'affluence est net.
-      function calculerRecommandationsRH(previsionSemaine, equipe) {
-        return previsionSemaine.map(function (jour) {
-          var disponiblesCeJour = equipe.filter(function (p) {
-            var heures = p.heures_disponibles && p.heures_disponibles[jour.nomJour];
-            return heures && heures > 0;
-          });
-
-          var parRole = {};
-          disponiblesCeJour.forEach(function (p) {
-            var role = p.role ? formatNomAffichage(p.role) : 'Non précisé';
-            parRole[role] = (parRole[role] || 0) + 1;
-          });
-
-          var ajustement = 0;
-          if (jour.tier === 'charge' || jour.tier === 'evenement-plus') ajustement = 1;
-          else if ((jour.tier === 'calme' || jour.tier === 'evenement-moins') && disponiblesCeJour.length > 1) ajustement = -1;
-
-          var recommandationParRole = {};
-          if (ajustement !== 0 && Object.keys(parRole).length > 0) {
-            // On applique l'ajustement au(x) rôle(s) le(s) plus représenté(s)
-            // (le renfort ou l'allégement le plus utile porte sur le poste où
-            // il y a déjà le plus de monde, pas sur un rôle isolé à une
-            // personne qu'on ne peut pas raisonnablement retirer).
-            var rolesTries = Object.keys(parRole).sort(function (a, b) { return parRole[b] - parRole[a]; });
-            var roleCible = rolesTries[0];
-            Object.keys(parRole).forEach(function (role) { recommandationParRole[role] = parRole[role]; });
-            recommandationParRole[roleCible] = Math.max(ajustement < 0 ? 1 : 0, parRole[roleCible] + ajustement);
-          } else {
-            recommandationParRole = parRole;
-          }
-
-          return {
-            date: jour.date,
-            nomJour: jour.nomJour,
-            tier: jour.tier,
-            ajustement: ajustement,
-            effectifHabituel: parRole,
-            effectifRecommande: recommandationParRole,
-            aucuneDisponibilite: disponiblesCeJour.length === 0
-          };
-        });
-      }
-
-      function texteTier(tier) {
-        switch (tier) {
-          case 'charge': return 'Jour chargé';
-          case 'calme': return 'Jour calme';
-          case 'evenement-plus': return 'Plus de monde (signalé)';
-          case 'evenement-moins': return 'Moins de monde (signalé)';
-          case 'ferme': return 'Fermé';
-          case 'ferie': return 'Jour férié';
-          case 'vacances': return 'Vacances scolaires';
-          case 'insuffisant': return 'Historique insuffisant';
-          default: return 'Jour normal';
-        }
-      }
-
-      function texteEffectif(effectif) {
-        var roles = Object.keys(effectif);
-        if (roles.length === 0) return 'Personne de disponible déclaré';
-        return roles.map(function (role) { return effectif[role] + ' ' + role.toLowerCase() + (effectif[role] > 1 ? 's' : ''); }).join(', ');
-      }
-
-      function afficherRecommandationsRH(recommandations) {
-        grilleRHEl.innerHTML = '';
-        if (recommandations.length === 0) {
-          grilleRHEl.innerHTML = '<div class="carte-vide-sombre">Ajoute au moins une personne avec des disponibilités, et des ventes enregistrées, pour voir une recommandation ici.</div>';
+      // --- Conseil de renfort (remplace l'ancienne grille "7 prochains
+      // jours" en bloc noir) -----------------------------------------------
+      // Un seul jour — celui affiché dans le Gantt —, en pastille discrète
+      // à côté du Total Effectif : le signal d'affluence (tier, déjà
+      // calculé pour toute la semaine dans previsionParIso) croisé avec le
+      // secteur le plus chargé du jour dans le Gantt lui-même. Jamais
+      // d'affectation nominative, juste "prévoir du renfort quelque part".
+      function afficherConseilRenfort(iso, creneauxParEmploye) {
+        var el = document.getElementById('conseilRenfort');
+        if (!el) return;
+        var jour = previsionParIso[iso];
+        if (!jour || (jour.tier !== 'charge' && jour.tier !== 'evenement-plus')) {
+          el.style.display = 'none';
           return;
         }
-        recommandations.forEach(function (r) {
-          var div = document.createElement('div');
-          div.className = 'carte-sombre';
-          var detail;
-          if (r.tier === 'ferme') {
-            detail = 'Fermé ce jour-là.';
-          } else if (r.aucuneDisponibilite) {
-            detail = "Personne d'indiqué comme disponible ce jour-là pour l'instant.";
-          } else if (r.ajustement > 0) {
-            detail = texteTier(r.tier) + " : trafic estimé en hausse → planifier " + texteEffectif(r.effectifRecommande) + " (au lieu de " + texteEffectif(r.effectifHabituel) + " habituellement disponible).";
-          } else if (r.ajustement < 0) {
-            detail = texteTier(r.tier) + " : trafic estimé en baisse → " + texteEffectif(r.effectifRecommande) + " devrai(en)t suffire (au lieu de " + texteEffectif(r.effectifHabituel) + ").";
-          } else {
-            detail = texteTier(r.tier) + " : effectif habituel suffisant → " + texteEffectif(r.effectifHabituel) + ".";
-          }
-          div.innerHTML =
-            '<p class="nom">' + capitaliser(r.nomJour) + ' ' + r.date.getDate() + '</p>' +
-            '<p class="detail">' + detail + '</p>';
-          grilleRHEl.appendChild(div);
+
+        var heuresParSecteur = {};
+        Object.keys(creneauxParEmploye || {}).forEach(function (employeId) {
+          (creneauxParEmploye[employeId] || []).forEach(function (creneau) {
+            var duree = creneau.fin - creneau.debut;
+            heuresParSecteur[creneau.secteurId] = (heuresParSecteur[creneau.secteurId] || 0) + duree;
+          });
         });
+        var secteurIds = Object.keys(heuresParSecteur);
+        if (secteurIds.length === 0) {
+          el.style.display = 'none';
+          return;
+        }
+        var secteurCible = secteurIds.sort(function (a, b) { return heuresParSecteur[b] - heuresParSecteur[a]; })[0];
+        var secteur = trouverSecteur(secteurCible);
+
+        el.textContent = '💡 Prévoyez un renfort en ' + (secteur ? secteur.nom.toLowerCase() : 'équipe') + ' aujourd\'hui';
+        el.style.display = 'inline-flex';
       }
 
       // --- CRUD Personnel --------------------------------------------------
@@ -526,7 +439,6 @@
             (resultats[2].data || []).forEach(function (e) { evenements[e.date_evenement] = e.direction; });
 
             if (ventes.length === 0) {
-              grilleRHEl.innerHTML = '<div class="carte-vide-sombre">Pas encore de ventes enregistrées : la recommandation de renfort a besoin d\'un peu d\'historique pour estimer l\'affluence.<br><a href="ventes.html">Ajouter tes premières ventes →</a></div>';
               dernierePrevisionSemaine = [];
               initPlanning(equipe, parametres);
               return;
@@ -534,8 +446,6 @@
 
             var previsionSemaine = calculerPrevisionSemaine(ventes, zoneVacances, joursFermeture, evenements);
             dernierePrevisionSemaine = previsionSemaine;
-            var recommandations = calculerRecommandationsRH(previsionSemaine, equipe);
-            afficherRecommandationsRH(recommandations);
             initPlanning(equipe, parametres);
           });
         });
@@ -1131,19 +1041,22 @@
         return { texte: heuresJour + 'h ce jour · ' + cumulProjete + 'h/' + (employe.contrat_hebdo || 0) + 'h sem.', depasse: depasse };
       }
 
-      // --- Légende Secteur ---------------------------------------------
+      // --- Légende Secteur (pills filtrantes) ---------------------------
+      var filtreSecteurActif = null; // null = tous les secteurs affichés
+
       function rendreLegende() {
         var conteneur = document.getElementById('legendePostes');
         conteneur.innerHTML = '';
         SECTEURS.forEach(function (secteur) {
           var pastille = document.createElement('span');
-          pastille.className = 'pastille-poste';
+          pastille.className = 'pastille-poste' + (filtreSecteurActif === secteur.id ? ' pastille-poste--active' : '');
 
           var couleur = document.createElement('input');
           couleur.type = 'color';
           couleur.className = 'pastille-poste-couleur';
           couleur.value = secteur.couleur;
           couleur.title = 'Changer la couleur de ' + secteur.nom;
+          couleur.addEventListener('click', function (e) { e.stopPropagation(); });
           couleur.addEventListener('input', function () {
             changerCouleurSecteur(secteur, couleur.value);
             rendreGantt();
@@ -1153,8 +1066,14 @@
           nom.type = 'button';
           nom.className = 'pastille-poste-nom';
           nom.textContent = secteur.nom;
-          nom.title = 'Renommer ce secteur';
+          nom.title = 'Filtrer sur ce secteur (double-clic pour renommer)';
           nom.addEventListener('click', function () {
+            filtreSecteurActif = (filtreSecteurActif === secteur.id) ? null : secteur.id;
+            rendreLegende();
+            rendreGantt();
+          });
+          nom.addEventListener('dblclick', function (e) {
+            e.stopPropagation();
             var nouveauNom = window.prompt('Renommer ce secteur :', secteur.nom);
             if (nouveauNom) { renommerSecteur(secteur, nouveauNom); rendreLegende(); rendreGantt(); }
           });
@@ -1163,14 +1082,6 @@
           pastille.appendChild(nom);
           conteneur.appendChild(pastille);
         });
-
-        var gererPostes = document.createElement('button');
-        gererPostes.type = 'button';
-        gererPostes.className = 'btn-gerer-postes';
-        gererPostes.textContent = '⚙️ Gérer les postes';
-        gererPostes.title = "Configurer les postes précis à l'intérieur de chaque secteur";
-        gererPostes.addEventListener('click', ouvrirModalPostes);
-        conteneur.appendChild(gererPostes);
       }
 
       // --- Modale : gestion secteurs/postes ---------------------------
@@ -1268,6 +1179,7 @@
       function ouvrirModalPostes() { rendreContenuModalPostes(); modalPostes.hidden = false; }
       function fermerModalPostes() { modalPostes.hidden = true; }
       document.getElementById('btnFermerModalPostes').addEventListener('click', fermerModalPostes);
+      document.getElementById('btnGererPostesLigne1').addEventListener('click', ouvrirModalPostes);
       modalPostes.addEventListener('click', function (e) { if (e.target === modalPostes) fermerModalPostes(); });
 
       // --- Axe des heures : 03h → 03h le lendemain --------------------
@@ -1363,6 +1275,8 @@
           elementTotalEffectif.textContent = 'Total Effectif du jour : ' + String(totalArrondi).replace('.', ',') + ' h';
         }
 
+        afficherConseilRenfort(versISO(dateDuJour(decalageJour)), creneaux);
+
         employesTries.forEach(function (employe) {
           var celluleNom = document.createElement('div');
           celluleNom.className = 'gantt-nom-cell';
@@ -1411,6 +1325,7 @@
           }
 
           (creneaux[employe.id] || []).forEach(function (creneau, index) {
+            if (filtreSecteurActif && creneau.secteurId !== filtreSecteurActif) return;
             var secteur = trouverSecteur(creneau.secteurId);
             var bloc = document.createElement('div');
             bloc.className = 'gantt-bloc';
@@ -1941,6 +1856,7 @@
           commercantId = session.user.id;
           statutDiv.textContent = "Connecté en tant que : " + session.user.email;
           zoneFormulaire.style.display = 'block';
+          document.getElementById('planning').style.display = 'block';
           rafraichirTout();
         } else {
           statutDiv.textContent = "Tu n'es pas connecté. Va d'abord sur la page de connexion.";

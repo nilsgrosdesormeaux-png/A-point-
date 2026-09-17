@@ -85,6 +85,23 @@ body {
   border-bottom: 1px solid var(--bordure);
 }
 
+/* Planning (personnel.html) : le Gantt est la vue immédiate de la page,
+   donc l'en-tête n'est plus imbriqué dans .conteneur — il a besoin de son
+   propre alignement/padding horizontal pour respecter la même marge que
+   le reste de l'immersion pleine largeur (voir .planning-plein-ecran). */
+.entete-site--pleine-largeur {
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: clamp(16px, 3vw, 40px);
+  padding-right: clamp(16px, 3vw, 40px);
+  padding-top: 20px;
+}
+
+.statut-connexion-planning {
+  padding: 0 clamp(16px, 3vw, 40px);
+}
+
 .logo {
   display: flex;
   align-items: center;
@@ -1941,15 +1958,29 @@ button.lien-supprimer:hover {
 
 .btn-ajouter-poste-config:hover { border-color: var(--texte); color: var(--texte); }
 
+/* ---------- Planning : immersion pleine largeur ----------
+   Le Gantt sort volontairement du .conteneur--moyen (560px) : c'est
+   l'unique écran de travail réel de la page, il a besoin de toute la
+   largeur disponible pour rester lisible avec beaucoup de monde/d'heures. */
+
+.planning-plein-ecran {
+  width: 100%;
+  padding: 22px clamp(16px, 3vw, 40px) 48px;
+}
+
 /* ---------- Planning : sélecteur de jour unique + contrôles ---------- */
 
 .controles-planning {
+  margin-bottom: 16px;
+}
+
+.controles-planning-ligne1 {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .selecteur-jour-unique {
@@ -2018,6 +2049,20 @@ button.lien-supprimer:hover {
   font-variant-numeric: tabular-nums;
 }
 
+/* Conseil de renfort : remplace l'ancien bloc noir "Recommandation de
+   renfort — 7 prochains jours". Un seul jour (celui affiché dans le
+   Gantt), en pastille discrète à côté du Total Effectif — pas une liste
+   à part qu'il faut aller consulter ailleurs. */
+.conseil-renfort {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--texte-attenue);
+  background: var(--accent-clair);
+  border-radius: 999px;
+  padding: 7px 14px;
+  white-space: nowrap;
+}
+
 /* ---------- Planning : légende des secteurs (éditable) ---------- */
 
 .legende-postes {
@@ -2033,11 +2078,18 @@ button.lien-supprimer:hover {
   align-items: center;
   gap: 6px;
   padding: 5px 10px 5px 6px;
-  background: var(--surface);
+  background: var(--fond);
   border: 1px solid var(--bordure);
   border-radius: 999px;
   font-size: 12.5px;
   font-weight: 600;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.pastille-poste--active {
+  background: var(--surface);
+  border-color: var(--ink);
+  box-shadow: 0 1px 3px rgba(33,29,23,0.12);
 }
 
 .pastille-poste-couleur {
@@ -2057,7 +2109,7 @@ button.lien-supprimer:hover {
   font: inherit;
   font-weight: 600;
   color: var(--texte);
-  cursor: text;
+  cursor: pointer;
   padding: 0;
 }
 
@@ -2083,7 +2135,6 @@ button.lien-supprimer:hover {
   font-weight: 600;
   color: var(--texte-attenue);
   cursor: pointer;
-  margin-left: auto;
 }
 
 .btn-gerer-postes:hover { background: var(--fond); color: var(--texte); }
@@ -2618,5 +2669,22 @@ button.lien-supprimer:hover {
 
   th, td {
     padding: 6px 7px;
+  }
+
+  .planning-plein-ecran {
+    padding: 16px 12px 36px;
+  }
+
+  .controles-planning-ligne1 {
+    gap: 8px;
+  }
+
+  .btn-reinitialiser {
+    order: 1;
+  }
+
+  .btn-gerer-postes {
+    order: 2;
+    margin-left: auto;
   }
 }
