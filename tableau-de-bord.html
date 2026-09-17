@@ -53,18 +53,28 @@
       </a>
     </div>
 
-    <section class="section-bilan">
-      <h2>Bilan de la semaine</h2>
-      <div class="grille-kpi">
+    <section class="carte-page section-resultats">
+      <div class="entete-resultats">
+        <div>
+          <p class="eyebrow">Vos résultats</p>
+          <h2 class="titre-resultats">Économies grâce à l'outil</h2>
+        </div>
+        <div class="selecteur-periode" id="selecteurPeriode">
+          <button type="button" class="periode-bouton actif" data-periode="7">7 jours</button>
+          <button type="button" class="periode-bouton" data-periode="30">30 jours</button>
+          <button type="button" class="periode-bouton" data-periode="tout">Depuis le début</button>
+        </div>
+      </div>
+      <div class="grille-kpi grille-kpi--resultats">
         <div class="carte-kpi">
           <p class="carte-kpi-titre">Économies estimées</p>
           <p class="carte-kpi-valeur carte-kpi-valeur--neutre" id="kpiEconomieValeur">-</p>
           <p class="carte-kpi-detail" id="kpiEconomieDetail">Bientôt disponible (dès qu'on connaît le prix de tes produits)</p>
         </div>
         <div class="carte-kpi">
-          <p class="carte-kpi-titre">Tendance volume</p>
-          <p class="carte-kpi-valeur carte-kpi-valeur--neutre" id="kpiTendanceValeur">-</p>
-          <p class="carte-kpi-detail" id="kpiTendanceDetail">Pas encore assez d'historique</p>
+          <p class="carte-kpi-titre">Invendus évités</p>
+          <p class="carte-kpi-valeur carte-kpi-valeur--neutre" id="kpiInvendusValeur">-</p>
+          <p class="carte-kpi-detail" id="kpiInvendusDetail">Pas encore assez d'historique</p>
         </div>
         <div class="carte-kpi">
           <p class="carte-kpi-titre">Précision de l'outil</p>
@@ -72,6 +82,17 @@
           <p class="carte-kpi-detail" id="kpiFiabiliteDetail">Pas encore assez d'historique</p>
         </div>
       </div>
+    </section>
+
+    <section class="section-top-produits">
+      <div class="entete-top-produits">
+        <h2>À surveiller demain</h2>
+        <span class="texte-aide texte-aide--discret">Les 3 produits qui pèsent le plus dans la prochaine production</span>
+      </div>
+      <div class="grille-top-produits" id="grilleTopProduits">
+        <div class="carte-vide-claire">Pas encore assez de ventes enregistrées.</div>
+      </div>
+      <a href="produits.html" class="lien-voir-catalogue">Voir tout mon catalogue →</a>
     </section>
 
     <a href="ventes.html" class="lien-retour">← Ajouter les ventes d'hier</a>
@@ -96,8 +117,11 @@
       var prochainsJoursOuverts = MP.prochainsJoursOuverts;
       var calculerRecommandation = MP.calculerRecommandation;
       var calculerEconomieReellePeriode = MP.calculerEconomieReellePeriode;
+      var calculerInvendusEvitesPeriode = MP.calculerInvendusEvitesPeriode;
       var calculerFiabilite = MP.calculerFiabilite;
       var calculerFiabiliteNaive = MP.calculerFiabiliteNaive;
+      var donneesResultats = null; // rempli une fois les ventes chargées, réutilisé au changement de période
+      var periodeActuelle = 7;
       // sbClient est propre à cette page ; on l'injecte dans la version
       // partagée d'obtenirCoordonnees plutôt que de dupliquer la fonction
       // (voir moteur-prevision.js).
@@ -153,6 +177,9 @@
 
           afficherFiabilite(ventes);
 
+          donneesResultats = { ventes: ventes, produits: produits, ingredientsLignes: ingredientsLignes, zoneVacances: zoneVacances, evenements: evenements };
+          calculerResultatsPeriode(periodeActuelle);
+
           // Bilan financier + tendance de volume : projetés sur les 7
           // prochains jours d'ouverture, dans le même esprit que le calcul
           // jour-par-jour déjà utilisé ailleurs (jamais une mesure a
@@ -185,8 +212,8 @@
               return { recommandationsParNom: recommandationsParNom, recommandationsInstinctParNom: recommandationsInstinctParNom };
             });
 
-            afficherEconomieSemaine(recommandationsParJour, produits, ingredientsLignes);
             afficherTendanceVolume(ventes, recommandationsParJour, nbJoursHistorique);
+            afficherTopProduits(joursAffichables[0], parProduit, zoneVacances, evenements, meteoPassee, meteoPrevue);
           });
         });
 
@@ -200,9 +227,6 @@
         // de tendance en haut de page, pour ne jamais afficher deux signaux
         // différents sur la même semaine.
         function afficherTendanceVolume(ventes, recommandationsParJour, nbJoursHistorique) {
-          var kpiValeurEl = document.getElementById('kpiTendanceValeur');
-          var kpiDetailEl = document.getElementById('kpiTendanceDetail');
-
           // Sous ce seuil, une "semaine normale" n'a pas de sens statistique
           // (même seuil que exclureValeursAberrantes) : on garde le repli
           // "jour(s) d'historique" plutôt que d'afficher un signal fragile.
@@ -225,9 +249,6 @@
           }, 0);
 
           var variation = Math.round(((volumePrevu - volumeNormalSemaine) / volumeNormalSemaine) * 100);
-          var signe = variation > 0 ? '+' : '';
-          kpiValeurEl.textContent = signe + variation + '%';
-          kpiDetailEl.textContent = 'Vs. une semaine normale, sur ton historique';
 
           // ±10% : en-dessous, la variation se noie dans le bruit habituel
           // du commerce et ne mérite pas d'être présentée comme "chargée"
@@ -260,18 +281,109 @@
           kpiDetailEl.textContent = detail;
         }
 
-        function afficherEconomieSemaine(recommandationsParJour, produits, ingredientsLignes) {
-          var kpiValeurEl = document.getElementById('kpiEconomieValeur');
-          var kpiDetailEl = document.getElementById('kpiEconomieDetail');
+        // Vos résultats — mesure rétrospective (pas une projection) : pour
+        // chaque jour passé de la période choisie, rejoue ce qu'aurait
+        // donné la prévision avec l'historique disponible avant ce jour-là,
+        // et compare à une production "à l'instinct" (même logique que
+        // commandes.html, seule source de vérité pour ce calcul).
+        function joursDistinctsHistorique(ventes) {
+          var set = {};
+          ventes.forEach(function (v) { set[v.date_vente] = true; });
+          return Object.keys(set).sort();
+        }
 
-          var resultat = calculerEconomieReellePeriode(recommandationsParJour, produits, ingredientsLignes);
-          if (!resultat) return;
+        function calculerResultatsPeriode(periode) {
+          var kpiEconomieValeur = document.getElementById('kpiEconomieValeur');
+          var kpiEconomieDetail = document.getElementById('kpiEconomieDetail');
+          var kpiInvendusValeur = document.getElementById('kpiInvendusValeur');
+          var kpiInvendusDetail = document.getElementById('kpiInvendusDetail');
 
-          var signe = resultat.economie >= 0 ? '+' : '−';
-          var montantAffiche = Math.abs(Math.round(resultat.economie * 100) / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          kpiValeurEl.textContent = signe + montantAffiche + ' €';
-          kpiValeurEl.className = 'carte-kpi-valeur ' + (resultat.economie >= 0 ? 'carte-kpi-valeur--hausse' : 'carte-kpi-valeur--neutre');
-          kpiDetailEl.textContent = "Sur les 7 prochains jours (" + resultat.nbIngredients + " ingrédient(s) valorisé(s)), vs une production à l'instinct.";
+          if (!donneesResultats) return;
+          var ventes = donneesResultats.ventes, produits = donneesResultats.produits, ingredientsLignes = donneesResultats.ingredientsLignes;
+          var zoneVacances = donneesResultats.zoneVacances, evenements = donneesResultats.evenements;
+
+          var joursHisto = joursDistinctsHistorique(ventes);
+          if (joursHisto.length === 0) return;
+
+          var joursRetenus = periode === 'tout' ? joursHisto : joursHisto.slice(Math.max(0, joursHisto.length - periode));
+
+          var parProduit = {};
+          ventes.forEach(function (vente) {
+            var nomNormalise = formatNomAffichage(vente.nom_produit);
+            if (!parProduit[nomNormalise]) parProduit[nomNormalise] = [];
+            parProduit[nomNormalise].push(vente);
+          });
+
+          var recommandationsParJour = joursRetenus.map(function (isoJour) {
+            var jourCible = new Date(isoJour + 'T00:00:00');
+            var recommandationsParNom = {};
+            var recommandationsInstinctParNom = {};
+            Object.keys(parProduit).forEach(function (nomProduit) {
+              var historiqueAvant = parProduit[nomProduit].filter(function (v) { return v.date_vente < isoJour; });
+              if (historiqueAvant.length === 0) return;
+              var r = calculerRecommandation(historiqueAvant, jourCible, zoneVacances, evenements, {}, {});
+              recommandationsParNom[nomProduit] = r.quantite;
+              recommandationsInstinctParNom[nomProduit] = r.quantiteInstinct;
+            });
+            return { recommandationsParNom: recommandationsParNom, recommandationsInstinctParNom: recommandationsInstinctParNom };
+          });
+
+          var resultatEconomie = calculerEconomieReellePeriode(recommandationsParJour, produits, ingredientsLignes);
+          if (!resultatEconomie) {
+            kpiEconomieValeur.textContent = '-';
+            kpiEconomieDetail.textContent = "Bientôt disponible (dès qu'on connaît le prix de tes produits).";
+          } else {
+            var signe = resultatEconomie.economie >= 0 ? '+' : '−';
+            var montantAffiche = Math.abs(Math.round(resultatEconomie.economie * 100) / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            kpiEconomieValeur.textContent = signe + montantAffiche + ' €';
+            kpiEconomieValeur.className = 'carte-kpi-valeur ' + (resultatEconomie.economie >= 0 ? 'carte-kpi-valeur--hausse' : 'carte-kpi-valeur--neutre');
+            kpiEconomieDetail.textContent = "Sur " + joursRetenus.length + " jour(s), vs une production à l'instinct (" + resultatEconomie.nbIngredients + " ingrédient(s) valorisé(s)).";
+          }
+
+          var totalInvendus = calculerInvendusEvitesPeriode(recommandationsParJour);
+          kpiInvendusValeur.textContent = (totalInvendus > 0 ? '≈ ' : '') + Math.round(totalInvendus) + ' unité(s)';
+          kpiInvendusValeur.className = 'carte-kpi-valeur ' + (totalInvendus > 0 ? 'carte-kpi-valeur--hausse' : 'carte-kpi-valeur--neutre');
+          kpiInvendusDetail.textContent = "Sur " + joursRetenus.length + " jour(s) : écart entre une production à l'instinct et la prévision de l'outil.";
+        }
+
+        var boutonsPeriode = document.querySelectorAll('.periode-bouton');
+        boutonsPeriode.forEach(function (bouton) {
+          bouton.addEventListener('click', function () {
+            boutonsPeriode.forEach(function (b) { b.classList.remove('actif'); });
+            bouton.classList.add('actif');
+            var val = bouton.getAttribute('data-periode');
+            periodeActuelle = val === 'tout' ? 'tout' : parseInt(val, 10);
+            calculerResultatsPeriode(periodeActuelle);
+          });
+        });
+
+        // Top 3 produits — ceux qui pèsent le plus dans la prochaine
+        // journée d'ouverture (plus grosse quantité recommandée), un aperçu
+        // de la production complète détaillée sur previsions.html.
+        function afficherTopProduits(jourCible, parProduit, zoneVacances, evenements, meteoPassee, meteoPrevue) {
+          var grilleEl = document.getElementById('grilleTopProduits');
+          if (!jourCible || Object.keys(parProduit).length === 0) return;
+
+          var recommandations = Object.keys(parProduit).map(function (nomProduit) {
+            var r = calculerRecommandation(parProduit[nomProduit], jourCible, zoneVacances, evenements, meteoPassee, meteoPrevue);
+            return { nom: nomProduit, quantite: r.quantite, fourchette: r.fourchette };
+          }).sort(function (a, b) { return b.quantite - a.quantite; }).slice(0, 3);
+
+          if (recommandations.length === 0) return;
+
+          grilleEl.innerHTML = '';
+          recommandations.forEach(function (rec, index) {
+            var carte = document.createElement('a');
+            carte.href = 'previsions.html';
+            carte.className = 'produit-top' + (index === 0 ? ' produit-top--principal' : '');
+            var fourchetteHTML = rec.fourchette ? '<p class="produit-top-fourchette">' + rec.fourchette.bas + ' – ' + rec.fourchette.haut + '</p>' : '';
+            carte.innerHTML =
+              '<p class="produit-top-rang">#' + (index + 1) + '</p>' +
+              '<p class="produit-top-nom">' + rec.nom + '</p>' +
+              '<p class="produit-top-quantite">' + rec.quantite + '</p>' +
+              fourchetteHTML;
+            grilleEl.appendChild(carte);
+          });
         }
       });
     })();

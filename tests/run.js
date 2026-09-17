@@ -498,8 +498,9 @@ async function main() {
 
         expect(await pageAccueil.locator('.action-carte').count()).toBe(2);
         expect(await pageAccueil.locator('.carte-kpi').count()).toBe(3);
-        // Pas de résidu de l'ancienne grille de produits (voir previsions.html).
-        expect(await pageAccueil.locator('#grilleTop3, #grilleRecommandations, .ligne-prod-jour').count()).toBe(0);
+        // Pas de résidu de l'ancienne grille de produits (voir previsions.html),
+        // et sans ventes le Top 3 ne doit rien afficher (pas de faux "-").
+        expect(await pageAccueil.locator('#grilleTop3, #grilleRecommandations, .ligne-prod-jour, .produit-top').count()).toBe(0);
       });
 
       await test('les cartes d\'action mènent vers Prévisions et Commandes', async () => {
@@ -510,6 +511,40 @@ async function main() {
       });
 
       await pageAccueil.close();
+    });
+
+    await describe('tableau-de-bord.html — Top 3 produits (à surveiller demain)', async () => {
+      const commercantId = 'test-commercant-top3';
+      const lundis = ['2026-08-03', '2026-08-10', '2026-08-17', '2026-08-24', '2026-08-31'];
+      const ventesTop3 = []
+        .concat(lundis.map((d) => ({ commercant_id: commercantId, nom_produit: 'Tradition', date_vente: d, quantite: 80 })))
+        .concat(lundis.map((d) => ({ commercant_id: commercantId, nom_produit: 'Croissant', date_vente: d, quantite: 50 })))
+        .concat(lundis.map((d) => ({ commercant_id: commercantId, nom_produit: 'Sandwich', date_vente: d, quantite: 20 })))
+        .concat(lundis.map((d) => ({ commercant_id: commercantId, nom_produit: 'Cookie', date_vente: d, quantite: 5 })));
+
+      const pageTop3 = await browser.newPage();
+      await stubSupabaseAvecDonnees(pageTop3, {
+        commercantId,
+        tables: { ventes: ventesTop3, produits: [], ingredients_produit: [], parametres_commercant: [], evenements_commercant: [] },
+      });
+
+      await test('affiche exactement 3 produits, triés par quantité recommandée décroissante, le premier mis en avant', async () => {
+        await pageTop3.goto(BASE_URL + '/tableau-de-bord.html');
+        await pageTop3.locator('.produit-top').first().waitFor({ state: 'visible' });
+
+        expect(await pageTop3.locator('.produit-top').count()).toBe(3);
+        expect(await pageTop3.locator('.produit-top--principal').count()).toBe(1);
+
+        const noms = await pageTop3.locator('.produit-top-nom').allTextContents();
+        // Cookie (quantité la plus faible) doit être exclu du Top 3.
+        expect(noms.join(',')).not.toContain('Cookie');
+        // Le plus gros volume (Tradition) doit être en première position, mis en avant.
+        expect(await pageTop3.locator('.produit-top').first().locator('.produit-top-nom').textContent()).toBe('Tradition');
+        const classePremier = await pageTop3.locator('.produit-top').first().getAttribute('class');
+        expect(classePremier).toContain('produit-top--principal');
+      });
+
+      await pageTop3.close();
     });
 
     await describe('previsions.html — production du jour, catégories déduites et ingrédients', async () => {

@@ -7,7 +7,7 @@
 :root {
   --ink: #211d17;
   --accent: #23211c;
-  --accent-fonce: #050504;
+  --accent-fonce: #1a1a1a;
   --accent-clair: #e7e2d5;
   --fond: #f8f4ec;
   --surface: #fffdf9;
@@ -972,18 +972,19 @@ button.lien-supprimer:hover {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: var(--accent-fonce);
-  border: 1px solid var(--accent-fonce);
+  background: var(--surface);
+  border: 1px solid var(--bordure);
   border-radius: var(--rayon-lg);
-  box-shadow: var(--ombre);
+  box-shadow: 0 4px 12px rgba(33, 29, 23, 0.05);
   padding: 22px 24px;
   text-decoration: none;
-  color: var(--sombre-texte);
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  color: var(--texte);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .action-carte:hover {
-  background-color: #16140f;
+  border-color: var(--texte-tres-attenue);
+  box-shadow: 0 6px 16px rgba(33, 29, 23, 0.08);
   transform: translateY(-1px);
 }
 
@@ -997,16 +998,17 @@ button.lien-supprimer:hover {
   font-family: var(--police-titre);
   font-size: 17px;
   font-weight: 600;
+  color: var(--texte);
 }
 
 .action-carte-detail {
   font-size: 12.5px;
-  color: var(--sombre-texte-attenue);
+  color: var(--texte-attenue);
 }
 
 .action-carte-fleche {
   font-size: 22px;
-  color: var(--sombre-texte-attenue);
+  color: var(--texte-tres-attenue);
   flex-shrink: 0;
 }
 
@@ -1017,10 +1019,206 @@ button.lien-supprimer:hover {
   margin: 0 0 14px;
 }
 
+/* ---------- Vos résultats (widget ROI unique de l'Accueil) ---------- */
+
+.section-resultats {
+  margin: 28px 0 34px;
+}
+
+.entete-resultats {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.titre-resultats {
+  font-family: var(--police-titre);
+  font-size: 22px;
+  font-weight: 600;
+  margin: 2px 0 0;
+  color: var(--texte);
+}
+
+.selecteur-periode {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.periode-bouton {
+  width: auto;
+  margin: 0;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: var(--fond);
+  color: var(--texte-attenue);
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.periode-bouton:hover {
+  border-color: var(--texte-tres-attenue);
+  color: var(--texte);
+}
+
+.periode-bouton.actif {
+  background: var(--accent-fonce);
+  color: #fff;
+  border-color: var(--accent-fonce);
+}
+
 .grille-kpi {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
+}
+
+@media (max-width: 620px) {
+  .grille-kpi--resultats {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ---------- Top 3 produits (Accueil) : grille asymétrique, le #1 mis
+   en valeur en pleine largeur, #2/#3 compacts côte à côte ---------- */
+
+.section-top-produits {
+  margin: 0 0 34px;
+}
+
+.entete-top-produits {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 14px;
+}
+
+.entete-top-produits h2 {
+  font-family: var(--police-titre);
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.texte-aide--discret {
+  font-size: 12px;
+  color: var(--texte-tres-attenue);
+}
+
+.grille-top-produits {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas: "principal principal" "second tiers";
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.produit-top {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon-lg);
+  box-shadow: 0 4px 12px rgba(33, 29, 23, 0.05);
+  padding: 16px 18px;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.produit-top:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(33, 29, 23, 0.08);
+}
+
+.produit-top--principal {
+  grid-area: principal;
+  padding: 22px 24px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.produit-top:not(.produit-top--principal):nth-of-type(2) { grid-area: second; }
+.produit-top:not(.produit-top--principal):nth-of-type(3) { grid-area: tiers; }
+
+.produit-top-rang {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--texte-tres-attenue);
+  margin: 0 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.produit-top--principal .produit-top-rang {
+  order: -1;
+  width: 100%;
+  margin: 0;
+}
+
+.produit-top-nom {
+  font-family: var(--police-titre);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--texte);
+  margin: 0;
+}
+
+.produit-top--principal .produit-top-nom {
+  font-size: 20px;
+}
+
+.produit-top-quantite {
+  font-family: var(--police-titre);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--texte);
+  margin: 4px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.produit-top--principal .produit-top-quantite {
+  font-size: 30px;
+  margin: 0;
+}
+
+.produit-top-fourchette {
+  font-size: 11.5px;
+  color: var(--texte-tres-attenue);
+  margin: 4px 0 0;
+}
+
+@media (max-width: 560px) {
+  .grille-top-produits {
+    grid-template-columns: 1fr 1fr;
+  }
+  .produit-top--principal {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .produit-top--principal .produit-top-quantite {
+    font-size: 26px;
+  }
+}
+
+.lien-voir-catalogue {
+  display: inline-block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--texte-attenue);
+  text-decoration: none;
+  padding: 6px 0;
+}
+
+.lien-voir-catalogue:hover {
+  color: var(--texte);
 }
 
 .carte-kpi {
