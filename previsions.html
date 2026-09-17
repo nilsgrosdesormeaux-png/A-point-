@@ -47,9 +47,6 @@
       </div>
       <div class="liste-production" id="listeProduction"></div>
 
-      <div class="section-titre-clair" id="labelIngredients" style="display:none;">Ingrédients</div>
-      <div class="tags-ingredients" id="tagsIngredients" style="display:none;"></div>
-
       <div class="bloc-jour-detail" id="blocJourDetail"></div>
 
       <div class="bloc-pont-commandes" id="blocPontCommandes"></div>
@@ -109,7 +106,6 @@
       var recupererMeteoPassee = MP.recupererMeteoPassee;
       var recupererMeteoPrevue = MP.recupererMeteoPrevue;
       var calculerRecommandation = MP.calculerRecommandation;
-      var calculerConsommationIngredients = MP.calculerConsommationIngredients;
       var calculerFiabilite = MP.calculerFiabilite;
       var calculerFiabiliteNaive = MP.calculerFiabiliteNaive;
       var calculerPrevisionSemaine = MP.calculerPrevisionSemaine;
@@ -142,7 +138,20 @@
         return (texte || '').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
       }
 
+      // categorieParNom : rempli à chaque chargement à partir du champ
+      // "categorie" du produit (catalogue géré sur Mes Produits — le
+      // commerçant garde le contrôle total, un pizzaiolo n'a pas les mêmes
+      // rayons qu'un boulanger). Tant que Mes Produits ne permet pas encore
+      // de le renseigner, ou pour un produit qui n'a que des ventes sans
+      // fiche produit associée, on retombe sur la déduction par mots-clés
+      // ci-dessous — purement un filet de sécurité, jamais la source
+      // principale une fois le catalogue rempli.
+      var categorieParNom = {};
+
       function categorieDeduite(nomProduit) {
+        var categorieDeclaree = categorieParNom[formatNomAffichage(nomProduit)];
+        if (categorieDeclaree) return categorieDeclaree;
+
         var norm = normaliserTexte(nomProduit);
         for (var i = 0; i < MOTS_CLES_CATEGORIES.length; i++) {
           var groupe = MOTS_CLES_CATEGORIES[i];
@@ -185,21 +194,19 @@
           Promise.all([
             sbClient.from('ventes').select('*').eq('commercant_id', commercantId),
             sbClient.from('produits').select('*').eq('commercant_id', commercantId),
-            sbClient.from('ingredients_produit').select('*').eq('commercant_id', commercantId),
             sbClient.from('parametres_commercant').select('*').eq('commercant_id', commercantId),
             sbClient.from('evenements_commercant').select('*').eq('commercant_id', commercantId)
           ]).then(function (resultats) {
             var ventes = resultats[0].data || [];
             var produits = resultats[1].data || [];
-            var ingredientsLignes = resultats[2].data || [];
-            var parametres = (resultats[3].data && resultats[3].data[0]) || null;
+            var parametres = (resultats[2].data && resultats[2].data[0]) || null;
             var zoneVacances = parametres ? zoneVacancesPourCodePostal(parametres.code_postal) : null;
             var joursFermeture = (parametres && parametres.jours_fermeture) || [];
             // Signalements manuels ("plus de monde" / "moins de monde"), gérés
             // depuis cette même page : une carte { date ISO -> direction } pour
             // pouvoir retrouver directement si le jour cible d'aujourd'hui en a un.
             var evenements = {};
-            (resultats[4].data || []).forEach(function (e) {
+            (resultats[3].data || []).forEach(function (e) {
               evenements[e.date_evenement] = e.direction;
             });
             if (parametres && parametres.nom_restaurant) {
@@ -213,7 +220,12 @@
             ventes.forEach(function (v) { joursDistincts[v.date_vente] = true; });
             sombreBadgeEl.textContent = Object.keys(joursDistincts).length + " jour(s) d'historique";
 
-            donneesGlobales = { ventes: ventes, produits: produits, ingredientsLignes: ingredientsLignes, zoneVacances: zoneVacances, evenements: evenements };
+            donneesGlobales = { ventes: ventes, produits: produits, zoneVacances: zoneVacances, evenements: evenements };
+
+            categorieParNom = {};
+            produits.forEach(function (p) {
+              if (p.categorie) categorieParNom[formatNomAffichage(p.nom)] = p.categorie;
+            });
 
             if (ventes.length === 0) {
               sombreTitreEl.textContent = "Pas encore de données";
@@ -360,15 +372,11 @@
           if (!j) return;
 
           var labelProductionEl = document.getElementById('labelProduction');
-          var labelIngredientsEl = document.getElementById('labelIngredients');
-          var tagsIngredientsEl = document.getElementById('tagsIngredients');
 
           if (j.tier === 'ferme') {
             sombreTitreEl.textContent = capitaliser(j.nomJour) + ' ' + j.date.getDate() + ' ' + nomsMoisCourts[j.date.getMonth()] + ' — fermé';
             listeProductionEl.innerHTML = '';
             labelProductionEl.style.display = 'none';
-            labelIngredientsEl.style.display = 'none';
-            tagsIngredientsEl.style.display = 'none';
             blocPontEl.innerHTML = '';
             return;
           }
@@ -377,7 +385,7 @@
           sombreTitreEl.textContent = "Prévision pour " + formatDateLongue(j.date);
           labelProductionEl.childNodes[0].textContent = "Production pour " + nomsJours[j.date.getDay()] + " ";
 
-          var ventes = donneesGlobales.ventes, produits = donneesGlobales.produits, ingredientsLignes = donneesGlobales.ingredientsLignes, zoneVacances = donneesGlobales.zoneVacances, evenements = donneesGlobales.evenements;
+          var ventes = donneesGlobales.ventes, zoneVacances = donneesGlobales.zoneVacances, evenements = donneesGlobales.evenements;
 
           // Regroupées par nom normalisé (voir formatNomAffichage) : deux
           // ventes saisies sous des casses différentes pour le même produit
@@ -390,11 +398,9 @@
           });
 
           listeProductionEl.innerHTML = '';
-          var recommandationsParNom = {};
 
           Object.keys(parProduit).sort().forEach(function (nomProduit) {
             var r = calculerRecommandation(parProduit[nomProduit], j.date, zoneVacances, evenements, contexteAffichage.meteoPassee, contexteAffichage.meteoPrevue);
-            recommandationsParNom[nomProduit] = r.quantite;
 
             if (categorieActive !== 'Tous' && categorieDeduite(nomProduit) !== categorieActive) return;
 
@@ -415,24 +421,6 @@
 
           if (listeProductionEl.children.length === 0) {
             listeProductionEl.innerHTML = '<div class="carte-vide-claire">Aucun produit dans cette catégorie pour ce jour.</div>';
-          }
-
-          var ingredients = calculerConsommationIngredients(recommandationsParNom, produits, ingredientsLignes);
-          if (ingredients.length > 0) {
-            labelIngredientsEl.style.display = 'block';
-            tagsIngredientsEl.style.display = 'flex';
-            tagsIngredientsEl.innerHTML = '';
-            ingredients.forEach(function (ing) {
-              var totalArrondi = Math.round(ing.total * 10) / 10;
-              var tag = document.createElement('span');
-              tag.className = 'tag-ingredient';
-              tag.innerHTML = ing.nom + ' <strong>' + totalArrondi + (ing.unite ? ' ' + ing.unite : '') + '</strong>';
-              tagsIngredientsEl.appendChild(tag);
-            });
-          } else {
-            labelIngredientsEl.style.display = 'none';
-            tagsIngredientsEl.style.display = 'none';
-            tagsIngredientsEl.innerHTML = '';
           }
 
           // Pont vers Commandes : transmet le jour sélectionné + le signal

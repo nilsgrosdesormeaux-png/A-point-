@@ -592,7 +592,46 @@ async function main() {
         expect(noms.join(',')).toBe('Sandwich');
       });
 
+      await test('la section Ingrédients a disparu de la page (rôle exclusif du Cadencier)', async () => {
+        await pagePrevisions.goto(BASE_URL + '/previsions.html');
+        await pagePrevisions.locator('.ligne-prod-jour').first().waitFor({ state: 'visible' });
+        expect(await pagePrevisions.locator('#labelIngredients, #tagsIngredients, .tag-ingredient').count()).toBe(0);
+      });
+
       await pagePrevisions.close();
+    });
+
+    await describe('previsions.html — catégorie du produit prioritaire sur la déduction par mots-clés', async () => {
+      const commercantId = 'test-commercant-categorie-produit';
+      const lundis = ['2026-08-03', '2026-08-10', '2026-08-17', '2026-08-24', '2026-08-31'];
+      const tables = {
+        // "Margherita" ne matche aucun mot-clé de la déduction par défaut
+        // (seul "pizza" est reconnu) : sans le champ catégorie du produit,
+        // elle finirait dans "Autres". Avec la fiche produit, elle doit
+        // apparaître sous la catégorie que le commerçant a choisie. Un
+        // deuxième produit est nécessaire pour que les pastilles s'affichent
+        // (aucun filtre n'a de sens avec une seule catégorie détectée).
+        ventes: []
+          .concat(lundis.map((d) => ({ commercant_id: commercantId, nom_produit: 'Margherita', date_vente: d, quantite: 30 })))
+          .concat(lundis.map((d) => ({ commercant_id: commercantId, nom_produit: 'Croissant', date_vente: d, quantite: 20 }))),
+        produits: [{ id: 'p1', commercant_id: commercantId, nom: 'Margherita', categorie: 'Pizzas' }],
+        ingredients_produit: [],
+        parametres_commercant: [],
+        evenements_commercant: [],
+      };
+
+      const pageCategorieProduit = await browser.newPage();
+      await stubSupabaseAvecDonnees(pageCategorieProduit, { commercantId, tables });
+
+      await test('la pastille utilise la catégorie déclarée sur la fiche produit, pas une liste figée', async () => {
+        await pageCategorieProduit.goto(BASE_URL + '/previsions.html');
+        await pageCategorieProduit.locator('.pill-categorie').first().waitFor({ state: 'visible' });
+        const categories = (await pageCategorieProduit.locator('.pill-categorie').allTextContents()).join(',');
+        expect(categories).toContain('Pizzas');
+        expect(categories).not.toContain('Autres');
+      });
+
+      await pageCategorieProduit.close();
     });
 
     await describe('commandes.html — pont depuis previsions.html (contexte jour + affluence)', async () => {
