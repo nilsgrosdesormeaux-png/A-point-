@@ -1475,6 +1475,18 @@ button.lien-supprimer:hover {
   color: var(--surface);
 }
 
+.pill-categorie-supprimer {
+  display: inline-block;
+  margin-left: 6px;
+  color: inherit;
+  opacity: 0.55;
+  font-weight: 700;
+}
+
+.pill-categorie-supprimer:hover {
+  opacity: 1;
+}
+
 .info-bulle {
   display: inline-block;
   position: relative;
@@ -1514,12 +1526,6 @@ button.lien-supprimer:hover {
   color: var(--texte-attenue);
   box-shadow: var(--ombre);
   z-index: 10;
-}
-
-.ligne-titre-categorie {
-  display: flex;
-  justify-content: flex-end;
-  margin: 22px 0 10px;
 }
 
 .btn-ajouter-categorie {

@@ -44,9 +44,6 @@
 
       <div class="filtres-categories" id="filtresCategories" style="display:none;"></div>
 
-      <div class="ligne-titre-categorie" id="labelProduction">
-        <button type="button" class="btn-ajouter-categorie" id="btnAjouterCategorieProduction">+ Catégorie</button>
-      </div>
       <div class="liste-production" id="listeProduction"></div>
 
       <div class="bloc-jour-detail" id="blocJourDetail"></div>
@@ -357,23 +354,38 @@
           afficherJourActif();
         }
 
-        document.getElementById('btnAjouterCategorieProduction').addEventListener('click', creerCategorieDepuisPrevisions);
+        // Supprime une catégorie créée par le commerçant : jamais "Tous" ni
+        // "Non classé", qui sont permanentes. Les produits qui y étaient
+        // rangés repassent en "Non classé" (ON DELETE SET NULL côté base).
+        function supprimerCategorieDepuisPrevisions(categorie) {
+          if (!window.confirm('Supprimer la catégorie "' + categorie.nom + '" ? Les produits qu\'elle contient repasseront en "Non classé".')) return;
+          CATEGORIES = CATEGORIES.filter(function (c) { return c.id !== categorie.id; });
+          if (donneesGlobales) {
+            donneesGlobales.produits.forEach(function (p) { if (p.categorie_id === categorie.id) p.categorie_id = null; });
+          }
+          Object.keys(categorieParNom).forEach(function (nom) {
+            if (categorieParNom[nom] === categorie.nom) delete categorieParNom[nom];
+          });
+          if (categorieActive === categorie.nom) categorieActive = 'Tous';
+          sbClient.from('categories_produit').delete().eq('commercant_id', commercantId).eq('id', categorie.id).then(function () {});
+          construireFiltresCategories(donneesGlobales ? donneesGlobales.ventes : []);
+          afficherJourActif();
+        }
 
         function construireFiltresCategories(ventes) {
-          // Pastilles de catégories : "Tous" toujours en premier, puis
-          // toute catégorie que le commerçant a créée (même si elle n'a
-          // encore aucun produit dedans) — jamais une liste devinée.
-          var categoriesPresentes = {};
-          ventes.forEach(function (v) {
-            categoriesPresentes[categorieDeduite(v.nom_produit)] = true;
-          });
-          CATEGORIES.forEach(function (c) { categoriesPresentes[c.nom] = true; });
-          var listeCategories = ['Tous'].concat(Object.keys(categoriesPresentes).sort());
-          if (listeCategories.length <= 1) return;
-
+          // Pastilles : "Tous" et "Non classé" toujours présentes (jamais
+          // supprimables), puis toute catégorie créée par le commerçant
+          // (avec une croix pour la supprimer), puis "+ Catégorie" en
+          // dernier sur la même ligne — jamais une catégorie devinée.
           filtresCategoriesEl.style.display = 'flex';
           filtresCategoriesEl.innerHTML = '';
+
+          var listeCategories = ['Tous', 'Non classé'].concat(
+            CATEGORIES.map(function (c) { return c.nom; }).sort()
+          );
+
           listeCategories.forEach(function (cat) {
+            var categorieObjet = CATEGORIES.find(function (c) { return c.nom === cat; });
             var bouton = document.createElement('button');
             bouton.type = 'button';
             bouton.className = 'pill-categorie' + (cat === categorieActive ? ' actif' : '');
@@ -384,8 +396,30 @@
               bouton.classList.add('actif');
               afficherJourActif();
             });
+
+            // Croix de suppression : uniquement sur les catégories créées
+            // par le commerçant, jamais sur "Tous" ni "Non classé".
+            if (categorieObjet) {
+              var croix = document.createElement('span');
+              croix.className = 'pill-categorie-supprimer';
+              croix.textContent = '×';
+              croix.setAttribute('aria-label', 'Supprimer la catégorie ' + cat);
+              croix.addEventListener('click', function (e) {
+                e.stopPropagation();
+                supprimerCategorieDepuisPrevisions(categorieObjet);
+              });
+              bouton.appendChild(croix);
+            }
+
             filtresCategoriesEl.appendChild(bouton);
           });
+
+          var boutonAjouter = document.createElement('button');
+          boutonAjouter.type = 'button';
+          boutonAjouter.className = 'btn-ajouter-categorie';
+          boutonAjouter.textContent = '+ Catégorie';
+          boutonAjouter.addEventListener('click', creerCategorieDepuisPrevisions);
+          filtresCategoriesEl.appendChild(boutonAjouter);
         }
 
         // ---------- Production + ingrédients + pont vers Commandes, pour le
@@ -397,17 +431,15 @@
           var j = previsionSemaine[indexJourActif];
           if (!j) return;
 
-          var labelProductionEl = document.getElementById('labelProduction');
-
           if (j.tier === 'ferme') {
             sombreTitreEl.textContent = capitaliser(j.nomJour) + ' ' + j.date.getDate() + ' ' + nomsMoisCourts[j.date.getMonth()] + ' — fermé';
             listeProductionEl.innerHTML = '';
-            labelProductionEl.style.display = 'none';
+            filtresCategoriesEl.style.display = 'none';
             blocPontEl.innerHTML = '';
             return;
           }
 
-          labelProductionEl.style.display = 'flex';
+          if (filtresCategoriesEl.children.length > 0) filtresCategoriesEl.style.display = 'flex';
           sombreTitreEl.textContent = "Prévision pour " + formatDateLongue(j.date);
 
           var ventes = donneesGlobales.ventes, zoneVacances = donneesGlobales.zoneVacances, evenements = donneesGlobales.evenements;

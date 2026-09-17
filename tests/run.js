@@ -682,20 +682,33 @@ async function main() {
         expect(classeBouton).not.toContain('actif');
       });
 
-      await test('l\'infobulle explicative est à côté du titre "Prévision pour...", pas au-dessus de la liste', async () => {
+      await test('l\'infobulle explicative est à côté du titre "Prévision pour...", pas ailleurs sur la page', async () => {
         await pagePrevisions.goto(BASE_URL + '/previsions.html');
         await pagePrevisions.locator('.ligne-prod-jour').first().waitFor({ state: 'visible' });
         const titre = await pagePrevisions.locator('#sombreTitre').innerText();
         expect(titre).toContain('ⓘ');
-        expect(await pagePrevisions.locator('#labelProduction .info-bulle').count()).toBe(0);
+        expect(await pagePrevisions.locator('.info-bulle').count()).toBe(1);
       });
 
-      await test('le label "Production pour..." a disparu, remplacé par un bouton "+ Catégorie"', async () => {
+      await test('"Tous" et "Non classé" sont toujours présentes, avec le bouton "+ Catégorie" sur la même ligne', async () => {
         await pagePrevisions.goto(BASE_URL + '/previsions.html');
         await pagePrevisions.locator('.ligne-prod-jour').first().waitFor({ state: 'visible' });
-        const zone = await pagePrevisions.locator('#labelProduction').innerText();
+        const zone = await pagePrevisions.locator('#filtresCategories').innerText();
         expect(zone.toLowerCase()).not.toContain('production pour');
+        expect(zone).toContain('Tous');
+        expect(zone).toContain('Non classé');
         expect(zone).toContain('+ Catégorie');
+      });
+
+      await test('"Tous" et "Non classé" n\'ont pas de croix de suppression, contrairement à une catégorie créée', async () => {
+        await pagePrevisions.goto(BASE_URL + '/previsions.html');
+        await pagePrevisions.locator('.ligne-prod-jour').first().waitFor({ state: 'visible' });
+        const pillTous = pagePrevisions.locator('.pill-categorie', { hasText: 'Tous' });
+        const pillNonClasse = pagePrevisions.locator('.pill-categorie', { hasText: 'Non classé' });
+        const pillBoulangerie = pagePrevisions.locator('.pill-categorie', { hasText: 'Boulangerie' });
+        expect(await pillTous.locator('.pill-categorie-supprimer').count()).toBe(0);
+        expect(await pillNonClasse.locator('.pill-categorie-supprimer').count()).toBe(0);
+        expect(await pillBoulangerie.locator('.pill-categorie-supprimer').count()).toBe(1);
       });
 
       await test('chaque produit ayant une fiche (Mes produits) affiche un sélecteur pour le ranger dans une catégorie existante', async () => {
@@ -713,10 +726,21 @@ async function main() {
         pagePrevisions.once('dialog', (dialog) => dialog.accept('Poisson'));
         await pagePrevisions.goto(BASE_URL + '/previsions.html');
         await pagePrevisions.locator('.ligne-prod-jour').first().waitFor({ state: 'visible' });
-        await pagePrevisions.locator('#btnAjouterCategorieProduction').click();
+        await pagePrevisions.locator('.btn-ajouter-categorie').click();
         await pagePrevisions.locator('.pill-categorie', { hasText: 'Poisson' }).waitFor({ state: 'visible' });
         const options = await pagePrevisions.locator('.select-categorie-produit').first().locator('option').allTextContents();
         expect(options.join(',')).toContain('Poisson');
+      });
+
+      await test('la croix d\'une catégorie créée la supprime, ses produits repassent en "Non classé"', async () => {
+        pagePrevisions.once('dialog', (dialog) => dialog.accept());
+        await pagePrevisions.goto(BASE_URL + '/previsions.html');
+        await pagePrevisions.locator('.pill-categorie', { hasText: 'Boulangerie' }).waitFor({ state: 'visible' });
+        await pagePrevisions.locator('.pill-categorie', { hasText: 'Boulangerie' }).locator('.pill-categorie-supprimer').click();
+        await pagePrevisions.waitForTimeout(200);
+        expect(await pagePrevisions.locator('.pill-categorie', { hasText: 'Boulangerie' }).count()).toBe(0);
+        const selectTradition = await pagePrevisions.locator('.ligne-prod-jour', { hasText: 'Tradition' }).locator('.select-categorie-produit').inputValue();
+        expect(selectTradition).toBe('');
       });
 
       await pagePrevisions.close();
