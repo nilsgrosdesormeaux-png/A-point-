@@ -90,6 +90,10 @@
       // (pas les ingrédients, calculés sur tout le catalogue).
       var previsionSemaine = [];
       var indexJourActif = 0;
+      // modificateurActif : 'plus'|'moins'|null — ajustement manuel local
+      // des quantités affichées (le gérant reprend la main sur l'IA),
+      // jamais persisté en base.
+      var modificateurActif = null;
       var contexteAffichage = null;
       var categorieActive = 'Tous';
       var donneesGlobales = null;
@@ -116,50 +120,20 @@
         return MP.obtenirCoordonnees(sbClient, parametres, commercantId);
       }
 
-      // ---------- Catégorie déduite du nom du produit par mots-clés simples,
-      // purement pour le regroupement/filtrage à l'affichage (même principe
-      // que familleDeduide() dans commandes.html pour les ingrédients).
-      // Aucune colonne "catégorie" n'existe en base : on ne stocke rien, on
-      // étiquette seulement à l'affichage, donc un produit mal deviné n'a
-      // aucune conséquence sur les données. Générique : marche pour un
-      // restaurant comme pour une boulangerie, sans rien coder en dur par
-      // commerce. ----------
-      var MOTS_CLES_CATEGORIES = [
-        { categorie: 'Boulangerie', motsCles: ['pain', 'baguette', 'tradition', 'boule', 'fougasse'] },
-        { categorie: 'Viennoiserie', motsCles: ['croissant', 'chocolat', 'chausson', 'brioche', 'viennois', 'pain au lait'] },
-        { categorie: 'Pâtisserie', motsCles: ['tarte', 'gâteau', 'gateau', 'éclair', 'eclair', 'macaron', 'tiramisu', 'mousse', 'flan'] },
-        { categorie: 'Snacking', motsCles: ['sandwich', 'burger', 'quiche', 'panini', 'wrap', 'salade'] },
-        { categorie: 'Plats', motsCles: ['menu', 'plat', 'steak', 'poulet', 'poisson', 'pâtes', 'pates', 'riz', 'pizza'] },
-        { categorie: 'Boissons', motsCles: ['café', 'cafe', 'thé', 'the', 'jus', 'soda', 'eau', 'boisson'] }
-      ];
-      var CATEGORIE_PAR_DEFAUT = 'Autres';
-
-      function normaliserTexte(texte) {
-        return (texte || '').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-      }
+      // ---------- Catégorie strictement issue de la fiche produit (Mes
+      // Produits, champ "categorie") : zéro invention par mots-clés, le
+      // commerçant garde le contrôle total (un pizzaiolo n'a pas les mêmes
+      // rayons qu'un boulanger ou un poissonnier). Un produit sans catégorie
+      // renseignée tombe sous "Non classé", jamais sous une catégorie
+      // devinée. ----------
+      var CATEGORIE_PAR_DEFAUT = 'Non classé';
 
       // categorieParNom : rempli à chaque chargement à partir du champ
-      // "categorie" du produit (catalogue géré sur Mes Produits — le
-      // commerçant garde le contrôle total, un pizzaiolo n'a pas les mêmes
-      // rayons qu'un boulanger). Tant que Mes Produits ne permet pas encore
-      // de le renseigner, ou pour un produit qui n'a que des ventes sans
-      // fiche produit associée, on retombe sur la déduction par mots-clés
-      // ci-dessous — purement un filet de sécurité, jamais la source
-      // principale une fois le catalogue rempli.
+      // "categorie" du produit.
       var categorieParNom = {};
 
       function categorieDeduite(nomProduit) {
-        var categorieDeclaree = categorieParNom[formatNomAffichage(nomProduit)];
-        if (categorieDeclaree) return categorieDeclaree;
-
-        var norm = normaliserTexte(nomProduit);
-        for (var i = 0; i < MOTS_CLES_CATEGORIES.length; i++) {
-          var groupe = MOTS_CLES_CATEGORIES[i];
-          for (var j = 0; j < groupe.motsCles.length; j++) {
-            if (norm.indexOf(normaliserTexte(groupe.motsCles[j])) !== -1) return groupe.categorie;
-          }
-        }
-        return CATEGORIE_PAR_DEFAUT;
+        return categorieParNom[formatNomAffichage(nomProduit)] || CATEGORIE_PAR_DEFAUT;
       }
 
       // Libellés/détails d'affluence : un seul endroit pour le badge et le
@@ -300,14 +274,14 @@
         }
 
         // ---------- Détail du jour sélectionné : badge d'affluence, texte,
-        // météo, boutons de signalement d'événement — un seul bloc, jamais
+        // météo, modificateur manuel d'affluence — un seul bloc, jamais
         // répété 7 fois (voir ancien semaine.html, grille de 7 cartes quasi
         // identiques). ----------
         function afficherDetailJour() {
           var j = previsionSemaine[indexJourActif];
           if (!j) return;
           var info = INFO_TIER[j.tier] || INFO_TIER.normal;
-          var detailTexte = info.detail || (j.tier === 'normal' ? 'Activité dans la moyenne des ' + j.nomJour + 's.' : "Pas encore assez de " + j.nomJour + "s enregistrés pour comparer.");
+          var detailTexte = info.detail || (j.tier === 'normal' ? 'Prévision basée sur l\'historique.' : '');
 
           var meteoHTML = '';
           if (j.tier !== 'ferme' && contexteAffichage && contexteAffichage.meteoPrevue) {
@@ -316,20 +290,20 @@
             else if (categorieJour === 'chaud') meteoHTML = '<p class="detail-meteo">☀️ Forte chaleur prévue</p>';
           }
 
+          // Modificateur manuel : le gérant reprend la main sur l'IA en cas
+          // d'imprévu (ajustement local et instantané des quantités
+          // affichées, jamais écrit en base — ce n'est pas le signalement
+          // d'événement, qui reste géré automatiquement par le calcul).
           var actionsHTML = '';
-          if (j.tier === 'ferme') {
-            // Rien à signaler sur un jour fermé.
-          } else if (j.tier === 'evenement-plus' || j.tier === 'evenement-moins') {
-            actionsHTML = '<button type="button" class="btn-mini btn-mini--retirer" data-date="' + j.iso + '">Retirer le signalement</button>';
-          } else {
+          if (j.tier !== 'ferme') {
             actionsHTML =
-              '<button type="button" class="btn-mini" data-date="' + j.iso + '" data-direction="plus">+ Plus de monde</button>' +
-              '<button type="button" class="btn-mini" data-date="' + j.iso + '" data-direction="moins">− Moins de monde</button>';
+              '<button type="button" class="btn-mini' + (modificateurActif === 'plus' ? ' actif' : '') + '" data-modificateur="plus">+ Plus de monde</button>' +
+              '<button type="button" class="btn-mini' + (modificateurActif === 'moins' ? ' actif' : '') + '" data-modificateur="moins">− Moins de monde</button>';
           }
 
           blocJourDetailEl.innerHTML =
             '<span class="badge-jour badge-jour--' + info.classe + '">' + info.badge + '</span>' +
-            '<p class="detail-jour-texte">' + detailTexte + '</p>' +
+            (detailTexte ? '<p class="detail-jour-texte">' + detailTexte + '</p>' : '') +
             meteoHTML +
             (actionsHTML ? '<div class="actions-jour">' + actionsHTML + '</div>' : '');
         }
@@ -411,11 +385,17 @@
               else deltaHTML = '<span class="delta delta-stable">=</span>';
             }
 
+            // Modificateur manuel : ajustement local instantané, appliqué
+            // uniquement à l'affichage (jamais au calcul ni à la base).
+            var quantiteAffichee = r.quantite;
+            if (modificateurActif === 'plus') quantiteAffichee = Math.ceil(r.quantite * 1.15);
+            else if (modificateurActif === 'moins') quantiteAffichee = Math.ceil(r.quantite * 0.85);
+
             var ligne = document.createElement('div');
             ligne.className = 'ligne-prod-jour';
             ligne.innerHTML =
               '<span class="ligne-prod-jour-nom">' + nomProduit + '</span>' +
-              '<span class="ligne-prod-jour-quantite">' + deltaHTML + r.quantite + '</span>';
+              '<span class="ligne-prod-jour-quantite">' + deltaHTML + quantiteAffichee + '</span>';
             listeProductionEl.appendChild(ligne);
           });
 
@@ -429,21 +409,17 @@
           blocPontEl.innerHTML = '<a class="btn-cta-commandes" href="commandes.html?jour=' + j.iso + '&affluence=' + j.tier + '">🛒 Préparer la commande pour ce jour</a>';
         }
 
+        // Modificateur d'affluence : ajustement local et instantané des
+        // quantités affichées, jamais écrit en base. Un second clic sur le
+        // bouton déjà actif désactive le modificateur.
         blocJourDetailEl.addEventListener('click', function (evenement) {
           var bouton = evenement.target.closest('.btn-mini');
           if (!bouton) return;
-          var date = bouton.getAttribute('data-date');
-          var direction = bouton.getAttribute('data-direction');
-          bouton.disabled = true;
-          if (direction) {
-            sbClient.from('evenements_commercant').upsert({
-              commercant_id: commercantId,
-              date_evenement: date,
-              direction: direction
-            }).then(function () { chargerEtAfficher(); });
-          } else {
-            sbClient.from('evenements_commercant').delete().eq('commercant_id', commercantId).eq('date_evenement', date).then(function () { chargerEtAfficher(); });
-          }
+          var modificateur = bouton.getAttribute('data-modificateur');
+          if (!modificateur) return;
+          modificateurActif = (modificateurActif === modificateur) ? null : modificateur;
+          afficherDetailJour();
+          afficherJourActif();
         });
 
         chargerEtAfficher();

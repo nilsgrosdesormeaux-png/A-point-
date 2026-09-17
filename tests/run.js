@@ -557,7 +557,13 @@ async function main() {
 
       const tables = {
         ventes: ventes,
-        produits: [],
+        // Catégories strictement issues de la fiche produit (plus aucune
+        // déduction par mots-clés) : Sandwich n'a pas de catégorie
+        // renseignée et doit tomber sous "Non classé".
+        produits: [
+          { id: 'p1', commercant_id: commercantId, nom: 'Tradition', categorie: 'Boulangerie' },
+          { id: 'p2', commercant_id: commercantId, nom: 'Croissant', categorie: 'Viennoiserie' },
+        ],
         ingredients_produit: [],
         parametres_commercant: [],
         evenements_commercant: [],
@@ -573,7 +579,7 @@ async function main() {
         expect(noms.sort().join(',')).toBe(['Croissant', 'Sandwich', 'Tradition'].sort().join(','));
       });
 
-      await test('les pastilles de catégorie sont déduites du nom des produits, "Tous" en premier', async () => {
+      await test('les pastilles de catégorie viennent strictement de la fiche produit, "Tous" en premier, "Non classé" pour les produits sans catégorie', async () => {
         await pagePrevisions.goto(BASE_URL + '/previsions.html');
         await pagePrevisions.locator('.pill-categorie').first().waitFor({ state: 'visible' });
         const categories = await pagePrevisions.locator('.pill-categorie').allTextContents();
@@ -581,13 +587,13 @@ async function main() {
         const texteCategories = categories.join(',');
         expect(texteCategories).toContain('Boulangerie');
         expect(texteCategories).toContain('Viennoiserie');
-        expect(texteCategories).toContain('Snacking');
+        expect(texteCategories).toContain('Non classé');
       });
 
       await test('cliquer une pastille filtre la liste de production sur cette catégorie', async () => {
         await pagePrevisions.goto(BASE_URL + '/previsions.html');
         await pagePrevisions.locator('.pill-categorie').first().waitFor({ state: 'visible' });
-        await pagePrevisions.locator('.pill-categorie', { hasText: 'Snacking' }).click();
+        await pagePrevisions.locator('.pill-categorie', { hasText: 'Non classé' }).click();
         const noms = await pagePrevisions.locator('.ligne-prod-jour-nom').allTextContents();
         expect(noms.join(',')).toBe('Sandwich');
       });
@@ -598,6 +604,29 @@ async function main() {
         expect(await pagePrevisions.locator('#labelIngredients, #tagsIngredients, .tag-ingredient').count()).toBe(0);
       });
 
+      await test('"+ Plus de monde" multiplie instantanément les quantités affichées par 1.15 (arrondi supérieur) et reste actif', async () => {
+        await pagePrevisions.goto(BASE_URL + '/previsions.html');
+        await pagePrevisions.locator('.ligne-prod-jour').first().waitFor({ state: 'visible' });
+        const avant = await pagePrevisions.locator('.ligne-prod-jour-quantite').allTextContents();
+        await pagePrevisions.locator('[data-modificateur="plus"]').click();
+        const apres = await pagePrevisions.locator('.ligne-prod-jour-quantite').allTextContents();
+        expect(avant.join(',')).not.toBe(apres.join(','));
+        const classeBouton = await pagePrevisions.locator('[data-modificateur="plus"]').getAttribute('class');
+        expect(classeBouton).toContain('actif');
+      });
+
+      await test('recliquer "+ Plus de monde" désactive le modificateur et restaure les quantités', async () => {
+        await pagePrevisions.goto(BASE_URL + '/previsions.html');
+        await pagePrevisions.locator('.ligne-prod-jour').first().waitFor({ state: 'visible' });
+        const initial = await pagePrevisions.locator('.ligne-prod-jour-quantite').allTextContents();
+        await pagePrevisions.locator('[data-modificateur="plus"]').click();
+        await pagePrevisions.locator('[data-modificateur="plus"]').click();
+        const restaure = await pagePrevisions.locator('.ligne-prod-jour-quantite').allTextContents();
+        expect(restaure.join(',')).toBe(initial.join(','));
+        const classeBouton = await pagePrevisions.locator('[data-modificateur="plus"]').getAttribute('class');
+        expect(classeBouton).not.toContain('actif');
+      });
+
       await pagePrevisions.close();
     });
 
@@ -605,12 +634,12 @@ async function main() {
       const commercantId = 'test-commercant-categorie-produit';
       const lundis = ['2026-08-03', '2026-08-10', '2026-08-17', '2026-08-24', '2026-08-31'];
       const tables = {
-        // "Margherita" ne matche aucun mot-clé de la déduction par défaut
-        // (seul "pizza" est reconnu) : sans le champ catégorie du produit,
-        // elle finirait dans "Autres". Avec la fiche produit, elle doit
-        // apparaître sous la catégorie que le commerçant a choisie. Un
-        // deuxième produit est nécessaire pour que les pastilles s'affichent
-        // (aucun filtre n'a de sens avec une seule catégorie détectée).
+        // Aucune déduction par mots-clés n'existe plus : la catégorie vient
+        // strictement de la fiche produit ("Mes Produits"). "Margherita"
+        // doit apparaître sous "Pizzas", la catégorie choisie par le
+        // commerçant. Un deuxième produit est nécessaire pour que les
+        // pastilles s'affichent (aucun filtre n'a de sens avec une seule
+        // catégorie détectée).
         ventes: []
           .concat(lundis.map((d) => ({ commercant_id: commercantId, nom_produit: 'Margherita', date_vente: d, quantite: 30 })))
           .concat(lundis.map((d) => ({ commercant_id: commercantId, nom_produit: 'Croissant', date_vente: d, quantite: 20 }))),
@@ -628,7 +657,6 @@ async function main() {
         await pageCategorieProduit.locator('.pill-categorie').first().waitFor({ state: 'visible' });
         const categories = (await pageCategorieProduit.locator('.pill-categorie').allTextContents()).join(',');
         expect(categories).toContain('Pizzas');
-        expect(categories).not.toContain('Autres');
       });
 
       await pageCategorieProduit.close();
