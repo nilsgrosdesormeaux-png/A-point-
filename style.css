@@ -1484,6 +1484,46 @@ button.lien-supprimer:hover {
   white-space: nowrap;
 }
 
+/* Détail matin/midi/soir sous le badge météo principal (retour utilisateur,
+   sept. 2026 : la météo peut changer dans la journée, la synthèse seule ne
+   suffit pas) — purement informatif, le calcul continue d'utiliser la
+   synthèse du jour (temperature_2m_max) via badge-meteo ci-dessus. */
+.meteo-moments-jour {
+  display: flex;
+  gap: 10px;
+}
+
+.meteo-moment {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px;
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-radius: 10px;
+  min-width: 48px;
+}
+
+.meteo-moment-libelle {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--texte-tres-attenue);
+  font-weight: 600;
+}
+
+.meteo-moment-icone {
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.meteo-moment-temperature {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--texte);
+}
+
 /* ---------- "Pourquoi cette prévision ?" : liste factuelle des éléments
    pris en compte, jamais un pourcentage ou une pondération inventée. Repliée
    par défaut (<details>) pour ne pas alourdir la carte principale. ---------- */

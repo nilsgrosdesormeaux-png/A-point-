@@ -370,7 +370,14 @@
     }
     return geocoderCodePostal(parametres.code_postal, parametres.ville).then(function (coords) {
       if (!coords) return null;
-      sbClient.from('parametres_commercant').update({ latitude: coords.latitude, longitude: coords.longitude }).eq('commercant_id', commercantId);
+      // Bug corrigé (sept. 2026) : cette écriture n'était jamais "then-ée"
+      // ni attendue, donc jamais garantie de partir — les coordonnées
+      // n'étaient en pratique jamais mises en cache en base, et chaque
+      // page (Prévisions, Planning) re-géocodait indépendamment à chaque
+      // chargement au lieu de réutiliser les mêmes coordonnées déjà
+      // connues. Best-effort : une erreur ici ne doit jamais empêcher
+      // d'afficher la météo qu'on vient d'obtenir.
+      sbClient.from('parametres_commercant').update({ latitude: coords.latitude, longitude: coords.longitude }).eq('commercant_id', commercantId).then(function () {}, function () {});
       return coords;
     });
   }
@@ -410,9 +417,46 @@
     return { libelle: 'Météo', icone: '🌡️' };
   }
 
+  // Heures représentatives pour le découpage matin/midi/soir affiché sur
+  // Prévisions (retour utilisateur, sept. 2026 : la météo peut changer
+  // dans la journée, une seule valeur ne suffit pas). Purement indicatif,
+  // ne sert à aucun calcul.
+  var HEURES_MOMENTS_JOURNEE = [
+    { cle: 'matin', heure: 8, libelle: 'Matin' },
+    { cle: 'midi', heure: 13, libelle: 'Midi' },
+    { cle: 'soir', heure: 19, libelle: 'Soir' }
+  ];
+
+  // Extrait, pour un jour ISO donné, les températures/codes horaires que
+  // l'API a renvoyés (data.hourly), et n'en garde que les 3 heures
+  // représentatives ci-dessus. Renvoie null si la donnée horaire est
+  // absente (ex. réponse "daily" seule de recupererMeteoPassee).
+  function momentsJourneeDepuisHoraire(data, iso) {
+    if (!data || !data.hourly || !data.hourly.time) return null;
+    var moments = [];
+    HEURES_MOMENTS_JOURNEE.forEach(function (moment) {
+      var cible = iso + 'T' + ('0' + moment.heure).slice(-2) + ':00';
+      var index = data.hourly.time.indexOf(cible);
+      if (index === -1) return;
+      var temperature = data.hourly.temperature_2m ? data.hourly.temperature_2m[index] : null;
+      var code = data.hourly.weathercode ? data.hourly.weathercode[index] : null;
+      var infos = libelleMeteo(code);
+      moments.push({
+        cle: moment.cle,
+        libelle: moment.libelle,
+        temperature: (temperature !== null && temperature !== undefined) ? Math.round(temperature) : null,
+        icone: infos.icone
+      });
+    });
+    return moments.length > 0 ? moments : null;
+  }
+
   // Valeur par jour : .categorie reste la donnée simple à 3 valeurs utilisée
   // par le calcul (calculerRecommandation) ; .temperature/.code/.libelle/
   // .icone sont la donnée réelle pour l'affichage (ex. "Ciel voilé, 17°C").
+  // .moments (matin/midi/soir), quand la réponse contient des données
+  // horaires, est purement additif — ne change rien pour le code déjà
+  // écrit qui ne lit pas ce champ.
   function meteoDepuisReponse(data) {
     var parJour = {};
     if (data && data.daily && data.daily.time) {
@@ -426,7 +470,8 @@
           temperature: (temperatureMax !== null && temperatureMax !== undefined) ? Math.round(temperatureMax) : null,
           code: code,
           libelle: infos.libelle,
-          icone: infos.icone
+          icone: infos.icone,
+          moments: momentsJourneeDepuisHoraire(data, iso)
         };
       });
     }
@@ -442,7 +487,7 @@
 
   function recupererMeteoPrevue(latitude, longitude) {
     var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + latitude + '&longitude=' + longitude +
-      '&daily=precipitation_sum,temperature_2m_max,weathercode&timezone=Europe%2FParis&forecast_days=10';
+      '&daily=precipitation_sum,temperature_2m_max,weathercode&hourly=temperature_2m,weathercode&timezone=Europe%2FParis&forecast_days=10';
     return fetch(url).then(function (res) { return res.ok ? res.json() : null; }).then(meteoDepuisReponse).catch(function () { return {}; });
   }
 

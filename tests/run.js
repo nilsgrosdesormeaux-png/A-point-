@@ -830,6 +830,118 @@ async function main() {
       await pageMeteo.close();
     });
 
+    // Retour utilisateur, sept. 2026 : le badge météo restait figé sur la
+    // météo d'aujourd'hui même en changeant de jour dans le bandeau,
+    // incohérent avec le titre "Prévision pour [jour sélectionné]" juste à
+    // côté. Températures volontairement différentes par jour pour prouver
+    // que le badge suit vraiment le jour actif, pas un rendu figé.
+    await describe('previsions.html — le badge météo suit le jour sélectionné dans le bandeau', async () => {
+      const commercantId = 'test-commercant-meteo-par-jour';
+      const tables = {
+        ventes: [{ commercant_id: commercantId, nom_produit: 'Tradition', date_vente: '2026-08-03', quantite: 10 }],
+        produits: [{ id: 'p1', commercant_id: commercantId, nom: 'Tradition' }],
+        categories_produit: [],
+        ingredients_produit: [],
+        parametres_commercant: [{ commercant_id: commercantId, code_postal: '49100', ville: 'Angers', latitude: null, longitude: null }],
+        evenements_commercant: [],
+      };
+
+      const pageMeteoJour = await browser.newPage();
+      await stubSupabaseAvecDonnees(pageMeteoJour, { commercantId, tables });
+      await pageMeteoJour.route('https://geo.api.gouv.fr/**', (route) => {
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ nom: 'Angers', centre: { type: 'Point', coordinates: [-0.5629, 47.4819] }, code: '49007' }]) });
+      });
+      await pageMeteoJour.route('https://api.open-meteo.com/**', (route) => {
+        const dates = [];
+        for (let i = 0; i < 10; i++) { const d = new Date(); d.setDate(d.getDate() + i); dates.push(d.toISOString().slice(0, 10)); }
+        // Une température distincte par jour (10, 11, 12...) pour repérer
+        // sans ambiguïté quel jour le badge affiche réellement.
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ daily: { time: dates, precipitation_sum: dates.map(() => 0), temperature_2m_max: dates.map((d, i) => 10 + i), weathercode: dates.map(() => 1) } }) });
+      });
+      await pageMeteoJour.route('https://archive-api.open-meteo.com/**', (route) => {
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ daily: { time: [], precipitation_sum: [], temperature_2m_max: [], weathercode: [] } }) });
+      });
+
+      await test('cliquer un autre jour du bandeau met à jour la température du badge météo', async () => {
+        await pageMeteoJour.goto(BASE_URL + '/previsions.html');
+        await pageMeteoJour.locator('#sombreMeteoAujourdhui').waitFor({ state: 'visible', timeout: 10000 });
+        const temperatureInitiale = await pageMeteoJour.locator('#sombreMeteoTemperature').textContent();
+
+        await pageMeteoJour.locator('.chip-jour').nth(2).click();
+        await pageMeteoJour.waitForTimeout(200);
+        const temperatureApres = await pageMeteoJour.locator('#sombreMeteoTemperature').textContent();
+
+        expect(temperatureApres).not.toBe(temperatureInitiale);
+      });
+
+      await pageMeteoJour.close();
+    });
+
+    // Retour utilisateur, sept. 2026 : la météo peut changer dans la
+    // journée (beau le matin, pluie l'après-midi) — une seule valeur ne
+    // suffit pas. Ajout d'un détail matin/midi/soir sous le badge
+    // principal, à partir des données horaires renvoyées par Open-Meteo.
+    // Températures et codes météo volontairement très différents par
+    // moment pour prouver que les 3 valeurs sont bien distinctes, pas
+    // trois fois la même synthèse journalière recopiée.
+    await describe('previsions.html — détail météo matin/midi/soir', async () => {
+      const commercantId = 'test-commercant-meteo-moments';
+      const tables = {
+        ventes: [{ commercant_id: commercantId, nom_produit: 'Tradition', date_vente: '2026-08-03', quantite: 10 }],
+        produits: [{ id: 'p1', commercant_id: commercantId, nom: 'Tradition' }],
+        categories_produit: [],
+        ingredients_produit: [],
+        parametres_commercant: [{ commercant_id: commercantId, code_postal: '49100', ville: 'Angers', latitude: null, longitude: null }],
+        evenements_commercant: [],
+      };
+
+      const pageMoments = await browser.newPage();
+      await stubSupabaseAvecDonnees(pageMoments, { commercantId, tables });
+      await pageMoments.route('https://geo.api.gouv.fr/**', (route) => {
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ nom: 'Angers', centre: { type: 'Point', coordinates: [-0.5629, 47.4819] }, code: '49007' }]) });
+      });
+      await pageMoments.route('https://api.open-meteo.com/**', (route) => {
+        const dates = [];
+        const hourlyTimes = [];
+        const hourlyTemp = [];
+        const hourlyCode = [];
+        for (let d = 0; d < 10; d++) {
+          const date = new Date();
+          date.setDate(date.getDate() + d);
+          const iso = date.toISOString().slice(0, 10);
+          dates.push(iso);
+          for (let h = 0; h < 24; h++) {
+            hourlyTimes.push(iso + 'T' + String(h).padStart(2, '0') + ':00');
+            if (h < 11) { hourlyTemp.push(14); hourlyCode.push(1); }
+            else if (h < 17) { hourlyTemp.push(23); hourlyCode.push(0); }
+            else { hourlyTemp.push(17); hourlyCode.push(61); }
+          }
+        }
+        route.fulfill({
+          status: 200, contentType: 'application/json',
+          body: JSON.stringify({
+            daily: { time: dates, precipitation_sum: dates.map(() => 0), temperature_2m_max: dates.map(() => 23), weathercode: dates.map(() => 1) },
+            hourly: { time: hourlyTimes, temperature_2m: hourlyTemp, weathercode: hourlyCode },
+          }),
+        });
+      });
+      await pageMoments.route('https://archive-api.open-meteo.com/**', (route) => {
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ daily: { time: [], precipitation_sum: [], temperature_2m_max: [], weathercode: [] } }) });
+      });
+
+      await test('affiche 3 températures distinctes (matin/midi/soir), différentes de la synthèse du jour', async () => {
+        await pageMoments.goto(BASE_URL + '/previsions.html');
+        await pageMoments.locator('#meteoMomentsJour').waitFor({ state: 'visible', timeout: 10000 });
+        const temperatures = await pageMoments.locator('.meteo-moment-temperature').allTextContents();
+        expect(temperatures).toHaveLength(3);
+        expect(temperatures.join(',')).toBe('14°C,23°C,17°C');
+        const libelles = await pageMoments.locator('.meteo-moment-libelle').allTextContents();
+        expect(libelles.join(',')).toBe('Matin,Midi,Soir');
+      });
+
+      await pageMoments.close();
+    });
+
     await describe('previsions.html — catégorie du produit librement créée par le commerçant (pas une liste imposée)', async () => {
       const commercantId = 'test-commercant-categorie-produit';
       const lundis = ['2026-08-03', '2026-08-10', '2026-08-17', '2026-08-24', '2026-08-31'];
@@ -1267,6 +1379,39 @@ async function main() {
         expect(resultat['2026-09-22'].icone).toBe('🌧️');
         expect(resultat['2026-09-23'].categorie).toBe('chaud');
         expect(resultat['2026-09-23'].libelle).toBe('Ciel dégagé');
+      });
+
+      await test('meteoDepuisReponse ajoute .moments (matin/midi/soir) quand la réponse contient des données horaires, sans rien changer au reste', async () => {
+        const resultat = await pageMP.evaluate(() => {
+          const hourlyTimes = [];
+          const hourlyTemp = [];
+          const hourlyCode = [];
+          for (let h = 0; h < 24; h++) {
+            hourlyTimes.push('2026-09-22T' + String(h).padStart(2, '0') + ':00');
+            hourlyTemp.push(h < 11 ? 12 : (h < 17 ? 21 : 15));
+            hourlyCode.push(h < 11 ? 1 : (h < 17 ? 0 : 61));
+          }
+          const data = {
+            daily: { time: ['2026-09-22'], precipitation_sum: [0], temperature_2m_max: [21], weathercode: [1] },
+            hourly: { time: hourlyTimes, temperature_2m: hourlyTemp, weathercode: hourlyCode },
+          };
+          return window.MoteurPrevision.meteoDepuisReponse(data);
+        });
+        const moments = resultat['2026-09-22'].moments;
+        expect(moments).toHaveLength(3);
+        expect(moments.map((m) => m.cle).join(',')).toBe('matin,midi,soir');
+        expect(moments.map((m) => m.temperature).join(',')).toBe('12,21,15');
+        // Le reste (utilisé par le calcul) reste inchangé.
+        expect(resultat['2026-09-22'].categorie).toBe('normal');
+        expect(resultat['2026-09-22'].temperature).toBe(21);
+      });
+
+      await test('meteoDepuisReponse : .moments est null sans données horaires (ex. réponse de recupererMeteoPassee)', async () => {
+        const resultat = await pageMP.evaluate(() => {
+          const data = { daily: { time: ['2026-09-22'], precipitation_sum: [0], temperature_2m_max: [21], weathercode: [1] } };
+          return window.MoteurPrevision.meteoDepuisReponse(data);
+        });
+        expect(resultat['2026-09-22'].moments).toBe(null);
       });
 
       await test('calculerRecommandation ajuste la quantité selon la météo réelle (objet enrichi, pas une chaîne)', async () => {
