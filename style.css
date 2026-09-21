@@ -2093,6 +2093,8 @@ button.lien-supprimer:hover {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  width: auto;
+  margin-top: 0;
   background: transparent;
   border: none;
   color: var(--texte-tres-attenue);
@@ -2103,6 +2105,14 @@ button.lien-supprimer:hover {
 }
 
 .btn-reinitialiser:hover { color: var(--texte-attenue); }
+
+/* Collée directement au-dessus du Gantt, discrète (retour utilisateur,
+   sept. 2026 : trop isolée, séparée par un grand espace vide). */
+.barre-reinitialiser {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}
 
 .total-effectif-jour {
   font-size: 13px;
@@ -2132,12 +2142,25 @@ button.lien-supprimer:hover {
 
 /* ---------- Planning : légende des secteurs (éditable) ---------- */
 
+/* .ligne-legende-postes : sibling de #legendePostes (pills, gérées par
+   rendreLegende()) et de "Gérer les postes" — regroupés sur la même ligne
+   plutôt que "Gérer les postes" isolé plus bas (retour utilisateur, sept.
+   2026 : mal placé, grand espace vide au-dessus). #legendePostes garde son
+   propre rendu JS, jamais touché par ce wrapper. */
+.ligne-legende-postes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
 .legende-postes {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-bottom: 22px;
 }
 
 .pastille-poste {
@@ -2195,6 +2218,7 @@ button.lien-supprimer:hover {
 
 .btn-gerer-postes {
   width: auto;
+  margin-top: 0;
   padding: 6px 13px;
   background: transparent;
   border: 1px solid transparent;
@@ -2405,6 +2429,8 @@ button.lien-supprimer:hover {
   position: absolute;
   top: -1px;
   bottom: -1px;
+  z-index: 0;
+  opacity: 0.5;
   background: repeating-linear-gradient(
     135deg,
     var(--surface),
@@ -2770,14 +2796,5 @@ button.lien-supprimer:hover {
 
   .controles-planning-ligne1 {
     gap: 8px;
-  }
-
-  .btn-reinitialiser {
-    order: 1;
-  }
-
-  .btn-gerer-postes {
-    order: 2;
-    margin-left: auto;
   }
 }

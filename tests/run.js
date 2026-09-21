@@ -980,6 +980,90 @@ async function main() {
         expect(await pageGantt.locator('.btn-gerer-postes').isVisible()).toBe(true);
       });
 
+      // Retour utilisateur, sept. 2026 : "Réinitialiser (auto)" et "Gérer
+      // les postes" isolés chacun sur leur ligne, séparés par de grands
+      // espaces vides (bug : ni l'un ni l'autre ne surchargeait le
+      // width:100%/margin-top:22px du <button> global). Corrigé en
+      // regroupant "Gérer les postes" avec les pastilles de secteur, et en
+      // collant "Réinitialiser" juste au-dessus du Gantt.
+      await test('"Gérer les postes" et "Réinitialiser" ne sont plus isolés sur leur propre ligne pleine largeur', async () => {
+        await pageGantt.goto(BASE_URL + '/personnel.html');
+        await pageGantt.locator('#ganttGrille .gantt-nom-cell').first().waitFor({ state: 'visible' });
+        const viewport = pageGantt.viewportSize();
+        const boxGererPostes = await pageGantt.locator('.btn-gerer-postes').boundingBox();
+        const boxReinitialiser = await pageGantt.locator('.btn-reinitialiser').boundingBox();
+        expect(boxGererPostes.width < viewport.width * 0.5).toBeTruthy();
+        expect(boxReinitialiser.width < viewport.width * 0.5).toBeTruthy();
+        // "Réinitialiser" doit être directement au-dessus du Gantt (pas de
+        // grand espace vide entre les deux).
+        const boxGanttScroll = await pageGantt.locator('.gantt-scroll').boundingBox();
+        expect(boxGanttScroll.y - (boxReinitialiser.y + boxReinitialiser.height) < 20).toBeTruthy();
+      });
+
+      await test('le libellé d\'un créneau avec pause reste lisible (la bande de pause ne le recouvre plus)', async () => {
+        const commercantIdPause = 'test-pause-lisible';
+        const pagePause = await browser.newPage();
+        await stubSupabaseAvecDonnees(pagePause, {
+          commercantId: commercantIdPause,
+          tables: {
+            personnel: [{ id: 'p1', nom: 'Julien', secteur_id: 'salle', poste_id: 'generique', type_contrat: 'Fixe', niveau_hierarchie: 1, contrat_hebdo: 35, jours_repos: [], alternance_weekend: false, statut_compte: 'actif', heures_disponibles: {} }],
+            ventes: [], parametres_commercant: [], evenements_commercant: [],
+            secteurs_personnel: secteursFixture,
+            postes_personnel: postesFixture,
+            creneaux_personnel: [
+              { id: 'cp1', commercant_id: commercantIdPause, personnel_id: 'p1', date_creneau: isoDemain, heure_debut: '11:00:00', heure_fin: '15:00:00', secteur_id: 'salle', poste_id: 'generique', origine: 'manuel', pause_debut: '11:30:00', pause_fin: '12:15:00' },
+            ],
+          },
+        });
+        await pagePause.goto(BASE_URL + '/personnel.html');
+        await pagePause.locator('.gantt-bloc-pause').waitFor({ state: 'visible' });
+        const zIndexPause = await pagePause.locator('.gantt-bloc-pause').evaluate((el) => getComputedStyle(el).zIndex);
+        const zIndexTexte = await pagePause.locator('.gantt-bloc-texte').evaluate((el) => getComputedStyle(el).zIndex);
+        expect(Number(zIndexTexte) > Number(zIndexPause)).toBeTruthy();
+        const opacitePause = await pagePause.locator('.gantt-bloc-pause').evaluate((el) => Number(getComputedStyle(el).opacity));
+        expect(opacitePause < 1).toBeTruthy();
+        await pagePause.close();
+      });
+
+      await test('un Saisonnier affiche sa date de fin de contrat, un Fixe non', async () => {
+        const commercantIdFin = 'test-date-fin-contrat';
+        const pageFin = await browser.newPage();
+        await stubSupabaseAvecDonnees(pageFin, {
+          commercantId: commercantIdFin,
+          tables: {
+            personnel: [
+              { id: 'p1', nom: 'Marc', secteur_id: 'salle', poste_id: 'generique', type_contrat: 'Saisonnier', niveau_hierarchie: 2, contrat_hebdo: 30, jours_repos: [], alternance_weekend: false, statut_compte: 'non_invite', heures_disponibles: {}, date_fin_contrat: '2026-10-31' },
+              { id: 'p2', nom: 'Vincent', secteur_id: 'salle', poste_id: 'generique', type_contrat: 'Fixe', niveau_hierarchie: 1, contrat_hebdo: 35, jours_repos: [], alternance_weekend: false, statut_compte: 'actif', heures_disponibles: {} },
+            ],
+            ventes: [], parametres_commercant: [], evenements_commercant: [],
+            secteurs_personnel: secteursFixture,
+            postes_personnel: postesFixture,
+            creneaux_personnel: [],
+          },
+        });
+        await pageFin.goto(BASE_URL + '/personnel.html');
+        await pageFin.locator('#ganttGrille .gantt-nom-cell').first().waitFor({ state: 'visible' });
+        const detailMarc = await pageFin.locator('.gantt-nom-cell').filter({ hasText: 'Marc' }).locator('.gantt-nom-detail').textContent();
+        expect(detailMarc).toContain('jusqu\'au 31/10');
+        const detailVincent = await pageFin.locator('.gantt-nom-cell').filter({ hasText: 'Vincent' }).locator('.gantt-nom-detail').textContent();
+        expect(detailVincent).not.toContain('jusqu\'au');
+        await pageFin.close();
+      });
+
+      await test('le champ "date de fin de contrat" n\'apparaît que pour Extra/Saisonnier, dans les deux modales', async () => {
+        const pageModales = await browser.newPage();
+        await stubSupabaseAvecDonnees(pageModales, { commercantId: 'test-modales-datefin', tables: { personnel: [], ventes: [], parametres_commercant: [], evenements_commercant: [], secteurs_personnel: secteursFixture, postes_personnel: postesFixture, creneaux_personnel: [] } });
+        await pageModales.goto(BASE_URL + '/personnel.html');
+        await pageModales.locator('#planning').waitFor({ state: 'visible' });
+        await pageModales.locator('text=+ Ajouter un membre').click();
+        expect(await pageModales.locator('#champDateFinMembre').isHidden()).toBe(true);
+        await pageModales.selectOption('#modalMembreContrat', 'Extra');
+        expect(await pageModales.locator('#champDateFinMembre').isHidden()).toBe(false);
+        await pageModales.selectOption('#modalMembreContrat', 'Fixe');
+        expect(await pageModales.locator('#champDateFinMembre').isHidden()).toBe(true);
+        await pageModales.close();
+      });
+
       await pageGantt.close();
     });
 

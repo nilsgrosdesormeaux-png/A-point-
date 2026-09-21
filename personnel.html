@@ -35,10 +35,15 @@
         </div>
         <span class="total-effectif-jour" id="ganttTotalEffectif" title="Somme des heures nettes de pause de toute l'équipe visible, pour le jour affiché"></span>
         <span class="conseil-renfort" id="conseilRenfort" style="display:none;"></span>
-        <button type="button" class="btn-reinitialiser" id="btnReinitialiser">↺ Réinitialiser (auto)</button>
+      </div>
+      <div class="ligne-legende-postes">
+        <div class="legende-postes" id="legendePostes"></div>
         <button type="button" class="btn-gerer-postes" id="btnGererPostesLigne1">⚙️ Gérer les postes</button>
       </div>
-      <div class="legende-postes" id="legendePostes"></div>
+    </div>
+
+    <div class="barre-reinitialiser">
+      <button type="button" class="btn-reinitialiser" id="btnReinitialiser">↺ Réinitialiser (auto)</button>
     </div>
 
     <div class="gantt-scroll">
@@ -143,6 +148,10 @@
         <label for="modalEmployeContratHebdo">Contrat hebdomadaire (heures)</label>
         <input type="number" id="modalEmployeContratHebdo" min="0" max="48" step="1" />
       </div>
+      <div class="champ-modal" id="champDateFinEmploye" hidden>
+        <label for="modalEmployeDateFin">Date de fin de contrat (facultatif)</label>
+        <input type="date" id="modalEmployeDateFin" />
+      </div>
       <button type="button" class="btn-lien-discret btn-absent-jour-modal" id="btnModalEmployeAbsentJour">Marquer absent(e) aujourd'hui (retire ses créneaux de ce jour uniquement)</button>
       <div class="actions-modal">
         <button type="button" class="btn-modal-supprimer" id="btnModalEmployeSupprimer">Supprimer cet employé</button>
@@ -179,6 +188,10 @@
           <option value="Saisonnier">Saisonnier</option>
           <option value="Extra">Extra</option>
         </select>
+      </div>
+      <div class="champ-modal" id="champDateFinMembre" hidden>
+        <label for="modalMembreDateFin">Date de fin de contrat (facultatif)</label>
+        <input type="date" id="modalMembreDateFin" />
       </div>
       <div class="actions-modal">
         <button type="button" class="btn-modal-supprimer" id="btnModalMembreAnnuler">Annuler</button>
@@ -1031,14 +1044,25 @@
         return total;
       }
 
+      // Date de fin de contrat (Extra/Saisonnier uniquement) : affichée en
+      // JJ/MM plutôt que le format ISO stocké en base.
+      function formatDateFinAffichage(iso) {
+        if (!iso) return '';
+        var parties = iso.split('-');
+        if (parties.length !== 3) return '';
+        return parties[2] + '/' + parties[1];
+      }
+
       function libelleEquite(employe) {
         var heuresJour = totalHeuresEmploye(employe.id);
+        var finContrat = formatDateFinAffichage(employe.date_fin_contrat);
+        var suffixeFin = finContrat ? ' · jusqu\'au ' + finContrat : '';
         if (employe.type_contrat === 'Extra') {
-          return { texte: heuresJour + 'h ce jour', depasse: false };
+          return { texte: heuresJour + 'h ce jour' + suffixeFin, depasse: false };
         }
         var cumulProjete = Math.round((cumulSemaineReel(employe.id) + heuresJour) * 10) / 10;
         var depasse = cumulProjete > (employe.contrat_hebdo || 0);
-        return { texte: heuresJour + 'h ce jour · ' + cumulProjete + 'h/' + (employe.contrat_hebdo || 0) + 'h sem.', depasse: depasse };
+        return { texte: heuresJour + 'h ce jour · ' + cumulProjete + 'h/' + (employe.contrat_hebdo || 0) + 'h sem.' + suffixeFin, depasse: depasse };
       }
 
       // --- Légende Secteur (pills filtrantes) ---------------------------
@@ -1409,7 +1433,14 @@
       var champSecteurMembre = document.getElementById('modalMembreSecteur');
       var champPosteMembre = document.getElementById('modalMembrePoste');
       var champContratMembre = document.getElementById('modalMembreContrat');
+      var champDateFinMembre = document.getElementById('modalMembreDateFin');
+      var blocDateFinMembre = document.getElementById('champDateFinMembre');
       lierSelectsSecteurPoste(champSecteurMembre, champPosteMembre);
+
+      function actualiserVisibiliteDateFinMembre() {
+        blocDateFinMembre.hidden = champContratMembre.value === 'Fixe';
+      }
+      champContratMembre.addEventListener('change', actualiserVisibiliteDateFinMembre);
 
       function ouvrirModalMembre() {
         champNomMembre.value = '';
@@ -1418,6 +1449,8 @@
         champSecteurMembre.value = SECTEURS[0].id;
         remplirOptionsPostesDuSecteur(champPosteMembre, champSecteurMembre.value);
         champContratMembre.value = 'Fixe';
+        champDateFinMembre.value = '';
+        actualiserVisibiliteDateFinMembre();
         modalMembre.hidden = false;
         champNomMembre.focus();
       }
@@ -1447,6 +1480,7 @@
           type_contrat: typeContrat,
           niveau_hierarchie: niveauParDefaut(typeContrat),
           contrat_hebdo: estExtra ? 0 : 35,
+          date_fin_contrat: typeContrat === 'Fixe' ? null : (champDateFinMembre.value || null),
           jours_repos: [],
           alternance_weekend: false,
           heures_disponibles: {}
@@ -1492,6 +1526,8 @@
       lierSelectsSecteurPoste(champSecteurEmploye, champPosteEmploye);
       var champContratHebdoEmploye = document.getElementById('modalEmployeContratHebdo');
       var blocContratHebdoEmploye = document.getElementById('champContratHebdoEmploye');
+      var champDateFinEmploye = document.getElementById('modalEmployeDateFin');
+      var blocDateFinEmploye = document.getElementById('champDateFinEmploye');
       var employeEnEdition = null;
 
       function actualiserStatutCompteEmploye(employe) {
@@ -1505,6 +1541,7 @@
 
       function actualiserVisibiliteContratHebdo() {
         blocContratHebdoEmploye.hidden = champContratEmploye.value === 'Extra';
+        blocDateFinEmploye.hidden = champContratEmploye.value === 'Fixe';
       }
       champContratEmploye.addEventListener('change', actualiserVisibiliteContratHebdo);
 
@@ -1522,6 +1559,7 @@
         champPosteEmploye.value = employe.poste_id || 'generique';
         champContratEmploye.value = employe.type_contrat || 'Fixe';
         champContratHebdoEmploye.value = employe.contrat_hebdo || 0;
+        champDateFinEmploye.value = employe.date_fin_contrat || '';
         actualiserVisibiliteContratHebdo();
         modalEmploye.hidden = false;
         champNomEmploye.focus();
@@ -1562,7 +1600,8 @@
           poste_id: champPosteEmploye.value,
           type_contrat: nouveauType,
           niveau_hierarchie: nouveauNiveau,
-          contrat_hebdo: nouveauContratHebdo
+          contrat_hebdo: nouveauContratHebdo,
+          date_fin_contrat: nouveauType === 'Fixe' ? null : (champDateFinEmploye.value || null)
         }).eq('id', employe.id).then(function (result) {
           if (result.error) { window.alert("Impossible d'enregistrer : " + result.error.message); return; }
           fermerModalEmploye();
