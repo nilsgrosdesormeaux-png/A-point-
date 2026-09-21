@@ -24,6 +24,7 @@ const PAGES_PROTEGEES = [
   'aide.html',
   'commandes.html',
   'personnel.html',
+  'import.html',
 ];
 
 // Ce sandbox bloque cdn.jsdelivr.net (politique réseau de l'organisation,
@@ -221,10 +222,10 @@ async function main() {
         expect(page.url()).toContain('connexion.html');
       });
 
-      await test('import.html redirige vers commandes.html (page absorbée)', async () => {
+      await test('import.html est une page réelle et distincte (ne redirige plus vers commandes.html)', async () => {
         await page.goto(BASE_URL + '/import.html', { waitUntil: 'load' });
-        await page.waitForURL('**/commandes.html');
-        expect(page.url()).toContain('commandes.html');
+        expect(page.url()).toContain('import.html');
+        expect(await page.title()).toContain('Importation');
       });
     });
 
@@ -357,12 +358,38 @@ async function main() {
         expect(Math.abs(logoBox.y - boutonBox.y) < 10).toBeTruthy();
         await page.setViewportSize({ width: 1280, height: 800 });
       });
+
+      // Bug retour utilisateur, sept. 2026 : sur les pages en
+      // .conteneur--moyen (produits/paramètres/aide/ventes/import),
+      // l'en-tête était imbriquée dans ce conteneur étroit (560px) et
+      // .nav-globale (overflow-x:auto, scrollbar invisible) coupait
+      // silencieusement "Commandes"/"Imports" en desktop. Corrigé en sortant
+      // l'en-tête de .conteneur (voir .entete-site--pleine-largeur, déjà
+      // utilisée par personnel.html). Ce test vérifie que tous les liens
+      // restent bien visibles, quelle que soit la page.
+      for (const fichier of ['produits.html', 'parametres.html', 'aide.html', 'ventes.html', 'import.html']) {
+        await test(fichier + ' : tous les liens de nav restent dans la fenêtre visible en desktop (pas coupés par .nav-globale)', async () => {
+          await page.goto(BASE_URL + '/' + fichier);
+          const viewport = page.viewportSize();
+          const nbLiens = await page.locator('#navPrincipale a').count();
+          expect(nbLiens).toBeGreaterThan(0);
+          for (let i = 0; i < nbLiens; i++) {
+            const box = await page.locator('#navPrincipale a').nth(i).boundingBox();
+            expect(box).toBeTruthy();
+            expect(box.x >= 0).toBeTruthy();
+            expect(box.x + box.width <= viewport.width).toBeTruthy();
+          }
+          const secLiens = await page.locator('.nav-secondaire a').allTextContents();
+          expect(secLiens.join(',')).toContain('Paramètres');
+        });
+      }
     });
 
     await describe('Comportement sans session (non connecté)', async () => {
       const attentes = {
         'tableau-de-bord.html': 'Non connecté',
         'aide.html': "n'es pas connecté",
+        'import.html': "n'es pas connecté",
       };
       for (const [fichier, texteAttendu] of Object.entries(attentes)) {
         await test(fichier + ' affiche un message de non-connexion sans exception JS', async () => {

@@ -1854,7 +1854,7 @@
         var session = result.data.session;
         if (session) {
           commercantId = session.user.id;
-          statutDiv.textContent = "Connecté en tant que : " + session.user.email;
+          statutDiv.textContent = '';
           zoneFormulaire.style.display = 'block';
           document.getElementById('planning').style.display = 'block';
           rafraichirTout();
