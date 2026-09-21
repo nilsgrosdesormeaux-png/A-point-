@@ -376,18 +376,58 @@
   }
 
   // Un jour est classé "pluvieux" si au moins 1mm de pluie est tombé, "chaud"
-  // à partir de 26°C, sinon "normal" — seuils volontairement simples.
+  // à partir de 26°C, sinon "normal" — seuils volontairement simples. Cette
+  // catégorie sert uniquement au calcul (comparaison de jours passés/futurs
+  // de même catégorie dans calculerRecommandation) ; l'affichage utilise
+  // libelle/icone ci-dessous, dérivés du vrai code météo (WMO), pas de cette
+  // catégorie à 3 valeurs.
   function categoriserMeteo(precipitation, temperatureMax) {
     if (precipitation !== null && precipitation !== undefined && precipitation >= 1) return 'pluvieux';
     if (temperatureMax !== null && temperatureMax !== undefined && temperatureMax >= 26) return 'chaud';
     return 'normal';
   }
 
+  // Codes météo WMO (renvoyés par Open-Meteo) → libellé + pictogramme en
+  // français. Table volontairement groupée par famille plutôt qu'un code par
+  // code : suffisant pour un affichage honnête ("Ciel voilé, 17°C"), pas une
+  // prévision météo détaillée.
+  var LIBELLES_METEO = [
+    { codes: [0], libelle: 'Ciel dégagé', icone: '☀️' },
+    { codes: [1], libelle: 'Plutôt dégagé', icone: '🌤️' },
+    { codes: [2], libelle: 'Ciel voilé', icone: '⛅' },
+    { codes: [3], libelle: 'Couvert', icone: '☁️' },
+    { codes: [45, 48], libelle: 'Brouillard', icone: '🌫️' },
+    { codes: [51, 53, 55, 56, 57], libelle: 'Bruine', icone: '🌦️' },
+    { codes: [61, 63, 65, 66, 67, 80, 81, 82], libelle: 'Pluie', icone: '🌧️' },
+    { codes: [71, 73, 75, 77, 85, 86], libelle: 'Neige', icone: '🌨️' },
+    { codes: [95, 96, 99], libelle: 'Orage', icone: '⛈️' }
+  ];
+
+  function libelleMeteo(code) {
+    for (var i = 0; i < LIBELLES_METEO.length; i++) {
+      if (LIBELLES_METEO[i].codes.indexOf(code) !== -1) return LIBELLES_METEO[i];
+    }
+    return { libelle: 'Météo', icone: '🌡️' };
+  }
+
+  // Valeur par jour : .categorie reste la donnée simple à 3 valeurs utilisée
+  // par le calcul (calculerRecommandation) ; .temperature/.code/.libelle/
+  // .icone sont la donnée réelle pour l'affichage (ex. "Ciel voilé, 17°C").
   function meteoDepuisReponse(data) {
     var parJour = {};
     if (data && data.daily && data.daily.time) {
       data.daily.time.forEach(function (iso, i) {
-        parJour[iso] = categoriserMeteo(data.daily.precipitation_sum[i], data.daily.temperature_2m_max[i]);
+        var precipitation = data.daily.precipitation_sum ? data.daily.precipitation_sum[i] : null;
+        var temperatureMax = data.daily.temperature_2m_max ? data.daily.temperature_2m_max[i] : null;
+        var code = data.daily.weathercode ? data.daily.weathercode[i] : null;
+        var infos = libelleMeteo(code);
+        parJour[iso] = {
+          categorie: categoriserMeteo(precipitation, temperatureMax),
+          temperature: (temperatureMax !== null && temperatureMax !== undefined) ? Math.round(temperatureMax) : null,
+          code: code,
+          libelle: infos.libelle,
+          icone: infos.icone
+        };
       });
     }
     return parJour;
@@ -396,13 +436,13 @@
   function recupererMeteoPassee(latitude, longitude, dateDebut, dateFin) {
     var url = 'https://archive-api.open-meteo.com/v1/archive?latitude=' + latitude + '&longitude=' + longitude +
       '&start_date=' + dateDebut + '&end_date=' + dateFin +
-      '&daily=precipitation_sum,temperature_2m_max&timezone=Europe%2FParis';
+      '&daily=precipitation_sum,temperature_2m_max,weathercode&timezone=Europe%2FParis';
     return fetch(url).then(function (res) { return res.ok ? res.json() : null; }).then(meteoDepuisReponse).catch(function () { return {}; });
   }
 
   function recupererMeteoPrevue(latitude, longitude) {
     var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + latitude + '&longitude=' + longitude +
-      '&daily=precipitation_sum,temperature_2m_max&timezone=Europe%2FParis&forecast_days=10';
+      '&daily=precipitation_sum,temperature_2m_max,weathercode&timezone=Europe%2FParis&forecast_days=10';
     return fetch(url).then(function (res) { return res.ok ? res.json() : null; }).then(meteoDepuisReponse).catch(function () { return {}; });
   }
 
@@ -466,9 +506,13 @@
     // ceux qui avaient la même catégorie météo à l'ensemble de ces jours-là.
     // Nécessite au moins 3 jours passés dans cette catégorie et 5 jours au
     // total ; l'écart est plafonné à ±40%.
+    var categorieMeteoCible = meteoCible ? meteoCible.categorie : undefined;
     var ajustementMeteo = null;
-    if (meteoCible && meteoCible !== 'normal' && meteoPassee && ventesMemeJour.length >= 5) {
-      var joursAvecCategorie = ventesMemeJour.filter(function (v) { return meteoPassee[v.date_vente] === meteoCible; });
+    if (categorieMeteoCible && categorieMeteoCible !== 'normal' && meteoPassee && ventesMemeJour.length >= 5) {
+      var joursAvecCategorie = ventesMemeJour.filter(function (v) {
+        var meteoJourPasse = meteoPassee[v.date_vente];
+        return meteoJourPasse && meteoJourPasse.categorie === categorieMeteoCible;
+      });
       if (joursAvecCategorie.length >= 3) {
         var sommeCategorie = 0;
         joursAvecCategorie.forEach(function (v) { sommeCategorie += v.quantite; });
@@ -479,7 +523,7 @@
         if (moyenneGlobale > 0) {
           var ratio = Math.max(0.6, Math.min(1.4, moyenneCategorie / moyenneGlobale));
           if (Math.abs(ratio - 1) >= 0.08) {
-            ajustementMeteo = { ratio: ratio, categorie: meteoCible, nbJours: joursAvecCategorie.length };
+            ajustementMeteo = { ratio: ratio, categorie: categorieMeteoCible, nbJours: joursAvecCategorie.length };
           }
         }
       }
@@ -840,6 +884,7 @@
     geocoderCodePostal: geocoderCodePostal,
     obtenirCoordonnees: obtenirCoordonnees,
     categoriserMeteo: categoriserMeteo,
+    libelleMeteo: libelleMeteo,
     meteoDepuisReponse: meteoDepuisReponse,
     recupererMeteoPassee: recupererMeteoPassee,
     recupererMeteoPrevue: recupererMeteoPrevue,

@@ -1172,6 +1172,54 @@ async function main() {
         expect(resultat.delta).toBe(resultat.quantite - 20);
       });
 
+      await test('meteoDepuisReponse renvoie un objet {categorie, temperature, code, libelle, icone} par jour', async () => {
+        const resultat = await pageMP.evaluate(() => {
+          const data = {
+            daily: {
+              time: ['2026-09-22', '2026-09-23'],
+              precipitation_sum: [5, 0],
+              temperature_2m_max: [14, 28],
+              weathercode: [61, 0]
+            }
+          };
+          return window.MoteurPrevision.meteoDepuisReponse(data);
+        });
+        expect(resultat['2026-09-22'].categorie).toBe('pluvieux');
+        expect(resultat['2026-09-22'].temperature).toBe(14);
+        expect(resultat['2026-09-22'].icone).toBe('🌧️');
+        expect(resultat['2026-09-23'].categorie).toBe('chaud');
+        expect(resultat['2026-09-23'].libelle).toBe('Ciel dégagé');
+      });
+
+      await test('calculerRecommandation ajuste la quantité selon la météo réelle (objet enrichi, pas une chaîne)', async () => {
+        const resultat = await pageMP.evaluate(() => {
+          // 5 lundis passés : 3 pluvieux à faible quantité, 2 normaux à forte
+          // quantité — le lundi cible est prévu pluvieux, doit se rapprocher
+          // des lundis pluvieux passés plutôt que de la moyenne brute.
+          const ventes = [
+            { date_vente: '2025-08-04', quantite: 10 },
+            { date_vente: '2025-08-11', quantite: 10 },
+            { date_vente: '2025-08-18', quantite: 10 },
+            { date_vente: '2025-08-25', quantite: 30 },
+            { date_vente: '2025-09-01', quantite: 30 },
+          ];
+          const meteoPassee = {
+            '2025-08-04': { categorie: 'pluvieux', temperature: 15, code: 61, libelle: 'Pluie', icone: '🌧️' },
+            '2025-08-11': { categorie: 'pluvieux', temperature: 15, code: 61, libelle: 'Pluie', icone: '🌧️' },
+            '2025-08-18': { categorie: 'pluvieux', temperature: 15, code: 61, libelle: 'Pluie', icone: '🌧️' },
+            '2025-08-25': { categorie: 'normal', temperature: 20, code: 1, libelle: 'Plutôt dégagé', icone: '🌤️' },
+            '2025-09-01': { categorie: 'normal', temperature: 20, code: 1, libelle: 'Plutôt dégagé', icone: '🌤️' },
+          };
+          const jourCible = new Date(2025, 8, 8); // lundi 8 septembre 2025
+          const meteoPrevue = { '2025-09-08': { categorie: 'pluvieux', temperature: 14, code: 63, libelle: 'Pluie', icone: '🌧️' } };
+          const avecMeteo = window.MoteurPrevision.calculerRecommandation(ventes, jourCible, null, {}, meteoPassee, meteoPrevue);
+          const sansMeteo = window.MoteurPrevision.calculerRecommandation(ventes, jourCible, null, {}, {}, {});
+          return { avecMeteo: avecMeteo.quantite, sansMeteo: sansMeteo.quantite };
+        });
+        expect(resultat.avecMeteo).toBeGreaterThan(0);
+        expect(resultat.avecMeteo < resultat.sansMeteo).toBeTruthy();
+      });
+
       await test('formatNomAffichage normalise la casse et les espaces superflus', async () => {
         const resultats = await pageMP.evaluate(() => {
           const MP = window.MoteurPrevision;

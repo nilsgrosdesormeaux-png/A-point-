@@ -647,11 +647,9 @@
 
       function meteoDuJour(decalage) {
         var iso = versISO(dateDuJour(decalage));
-        var cat = meteoParIso[iso];
-        if (cat === 'pluvieux') return '🌧️ Pluie';
-        if (cat === 'chaud') return '☀️ Chaud';
-        if (cat) return '⛅ Nuageux';
-        return '– Météo indisponible';
+        var meteo = meteoParIso[iso];
+        if (!meteo) return '– Météo indisponible';
+        return meteo.icone + ' ' + meteo.libelle + (meteo.temperature !== null ? ', ' + meteo.temperature + '°C' : '');
       }
 
       // --- Créneaux du jour affiché : chargés depuis Supabase, tenus en

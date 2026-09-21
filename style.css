@@ -1443,6 +1443,44 @@ button.lien-supprimer:hover {
   margin-top: 10px;
 }
 
+.claire-date--meteo {
+  color: var(--texte-attenue);
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 500;
+  margin: 0;
+}
+
+/* ---------- "Pourquoi cette prévision ?" : liste factuelle des éléments
+   pris en compte, jamais un pourcentage ou une pondération inventée. Repliée
+   par défaut (<details>) pour ne pas alourdir la carte principale. ---------- */
+
+.bloc-pourquoi {
+  margin: 10px 0 4px;
+  font-size: 13px;
+}
+
+.bloc-pourquoi summary {
+  cursor: pointer;
+  color: var(--texte-attenue);
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+.bloc-pourquoi summary:hover {
+  color: var(--texte);
+}
+
+.liste-pourquoi {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--texte-attenue);
+}
+
+.liste-pourquoi li {
+  margin-bottom: 4px;
+}
+
 /* ---------- Filtres catégories + liste de production compacte ---------- */
 
 .filtres-categories {

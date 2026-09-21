@@ -32,6 +32,7 @@
       <div class="claire-entete">
         <div>
           <p class="claire-date" id="sombreDate"></p>
+          <p class="claire-date claire-date--meteo" id="sombreMeteoAujourdhui" style="display:none;"></p>
           <p class="claire-titre" id="sombreTitre">
             <span id="sombreTitreTexte">Prévision</span>
             <span class="info-bulle" tabindex="0">ⓘ<span class="info-bulle-texte">Calculée à partir de la moyenne pondérée de tes ventes passées pour ce jour de la semaine (les plus récentes comptent plus), en excluant les valeurs exceptionnelles. Jamais une certitude : une fourchette plutôt qu'un chiffre figé.</span></span>
@@ -47,6 +48,11 @@
       <div class="liste-production" id="listeProduction"></div>
 
       <div class="bloc-jour-detail" id="blocJourDetail"></div>
+
+      <details class="bloc-pourquoi" id="blocPourquoi" style="display:none;">
+        <summary>Pourquoi cette prévision ?</summary>
+        <ul class="liste-pourquoi" id="listePourquoi"></ul>
+      </details>
 
       <div class="bloc-pont-commandes" id="blocPontCommandes"></div>
     </div>
@@ -80,6 +86,9 @@
       var filtresCategoriesEl = document.getElementById('filtresCategories');
       var listeProductionEl = document.getElementById('listeProduction');
       var blocJourDetailEl = document.getElementById('blocJourDetail');
+      var sombreMeteoAujourdhuiEl = document.getElementById('sombreMeteoAujourdhui');
+      var blocPourquoiEl = document.getElementById('blocPourquoi');
+      var listePourquoiEl = document.getElementById('listePourquoi');
       var blocPontEl = document.getElementById('blocPontCommandes');
       var carteFiabiliteEl = document.getElementById('carteFiabilite');
 
@@ -117,6 +126,8 @@
       var zoneVacancesPourCodePostal = MP.zoneVacancesPourCodePostal;
       var recupererMeteoPassee = MP.recupererMeteoPassee;
       var recupererMeteoPrevue = MP.recupererMeteoPrevue;
+      var estJourFerie = MP.estJourFerie;
+      var estEnVacances = MP.estEnVacances;
       var calculerRecommandation = MP.calculerRecommandation;
       var calculerFiabilite = MP.calculerFiabilite;
       var calculerFiabiliteNaive = MP.calculerFiabiliteNaive;
@@ -250,6 +261,7 @@
               ]).catch(function () { return [{}, {}]; });
             }).catch(function () { return [{}, {}]; }).then(function (meteos) {
               contexteAffichage = { meteoPassee: meteos[0] || {}, meteoPrevue: meteos[1] || {} };
+              afficherMeteoAujourdhui();
               afficherJourActif();
             });
 
@@ -293,6 +305,18 @@
           });
         }
 
+        // ---------- Météo du jour même (indépendante du jour sélectionné
+        // dans le bandeau, qui peut être un jour futur différent) : réelle,
+        // jamais devinée — température + pictogramme viennent du code météo
+        // (WMO) renvoyé par Open-Meteo. ----------
+        function afficherMeteoAujourdhui() {
+          if (!contexteAffichage || !contexteAffichage.meteoPrevue) return;
+          var meteo = contexteAffichage.meteoPrevue[versISO(new Date())];
+          if (!meteo) return;
+          sombreMeteoAujourdhuiEl.textContent = meteo.icone + ' ' + meteo.libelle + (meteo.temperature !== null ? ', ' + meteo.temperature + '°C' : '');
+          sombreMeteoAujourdhuiEl.style.display = 'block';
+        }
+
         // ---------- Détail du jour sélectionné : badge d'affluence, texte,
         // météo, modificateur manuel d'affluence — un seul bloc, jamais
         // répété 7 fois (voir ancien semaine.html, grille de 7 cartes quasi
@@ -305,9 +329,11 @@
 
           var meteoHTML = '';
           if (j.tier !== 'ferme' && contexteAffichage && contexteAffichage.meteoPrevue) {
-            var categorieJour = contexteAffichage.meteoPrevue[j.iso];
-            if (categorieJour === 'pluvieux') meteoHTML = '<p class="detail-meteo">🌧️ Pluie prévue</p>';
-            else if (categorieJour === 'chaud') meteoHTML = '<p class="detail-meteo">☀️ Forte chaleur prévue</p>';
+            var meteoJour = contexteAffichage.meteoPrevue[j.iso];
+            if (meteoJour) {
+              meteoHTML = '<p class="detail-meteo">Météo prévue : ' + meteoJour.icone + ' ' + meteoJour.libelle +
+                (meteoJour.temperature !== null ? ', ' + meteoJour.temperature + '°C' : '') + '</p>';
+            }
           }
 
           // Modificateur manuel : le gérant reprend la main sur l'IA en cas
@@ -422,6 +448,39 @@
           filtresCategoriesEl.appendChild(boutonAjouter);
         }
 
+        // ---------- Zone "Pourquoi cette prévision ?" : liste factuelle des
+        // éléments réellement pris en compte pour le jour sélectionné —
+        // jamais de pondération inventée, juste ce que le calcul regarde
+        // vraiment (mêmes règles et le même ordre de priorité que
+        // calculerRecommandation dans moteur-prevision.js : un événement
+        // signalé prime sur férié/vacances, qui priment sur la météo). ----------
+        function construireZonePourquoi(j) {
+          var ventes = donneesGlobales.ventes, zoneVacances = donneesGlobales.zoneVacances, evenements = donneesGlobales.evenements;
+          var evenementJour = evenements ? evenements[j.iso] : undefined;
+          var feriee = !evenementJour && estJourFerie(j.date);
+          var vacances = !evenementJour && !feriee && estEnVacances(j.date, zoneVacances);
+          var meteoJour = (!evenementJour && !feriee && !vacances && contexteAffichage && contexteAffichage.meteoPrevue) ? contexteAffichage.meteoPrevue[j.iso] : null;
+
+          var ventesMemeJourSemaine = ventes.filter(function (v) {
+            var d = new Date(v.date_vente);
+            return d.getDay() === j.date.getDay() && !estJourFerie(d) && !estEnVacances(d, zoneVacances);
+          });
+
+          var items = [];
+          items.push('Jour de la semaine : ' + capitaliser(j.nomJour));
+          items.push(ventesMemeJourSemaine.length > 0
+            ? 'Historique utilisé : ' + ventesMemeJourSemaine.length + ' ' + j.nomJour + '(s) passé(s) enregistré(s)'
+            : 'Historique utilisé : pas encore de ' + j.nomJour + ' enregistré, estimation sur l\'ensemble des ventes');
+          if (evenementJour === 'plus') items.push('Événement signalé : plus de monde attendu (estimation manuelle, pas calculée)');
+          else if (evenementJour === 'moins') items.push('Événement signalé : moins de monde attendu (estimation manuelle, pas calculée)');
+          else if (feriee) items.push('Jour férié : oui — l\'activité peut différer d\'un ' + j.nomJour + ' normal');
+          else if (vacances) items.push('Vacances scolaires : oui — l\'activité peut différer d\'un ' + j.nomJour + ' normal');
+          else if (meteoJour) items.push('Météo prévue : ' + meteoJour.icone + ' ' + meteoJour.libelle + (meteoJour.temperature !== null ? ', ' + meteoJour.temperature + '°C' : '') + ' (prise en compte seulement si assez d\'historique par temps similaire)');
+
+          listePourquoiEl.innerHTML = items.map(function (texte) { return '<li>' + texte + '</li>'; }).join('');
+          blocPourquoiEl.style.display = 'block';
+        }
+
         // ---------- Production + ingrédients + pont vers Commandes, pour le
         // jour actuellement sélectionné dans le bandeau. ----------
         function afficherJourActif() {
@@ -435,9 +494,12 @@
             sombreTitreEl.textContent = capitaliser(j.nomJour) + ' ' + j.date.getDate() + ' ' + nomsMoisCourts[j.date.getMonth()] + ' — fermé';
             listeProductionEl.innerHTML = '';
             filtresCategoriesEl.style.display = 'none';
+            blocPourquoiEl.style.display = 'none';
             blocPontEl.innerHTML = '';
             return;
           }
+
+          construireZonePourquoi(j);
 
           if (filtresCategoriesEl.children.length > 0) filtresCategoriesEl.style.display = 'flex';
           sombreTitreEl.textContent = "Prévision pour " + formatDateLongue(j.date);
