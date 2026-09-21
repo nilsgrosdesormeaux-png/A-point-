@@ -32,13 +32,21 @@
       <div class="claire-entete">
         <div>
           <p class="claire-date" id="sombreDate"></p>
-          <p class="claire-date claire-date--meteo" id="sombreMeteoAujourdhui" style="display:none;"></p>
           <p class="claire-titre" id="sombreTitre">
             <span id="sombreTitreTexte">Prévision</span>
             <span class="info-bulle" tabindex="0">ⓘ<span class="info-bulle-texte">Calculée à partir de la moyenne pondérée de tes ventes passées pour ce jour de la semaine (les plus récentes comptent plus), en excluant les valeurs exceptionnelles. Jamais une certitude : une fourchette plutôt qu'un chiffre figé.</span></span>
           </p>
         </div>
-        <div class="claire-badge" id="sombreBadge">... jour(s) d'historique</div>
+        <div class="entete-droite-previsions">
+          <div class="badge-meteo" id="sombreMeteoAujourdhui" style="display:none;">
+            <span class="badge-meteo-icone" id="sombreMeteoIcone"></span>
+            <span class="badge-meteo-texte">
+              <span class="badge-meteo-temperature" id="sombreMeteoTemperature"></span>
+              <span class="badge-meteo-libelle" id="sombreMeteoLibelle"></span>
+            </span>
+          </div>
+          <div class="claire-badge" id="sombreBadge">... jour(s) d'historique</div>
+        </div>
       </div>
 
       <div class="semaine-strip" id="semaineStrip" style="display:none;"></div>
@@ -87,6 +95,9 @@
       var listeProductionEl = document.getElementById('listeProduction');
       var blocJourDetailEl = document.getElementById('blocJourDetail');
       var sombreMeteoAujourdhuiEl = document.getElementById('sombreMeteoAujourdhui');
+      var sombreMeteoIconeEl = document.getElementById('sombreMeteoIcone');
+      var sombreMeteoTemperatureEl = document.getElementById('sombreMeteoTemperature');
+      var sombreMeteoLibelleEl = document.getElementById('sombreMeteoLibelle');
       var blocPourquoiEl = document.getElementById('blocPourquoi');
       var listePourquoiEl = document.getElementById('listePourquoi');
       var blocPontEl = document.getElementById('blocPontCommandes');
@@ -313,8 +324,10 @@
           if (!contexteAffichage || !contexteAffichage.meteoPrevue) return;
           var meteo = contexteAffichage.meteoPrevue[versISO(new Date())];
           if (!meteo) return;
-          sombreMeteoAujourdhuiEl.textContent = meteo.icone + ' ' + meteo.libelle + (meteo.temperature !== null ? ', ' + meteo.temperature + '°C' : '');
-          sombreMeteoAujourdhuiEl.style.display = 'block';
+          sombreMeteoIconeEl.textContent = meteo.icone;
+          sombreMeteoTemperatureEl.textContent = meteo.temperature !== null ? meteo.temperature + '°C' : '';
+          sombreMeteoLibelleEl.textContent = meteo.libelle;
+          sombreMeteoAujourdhuiEl.style.display = 'flex';
         }
 
         // ---------- Détail du jour sélectionné : badge d'affluence, texte,

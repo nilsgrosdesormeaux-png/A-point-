@@ -773,6 +773,50 @@ async function main() {
       await pagePrevisions.close();
     });
 
+    // Retour utilisateur, sept. 2026 : la météo du jour s'affichait déjà
+    // techniquement, mais en texte brut minuscule et gris — perçue comme
+    // "ça ne s'affiche pas". Remplacée par un badge visible (icône large +
+    // température en évidence). Réseau externe mocké (geo.api.gouv.fr,
+    // open-meteo.com bloqués dans ce sandbox de toute façon).
+    await describe('previsions.html — badge météo visible', async () => {
+      const commercantId = 'test-commercant-meteo-badge';
+      const tables = {
+        ventes: [{ commercant_id: commercantId, nom_produit: 'Tradition', date_vente: '2026-08-03', quantite: 10 }],
+        produits: [{ id: 'p1', commercant_id: commercantId, nom: 'Tradition' }],
+        categories_produit: [],
+        ingredients_produit: [],
+        parametres_commercant: [{ commercant_id: commercantId, code_postal: '49100', ville: 'Angers', latitude: null, longitude: null }],
+        evenements_commercant: [],
+      };
+
+      const pageMeteo = await browser.newPage();
+      await stubSupabaseAvecDonnees(pageMeteo, { commercantId, tables });
+      await pageMeteo.route('https://geo.api.gouv.fr/**', (route) => {
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ nom: 'Angers', centre: { type: 'Point', coordinates: [-0.5629, 47.4819] }, code: '49007' }]) });
+      });
+      await pageMeteo.route('https://api.open-meteo.com/**', (route) => {
+        const dates = [];
+        for (let i = 0; i < 10; i++) { const d = new Date(); d.setDate(d.getDate() + i); dates.push(d.toISOString().slice(0, 10)); }
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ daily: { time: dates, precipitation_sum: dates.map(() => 0), temperature_2m_max: dates.map(() => 22), weathercode: dates.map(() => 1) } }) });
+      });
+      await pageMeteo.route('https://archive-api.open-meteo.com/**', (route) => {
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ daily: { time: [], precipitation_sum: [], temperature_2m_max: [], weathercode: [] } }) });
+      });
+
+      await test('le badge météo affiche une icône, une température et un libellé distincts (pas une ligne de texte brut)', async () => {
+        await pageMeteo.goto(BASE_URL + '/previsions.html');
+        await pageMeteo.locator('#sombreMeteoAujourdhui').waitFor({ state: 'visible', timeout: 10000 });
+        const icone = await pageMeteo.locator('#sombreMeteoIcone').textContent();
+        const temperature = await pageMeteo.locator('#sombreMeteoTemperature').textContent();
+        const libelle = await pageMeteo.locator('#sombreMeteoLibelle').textContent();
+        expect(icone.trim().length).toBeGreaterThan(0);
+        expect(temperature).toContain('22°C');
+        expect(libelle.trim().length).toBeGreaterThan(0);
+      });
+
+      await pageMeteo.close();
+    });
+
     await describe('previsions.html — catégorie du produit librement créée par le commerçant (pas une liste imposée)', async () => {
       const commercantId = 'test-commercant-categorie-produit';
       const lundis = ['2026-08-03', '2026-08-10', '2026-08-17', '2026-08-24', '2026-08-31'];
@@ -978,6 +1022,27 @@ async function main() {
         expect(nomsSecteurs.join(',')).toContain('Salle');
         expect(nomsSecteurs.join(',')).toContain('Bar');
         expect(await pageGantt.locator('.btn-gerer-postes').isVisible()).toBe(true);
+      });
+
+      // Retour utilisateur, sept. 2026 : le comportement "tous secteurs
+      // affichés" existait déjà (filtreSecteurActif === null) mais n'avait
+      // aucun bouton visible pour le voir/y revenir. Ajout d'un onglet
+      // "Tous" permanent, toujours en premier, jamais dans la modale de
+      // suppression de secteur.
+      await test('un onglet "Tous" permanent est toujours affiché en premier dans la légende, actif par défaut', async () => {
+        await pageGantt.goto(BASE_URL + '/personnel.html');
+        await pageGantt.locator('.pastille-poste-nom').first().waitFor({ state: 'visible' });
+        const premierePastille = pageGantt.locator('#legendePostes > *').first();
+        expect(await premierePastille.locator('.pastille-poste-nom').textContent()).toBe('Tous');
+        expect(await premierePastille.evaluate((el) => el.classList.contains('pastille-poste--active'))).toBe(true);
+      });
+
+      await test('l\'onglet "Tous" n\'apparaît pas dans la liste des secteurs supprimables de la modale "Gérer les postes"', async () => {
+        await pageGantt.goto(BASE_URL + '/personnel.html');
+        await pageGantt.locator('.btn-gerer-postes').click();
+        await pageGantt.locator('#listeSecteursPostes .bloc-secteur-postes').first().waitFor({ state: 'visible' });
+        const entetes = await pageGantt.locator('#listeSecteursPostes .entete-bloc-secteur strong').allTextContents();
+        expect(entetes).not.toContain('Tous');
       });
 
       // Retour utilisateur, sept. 2026 : "Réinitialiser (auto)" et "Gérer

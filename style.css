@@ -1443,12 +1443,45 @@ button.lien-supprimer:hover {
   margin-top: 10px;
 }
 
-.claire-date--meteo {
+.entete-droite-previsions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.badge-meteo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 10px;
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+}
+
+.badge-meteo-icone {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.badge-meteo-texte {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.badge-meteo-temperature {
+  font-family: var(--police-titre);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--texte);
+}
+
+.badge-meteo-libelle {
+  font-size: 11.5px;
   color: var(--texte-attenue);
-  text-transform: none;
-  letter-spacing: normal;
-  font-weight: 500;
-  margin: 0;
+  white-space: nowrap;
 }
 
 /* ---------- "Pourquoi cette prévision ?" : liste factuelle des éléments
@@ -2102,10 +2135,27 @@ button.lien-supprimer:hover {
   text-align: center;
 }
 
+.badge-meteo-gantt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 6px;
+  padding: 4px 10px 4px 8px;
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+}
+
 .selecteur-jour-unique-meteo {
-  font-size: 17px;
+  font-size: 19px;
   line-height: 1;
-  margin-left: 2px;
+}
+
+.badge-meteo-gantt-texte {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--texte-attenue);
+  white-space: nowrap;
 }
 
 .jour-fleche {
@@ -2218,6 +2268,16 @@ button.lien-supprimer:hover {
   background: var(--surface);
   border-color: var(--ink);
   box-shadow: 0 1px 3px rgba(33,29,23,0.12);
+}
+
+.pastille-poste--tous {
+  padding-left: 10px;
+  border-style: solid;
+  border-width: 1px;
+}
+
+.pastille-poste--tous .pastille-poste-nom {
+  color: var(--texte);
 }
 
 .pastille-poste-couleur {

@@ -31,7 +31,10 @@
           <button type="button" class="jour-fleche" id="ganttJourPrec" aria-label="Jour précédent">‹</button>
           <span class="selecteur-jour-unique-libelle" id="ganttJourLibelle"></span>
           <button type="button" class="jour-fleche" id="ganttJourSuiv" aria-label="Jour suivant">›</button>
-          <span class="selecteur-jour-unique-meteo" id="ganttMeteoIcone" title="Météo prévue ce jour-là"></span>
+          <span class="badge-meteo-gantt">
+            <span class="selecteur-jour-unique-meteo" id="ganttMeteoIcone" title="Météo prévue ce jour-là"></span>
+            <span class="badge-meteo-gantt-texte" id="ganttMeteoTexte"></span>
+          </span>
         </div>
         <span class="total-effectif-jour" id="ganttTotalEffectif" title="Somme des heures nettes de pause de toute l'équipe visible, pour le jour affiché"></span>
         <span class="conseil-renfort" id="conseilRenfort" style="display:none;"></span>
@@ -1069,6 +1072,26 @@
       function rendreLegende() {
         var conteneur = document.getElementById('legendePostes');
         conteneur.innerHTML = '';
+
+        // Onglet "Tous" : permanent, jamais supprimable, affiche l'équipe
+        // au complet avec les créneaux de tous les secteurs (comportement
+        // déjà existant quand filtreSecteurActif est null — juste rendu
+        // visible et explicite ici).
+        var pastilleTous = document.createElement('span');
+        pastilleTous.className = 'pastille-poste pastille-poste--tous' + (filtreSecteurActif === null ? ' pastille-poste--active' : '');
+        var boutonTous = document.createElement('button');
+        boutonTous.type = 'button';
+        boutonTous.className = 'pastille-poste-nom';
+        boutonTous.textContent = 'Tous';
+        boutonTous.title = "Voir le planning de toute l'équipe, tous secteurs confondus";
+        boutonTous.addEventListener('click', function () {
+          filtreSecteurActif = null;
+          rendreLegende();
+          rendreGantt();
+        });
+        pastilleTous.appendChild(boutonTous);
+        conteneur.appendChild(pastilleTous);
+
         SECTEURS.forEach(function (secteur) {
           var pastille = document.createElement('span');
           pastille.className = 'pastille-poste' + (filtreSecteurActif === secteur.id ? ' pastille-poste--active' : '');
@@ -1258,10 +1281,13 @@
       function dessinerGantt() {
         document.getElementById('ganttJourLibelle').textContent = libelleJour(decalageJour);
         var iconeMeteo = document.getElementById('ganttMeteoIcone');
+        var texteMeteo = document.getElementById('ganttMeteoTexte');
         if (iconeMeteo) {
           var meteoJour = meteoDuJour(decalageJour);
+          var resteMeteo = meteoJour.split(' ').slice(1).join(' ');
           iconeMeteo.textContent = meteoJour.split(' ')[0];
-          iconeMeteo.title = 'Météo prévue : ' + meteoJour.split(' ').slice(1).join(' ');
+          iconeMeteo.title = 'Météo prévue : ' + resteMeteo;
+          if (texteMeteo) texteMeteo.textContent = resteMeteo;
         }
 
         ajusterLargeurHeures();
