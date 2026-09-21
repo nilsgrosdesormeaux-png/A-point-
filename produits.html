@@ -7,7 +7,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>À Point - Mes produits</title>
+  <title>À Point - Produits vendus</title>
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -25,12 +25,12 @@
     <nav id="navPrincipale"></nav>
   </header>
 
-  <div class="conteneur conteneur--moyen">
+  <div class="conteneur conteneur--large">
     <div class="carte-page">
       <div class="entete-page">
         <div>
           <p class="eyebrow">Gestion</p>
-          <h1>Mes produits</h1>
+          <h1>Produits vendus</h1>
         </div>
         <div class="badge-page" id="badgeProduits" style="display:none;"></div>
       </div>
@@ -46,11 +46,11 @@
         <div id="message"></div>
 
         <div class="entete-page" style="margin-top:22px; margin-bottom:0;">
-          <p class="section-titre" style="margin:0;">Mes produits actuels</p>
-          <button type="button" class="btn-gerer-postes" id="btnGererCategories">⚙️ Gérer les catégories</button>
+          <p class="section-titre" style="margin:0;">Produits vendus actuels</p>
+          <a href="import.html" class="btn-gerer-postes">📋 Importer une carte/menu</a>
         </div>
-        <p class="texte-aide" style="margin-top:6px;">Clique sur un produit pour lui définir une fiche technique. Range-le dans une catégorie par glisser-déposer, si tu en as créé — c'est entièrement facultatif.</p>
-        <div id="listeProduitsParCategorie"></div>
+        <p class="texte-aide" style="margin-top:6px;">Clique sur un produit pour lui définir une fiche technique. Range-le dans une catégorie par glisser-déposer, si tu en as créé — les catégories se créent et se gèrent depuis <a href="previsions.html">Prévisions</a>, c'est entièrement facultatif.</p>
+        <div id="listeProduitsParCategorie" class="grille-produits-vendus"></div>
         <ul id="listeProduits" class="liste-produits" style="display:none;"></ul>
 
         <div id="ficheTechnique" style="display:none;">
@@ -93,17 +93,6 @@
     </div>
   </div>
 
-  <div class="fond-modal" id="modalCategories" hidden>
-    <div class="contenu-modal contenu-modal--large">
-      <h3>Gérer les catégories</h3>
-      <p class="sous-titre-modal">Crée tes propres catégories pour ranger tes produits (ex : Boissons, Plats, Desserts) — libre à toi de ne pas en créer, ou d'en supprimer si elle ne te sert pas. Les produits d'une catégorie supprimée repassent simplement en "Non classé".</p>
-      <div id="listeCategoriesConfig"></div>
-      <div class="actions-modal actions-modal--simple">
-        <button type="button" class="btn-modal-enregistrer" id="btnFermerModalCategories">Fermer</button>
-      </div>
-    </div>
-  </div>
-
   <script>
         (function () {
       var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
@@ -121,13 +110,14 @@
       var messageIngredientDiv = document.getElementById('messageIngredient');
       var ingredientsConnusEl = document.getElementById('ingredientsConnus');
       var listeProduitsParCategorieEl = document.getElementById('listeProduitsParCategorie');
-      var modalCategoriesEl = document.getElementById('modalCategories');
       var commercantId = null;
       var produitSelectionne = null;
-      // CATEGORIES : catégories librement créées par le commerçant (jamais
-      // devinées). produitsCourants : dernier chargement, réutilisé pour
-      // re-rendre les blocs sans recharger Supabase après un simple
-      // glisser-déposer.
+      // CATEGORIES : catégories créées et gérées depuis Prévisions (source
+      // unique — voir cahier des charges Étape 4, plus de gestion en double
+      // ici). Chargées en lecture seule, seulement pour grouper l'affichage
+      // et permettre le rangement par glisser-déposer. produitsCourants :
+      // dernier chargement, réutilisé pour re-rendre les blocs sans
+      // recharger Supabase après un simple glisser-déposer.
       var CATEGORIES = [];
       var produitsCourants = [];
 
@@ -321,80 +311,6 @@
           listeProduitsParCategorieEl.appendChild(bloc);
         });
       }
-
-      function slugifierCategorie(nom) {
-        return nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || ('categorie-' + Date.now());
-      }
-
-      // Créer/renommer/supprimer une catégorie : jamais de liste imposée,
-      // chaque commerçant range ses produits comme il l'entend.
-      function creerCategorie(nom) {
-        var id = slugifierCategorie(nom);
-        if (CATEGORIES.some(function (c) { return c.id === id; })) {
-          window.alert('Une catégorie "' + nom + '" existe déjà.');
-          return;
-        }
-        var categorie = { id: id, commercant_id: commercantId, nom: nom, ordre: CATEGORIES.length };
-        CATEGORIES.push(categorie);
-        sbClient.from('categories_produit').insert(categorie).then(function () {});
-      }
-
-      function renommerCategorie(categorie, nouveauNom) {
-        categorie.nom = nouveauNom;
-        sbClient.from('categories_produit').update({ nom: nouveauNom }).eq('commercant_id', commercantId).eq('id', categorie.id).then(function () {});
-      }
-
-      function supprimerCategorie(categorie) {
-        CATEGORIES = CATEGORIES.filter(function (c) { return c.id !== categorie.id; });
-        // Les produits qui y étaient rangés repassent en "Non classé" côté
-        // affichage local ; la base le fait automatiquement (ON DELETE SET
-        // NULL sur produits.categorie_id).
-        produitsCourants.forEach(function (p) { if (p.categorie_id === categorie.id) p.categorie_id = null; });
-        sbClient.from('categories_produit').delete().eq('commercant_id', commercantId).eq('id', categorie.id).then(function () {});
-      }
-
-      function rendreContenuModalCategories() {
-        var conteneur = document.getElementById('listeCategoriesConfig');
-        conteneur.innerHTML = '';
-
-        CATEGORIES.forEach(function (categorie) {
-          var ligne = document.createElement('span');
-          ligne.className = 'etiquette-poste-config';
-          ligne.textContent = categorie.nom;
-          ligne.title = 'Cliquer pour renommer ou supprimer';
-          ligne.addEventListener('click', function () {
-            var action = window.prompt('Renommer cette catégorie (laisser vide pour la supprimer) :', categorie.nom);
-            if (action === null) return;
-            if (action.trim() === '') {
-              if (!window.confirm('Supprimer la catégorie "' + categorie.nom + '" ? Les produits qu\'elle contient repasseront en "Non classé".')) return;
-              supprimerCategorie(categorie);
-            } else {
-              renommerCategorie(categorie, action.trim());
-            }
-            rendreContenuModalCategories();
-            rendreProduitsParCategorie();
-          });
-          conteneur.appendChild(ligne);
-        });
-
-        var ajouterCategorie = document.createElement('button');
-        ajouterCategorie.type = 'button';
-        ajouterCategorie.className = 'btn-ajouter-poste-config';
-        ajouterCategorie.textContent = '+ Catégorie';
-        ajouterCategorie.addEventListener('click', function () {
-          var nom = window.prompt('Nom de la nouvelle catégorie ?');
-          if (!nom) return;
-          creerCategorie(nom.trim());
-          rendreContenuModalCategories();
-          rendreProduitsParCategorie();
-        });
-        conteneur.appendChild(ajouterCategorie);
-      }
-
-      function ouvrirModalCategories() { rendreContenuModalCategories(); modalCategoriesEl.hidden = false; }
-      function fermerModalCategories() { modalCategoriesEl.hidden = true; }
-      document.getElementById('btnGererCategories').addEventListener('click', ouvrirModalCategories);
-      document.getElementById('btnFermerModalCategories').addEventListener('click', fermerModalCategories);
 
       // Renomme un produit existant (utile pour corriger un nom mal saisi ou
       // fusionner visuellement des doublons issus d'un import CSV).

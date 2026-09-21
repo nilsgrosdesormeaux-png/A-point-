@@ -2057,7 +2057,7 @@ button.lien-supprimer:hover {
 
 .bloc-categorie-produits {
   margin-top: 18px;
-  padding: 12px;
+  padding: 16px;
   border: 1px dashed var(--bordure);
   border-radius: var(--rayon);
   transition: border-color 0.15s ease, background-color 0.15s ease;
@@ -2069,8 +2069,8 @@ button.lien-supprimer:hover {
 }
 
 .entete-bloc-categorie-produits {
-  margin: 0 0 4px;
-  font-size: 12.5px;
+  margin: 0 0 10px;
+  font-size: 13.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -2079,6 +2079,31 @@ button.lien-supprimer:hover {
 
 .bloc-categorie-produits ul.liste-produits li {
   cursor: grab;
+}
+
+/* Retour pilote sept. 2026 : cartes "étriquées", vision trop petite même
+   sur ordinateur — grille agrandie, scopée à cette page uniquement
+   (.grille-produits-vendus) pour ne pas changer .liste-produits ailleurs. */
+.grille-produits-vendus ul.liste-produits {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.grille-produits-vendus ul.liste-produits li {
+  padding: 18px 20px;
+  font-size: 16px;
+  border-radius: var(--rayon-lg);
+}
+
+.grille-produits-vendus ul.liste-produits li::before {
+  width: 10px;
+  height: 10px;
+}
+
+.grille-produits-vendus .icone-action {
+  width: 32px;
+  height: 32px;
+  font-size: 15px;
 }
 
 .ligne-produit--glissee {

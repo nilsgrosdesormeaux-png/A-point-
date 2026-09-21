@@ -151,7 +151,7 @@
       }
 
       // ---------- Catégorie strictement issue du rangement manuel du
-      // commerçant (page Mes produits, glisser-déposer dans une catégorie
+      // commerçant (page Produits vendus, glisser-déposer dans une catégorie
       // qu'il a lui-même créée) : zéro invention algorithmique, aucune
       // liste imposée — un pizzaiolo n'a pas les mêmes rayons qu'un
       // boulanger ou un poissonnier. Un produit non rangé, ou dont la
@@ -229,7 +229,7 @@
             donneesGlobales = { ventes: ventes, produits: produits, zoneVacances: zoneVacances, evenements: evenements };
 
             // Catégorie strictement issue du rangement manuel du
-            // commerçant (glisser-déposer dans Mes produits) : un produit
+            // commerçant (glisser-déposer dans Produits vendus) : un produit
             // sans catégorie_id, ou pointant vers une catégorie depuis
             // supprimée, tombe sous "Non classé".
             CATEGORIES = categoriesProduit;
@@ -558,7 +558,7 @@
             // Rangement manuel dans une catégorie créée par le commerçant
             // (ou "Non classé") : un simple sélecteur, jamais de
             // déduction — le produit doit exister en base (créé sur la
-            // page Mes produits) pour être rangeable ici.
+            // page Produits vendus) pour être rangeable ici.
             var produit = produitParNom[nomProduit];
             if (produit && CATEGORIES.length > 0) {
               var selecteur = document.createElement('select');

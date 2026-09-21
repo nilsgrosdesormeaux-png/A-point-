@@ -306,10 +306,10 @@ async function main() {
         expect(await actif.textContent()).toBe('Commandes');
       });
 
-      await test('Mes produits / Commandes / Imports sont en repli (cachés sous 720px)', async () => {
+      await test('Produits vendus / Commandes / Imports sont en repli (cachés sous 720px)', async () => {
         await page.goto(BASE_URL + '/tableau-de-bord.html');
         const liens = await page.locator('#navPrincipale a.nav-lien-g--repli').allTextContents();
-        expect(liens.join(',')).toBe('Mes produits,Commandes,Imports');
+        expect(liens.join(',')).toBe('Produits vendus,Commandes,Imports');
       });
 
       await test('nav secondaire contient Paramètres et Aide', async () => {
@@ -593,6 +593,15 @@ async function main() {
       const pageProduits = await browser.newPage();
       await stubSupabaseAvecDonnees(pageProduits, { commercantId, tables });
 
+      await test('la page est renommée "Produits vendus" (titre, h1, nav) et affiche un point d\'entrée vers l\'import carte/menu', async () => {
+        await pageProduits.goto(BASE_URL + '/produits.html');
+        expect(await pageProduits.title()).toContain('Produits vendus');
+        expect(await pageProduits.locator('h1').textContent()).toBe('Produits vendus');
+        expect(await pageProduits.locator('#navPrincipale', { hasText: 'Produits vendus' }).count()).toBeGreaterThan(0);
+        const lienImport = pageProduits.locator('a[href="import.html"]');
+        expect(await lienImport.count()).toBeGreaterThan(0);
+      });
+
       await test('affiche un bloc par catégorie créée, plus un bloc "Non classé" toujours présent', async () => {
         await pageProduits.goto(BASE_URL + '/produits.html');
         await pageProduits.locator('.bloc-categorie-produits').first().waitFor({ state: 'visible' });
@@ -610,15 +619,19 @@ async function main() {
         expect((await blocNonClasse.locator('.nom-produit').allTextContents()).join(',')).toContain('Tiramisu');
       });
 
-      await test('le bouton "Gérer les catégories" ouvre une fenêtre pour créer/renommer/supprimer des catégories', async () => {
+      // Retour utilisateur, sept. 2026 (Étape 4 du cahier des charges) : la
+      // gestion des catégories (créer/renommer/supprimer) était dupliquée
+      // ici et sur previsions.html — même table categories_produit. Une
+      // seule logique conservée : gestion exclusivement depuis Prévisions,
+      // cette page reste en lecture seule sur les catégories (groupement +
+      // rangement par glisser-déposer uniquement).
+      await test('aucun bouton "Gérer les catégories" ici : la gestion se fait uniquement depuis Prévisions', async () => {
         await pageProduits.goto(BASE_URL + '/produits.html');
         await pageProduits.locator('.bloc-categorie-produits').first().waitFor({ state: 'visible' });
-        await pageProduits.locator('#btnGererCategories').click();
-        await pageProduits.locator('#modalCategories').waitFor({ state: 'visible' });
-        const etiquettes = await pageProduits.locator('#listeCategoriesConfig .etiquette-poste-config').allTextContents();
-        expect(etiquettes.join(',')).toContain('Pizzas');
-        await pageProduits.locator('#btnFermerModalCategories').click();
-        expect(await pageProduits.locator('#modalCategories').isHidden()).toBeTruthy();
+        expect(await pageProduits.locator('#btnGererCategories').count()).toBe(0);
+        expect(await pageProduits.locator('#modalCategories').count()).toBe(0);
+        const lienPrevisions = pageProduits.locator('a[href="previsions.html"]');
+        expect(await lienPrevisions.count()).toBeGreaterThan(0);
       });
 
       await pageProduits.close();
