@@ -249,6 +249,26 @@
 
       var messagePlanningEl = document.getElementById('messagePlanning');
 
+      // Le SDK supabase js renvoie un message generique ("Edge Function
+      // returned a non 2xx status code") sur reponse.error.message des qu'un
+      // appel functions.invoke echoue, quel que soit le vrai message renvoye
+      // par la fonction elle meme. Le vrai message est dans le corps de la
+      // reponse HTTP, accessible via reponse.error.context (le Response brut).
+      // Cette fonction essaie de le lire, et retombe sur le message
+      // generique si ce n'est pas possible.
+      function messageErreurFonction(reponse, callback) {
+        var repli = (reponse.error && reponse.error.message) || 'Erreur inconnue';
+        if (!reponse.error || !reponse.error.context || typeof reponse.error.context.json !== 'function') {
+          callback(repli);
+          return;
+        }
+        reponse.error.context.clone().json().then(function (corps) {
+          callback((corps && corps.error) || repli);
+        }).catch(function () {
+          callback(repli);
+        });
+      }
+
       var MP = window.MoteurPrevision;
       var nomsJours = MP.nomsJours;
       var nomsMois = MP.nomsMois;
@@ -1555,7 +1575,7 @@
           }).then(function () { rendreGantt(); });
           if (email) {
             sbClient.functions.invoke('inviter-employe', { body: { personnelId: nouvel.id, email: email } }).then(function (reponse) {
-              if (reponse.error) { window.alert("Ajouté, mais l'invitation a échoué : " + reponse.error.message + ". Réessaie depuis sa fiche."); return; }
+              if (reponse.error) { messageErreurFonction(reponse, function (msg) { window.alert("Ajouté, mais l'invitation a échoué : " + msg + ". Réessaie depuis sa fiche."); }); return; }
               window.alert('Invitation envoyée à ' + nom + ' (' + email + ').');
             }).catch(function (erreur) {
               window.alert("Ajouté, mais l'invitation a échoué : " + erreur + ". Réessaie depuis sa fiche.");
@@ -1681,7 +1701,7 @@
         btnModalEmployeInviter.disabled = true;
         sbClient.functions.invoke('inviter-employe', { body: { personnelId: employe.id, email: emailActuel } }).then(function (reponse) {
           btnModalEmployeInviter.disabled = false;
-          if (reponse.error) { window.alert("Erreur : " + reponse.error.message); return; }
+          if (reponse.error) { messageErreurFonction(reponse, function (msg) { window.alert("Erreur : " + msg); }); return; }
           employe.statut_compte = 'invite';
           actualiserStatutCompteEmploye(employe);
           window.alert("Invitation envoyée à " + formatNomAffichage(employe.nom) + " (" + employe.email + "). Un e-mail lui permet de créer son mot de passe et d'accéder à son espace.");
