@@ -45,6 +45,7 @@
               <span class="badge-meteo-libelle" id="sombreMeteoLibelle"></span>
             </span>
           </div>
+          <div class="meteo-moments-jour" id="meteoMomentsJour" style="display:none;"></div>
           <div class="claire-badge" id="sombreBadge">... jour(s) d'historique</div>
         </div>
       </div>
@@ -98,6 +99,7 @@
       var sombreMeteoIconeEl = document.getElementById('sombreMeteoIcone');
       var sombreMeteoTemperatureEl = document.getElementById('sombreMeteoTemperature');
       var sombreMeteoLibelleEl = document.getElementById('sombreMeteoLibelle');
+      var meteoMomentsJourEl = document.getElementById('meteoMomentsJour');
       var blocPourquoiEl = document.getElementById('blocPourquoi');
       var listePourquoiEl = document.getElementById('listePourquoi');
       var blocPontEl = document.getElementById('blocPontCommandes');
@@ -272,7 +274,7 @@
               ]).catch(function () { return [{}, {}]; });
             }).catch(function () { return [{}, {}]; }).then(function (meteos) {
               contexteAffichage = { meteoPassee: meteos[0] || {}, meteoPrevue: meteos[1] || {} };
-              afficherMeteoAujourdhui();
+              afficherMeteoJourActif();
               afficherJourActif();
             });
 
@@ -310,24 +312,44 @@
             chip.addEventListener('click', function () {
               indexJourActif = index;
               afficherStripSemaine();
+              afficherMeteoJourActif();
               afficherJourActif();
             });
             semaineStripEl.appendChild(chip);
           });
         }
 
-        // ---------- Météo du jour même (indépendante du jour sélectionné
-        // dans le bandeau, qui peut être un jour futur différent) : réelle,
-        // jamais devinée — température + pictogramme viennent du code météo
-        // (WMO) renvoyé par Open-Meteo. ----------
-        function afficherMeteoAujourdhui() {
-          if (!contexteAffichage || !contexteAffichage.meteoPrevue) return;
-          var meteo = contexteAffichage.meteoPrevue[versISO(new Date())];
-          if (!meteo) return;
+        // ---------- Météo du jour sélectionné dans le bandeau (retour
+        // pilote sept. 2026 : affichait toujours la météo d'aujourd'hui,
+        // même en consultant un autre jour — incohérent avec le titre
+        // "Prévision pour [jour sélectionné]" juste à côté). Réelle, jamais
+        // devinée — température + pictogramme viennent du code météo (WMO)
+        // renvoyé par Open-Meteo. La valeur principale reste la synthèse du
+        // jour (temperature_2m_max) ; le détail matin/midi/soir ci-dessous
+        // (meteo.moments, quand Open-Meteo le fournit) montre que ça peut
+        // changer dans la journée, sans remplacer le calcul (toujours basé
+        // sur la synthèse jour, cf. categoriserMeteo). ----------
+        function afficherMeteoJourActif() {
+          if (!contexteAffichage || !contexteAffichage.meteoPrevue) { sombreMeteoAujourdhuiEl.style.display = 'none'; meteoMomentsJourEl.style.display = 'none'; return; }
+          var j = previsionSemaine[indexJourActif];
+          if (!j) { sombreMeteoAujourdhuiEl.style.display = 'none'; meteoMomentsJourEl.style.display = 'none'; return; }
+          var meteo = contexteAffichage.meteoPrevue[j.iso];
+          if (!meteo) { sombreMeteoAujourdhuiEl.style.display = 'none'; meteoMomentsJourEl.style.display = 'none'; return; }
           sombreMeteoIconeEl.textContent = meteo.icone;
           sombreMeteoTemperatureEl.textContent = meteo.temperature !== null ? meteo.temperature + '°C' : '';
           sombreMeteoLibelleEl.textContent = meteo.libelle;
           sombreMeteoAujourdhuiEl.style.display = 'flex';
+
+          if (meteo.moments && meteo.moments.length > 0) {
+            meteoMomentsJourEl.innerHTML = meteo.moments.map(function (m) {
+              return '<span class="meteo-moment"><span class="meteo-moment-libelle">' + m.libelle + '</span>' +
+                '<span class="meteo-moment-icone">' + m.icone + '</span>' +
+                '<span class="meteo-moment-temperature">' + (m.temperature !== null ? m.temperature + '°C' : '') + '</span></span>';
+            }).join('');
+            meteoMomentsJourEl.style.display = 'flex';
+          } else {
+            meteoMomentsJourEl.style.display = 'none';
+          }
         }
 
         // ---------- Détail du jour sélectionné : badge d'affluence, texte,
