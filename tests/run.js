@@ -1978,6 +1978,68 @@ async function main() {
         await page.close();
       });
     });
+
+    await describe('connexion.html — redirection selon le rôle du compte', async () => {
+      async function stubConnexion(page, options) {
+        await page.addInitScript((options) => {
+          window.supabase = {
+            createClient: function () {
+              return {
+                auth: {
+                  getSession: function () {
+                    return Promise.resolve({ data: { session: options.sessionInitiale || null } });
+                  },
+                  signInWithPassword: function () {
+                    return Promise.resolve({ data: { session: options.sessionConnexion, user: (options.sessionConnexion || {}).user }, error: null });
+                  },
+                  signUp: function () {
+                    return Promise.resolve({ data: { session: options.sessionConnexion, user: (options.sessionConnexion || {}).user }, error: null });
+                  },
+                },
+              };
+            },
+          };
+        }, options);
+      }
+
+      await test('une session employé déjà active redirige vers espace-employe.html, jamais le tableau de bord', async () => {
+        const page = await browser.newPage();
+        await stubConnexion(page, { sessionInitiale: { user: { id: 'u1', user_metadata: { role: 'employe' } } } });
+        await page.goto(BASE_URL + '/connexion.html');
+        await page.waitForURL(/espace-employe\.html/);
+        await page.close();
+      });
+
+      await test('une session patron déjà active redirige vers tableau-de-bord.html', async () => {
+        const page = await browser.newPage();
+        await stubConnexion(page, { sessionInitiale: { user: { id: 'u2', user_metadata: {} } } });
+        await page.goto(BASE_URL + '/connexion.html');
+        await page.waitForURL(/tableau-de-bord\.html/);
+        await page.close();
+      });
+
+      await test('se connecter avec un compte employé redirige vers espace-employe.html', async () => {
+        const page = await browser.newPage();
+        await stubConnexion(page, { sessionConnexion: { user: { id: 'u3', user_metadata: { role: 'employe' } } } });
+        await page.goto(BASE_URL + '/connexion.html');
+        await page.locator('#email').fill('employe@test.fr');
+        await page.locator('#motdepasse').fill('motdepasse123');
+        await page.locator('#btnAction').click();
+        await page.waitForURL(/espace-employe\.html/);
+        await page.close();
+      });
+
+      await test('se connecter avec un compte patron redirige vers tableau-de-bord.html', async () => {
+        const page = await browser.newPage();
+        await stubConnexion(page, { sessionConnexion: { user: { id: 'u4', user_metadata: {} } } });
+        await page.goto(BASE_URL + '/connexion.html');
+        await page.locator('#email').fill('patron@test.fr');
+        await page.locator('#motdepasse').fill('motdepasse123');
+        await page.locator('#btnAction').click();
+        await page.waitForURL(/tableau-de-bord\.html/);
+        await page.close();
+      });
+    });
   } finally {
     await browser.close();
     server.close();

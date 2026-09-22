@@ -75,9 +75,17 @@
       var ligneMotDePasseOublie = document.getElementById('ligneMotDePasseOublie');
       var lienMotDePasseOublie = document.getElementById('lienMotDePasseOublie');
 
+      // Un compte employe (invite depuis Planning) n'a jamais acces au
+      // tableau de bord patron (RLS le bloquerait de toute facon) : il doit
+      // toujours atterrir sur son propre espace, jamais celui du commercant.
+      function redirigerSelonRole(utilisateur) {
+        var estEmploye = ((utilisateur || {}).user_metadata || {}).role === 'employe';
+        window.location.href = estEmploye ? 'espace-employe.html' : 'tableau-de-bord.html';
+      }
+
       sbClient.auth.getSession().then(function (result) {
         if (result.data.session) {
-          window.location.href = 'tableau-de-bord.html';
+          redirigerSelonRole(result.data.session.user);
         }
       });
 
@@ -160,7 +168,7 @@
               messageDiv.className = 'erreur';
               messageDiv.textContent = "Erreur : " + result.error.message;
             } else if (result.data.session) {
-              window.location.href = 'tableau-de-bord.html';
+              redirigerSelonRole(result.data.session.user);
             } else {
               messageDiv.className = 'succes';
               messageDiv.textContent = "Compte créé ! Vérifie ta boîte email pour confirmer, puis reviens te connecter ici.";
@@ -177,7 +185,7 @@
               messageDiv.className = 'erreur';
               messageDiv.textContent = "Erreur : " + result.error.message;
             } else {
-              window.location.href = 'tableau-de-bord.html';
+              redirigerSelonRole(result.data.user);
             }
           });
         }
