@@ -253,20 +253,19 @@ async function main() {
       await stubSupabaseAvecDonnees(pageImport, { commercantId, tables });
       await pageImport.addInitScript(() => {
         window.Papa = {
-          parse: function (fichier, options) {
-            var lecteur = new FileReader();
-            lecteur.onload = function (evenement) {
-              var lignes = evenement.target.result.split('\n').filter(function (l) { return l.trim() !== ''; });
-              var entetes = lignes[0].split(',');
-              var data = lignes.slice(1).map(function (ligne) {
-                var valeurs = ligne.split(',');
-                var obj = {};
-                entetes.forEach(function (e, i) { obj[e] = valeurs[i]; });
-                return obj;
-              });
-              options.complete({ data: data, meta: { fields: entetes } });
-            };
-            lecteur.readAsText(fichier);
+          // import.html décode désormais lui-même les octets du fichier
+          // (détection d'encodage) et appelle Papa.parse(texteCsv, options)
+          // avec une chaîne déjà décodée, plus un objet File.
+          parse: function (texteCsv, options) {
+            var lignes = texteCsv.split('\n').filter(function (l) { return l.trim() !== ''; });
+            var entetes = lignes[0].split(',');
+            var data = lignes.slice(1).map(function (ligne) {
+              var valeurs = ligne.split(',');
+              var obj = {};
+              entetes.forEach(function (e, i) { obj[e] = valeurs[i]; });
+              return obj;
+            });
+            options.complete({ data: data, meta: { fields: entetes } });
           },
         };
       });
@@ -309,6 +308,70 @@ async function main() {
         const messageFinal = await pageImport.locator('#message').innerText();
         expect(messageFinal).toContain('3 ventes importées avec succès');
         expect(messageFinal).toContain('Voir mes prévisions');
+      });
+
+      // Fichiers "réalistes" : dates en toutes lettres avec suffixe ordinal
+      // français ("1er août"), quantité avec séparateur de milliers français
+      // sans ambiguïté ("1 234" avec espace). Avec des colonnes bien
+      // reconnues, la détection automatique de confiance se déclenche : pas
+      // de #zoneMapping à valider, l'import se prépare directement.
+      await test('un CSV avec dates en lettres (suffixe ordinal) et quantité à séparateur de milliers est importé correctement', async () => {
+        const csvFormatsFr = 'date,produit,quantite\n1er août 2026,Croissant,1 234\n2 août 2026,Croissant,35\n';
+        await pageImport.goto(BASE_URL + '/import.html');
+        await pageImport.locator('#fichierImport').waitFor({ state: 'visible' });
+
+        await pageImport.setInputFiles('#fichierImport', {
+          name: 'ventes-fr.csv',
+          mimeType: 'text/csv',
+          buffer: Buffer.from(csvFormatsFr, 'utf-8'),
+        });
+
+        await pageImport.locator('#btnImporter').waitFor({ state: 'visible', timeout: 10000 });
+        const apercu = await pageImport.locator('#apercu').innerText();
+        // "1 234" (espace = séparateur de milliers) doit être compris comme
+        // 1234, pas 1 (arrondi d'une lecture erronée). Les deux dates en
+        // lettres ("1er août" et "2 août") doivent aussi être reconnues.
+        expect(apercu).toContain('2 ligne(s) prête(s) à importer');
+        expect(apercu).not.toContain('ignorée');
+        expect(apercu).toContain('1234');
+
+        await pageImport.locator('#btnImporter').click();
+        await pageImport.locator('#message.succes').waitFor({ state: 'visible', timeout: 10000 });
+        const messageFinal = await pageImport.locator('#message').innerText();
+        expect(messageFinal).toContain('2 ventes importées avec succès');
+      });
+
+      await test('un CSV encodé en windows-1252 (accents Excel) est décodé correctement, pas en caractères de remplacement', async () => {
+        // Fichier entièrement en windows-1252 (comme un vrai export Excel),
+        // pas un mélange d'encodages : "É" (0xC9 seul seul) n'est pas un
+        // octet UTF-8 valide, un décodage UTF-8 naïf produit "�" sur tout
+        // le buffer, ce qui doit déclencher le repli windows-1252.
+        const csvComplet = 'date,produit,quantite\n3 août 2026,Éclair au chocolat,12\n';
+        const bufferComplet = Buffer.from(csvComplet, 'latin1'); // proche de windows-1252 pour ces caractères
+
+        await pageImport.goto(BASE_URL + '/import.html');
+        await pageImport.locator('#fichierImport').waitFor({ state: 'visible' });
+
+        await pageImport.setInputFiles('#fichierImport', {
+          name: 'ventes-win1252.csv',
+          mimeType: 'text/csv',
+          buffer: bufferComplet,
+        });
+
+        // Selon la confiance de détection, la zone de mapping peut être
+        // sautée (détection automatique) ou affichée (validation manuelle) :
+        // on attend que l'un des deux état se stabilise avant de vérifier.
+        await Promise.race([
+          pageImport.locator('#zoneMapping').waitFor({ state: 'visible', timeout: 10000 }),
+          pageImport.locator('#btnImporter').waitFor({ state: 'visible', timeout: 10000 }),
+        ]);
+        if (await pageImport.locator('#zoneMapping').isVisible()) {
+          await pageImport.locator('#btnValiderMapping').click();
+        }
+        await pageImport.locator('#btnImporter').waitFor({ state: 'visible', timeout: 10000 });
+        const apercu = await pageImport.locator('#apercu').innerText();
+        expect(apercu).toContain('Éclair au chocolat');
+        expect(apercu).not.toContain('�');
       });
 
       await pageImport.close();

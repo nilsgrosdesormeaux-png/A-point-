@@ -25,18 +25,18 @@
   <script src="nav.js"></script>
 </head>
 <body>
-  <div class="conteneur conteneur--moyen">
-    <header class="entete-site">
-      <a href="tableau-de-bord.html" class="logo">
-        <svg class="logo-marque" viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
-          <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
-          <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
-          <circle cx="50" cy="56" r="8" fill="currentColor"/>
-        </svg>
-      </a>
-      <nav id="navPrincipale"></nav>
-    </header>
+  <header class="entete-site entete-site--pleine-largeur">
+    <a href="tableau-de-bord.html" class="logo">
+      <svg class="logo-marque" viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
+        <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <circle cx="50" cy="56" r="8" fill="currentColor"/>
+      </svg>
+    </a>
+    <nav id="navPrincipale"></nav>
+  </header>
 
+  <div class="conteneur conteneur--large">
     <div class="carte-page">
       <div class="entete-page">
         <div>
@@ -271,11 +271,17 @@
         return ok / valeurs.length;
       }
 
+      // Reconnaît un nombre écrit dans n'importe quelle convention réaliste :
+      // simple (40), décimal (3,50 ou 3.50), avec séparateur de milliers
+      // (1.234,50 / 1 234,50 / 1,234.50), ou avec un symbole d'unité/monnaie
+      // accolé (3,50€, 12,5 kg) — sert uniquement à la détection de colonne
+      // (score), le parsing réel (nettoyerNombreRobuste) fait le travail fin
+      // de distinguer milliers et décimales.
       function ressembleANombre(valeur) {
         if (typeof valeur === 'number') return isFinite(valeur);
         var texte = (valeur === null || valeur === undefined ? '' : valeur.toString()).trim();
         if (!texte) return false;
-        return /^-?\d+([.,]\d+)?$/.test(texte);
+        return /^-?\d{1,3}([.,\s]?\d{3})*([.,]\d+)?\s*(€|kg|g|l|ml|cl)?$/i.test(texte);
       }
 
       function scoreColonneQuantite(valeurs, entete) {
@@ -459,10 +465,52 @@
 
         if (!/[a-zA-Z]/.test(texte)) return null;
 
+        // Date écrite en toutes lettres en français ("1er janvier 2026",
+        // "15 août 2026", "3 Fév 2026"...). Le parsing natif de Date() est
+        // capricieux avec les noms de mois français : il réussit par hasard
+        // pour certains ("mars", "mai" ressemblent à des mots anglais qu'il
+        // reconnaît) mais échoue silencieusement pour d'autres pourtant tout
+        // aussi valides ("août", "février", "juillet"...), accents ou pas.
+        // On mappe donc nous-mêmes les noms de mois plutôt que de dépendre
+        // de cette reconnaissance native.
+        var dateLettres = parserDateEnLettresFr(texte);
+        if (dateLettres) return dateLettres;
+
         var parsed = new Date(texte);
         if (!isNaN(parsed)) return formatDateISO(parsed);
 
         return null;
+      }
+
+      var MOIS_FR = {
+        'janvier': 0, 'janv': 0, 'jan': 0,
+        'fevrier': 1, 'février': 1, 'fevr': 1, 'févr': 1, 'fev': 1, 'fév': 1,
+        'mars': 2,
+        'avril': 3, 'avr': 3,
+        'mai': 4,
+        'juin': 5,
+        'juillet': 6, 'juil': 6, 'jul': 6,
+        'aout': 7, 'août': 7,
+        'septembre': 8, 'sept': 8, 'sep': 8,
+        'octobre': 9, 'oct': 9,
+        'novembre': 10, 'nov': 10,
+        'decembre': 11, 'décembre': 11, 'dec': 11, 'déc': 11
+      };
+
+      // Reconnaît "1er janvier 2026", "15 août 2026", "3 Fév. 2026" (jour,
+      // mois en lettres avec suffixe ordinal optionnel, année) sans passer
+      // par new Date(), pour couvrir tous les noms de mois français de
+      // façon fiable (accents et abréviations comprises).
+      function parserDateEnLettresFr(texte) {
+        var m = texte.toLowerCase().match(/^(\d{1,2})(?:er|ème|eme|e)?\s+([a-zéû.]+)\.?\s+(\d{4})$/i);
+        if (!m) return null;
+        var jour = +m[1];
+        var nomMois = m[2].replace(/\.$/, '');
+        var annee = +m[3];
+        if (!(nomMois in MOIS_FR)) return null;
+        var date = new Date(annee, MOIS_FR[nomMois], jour);
+        if (isNaN(date) || date.getFullYear() !== annee || date.getMonth() !== MOIS_FR[nomMois] || date.getDate() !== jour) return null;
+        return formatDateISO(date);
       }
 
       function formatDateISO(date) {
@@ -472,12 +520,57 @@
         return y + '-' + mo + '-' + d;
       }
 
+      // Nettoie un nombre écrit dans n'importe quelle convention rencontrée
+      // en pratique : "3,50€" (virgule décimale + symbole), "1.234,50"
+      // (point = séparateur de milliers, virgule = décimale, convention
+      // française), "1 234,50" (espace = séparateur de milliers), ou
+      // "1,234.50" (convention anglo-saxonne). Détecte le séparateur
+      // décimal réel en regardant lequel de "," ou "." apparaît en dernier
+      // dans le texte, plutôt que de supposer une seule convention — une
+      // conversion aveugle virgule→point donnerait 1.234 au lieu de 1234,5
+      // pour "1.234,50", une valeur 1000 fois trop petite et silencieuse.
+      function nettoyerNombreRobuste(texte) {
+        texte = texte.replace(/[^0-9.,\-\s]/g, '').replace(/\s/g, '');
+        if (!texte) return NaN;
+
+        var dernierPoint = texte.lastIndexOf('.');
+        var derniereVirgule = texte.lastIndexOf(',');
+
+        if (dernierPoint !== -1 && derniereVirgule !== -1) {
+          // Les deux séparateurs présents : le dernier des deux est le
+          // séparateur décimal, l'autre un séparateur de milliers
+          // ("1.234,50" français ou "1,234.50" anglo-saxon).
+          if (derniereVirgule > dernierPoint) {
+            texte = texte.replace(/\./g, '').replace(',', '.');
+          } else {
+            texte = texte.replace(/,/g, '');
+          }
+        } else if (derniereVirgule !== -1) {
+          // Uniquement une virgule : décimale française ("3,50"), sauf
+          // plusieurs groupes de 3 chiffres après elle ("1,234,567" pur
+          // anglo-saxon de milliers, sans décimale).
+          var groupesVirgule = texte.split(',');
+          var estMilliersAngloSaxon = groupesVirgule.length > 2 && groupesVirgule.slice(1).every(function (g) { return g.length === 3; });
+          texte = estMilliersAngloSaxon ? texte.replace(/,/g, '') : texte.replace(',', '.');
+        } else if (dernierPoint !== -1) {
+          // Uniquement un point : décimale anglo-saxonne ("3.50"), sauf
+          // plusieurs groupes de 3 chiffres ("1.234.567" pur français de
+          // milliers). Un seul point avec un seul groupe de 3 ("1.234")
+          // reste ambigu : on privilégie la lecture décimale, la plus
+          // fréquente pour des quantités ou prix au format "3.50" plutôt
+          // qu'un vrai millier isolé.
+          var groupesPoint = texte.split('.');
+          var estMilliersFr = groupesPoint.length > 2 && groupesPoint.slice(1).every(function (g) { return g.length === 3; });
+          if (estMilliersFr) texte = texte.replace(/\./g, '');
+        }
+        return parseFloat(texte);
+      }
+
       function parserQuantite(valeur) {
         if (typeof valeur === 'number') return Math.round(valeur);
         var texte = (valeur === null || valeur === undefined ? '' : valeur.toString()).trim();
         if (!texte) return NaN;
-        texte = texte.replace(/\s/g, '').replace(',', '.').replace(/[^0-9.\-]/g, '');
-        var nombre = parseFloat(texte);
+        var nombre = nettoyerNombreRobuste(texte);
         return isNaN(nombre) ? NaN : Math.round(nombre);
       }
 
@@ -485,8 +578,7 @@
         if (typeof valeur === 'number') return valeur;
         var texte = (valeur === null || valeur === undefined ? '' : valeur.toString()).trim();
         if (!texte) return NaN;
-        texte = texte.replace(/\s/g, '').replace(',', '.').replace(/[^0-9.\-]/g, '');
-        var nombre = parseFloat(texte);
+        var nombre = nettoyerNombreRobuste(texte);
         return isNaN(nombre) ? NaN : nombre;
       }
 
@@ -682,6 +774,22 @@
       ongletFiches.addEventListener('click', function () { definirMode('fiches'); });
       ongletPrix.addEventListener('click', function () { definirMode('prix'); });
 
+      // Décode des octets de fichier en texte, en détectant un mauvais
+      // encodage plutôt qu'en le supposant. Un CSV français exporté depuis
+      // Excel est fréquemment en windows-1252 : décodé comme de l'UTF-8, un
+      // caractère accentué produit le caractère de remplacement U+FFFD (�),
+      // qu'on utilise comme signal pour retenter en windows-1252.
+      function decoderTexteFichier(octets) {
+        var texteUTF8 = new TextDecoder('utf-8').decode(octets);
+        if (texteUTF8.indexOf('�') === -1) return texteUTF8;
+        try {
+          var texteWin1252 = new TextDecoder('windows-1252').decode(octets);
+          return texteWin1252;
+        } catch (e) {
+          return texteUTF8;
+        }
+      }
+
       fichierInput.addEventListener('change', function (e) {
         var fichier = e.target.files[0];
         if (!fichier) return;
@@ -690,14 +798,28 @@
         var nomFichier = fichier.name.toLowerCase();
 
         if (nomFichier.endsWith('.csv')) {
-          Papa.parse(fichier, {
-            header: true,
-            skipEmptyLines: true,
-            delimiter: '',
-            complete: function (resultat) {
-              recevoirDonnees(resultat.data, resultat.meta.fields || []);
-            }
-          });
+          // Un CSV exporté par Excel en France est souvent enregistré en
+          // windows-1252 (Latin-1), pas en UTF-8 : lu tel quel, chaque
+          // caractère accentué devient illisible ("CafÃ©"). On lit d'abord
+          // les octets bruts, on tente l'UTF-8, et si le résultat contient
+          // le caractère de remplacement (signe d'un décodage raté), on
+          // retente en windows-1252 avant de transmettre le texte propre à
+          // Papaparse (qui accepte une chaîne directement, pas seulement un
+          // fichier).
+          var lecteurCsv = new FileReader();
+          lecteurCsv.onload = function (evenement) {
+            var octets = new Uint8Array(evenement.target.result);
+            var texteCsv = decoderTexteFichier(octets);
+            Papa.parse(texteCsv, {
+              header: true,
+              skipEmptyLines: true,
+              delimiter: '',
+              complete: function (resultat) {
+                recevoirDonnees(resultat.data, resultat.meta.fields || []);
+              }
+            });
+          };
+          lecteurCsv.readAsArrayBuffer(fichier);
         } else if (nomFichier.endsWith('.xlsx') || nomFichier.endsWith('.xls')) {
           var lecteur = new FileReader();
           lecteur.onload = function (evenement) {
