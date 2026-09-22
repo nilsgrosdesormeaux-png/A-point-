@@ -14,10 +14,23 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+// En-tetes CORS : sans ca, le navigateur bloque la requete avant meme
+// qu'elle atteigne la fonction (echec "Failed to send a request"), car
+// reinitialiser-mot-de-passe.html appelle cette fonction depuis un domaine
+// different de celui de la fonction elle-meme.
+var CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
+};
+
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: CORS_HEADERS });
+  }
   try {
     if (req.method !== 'POST') {
-      return new Response(JSON.stringify({ error: 'Methode non supportee' }), { status: 405 });
+      return new Response(JSON.stringify({ error: 'Methode non supportee' }), { status: 405, headers: CORS_HEADERS });
     }
 
     var SUPABASE_URL = Deno.env.get('SUPABASE_URL');
@@ -29,7 +42,7 @@ Deno.serve(async (req) => {
     });
     var utilisateur = await clientAppelant.auth.getUser();
     if (utilisateur.error || !utilisateur.data.user) {
-      return new Response(JSON.stringify({ error: 'Non authentifie' }), { status: 401 });
+      return new Response(JSON.stringify({ error: 'Non authentifie' }), { status: 401, headers: CORS_HEADERS });
     }
 
     var metadonnees = utilisateur.data.user.user_metadata || {};
@@ -37,17 +50,17 @@ Deno.serve(async (req) => {
       // Rien a faire pour un compte patron : reponse neutre, jamais une
       // erreur (ce flux est aussi appele depuis le meme formulaire pour un
       // patron qui reinitialise son propre mot de passe).
-      return new Response(JSON.stringify({ ok: true, estEmploye: false }), { status: 200 });
+      return new Response(JSON.stringify({ ok: true, estEmploye: false }), { status: 200, headers: CORS_HEADERS });
     }
 
     var clientAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
     var maj = await clientAdmin.from('personnel').update({ statut_compte: 'actif' }).eq('user_id', utilisateur.data.user.id);
     if (maj.error) {
-      return new Response(JSON.stringify({ error: maj.error.message }), { status: 400 });
+      return new Response(JSON.stringify({ error: maj.error.message }), { status: 400, headers: CORS_HEADERS });
     }
 
-    return new Response(JSON.stringify({ ok: true, estEmploye: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ ok: true, estEmploye: true }), { status: 200, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
   } catch (erreur) {
-    return new Response(JSON.stringify({ error: String(erreur) }), { status: 500 });
+    return new Response(JSON.stringify({ error: String(erreur) }), { status: 500, headers: CORS_HEADERS });
   }
 });

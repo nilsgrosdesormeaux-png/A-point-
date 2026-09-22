@@ -130,13 +130,19 @@
           // d'où l'Edge Function) puis l'envoie vers son propre espace,
           // jamais le tableau de bord du patron (accès bloqué par RLS pour
           // lui de toute façon).
-          var estEmploye = (result.data.user.user_metadata || {}).role === 'employe';
-          var destination = estEmploye ? 'espace-employe.html' : 'tableau-de-bord.html';
-          var apresActivation = function () { setTimeout(function () { window.location.href = destination; }, 1200); };
+          // On relit les métadonnées via getUser() plutôt que de se fier au
+          // retour de updateUser() : selon le SDK, ce retour ne reflète pas
+          // toujours les métadonnées déjà posées par l'invitation, ce qui
+          // envoyait à tort un compte employé vers le tableau de bord patron.
+          sbClient.auth.getUser().then(function (resultUtilisateur) {
+            var estEmploye = ((resultUtilisateur.data.user || {}).user_metadata || {}).role === 'employe';
+            var destination = estEmploye ? 'espace-employe.html' : 'tableau-de-bord.html';
+            var apresActivation = function () { setTimeout(function () { window.location.href = destination; }, 1200); };
 
-          if (!estEmploye) { apresActivation(); return; }
+            if (!estEmploye) { apresActivation(); return; }
 
-          sbClient.functions.invoke('activer-compte-employe', {}).then(apresActivation).catch(apresActivation);
+            sbClient.functions.invoke('activer-compte-employe', {}).then(apresActivation).catch(apresActivation);
+          });
         });
       });
     })();
