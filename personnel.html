@@ -31,7 +31,7 @@
           <button type="button" class="jour-fleche" id="ganttJourPrec" aria-label="Jour précédent">‹</button>
           <span class="selecteur-jour-unique-libelle" id="ganttJourLibelle"></span>
           <button type="button" class="jour-fleche" id="ganttJourSuiv" aria-label="Jour suivant">›</button>
-          <span class="badge-meteo-gantt">
+          <span class="badge-meteo-gantt" id="ganttMeteoBadge">
             <span class="selecteur-jour-unique-meteo" id="ganttMeteoIcone" title="Météo prévue ce jour-là"></span>
             <span class="badge-meteo-gantt-texte" id="ganttMeteoTexte"></span>
           </span>
@@ -1283,29 +1283,34 @@
         document.getElementById('ganttJourLibelle').textContent = libelleJour(decalageJour);
         var iconeMeteo = document.getElementById('ganttMeteoIcone');
         var texteMeteo = document.getElementById('ganttMeteoTexte');
-        if (iconeMeteo) {
-          var meteoJour = meteoDuJour(decalageJour);
-          var resteMeteo = meteoJour.split(' ').slice(1).join(' ');
-          iconeMeteo.textContent = meteoJour.split(' ')[0];
-          iconeMeteo.title = 'Météo prévue : ' + resteMeteo;
-          if (texteMeteo) texteMeteo.textContent = resteMeteo;
-        }
+        var badgeMeteo = document.getElementById('ganttMeteoBadge');
 
-        // Détail matin/midi/soir (même logique que Prévisions) : la météo
-        // peut changer dans la journée, la synthèse seule ne suffit pas.
+        // Retour utilisateur, sept. 2026 : afficher la synthèse du jour ET
+        // le détail matin/midi/soir en même temps manquait de cohérence
+        // (deux valeurs différentes côte à côte). Le détail matin/midi/soir
+        // devient l'affichage principal ; la synthèse ne sert plus que de
+        // repli quand Open-Meteo ne fournit pas le détail horaire.
         var momentsEl = document.getElementById('ganttMeteoMoments');
-        if (momentsEl) {
-          var isoJourAffiche = versISO(dateDuJour(decalageJour));
-          var meteoDetail = meteoParIso[isoJourAffiche];
-          if (meteoDetail && meteoDetail.moments && meteoDetail.moments.length > 0) {
-            momentsEl.innerHTML = meteoDetail.moments.map(function (m) {
-              return '<span class="meteo-moment"><span class="meteo-moment-libelle">' + m.libelle + '</span>' +
-                '<span class="meteo-moment-icone">' + m.icone + '</span>' +
-                '<span class="meteo-moment-temperature">' + (m.temperature !== null ? m.temperature + '°C' : '') + '</span></span>';
-            }).join('');
-            momentsEl.style.display = 'flex';
-          } else {
-            momentsEl.style.display = 'none';
+        var isoJourAffiche = versISO(dateDuJour(decalageJour));
+        var meteoDetail = meteoParIso[isoJourAffiche];
+
+        if (momentsEl && meteoDetail && meteoDetail.moments && meteoDetail.moments.length > 0) {
+          momentsEl.innerHTML = meteoDetail.moments.map(function (m) {
+            return '<span class="meteo-moment"><span class="meteo-moment-libelle">' + m.libelle + '</span>' +
+              '<span class="meteo-moment-icone">' + m.icone + '</span>' +
+              '<span class="meteo-moment-temperature">' + (m.temperature !== null ? m.temperature + '°C' : '') + '</span></span>';
+          }).join('');
+          momentsEl.style.display = 'flex';
+          if (badgeMeteo) badgeMeteo.style.display = 'none';
+        } else {
+          if (momentsEl) momentsEl.style.display = 'none';
+          if (badgeMeteo) badgeMeteo.style.display = '';
+          if (iconeMeteo) {
+            var meteoJour = meteoDuJour(decalageJour);
+            var resteMeteo = meteoJour.split(' ').slice(1).join(' ');
+            iconeMeteo.textContent = meteoJour.split(' ')[0];
+            iconeMeteo.title = 'Météo prévue : ' + resteMeteo;
+            if (texteMeteo) texteMeteo.textContent = resteMeteo;
           }
         }
 

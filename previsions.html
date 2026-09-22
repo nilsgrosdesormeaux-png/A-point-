@@ -335,11 +335,12 @@
           if (!j) { sombreMeteoAujourdhuiEl.style.display = 'none'; meteoMomentsJourEl.style.display = 'none'; return; }
           var meteo = contexteAffichage.meteoPrevue[j.iso];
           if (!meteo) { sombreMeteoAujourdhuiEl.style.display = 'none'; meteoMomentsJourEl.style.display = 'none'; return; }
-          sombreMeteoIconeEl.textContent = meteo.icone;
-          sombreMeteoTemperatureEl.textContent = meteo.temperature !== null ? meteo.temperature + '°C' : '';
-          sombreMeteoLibelleEl.textContent = meteo.libelle;
-          sombreMeteoAujourdhuiEl.style.display = 'flex';
 
+          // Retour utilisateur, sept. 2026 : afficher la synthèse du jour ET
+          // le détail matin/midi/soir en même temps manquait de cohérence
+          // (deux valeurs différentes côte à côte). Le détail matin/midi/soir
+          // devient l'affichage principal ; la synthèse ne sert plus que de
+          // repli quand Open-Meteo ne fournit pas le détail horaire.
           if (meteo.moments && meteo.moments.length > 0) {
             meteoMomentsJourEl.innerHTML = meteo.moments.map(function (m) {
               return '<span class="meteo-moment"><span class="meteo-moment-libelle">' + m.libelle + '</span>' +
@@ -347,8 +348,13 @@
                 '<span class="meteo-moment-temperature">' + (m.temperature !== null ? m.temperature + '°C' : '') + '</span></span>';
             }).join('');
             meteoMomentsJourEl.style.display = 'flex';
+            sombreMeteoAujourdhuiEl.style.display = 'none';
           } else {
             meteoMomentsJourEl.style.display = 'none';
+            sombreMeteoIconeEl.textContent = meteo.icone;
+            sombreMeteoTemperatureEl.textContent = meteo.temperature !== null ? meteo.temperature + '°C' : '';
+            sombreMeteoLibelleEl.textContent = meteo.libelle;
+            sombreMeteoAujourdhuiEl.style.display = 'flex';
           }
         }
 
