@@ -5,7 +5,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>À Point - Commandes</title>
+  <title>À Point - Achats & commandes</title>
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -13,14 +13,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <script src="moteur-prevision.js?v=20260922"></script>
   <style>
-    .selecteur-periode { display: flex; gap: 8px; margin: 4px 0 16px; flex-wrap: wrap; }
-    .selecteur-periode button { width: auto; margin: 0; padding: 8px 16px; font-size: 13px; background: var(--sombre-surface); color: var(--sombre-texte); border: 1px solid var(--sombre-bordure); }
-    .selecteur-periode button.actif { background: var(--sombre-texte); color: var(--sombre-fond); border-color: var(--sombre-texte); }
     .grille-jours-commande { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 4px 16px; margin: 14px 0; }
     .raccourci-semaine { margin: 4px 0 12px; }
-    /* ---------- Sélecteur de couverture (Cadencier) : distinct de
-       .selecteur-periode (qui filtre l'historique du bandeau ROI plus haut)
-       — ici on choisit combien de jours À VENIR la commande doit couvrir. ---------- */
     .selecteur-couverture { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 6px; }
     .selecteur-couverture select { width: auto; margin: 0; padding: 7px 10px; font-size: 13px; }
     .selecteur-couverture-aide { font-size: 12px; color: var(--texte-attenue); width: 100%; margin: 0; }
@@ -44,38 +38,11 @@
       <nav id="navPrincipale"></nav>
     </header>
 
-    <!-- 1. Bandeau résultats : économies + invendus évités, mis en avant -->
-    <div class="tableau-sombre" style="margin-bottom:24px;">
-      <div class="sombre-entete">
-        <div>
-          <p class="sombre-date">Vos résultats</p>
-          <p class="sombre-titre">Économies grâce à l'outil</p>
-        </div>
-      </div>
-      <div class="selecteur-periode" id="selecteurPeriode">
-        <button type="button" class="periode-bouton actif" data-periode="7">7 jours</button>
-        <button type="button" class="periode-bouton" data-periode="30">30 jours</button>
-        <button type="button" class="periode-bouton" data-periode="tout">Depuis le début</button>
-      </div>
-      <div class="grille-sombre" id="grilleResultatsProeminents" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
-        <div class="carte-sombre carte-sombre--proeminente">
-          <p class="nom">Économisé grâce à l'outil</p>
-          <p class="valeur" id="carteEconomieValeur">-</p>
-          <p class="detail" id="carteEconomieDetail">Chargement...</p>
-        </div>
-        <div class="carte-sombre carte-sombre--proeminente">
-          <p class="nom">Invendus évités (estimation)</p>
-          <p class="valeur" id="carteInvendusValeur">-</p>
-          <p class="detail" id="carteInvendusDetail">Chargement...</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- 3. Sélection de jours + génération PDF -->
+    <!-- Sélection de jours + génération PDF -->
     <div class="carte-page" id="carteGenererCommande">
       <div class="entete-page">
         <div>
-          <p class="eyebrow">Commande</p>
+          <p class="eyebrow">Achats & commandes</p>
           <h1 id="titreGenererCommande">Générer ma commande</h1>
         </div>
       </div>
@@ -89,12 +56,12 @@
       </div>
 
       <details class="apercu-habitude" id="apercuHabitude" open>
-        <summary>Aperçu des quantités à commander (habitude sur cette période)</summary>
+        <summary>Aperçu des articles à commander (habitude sur cette période)</summary>
         <p class="texte-aide" id="texteApercuHabitude" style="margin-top:0;">Chargement...</p>
         <div id="tableauApercuHabitude" class="zone-scroll"></div>
       </details>
 
-      <p class="texte-aide">Ajuste si besoin les jours cochés (par défaut, ceux de la période choisie ci-dessus) : la commande additionne la consommation d'ingrédients prévue pour chacun.</p>
+      <p class="texte-aide">Ajuste si besoin les jours cochés (par défaut, ceux de la période choisie ci-dessus). Chaque jour compte pour sa propre quantité prévue, pas une moyenne : un jour chargé ou un jour férié coché en plus ajuste la commande en conséquence.</p>
 
       <button type="button" id="btnToutCocher" class="lien-discret raccourci-semaine">Tout cocher (toute la semaine)</button>
 
@@ -127,97 +94,16 @@
       var prochainsJoursOuverts = MP.prochainsJoursOuverts;
       var calculerRecommandation = MP.calculerRecommandation;
       var calculerConsommationIngredients = MP.calculerConsommationIngredients;
-      var calculerEconomieReellePeriode = MP.calculerEconomieReellePeriode;
-      var calculerInvendusEvitesPeriode = MP.calculerInvendusEvitesPeriode;
+      var calculerPrevisionSemaine = MP.calculerPrevisionSemaine;
 
       // ================================================================
-      // Bloc 2 — Bandeau résultats (économies / invendus évités), calculé
-      // sur l'historique réel des N derniers jours (recalcul rétrospectif :
-      // pour chaque jour passé de la période, on rejoue ce qu'aurait donné
-      // la prévision ce jour-là avec l'historique disponible avant lui).
+      // Bloc 2 — Chargement des données nécessaires à la génération de
+      // commande. Le bandeau "économies / invendus évités" qui vivait ici
+      // a été retiré (sept. 2026, étape 6 cahier des charges V2) : déjà
+      // affiché sur l'Accueil (tableau-de-bord.html), redondant ici.
       // ================================================================
 
-      var periodeActuelle = 7;
-      var donneesGlobales = null; // rempli une fois les données chargées
-
-      function joursDistinctsHistorique(ventes) {
-        var set = {};
-        ventes.forEach(function (v) { set[v.date_vente] = true; });
-        return Object.keys(set).sort();
-      }
-
-      function calculerResultatsPeriode(periode) {
-        var carteEconomieValeur = document.getElementById('carteEconomieValeur');
-        var carteEconomieDetail = document.getElementById('carteEconomieDetail');
-        var carteInvendusValeur = document.getElementById('carteInvendusValeur');
-        var carteInvendusDetail = document.getElementById('carteInvendusDetail');
-
-        if (!donneesGlobales) return;
-        var ventes = donneesGlobales.ventes;
-        var produits = donneesGlobales.produits;
-        var ingredientsLignes = donneesGlobales.ingredientsLignes;
-        var zoneVacances = donneesGlobales.zoneVacances;
-        var evenements = donneesGlobales.evenements;
-
-        var joursHisto = joursDistinctsHistorique(ventes);
-        if (joursHisto.length === 0) {
-          carteEconomieValeur.textContent = '-';
-          carteEconomieDetail.textContent = "Pas encore de données.";
-          carteInvendusValeur.textContent = '-';
-          carteInvendusDetail.textContent = "Pas encore de données.";
-          return;
-        }
-
-        var joursRetenus;
-        if (periode === 'tout') {
-          joursRetenus = joursHisto;
-        } else {
-          joursRetenus = joursHisto.slice(Math.max(0, joursHisto.length - periode));
-        }
-
-        var parProduit = {};
-        ventes.forEach(function (vente) {
-          var nomNormalise = formatNomAffichage(vente.nom_produit);
-          if (!parProduit[nomNormalise]) parProduit[nomNormalise] = [];
-          parProduit[nomNormalise].push(vente);
-        });
-
-        // Pour chaque jour retenu, on ne garde, pour le calcul rétrospectif,
-        // que les ventes antérieures à ce jour (comme si la prévision avait
-        // réellement été faite la veille) — sinon la comparaison "outil vs
-        // instinct" utiliserait des données que le commerçant n'avait pas
-        // encore ce jour-là.
-        var recommandationsParJour = joursRetenus.map(function (isoJour) {
-          var jourCible = new Date(isoJour + 'T00:00:00');
-          var recommandationsParNom = {};
-          var recommandationsInstinctParNom = {};
-          Object.keys(parProduit).forEach(function (nomProduit) {
-            var historiqueAvant = parProduit[nomProduit].filter(function (v) { return v.date_vente < isoJour; });
-            if (historiqueAvant.length === 0) return;
-            var r = calculerRecommandation(historiqueAvant, jourCible, zoneVacances, evenements, {}, {});
-            recommandationsParNom[nomProduit] = r.quantite;
-            recommandationsInstinctParNom[nomProduit] = r.quantiteInstinct;
-          });
-          return { iso: isoJour, recommandationsParNom: recommandationsParNom, recommandationsInstinctParNom: recommandationsInstinctParNom };
-        });
-
-        var resultatEconomie = calculerEconomieReellePeriode(recommandationsParJour, produits, ingredientsLignes);
-        if (!resultatEconomie) {
-          carteEconomieValeur.textContent = '-';
-          carteEconomieDetail.textContent = "Bientôt disponible (dès qu'on connaît le prix de tes produits).";
-        } else {
-          var signe = resultatEconomie.economie >= 0 ? '+' : '−';
-          var montantAffiche = Math.abs(Math.round(resultatEconomie.economie * 100) / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          carteEconomieValeur.textContent = signe + montantAffiche + ' €';
-          carteEconomieDetail.textContent = "Estimation sur " + joursRetenus.length + " jour(s), vs une production à l'instinct (" + resultatEconomie.nbIngredients + " ingrédient(s) valorisé(s)).";
-        }
-
-        var totalInvendus = calculerInvendusEvitesPeriode(recommandationsParJour);
-        carteInvendusValeur.textContent = (totalInvendus > 0 ? '≈ ' : '') + Math.round(totalInvendus) + ' unité(s)';
-        carteInvendusDetail.textContent = "Estimation sur " + joursRetenus.length + " jour(s) : écart de quantité entre une production à l'instinct et la prévision de l'outil, jamais un fait mesuré.";
-      }
-
-      function chargerDonneesResultats() {
+      function chargerDonneesCommande() {
         sbClient.auth.getSession().then(function (result) {
           var session = result.data.session;
           if (!session) return;
@@ -238,7 +124,7 @@
             var evenements = {};
             (resultats[4].data || []).forEach(function (e) { evenements[e.date_evenement] = e.direction; });
 
-            donneesGlobales = {
+            var donneesGlobales = {
               ventes: ventes,
               produits: produits,
               ingredientsLignes: ingredientsLignes,
@@ -247,27 +133,15 @@
               joursFermeture: (parametres && parametres.jours_fermeture) || []
             };
 
-            calculerResultatsPeriode(periodeActuelle);
             initialiserGenerationCommande(donneesGlobales);
           });
         });
       }
 
-      var boutonsPeriode = document.querySelectorAll('.periode-bouton');
-      boutonsPeriode.forEach(function (bouton) {
-        bouton.addEventListener('click', function () {
-          boutonsPeriode.forEach(function (b) { b.classList.remove('actif'); });
-          bouton.classList.add('actif');
-          var val = bouton.getAttribute('data-periode');
-          periodeActuelle = val === 'tout' ? 'tout' : parseInt(val, 10);
-          calculerResultatsPeriode(periodeActuelle);
-        });
-      });
-
-      chargerDonneesResultats();
+      chargerDonneesCommande();
 
       // ================================================================
-      // Bloc 4 — Sélection de jours + génération PDF
+      // Bloc 3 — Sélection de jours + génération PDF
       // ================================================================
 
       // ---------- Cadencier : famille déduite du nom de l'ingrédient par
@@ -364,6 +238,17 @@
           selectCouverture.appendChild(option);
         }
 
+        // Affluence attendue par jour (tier : chargé/calme/férié/vacances/
+        // événement), pour que cocher plusieurs jours ait un sens visible :
+        // sans ce signal, deux cases se ressemblent alors que la quantité à
+        // commander peut réellement différer d'un jour à l'autre. Limité aux
+        // 7 prochains jours (portée de calculerPrevisionSemaine) — au-delà,
+        // pas de badge plutôt qu'un signal inventé.
+        var previsionParIso = {};
+        calculerPrevisionSemaine(donnees.ventes, donnees.zoneVacances, joursFermeture, donnees.evenements).forEach(function (j) {
+          previsionParIso[j.iso] = j.tier;
+        });
+
         function rendreCasesJours() {
           grilleJoursEl.innerHTML = '';
           joursAGenerer.forEach(function (date, index) {
@@ -377,7 +262,9 @@
             // couverture choisie ci-dessus — reste librement modifiable.
             if (index < periodeCouverture) input.checked = true;
             var span = document.createElement('span');
-            span.textContent = capitaliser(nomsJours[date.getDay()]) + ' ' + date.getDate() + '/' + (date.getMonth() + 1) + (index === 0 ? ' (demain)' : '');
+            var tierJour = previsionParIso[versISO(date)];
+            var badgeAffluence = (tierJour && LIBELLES_AFFLUENCE_CONTEXTE[tierJour]) ? ' — ' + LIBELLES_AFFLUENCE_CONTEXTE[tierJour] : '';
+            span.textContent = capitaliser(nomsJours[date.getDay()]) + ' ' + date.getDate() + '/' + (date.getMonth() + 1) + (index === 0 ? ' (demain)' : '') + badgeAffluence;
             label.appendChild(input);
             label.appendChild(span);
             grilleJoursEl.appendChild(label);
@@ -440,7 +327,7 @@
           });
           ordreFamilles.sort();
 
-          var html = '<table><thead><tr><th>Ingrédient</th><th>Habitude (' + periodeCouverture + ' j)</th></tr></thead><tbody>';
+          var html = '<table><thead><tr><th>Article</th><th>Habitude (' + periodeCouverture + ' j)</th></tr></thead><tbody>';
           ordreFamilles.forEach(function (famille) {
             html += '<tr><td colspan="2" class="apercu-habitude-famille">' + famille + '</td></tr>';
             parFamille[famille]
@@ -529,7 +416,7 @@
         if (lignesTableau.length === 0) {
           messageCommandeEl.style.display = 'block';
           messageCommandeEl.className = 'erreur';
-          messageCommandeEl.textContent = "Aucun ingrédient à commander pour ces jours (vérifie que tes produits ont une fiche technique dans Produits vendus).";
+          messageCommandeEl.textContent = "Aucun article à commander pour ces jours (vérifie que tes produits ont une fiche technique dans Produits vendus).";
           return;
         }
 
@@ -548,7 +435,7 @@
 
         doc.autoTable({
           startY: yDepart,
-          head: [['Ingrédient', 'Quantité totale', 'Unité']],
+          head: [['Article', 'Quantité totale', 'Unité']],
           body: lignesTableau.map(function (l) {
             var totalArrondi = Math.round(l.total * 10) / 10;
             return [l.nom, totalArrondi, l.unite || '-'];

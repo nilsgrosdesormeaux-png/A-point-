@@ -617,16 +617,16 @@ async function main() {
         expect(await actif.textContent()).toBe('Prévisions');
       });
 
-      await test('marque "Commandes" actif sur commandes.html', async () => {
+      await test('marque "Achats & commandes" actif sur commandes.html', async () => {
         await page.goto(BASE_URL + '/commandes.html');
         const actif = page.locator('#navPrincipale a.nav-lien-g.actif');
-        expect(await actif.textContent()).toBe('Commandes');
+        expect(await actif.textContent()).toBe('Achats & commandes');
       });
 
-      await test('Produits vendus / Commandes / Imports sont en repli (cachés sous 720px)', async () => {
+      await test('Produits vendus / Achats & commandes / Imports sont en repli (cachés sous 720px)', async () => {
         await page.goto(BASE_URL + '/tableau-de-bord.html');
         const liens = await page.locator('#navPrincipale a.nav-lien-g--repli').allTextContents();
-        expect(liens.join(',')).toBe('Produits vendus,Commandes,Imports');
+        expect(liens.join(',')).toBe('Produits vendus,Achats & commandes,Imports');
       });
 
       await test('nav secondaire contient Paramètres et Aide', async () => {
@@ -650,7 +650,7 @@ async function main() {
         expect(liensHamburger).not.toContain('Accueil');
         expect(liensHamburger).not.toContain('Prévisions');
         expect(liensHamburger).not.toContain('Planning');
-        expect(liensHamburger.join(',')).toContain('Commandes');
+        expect(liensHamburger.join(',')).toContain('Achats & commandes');
         expect(liensHamburger.join(',')).toContain('Paramètres');
       });
 
@@ -815,6 +815,51 @@ async function main() {
       });
 
       await pageCadencier.close();
+    });
+
+    // Étape 6 cahier des charges V2 : le choix des jours à couvrir affiche
+    // désormais un badge d'affluence par jour (chargé/calme/férié/vacances/
+    // événement), pour rendre visible que cocher plusieurs jours ajuste
+    // réellement la commande jour par jour, pas une moyenne uniforme.
+    await describe('commandes.html — badge d\'affluence sur le choix des jours', async () => {
+      const commercantId = 'test-commercant-affluence';
+      // Vendredis en nette hausse récente (le calcul pondère les valeurs
+      // récentes plus fort) par rapport à un historique de vendredis bas :
+      // calculerPrevisionSemaine doit classer le prochain vendredi "chargé"
+      // (moyenne pondérée récente au-dessus du 3e quartile de l'historique).
+      const datesVendredis = ['2026-06-05', '2026-06-12', '2026-06-19', '2026-06-26', '2026-07-03', '2026-07-10', '2026-07-17', '2026-07-24', '2026-07-31', '2026-08-07'];
+      const quantitesVendredis = [20, 20, 22, 21, 20, 19, 21, 20, 90, 95];
+      const vendredis = datesVendredis.map((d, i) => (
+        { commercant_id: commercantId, nom_produit: 'Croissant', date_vente: d, quantite: quantitesVendredis[i] }
+      ));
+
+      const tables = {
+        ventes: vendredis,
+        produits: [{ id: 'prod-croissant', commercant_id: commercantId, nom: 'Croissant' }],
+        ingredients_produit: [],
+        parametres_commercant: [],
+        evenements_commercant: [],
+      };
+
+      const pageAffluence = await browser.newPage();
+      await stubSupabaseAvecDonnees(pageAffluence, { commercantId, tables });
+
+      await test('un jour habituellement chargé affiche un badge "jour chargé" sur sa case à cocher', async () => {
+        await pageAffluence.goto(BASE_URL + '/commandes.html');
+        await pageAffluence.locator('#grilleJoursCommande label').first().waitFor({ state: 'attached' });
+        const texteGrille = await pageAffluence.locator('#grilleJoursCommande').innerText();
+        // Au moins un badge d'affluence doit apparaître dans les 7 prochains
+        // jours (le prochain vendredi y figure forcément, sept.-oct. 2026).
+        expect(texteGrille).toContain('jour chargé');
+      });
+
+      await test('le texte d\'aide explique que chaque jour compte pour sa propre quantité', async () => {
+        await pageAffluence.goto(BASE_URL + '/commandes.html');
+        const corps = await pageAffluence.locator('#carteGenererCommande').innerText();
+        expect(corps).toContain('pas une moyenne');
+      });
+
+      await pageAffluence.close();
     });
 
     // Refonte sept. 2026 : l'Accueil devient minimal (2 cartes d'action + 3

@@ -24,7 +24,7 @@
 
   var LIENS_REPLI = [
     { href: 'produits.html', label: 'Produits vendus' },
-    { href: 'commandes.html', label: 'Commandes' },
+    { href: 'commandes.html', label: 'Achats & commandes' },
     { href: 'import.html', label: 'Imports' }
   ];
 
