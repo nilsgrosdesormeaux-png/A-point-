@@ -60,6 +60,11 @@
           <input type="file" id="fichierImport" accept=".csv,.xlsx,.xls">
         </div>
 
+        <div id="zoneChoixFeuille" style="display:none;" class="zone-mapping">
+          <label for="selectFeuille">Ce fichier contient plusieurs feuilles : laquelle utiliser ?</label>
+          <select id="selectFeuille"></select>
+        </div>
+
         <div id="resumeAuto" style="display:none;">
           <p class="resume-auto"><span id="texteResumeAuto"></span></p>
           <button type="button" id="btnCorrigerManuellement" class="lien-discret">Ce ne sont pas les bonnes colonnes ? Corriger manuellement</button>
@@ -162,7 +167,10 @@
       var ongletVentes = document.getElementById('ongletVentes');
       var ongletFiches = document.getElementById('ongletFiches');
       var ongletPrix = document.getElementById('ongletPrix');
+      var zoneChoixFeuille = document.getElementById('zoneChoixFeuille');
+      var selectFeuille = document.getElementById('selectFeuille');
       var commercantId = null;
+      var classeurActuel = null; // classeur Excel en attente, tant que la feuille n'est pas choisie
 
       var modeImport = 'ventes'; // 'ventes', 'fiches' ou 'prix'
       var lignesBrutes = [];
@@ -370,6 +378,62 @@
           confianceEffective(bilanDate) >= SEUIL_AUTOMATIQUE &&
           confianceEffective(bilanProduit) >= SEUIL_AUTOMATIQUE &&
           confianceEffective(bilanQuantite) >= SEUIL_AUTOMATIQUE;
+      }
+
+      // Score une feuille d'un classeur Excel : à quel point ressemble-t-elle
+      // à des données de ventes exploitables (une colonne date + une colonne
+      // produit + une colonne quantité, chacune plausible) ? Sert à choisir
+      // automatiquement la bonne feuille dans un classeur multi-feuilles
+      // (ex. "Résumé", "Ventes 2026", "Notes") sans prendre systématiquement
+      // la première, qui n'est pas toujours la bonne.
+      function scoreFeuilleCommeVentes(lignes, entetes) {
+        if (lignes.length === 0 || entetes.length === 0) return 0;
+        var bilanDate = detecterColonneParContenu(lignes, entetes, aliasesDate, scoreColonneDate);
+        var bilanProduit = detecterColonneParContenu(lignes, entetes, aliasesProduit, scoreColonneProduit);
+        var bilanQuantite = detecterColonneParContenu(lignes, entetes, aliasesQuantite, scoreColonneQuantite);
+        return (confianceEffective(bilanDate) + confianceEffective(bilanProduit) + confianceEffective(bilanQuantite)) / 3;
+      }
+
+      // Reconnaît un fichier "large" : une colonne date suivie d'une colonne
+      // par produit (ex. "Date, Croissant, Pain au chocolat, Baguette"),
+      // chaque cellule étant la quantité vendue ce jour-là pour ce produit.
+      // Fréquent dans les tableaux de suivi artisanaux. On le transforme en
+      // format long (une ligne par vente : date, produit, quantité) pour
+      // qu'il traverse le reste du flux d'import sans aucun changement.
+      function detecterEtConvertirFormatLarge(lignes, entetes) {
+        if (lignes.length === 0 || entetes.length < 3) return null;
+
+        var colDate = detecterColonne(entetes, aliasesDate);
+        if (!colDate) {
+          var bilanDateLarge = detecterColonneParContenu(lignes, entetes, aliasesDate, scoreColonneDate);
+          if (confianceEffective(bilanDateLarge) >= SEUIL_CONFIANCE) colDate = bilanDateLarge.colonne;
+        }
+        if (!colDate) return null;
+
+        var colonnesProduits = entetes.filter(function (e) { return e !== colDate; });
+        if (colonnesProduits.length < 2) return null;
+
+        // Chaque colonne-produit doit ressembler à une colonne de quantités
+        // (grande majorité de cellules numériques ou vides), pas à du texte.
+        var colonnesRetenues = colonnesProduits.filter(function (e) {
+          var valeurs = echantillonnerColonne(lignes, e, 40);
+          if (valeurs.length === 0) return false;
+          return scoreColonneQuantite(valeurs, e) >= SEUIL_CONFIANCE;
+        });
+        if (colonnesRetenues.length < 2 || colonnesRetenues.length < colonnesProduits.length * 0.6) return null;
+
+        var lignesLongues = [];
+        lignes.forEach(function (ligne) {
+          var dateBrute = ligne[colDate];
+          colonnesRetenues.forEach(function (nomProduit) {
+            var brut = ligne[nomProduit];
+            if (brut === undefined || brut === null || brut.toString().trim() === '') return;
+            lignesLongues.push({ date: dateBrute, produit: nomProduit, quantite: brut });
+          });
+        });
+        if (lignesLongues.length === 0) return null;
+
+        return { lignes: lignesLongues, entetes: ['date', 'produit', 'quantite'] };
       }
 
       function resoudreConflitsColonnes(entetes, bilans) {
@@ -601,6 +665,8 @@
         btnImporter.disabled = false;
         messageDiv.style.display = 'none';
         fichierInput.value = '';
+        zoneChoixFeuille.style.display = 'none';
+        classeurActuel = null;
       }
 
       function definirMode(nouveauMode) {
@@ -633,6 +699,15 @@
       var dernierBilan = { date: null, produit: null, quantite: null };
 
       function recevoirDonnees(lignes, entetes) {
+        // Fichier "large" (une colonne par produit) : converti en format
+        // long avant tout le reste, uniquement pertinent en mode ventes.
+        if (modeImport === 'ventes') {
+          var conversion = detecterEtConvertirFormatLarge(lignes, entetes);
+          if (conversion) {
+            lignes = conversion.lignes;
+            entetes = conversion.entetes;
+          }
+        }
         lignesBrutes = lignes;
         entetesDisponibles = entetes;
         chargerProduitsExistants().then(function () {
@@ -790,11 +865,78 @@
         }
       }
 
+      // Lit une feuille d'un classeur déjà chargé et poursuit le flux normal.
+      function chargerFeuille(classeur, nomFeuille) {
+        var feuille = classeur.Sheets[nomFeuille];
+        var lignes = XLSX.utils.sheet_to_json(feuille, { defval: '' });
+        var entetes = lignes.length > 0 ? Object.keys(lignes[0]) : [];
+        recevoirDonnees(lignes, entetes);
+      }
+
+      // Un classeur Excel peut contenir plusieurs feuilles (ex. "Résumé",
+      // "Ventes 2026", brouillons...) : on ne prend plus systématiquement la
+      // première. Avec une seule feuille, rien ne change. Avec plusieurs, on
+      // score chacune (à quel point elle ressemble à des ventes) et on choisit
+      // automatiquement la meilleure si elle se détache nettement des autres ;
+      // sinon on demande au commerçant via un petit sélecteur.
+      function traiterClasseurExcel(classeur) {
+        var noms = classeur.SheetNames;
+        if (noms.length <= 1) {
+          zoneChoixFeuille.style.display = 'none';
+          chargerFeuille(classeur, noms[0]);
+          return;
+        }
+
+        var scores = noms.map(function (nom) {
+          var feuille = classeur.Sheets[nom];
+          var lignes = XLSX.utils.sheet_to_json(feuille, { defval: '' });
+          var entetes = lignes.length > 0 ? Object.keys(lignes[0]) : [];
+          return { nom: nom, score: scoreFeuilleCommeVentes(lignes, entetes), lignes: lignes.length };
+        });
+
+        scores.sort(function (a, b) { return b.score - a.score; });
+        var meilleure = scores[0];
+        var deuxieme = scores[1];
+
+        // Choix automatique : la meilleure feuille est confiante et se
+        // détache clairement de la deuxième (pour éviter de trancher au
+        // hasard entre deux feuilles également plausibles).
+        var choixAutomatiquePossible = meilleure.score >= SEUIL_AUTOMATIQUE &&
+          (!deuxieme || meilleure.score - deuxieme.score >= 0.2) &&
+          meilleure.lignes > 0;
+
+        if (choixAutomatiquePossible) {
+          zoneChoixFeuille.style.display = 'none';
+          chargerFeuille(classeur, meilleure.nom);
+          return;
+        }
+
+        // Ambigu : on demande au commerçant, en proposant la feuille la plus
+        // probable en premier dans la liste.
+        classeurActuel = classeur;
+        selectFeuille.innerHTML = '';
+        scores.forEach(function (s) {
+          var option = document.createElement('option');
+          option.value = s.nom;
+          option.textContent = s.nom + (s.lignes > 0 ? ' (' + s.lignes + ' ligne(s))' : ' (vide)');
+          selectFeuille.appendChild(option);
+        });
+        zoneChoixFeuille.style.display = 'block';
+        chargerFeuille(classeur, meilleure.nom);
+      }
+
+      selectFeuille.addEventListener('change', function () {
+        if (!classeurActuel) return;
+        chargerFeuille(classeurActuel, selectFeuille.value);
+      });
+
       fichierInput.addEventListener('change', function (e) {
         var fichier = e.target.files[0];
         if (!fichier) return;
 
         messageDiv.style.display = 'none';
+        zoneChoixFeuille.style.display = 'none';
+        classeurActuel = null;
         var nomFichier = fichier.name.toLowerCase();
 
         if (nomFichier.endsWith('.csv')) {
@@ -825,10 +967,7 @@
           lecteur.onload = function (evenement) {
             var donnees = new Uint8Array(evenement.target.result);
             var classeur = XLSX.read(donnees, { type: 'array', cellDates: true });
-            var premiereFeuille = classeur.Sheets[classeur.SheetNames[0]];
-            var lignes = XLSX.utils.sheet_to_json(premiereFeuille, { defval: '' });
-            var entetes = lignes.length > 0 ? Object.keys(lignes[0]) : [];
-            recevoirDonnees(lignes, entetes);
+            traiterClasseurExcel(classeur);
           };
           lecteur.readAsArrayBuffer(fichier);
         } else {

@@ -1,0 +1,18 @@
+Import : choix automatique de feuille Excel, détection du format large
+
+Un classeur Excel multi-feuilles prenait toujours la première feuille,
+sans regarder si elle contenait des ventes exploitables. Chaque feuille
+est maintenant notée avec les mêmes fonctions de détection de colonnes
+que le reste de l'import (date/produit/quantité) ; la meilleure est
+choisie automatiquement si elle se détache nettement des autres, sinon
+un petit sélecteur de feuille est proposé au commerçant.
+
+Ajout de la reconnaissance du format "large" (une colonne par produit,
+une ligne par jour — courant dans les tableaux de suivi artisanaux),
+converti automatiquement en format long (une ligne par vente) avant de
+traverser le reste du flux d'import sans aucun changement de code.
+
+Deux nouveaux tests Playwright couvrent ces cas (106 tests, 0 échec).
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01QqbAweooRJCnRuotaJsJ7V

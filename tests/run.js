@@ -374,6 +374,105 @@ async function main() {
         expect(apercu).not.toContain('�');
       });
 
+      // Format "large" : une colonne par produit (suivi artisanal classique
+      // en tableur), plutôt qu'une ligne par vente. Doit être reconnu et
+      // transformé automatiquement en format long avant l'aperçu/l'import.
+      await test('un CSV au format large (une colonne par produit) est détecté et converti en ventes individuelles', async () => {
+        const csvLarge = 'Date,Croissant,Pain au chocolat,Baguette\n2026-08-01,40,20,60\n2026-08-02,35,18,55\n';
+        await pageImport.goto(BASE_URL + '/import.html');
+        await pageImport.locator('#fichierImport').waitFor({ state: 'visible' });
+
+        await pageImport.setInputFiles('#fichierImport', {
+          name: 'ventes-large.csv',
+          mimeType: 'text/csv',
+          buffer: Buffer.from(csvLarge, 'utf-8'),
+        });
+
+        await Promise.race([
+          pageImport.locator('#zoneMapping').waitFor({ state: 'visible', timeout: 10000 }),
+          pageImport.locator('#btnImporter').waitFor({ state: 'visible', timeout: 10000 }),
+        ]);
+        if (await pageImport.locator('#zoneMapping').isVisible()) {
+          await pageImport.locator('#btnValiderMapping').click();
+        }
+        await pageImport.locator('#btnImporter').waitFor({ state: 'visible', timeout: 10000 });
+        const apercu = await pageImport.locator('#apercu').innerText();
+        // 2 jours x 3 produits = 6 ventes individuelles, pas 2 lignes larges.
+        expect(apercu).toContain('6 ligne(s) prête(s) à importer');
+        expect(apercu).toContain('Croissant');
+        expect(apercu).toContain('Pain au chocolat');
+        expect(apercu).toContain('Baguette');
+
+        await pageImport.locator('#btnImporter').click();
+        await pageImport.locator('#message.succes').waitFor({ state: 'visible', timeout: 10000 });
+        const messageFinal = await pageImport.locator('#message').innerText();
+        expect(messageFinal).toContain('6 ventes importées avec succès');
+      });
+
+      // Classeur Excel multi-feuilles : la bonne feuille ("Ventes 2026", qui
+      // contient de vraies données de ventes) doit être choisie
+      // automatiquement plutôt que la première feuille du classeur
+      // ("Résumé", qui ne ressemble à rien d'exploitable).
+      await test('un classeur Excel avec plusieurs feuilles choisit automatiquement la feuille qui ressemble à des ventes', async () => {
+        const pageXlsx = await browser.newPage();
+        await stubSupabaseAvecDonnees(pageXlsx, { commercantId, tables });
+        await pageXlsx.addInitScript(() => {
+          // Stub minimal de la partie de XLSX utilisée par import.html :
+          // XLSX.read reçoit ici directement un objet {feuilles} sérialisé en
+          // JSON dans les octets du "fichier" (pas un vrai binaire .xlsx,
+          // cdn.jsdelivr.net étant bloqué dans ce sandbox — cf. note en haut
+          // de ce fichier), et sheet_to_json renvoie les lignes déjà toutes
+          // prêtes.
+          window.XLSX = {
+            read: function (donnees) {
+              var texte = new TextDecoder('utf-8').decode(donnees);
+              var classeurFake = JSON.parse(texte);
+              var sheets = {};
+              Object.keys(classeurFake).forEach(function (nom) { sheets[nom] = classeurFake[nom]; });
+              return { SheetNames: Object.keys(classeurFake), Sheets: sheets };
+            },
+            utils: {
+              sheet_to_json: function (feuille) { return feuille; },
+            },
+          };
+        });
+
+        await pageXlsx.goto(BASE_URL + '/import.html');
+        await pageXlsx.locator('#fichierImport').waitFor({ state: 'visible' });
+
+        const classeurFake = {
+          'Résumé': [{ Note: 'Voir onglet ventes' }],
+          'Ventes 2026': [
+            { date: '2026-08-01', produit: 'Croissant', quantite: 40 },
+            { date: '2026-08-02', produit: 'Croissant', quantite: 35 },
+            { date: '2026-08-03', produit: 'Pain au chocolat', quantite: 28 },
+          ],
+        };
+        await pageXlsx.setInputFiles('#fichierImport', {
+          name: 'ventes-multi-feuilles.xlsx',
+          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          buffer: Buffer.from(JSON.stringify(classeurFake), 'utf-8'),
+        });
+
+        await Promise.race([
+          pageXlsx.locator('#zoneMapping').waitFor({ state: 'visible', timeout: 10000 }),
+          pageXlsx.locator('#btnImporter').waitFor({ state: 'visible', timeout: 10000 }),
+        ]);
+        // La feuille "Résumé" n'ayant aucune colonne exploitable, le choix
+        // automatique doit avoir retenu "Ventes 2026" sans demander au
+        // commerçant (une seule feuille se détache nettement de l'autre).
+        expect(await pageXlsx.locator('#zoneChoixFeuille').isVisible()).toBe(false);
+        if (await pageXlsx.locator('#zoneMapping').isVisible()) {
+          await pageXlsx.locator('#btnValiderMapping').click();
+        }
+        await pageXlsx.locator('#btnImporter').waitFor({ state: 'visible', timeout: 10000 });
+        const apercu = await pageXlsx.locator('#apercu').innerText();
+        expect(apercu).toContain('3 ligne(s) prête(s) à importer');
+        expect(apercu).toContain('Croissant');
+
+        await pageXlsx.close();
+      });
+
       await pageImport.close();
     });
 
