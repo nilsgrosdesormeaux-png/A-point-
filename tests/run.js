@@ -229,6 +229,91 @@ async function main() {
       });
     });
 
+    // Étape 5 (cahier des charges V2, sept. 2026) : l'import (ventes / fiches
+    // techniques / prix) déménage de commandes.html vers sa propre page
+    // import.html, comportement inchangé. Ces tests exercent le vrai flux
+    // (upload CSV réel, détection automatique de colonnes, écriture en base)
+    // — jusqu'ici seul un message de repli était testé, jamais l'import
+    // fonctionnel lui-même. cdn.jsdelivr.net (Papaparse/xlsx) est bloqué dans
+    // ce sandbox (même limitation réseau que supabase-js, cf. note en haut de
+    // ce fichier) : on fournit un stub minimal de Papa.parse qui reproduit
+    // juste le contrat utilisé par le code (header:true → {data, meta.fields}),
+    // sans réimplémenter le vrai parseur CSV.
+    await describe('import.html — flux d\'import fonctionnel (ventes)', async () => {
+      const commercantId = 'test-commercant-import-ventes';
+      const tables = {
+        ventes: [],
+        produits: [{ id: 'prod-croissant', commercant_id: commercantId, nom: 'Croissant' }],
+        ingredients_produit: [],
+        parametres_commercant: [],
+        evenements_commercant: [],
+      };
+
+      const pageImport = await browser.newPage();
+      await stubSupabaseAvecDonnees(pageImport, { commercantId, tables });
+      await pageImport.addInitScript(() => {
+        window.Papa = {
+          parse: function (fichier, options) {
+            var lecteur = new FileReader();
+            lecteur.onload = function (evenement) {
+              var lignes = evenement.target.result.split('\n').filter(function (l) { return l.trim() !== ''; });
+              var entetes = lignes[0].split(',');
+              var data = lignes.slice(1).map(function (ligne) {
+                var valeurs = ligne.split(',');
+                var obj = {};
+                entetes.forEach(function (e, i) { obj[e] = valeurs[i]; });
+                return obj;
+              });
+              options.complete({ data: data, meta: { fields: entetes } });
+            };
+            lecteur.readAsText(fichier);
+          },
+        };
+      });
+
+      // "Pain au chocolat" est un nouveau produit (absent de `produits`) :
+      // avec seulement 3 lignes, la détection automatique de confiance
+      // (seuil 0.75, cf. SEUIL_AUTOMATIQUE) n'est pas censée se déclencher
+      // pour la colonne produit — c'est le chemin réaliste et volontaire à
+      // tester ici : colonnes bien pré-détectées, mais validation manuelle
+      // ("Continuer") requise avant import, jamais un import silencieux.
+      const csv = 'date,produit,quantite\n2026-08-03,Croissant,40\n2026-08-04,Croissant,35\n2026-08-05,Pain au chocolat,28\n';
+
+      await test('un CSV de ventes est prévisualisé avec les bonnes colonnes pré-détectées, validé manuellement, puis importé avec succès', async () => {
+        await pageImport.goto(BASE_URL + '/import.html');
+        await pageImport.locator('#fichierImport').waitFor({ state: 'visible' });
+
+        await pageImport.setInputFiles('#fichierImport', {
+          name: 'ventes.csv',
+          mimeType: 'text/csv',
+          buffer: Buffer.from(csv, 'utf-8'),
+        });
+
+        await pageImport.locator('#zoneMapping').waitFor({ state: 'visible', timeout: 10000 });
+        expect(await pageImport.locator('#selectDate').inputValue()).toBe('date');
+        expect(await pageImport.locator('#selectProduit').inputValue()).toBe('produit');
+        expect(await pageImport.locator('#selectQuantite').inputValue()).toBe('quantite');
+        expect(await pageImport.locator('#banniereVerification').innerText()).toContain('Tout semble correct');
+
+        await pageImport.locator('#btnValiderMapping').click();
+        await pageImport.locator('#btnImporter').waitFor({ state: 'visible', timeout: 10000 });
+        const apercu = await pageImport.locator('#apercu').innerText();
+        expect(apercu).toContain('Croissant');
+        expect(apercu).toContain('Pain au chocolat');
+        expect(apercu).toContain('3 ligne(s) prête(s) à importer');
+        // "Pain au chocolat" n'existe pas encore dans produits → signalé.
+        expect(apercu).toContain('nouveau(x) produit(s)');
+
+        await pageImport.locator('#btnImporter').click();
+        await pageImport.locator('#message.succes').waitFor({ state: 'visible', timeout: 10000 });
+        const messageFinal = await pageImport.locator('#message').innerText();
+        expect(messageFinal).toContain('3 ventes importées avec succès');
+        expect(messageFinal).toContain('Voir mes prévisions');
+      });
+
+      await pageImport.close();
+    });
+
     await describe('Page de connexion', async () => {
       await test('affiche le formulaire de connexion par défaut', async () => {
         await page.goto(BASE_URL + '/connexion.html');
