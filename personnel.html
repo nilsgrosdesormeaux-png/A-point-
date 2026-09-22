@@ -35,6 +35,7 @@
             <span class="selecteur-jour-unique-meteo" id="ganttMeteoIcone" title="Météo prévue ce jour-là"></span>
             <span class="badge-meteo-gantt-texte" id="ganttMeteoTexte"></span>
           </span>
+          <div class="meteo-moments-jour" id="ganttMeteoMoments" style="display:none;"></div>
         </div>
         <span class="total-effectif-jour" id="ganttTotalEffectif" title="Somme des heures nettes de pause de toute l'équipe visible, pour le jour affiché"></span>
         <span class="conseil-renfort" id="conseilRenfort" style="display:none;"></span>
@@ -1288,6 +1289,24 @@
           iconeMeteo.textContent = meteoJour.split(' ')[0];
           iconeMeteo.title = 'Météo prévue : ' + resteMeteo;
           if (texteMeteo) texteMeteo.textContent = resteMeteo;
+        }
+
+        // Détail matin/midi/soir (même logique que Prévisions) : la météo
+        // peut changer dans la journée, la synthèse seule ne suffit pas.
+        var momentsEl = document.getElementById('ganttMeteoMoments');
+        if (momentsEl) {
+          var isoJourAffiche = versISO(dateDuJour(decalageJour));
+          var meteoDetail = meteoParIso[isoJourAffiche];
+          if (meteoDetail && meteoDetail.moments && meteoDetail.moments.length > 0) {
+            momentsEl.innerHTML = meteoDetail.moments.map(function (m) {
+              return '<span class="meteo-moment"><span class="meteo-moment-libelle">' + m.libelle + '</span>' +
+                '<span class="meteo-moment-icone">' + m.icone + '</span>' +
+                '<span class="meteo-moment-temperature">' + (m.temperature !== null ? m.temperature + '°C' : '') + '</span></span>';
+            }).join('');
+            momentsEl.style.display = 'flex';
+          } else {
+            momentsEl.style.display = 'none';
+          }
         }
 
         ajusterLargeurHeures();

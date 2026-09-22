@@ -1257,6 +1257,60 @@ async function main() {
       await pageGantt.close();
     });
 
+    // Retour utilisateur, sept. 2026 : le détail matin/midi/soir ajouté sur
+    // Prévisions doit aussi apparaître sur Planning, à côté du badge météo
+    // du jour affiché dans le Gantt — pas seulement la synthèse du jour.
+    await describe('personnel.html — détail météo matin/midi/soir dans le Gantt', async () => {
+      const commercantId = 'test-commercant-gantt-meteo-moments';
+      const tables = {
+        personnel: [],
+        ventes: [],
+        secteurs_personnel: [],
+        postes_personnel: [],
+        creneaux_personnel: [],
+        evenements_commercant: [],
+        parametres_commercant: [{ commercant_id: commercantId, code_postal: '49100', ville: 'Angers', latitude: 47.4819, longitude: -0.5629 }],
+      };
+
+      const pageGanttMoments = await browser.newPage();
+      await stubSupabaseAvecDonnees(pageGanttMoments, { commercantId, tables });
+      await pageGanttMoments.route('https://api.open-meteo.com/**', (route) => {
+        const dates = [];
+        const hourlyTimes = []; const hourlyTemp = []; const hourlyCode = [];
+        for (let d = 0; d < 10; d++) {
+          const date = new Date();
+          date.setDate(date.getDate() + d);
+          const iso = date.toISOString().slice(0, 10);
+          dates.push(iso);
+          for (let h = 0; h < 24; h++) {
+            hourlyTimes.push(iso + 'T' + String(h).padStart(2, '0') + ':00');
+            if (h < 11) { hourlyTemp.push(11); hourlyCode.push(1); }
+            else if (h < 17) { hourlyTemp.push(24); hourlyCode.push(0); }
+            else { hourlyTemp.push(18); hourlyCode.push(61); }
+          }
+        }
+        route.fulfill({
+          status: 200, contentType: 'application/json',
+          body: JSON.stringify({
+            daily: { time: dates, precipitation_sum: dates.map(() => 0), temperature_2m_max: dates.map(() => 27), weathercode: dates.map(() => 1) },
+            hourly: { time: hourlyTimes, temperature_2m: hourlyTemp, weathercode: hourlyCode },
+          }),
+        });
+      });
+
+      await test('le badge météo du Gantt affiche aussi matin/midi/soir, distincts de la synthèse du jour', async () => {
+        await pageGanttMoments.goto(BASE_URL + '/personnel.html');
+        await pageGanttMoments.locator('#ganttMeteoMoments').waitFor({ state: 'visible', timeout: 10000 });
+        const temperatures = await pageGanttMoments.locator('#ganttMeteoMoments .meteo-moment-temperature').allTextContents();
+        expect(temperatures).toHaveLength(3);
+        expect(temperatures.join(',')).toBe('11°C,24°C,18°C');
+        const libelles = await pageGanttMoments.locator('#ganttMeteoMoments .meteo-moment-libelle').allTextContents();
+        expect(libelles.join(',')).toBe('Matin,Midi,Soir');
+      });
+
+      await pageGanttMoments.close();
+    });
+
     // Module partagé introduit le 16 septembre 2026 : avant, le moteur de
     // prévision (moyenne pondérée, exclusion des valeurs aberrantes, jours
     // fériés/vacances scolaires, recommandations...) était copié-collé à
