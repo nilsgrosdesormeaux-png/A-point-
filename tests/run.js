@@ -47,6 +47,8 @@ async function stubSupabase(page) {
             signInWithPassword: function () { return Promise.resolve({ data: {}, error: { message: 'stub: pas de réseau dans ce sandbox' } }); },
             signUp: function () { return Promise.resolve({ data: {}, error: { message: 'stub: pas de réseau dans ce sandbox' } }); },
             resetPasswordForEmail: function () { return Promise.resolve({ data: {}, error: { message: 'stub: pas de réseau dans ce sandbox' } }); },
+            updateUser: function () { return Promise.resolve({ data: { user: { user_metadata: {} } }, error: null }); },
+            onAuthStateChange: function () { return { data: { subscription: { unsubscribe: function () {} } } }; },
           },
           from: function () {
             var chain = {
@@ -54,6 +56,9 @@ async function stubSupabase(page) {
               eq: function () { return Promise.resolve({ data: [], error: null }); },
             };
             return chain;
+          },
+          functions: {
+            invoke: function () { return Promise.resolve({ data: { ok: true }, error: null }); },
           },
         };
       },
@@ -108,6 +113,12 @@ async function stubSupabaseAvecDonnees(page, { commercantId, tables }) {
               },
             };
             return chain;
+          },
+          functions: {
+            invoke: function (nom, options) {
+              window.__dernierAppelFunction = { nom: nom, options: options };
+              return Promise.resolve({ data: { ok: true }, error: null });
+            },
           },
         };
       },
@@ -1619,6 +1630,56 @@ async function main() {
       await pageGantt.close();
     });
 
+    // Étape 7 (Espace employé) : "Inviter" doit réellement appeler l'Edge
+    // Function inviter-employe (création de compte + e-mail), plus jamais
+    // se contenter de marquer statut_compte='invite' en direct depuis le
+    // client (ancien comportement, un simple stub sans effet réel).
+    await describe('personnel.html — invitation d\'un employé (Edge Function réelle)', async () => {
+      const commercantId = 'test-commercant-invitation';
+      const secteursFixture = [
+        { id: 'salle', commercant_id: commercantId, nom: 'Salle', couleur: '#4caf6d', ordre: 0 },
+      ];
+      const postesFixture = [
+        { id: 'generique', commercant_id: commercantId, secteur_id: 'salle', nom: 'Générique', ordre: 0 },
+      ];
+      const tables = {
+        personnel: [
+          { id: 'p1', nom: 'Sophie', email: 'sophie@example.com', secteur_id: 'salle', poste_id: 'generique', type_contrat: 'Fixe', niveau_hierarchie: 2, contrat_hebdo: 35, jours_repos: [], alternance_weekend: false, statut_compte: 'non_invite', heures_disponibles: {} },
+        ],
+        ventes: [], parametres_commercant: [], evenements_commercant: [],
+        secteurs_personnel: secteursFixture,
+        postes_personnel: postesFixture,
+        creneaux_personnel: [],
+      };
+
+      await test('cliquer "Inviter" appelle inviter-employe avec le bon personnelId et email, pas un simple update de statut', async () => {
+        const page = await browser.newPage();
+        await stubSupabaseAvecDonnees(page, { commercantId, tables });
+        await page.goto(BASE_URL + '/personnel.html');
+        await page.locator('.gantt-nom').filter({ hasText: 'Sophie' }).click();
+        await page.locator('#modalEmploye').waitFor({ state: 'visible' });
+        await page.locator('#btnModalEmployeInviter').click();
+        await page.waitForFunction(() => window.__dernierAppelFunction);
+        const appel = await page.evaluate(() => window.__dernierAppelFunction);
+        expect(appel.nom).toBe('inviter-employe');
+        expect(appel.options.body.personnelId).toBe('p1');
+        expect(appel.options.body.email).toBe('sophie@example.com');
+        await page.close();
+      });
+
+      await test('le bouton "Inviter" est désactivé pendant l\'appel puis réactivé', async () => {
+        const page = await browser.newPage();
+        await stubSupabaseAvecDonnees(page, { commercantId, tables });
+        await page.goto(BASE_URL + '/personnel.html');
+        await page.locator('.gantt-nom').filter({ hasText: 'Sophie' }).click();
+        await page.locator('#modalEmploye').waitFor({ state: 'visible' });
+        await page.locator('#btnModalEmployeInviter').click();
+        await page.waitForFunction(() => window.__dernierAppelFunction);
+        expect(await page.locator('#btnModalEmployeInviter').isDisabled()).toBe(false);
+        await page.close();
+      });
+    });
+
     // Retour utilisateur, sept. 2026 : le détail matin/midi/soir ajouté sur
     // Prévisions doit aussi apparaître sur Planning, à côté du badge météo
     // du jour affiché dans le Gantt — pas seulement la synthèse du jour.
@@ -1869,6 +1930,53 @@ async function main() {
       });
 
       await pageMP.close();
+    });
+
+    // Étape 7 (Espace employé) : espace-employe.html doit distinguer un
+    // compte employé actif (contenu de bienvenue), un compte connecté mais
+    // pas employé (accès refusé, jamais le contenu employé), et une absence
+    // de session (redirection vers connexion.html).
+    await describe('espace-employe.html — accès selon le rôle du compte connecté', async () => {
+      async function stubSession(page, session) {
+        await page.addInitScript((session) => {
+          window.supabase = {
+            createClient: function () {
+              return {
+                auth: {
+                  getSession: function () { return Promise.resolve({ data: { session: session } }); },
+                  signOut: function () { return Promise.resolve({ error: null }); },
+                },
+              };
+            },
+          };
+        }, session);
+      }
+
+      await test('un compte employé actif voit le message de bienvenue', async () => {
+        const page = await browser.newPage();
+        await stubSession(page, { user: { id: 'u1', user_metadata: { role: 'employe' } } });
+        await page.goto(BASE_URL + '/espace-employe.html');
+        await page.locator('#zoneContenu').waitFor({ state: 'visible' });
+        expect(await page.locator('#zoneNonAutorise').isVisible()).toBe(false);
+        await page.close();
+      });
+
+      await test('un compte connecté mais pas employé voit un accès refusé, jamais le contenu employé', async () => {
+        const page = await browser.newPage();
+        await stubSession(page, { user: { id: 'u2', user_metadata: {} } });
+        await page.goto(BASE_URL + '/espace-employe.html');
+        await page.locator('#zoneNonAutorise').waitFor({ state: 'visible' });
+        expect(await page.locator('#zoneContenu').isVisible()).toBe(false);
+        await page.close();
+      });
+
+      await test('sans session, redirige vers connexion.html', async () => {
+        const page = await browser.newPage();
+        await stubSession(page, null);
+        await page.goto(BASE_URL + '/espace-employe.html');
+        await page.waitForURL(/connexion\.html/);
+        await page.close();
+      });
     });
   } finally {
     await browser.close();

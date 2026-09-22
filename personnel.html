@@ -1522,7 +1522,7 @@
           commercant_id: commercantId,
           nom: nom,
           email: email || null,
-          statut_compte: email ? 'invite' : 'non_invite',
+          statut_compte: 'non_invite',
           secteur_id: secteurId,
           poste_id: posteId,
           type_contrat: typeContrat,
@@ -1553,7 +1553,14 @@
             poste_id: posteId,
             origine: 'manuel'
           }).then(function () { rendreGantt(); });
-          if (email) window.alert('Invitation à préparer pour ' + nom + ' (' + email + ') — statut mis à jour ; aucun e-mail réel n\'est envoyé pour l\'instant.');
+          if (email) {
+            sbClient.functions.invoke('inviter-employe', { body: { personnelId: nouvel.id, email: email } }).then(function (reponse) {
+              if (reponse.error) { window.alert("Ajouté, mais l'invitation a échoué : " + reponse.error.message + ". Réessaie depuis sa fiche."); return; }
+              window.alert('Invitation envoyée à ' + nom + ' (' + email + ').');
+            }).catch(function (erreur) {
+              window.alert("Ajouté, mais l'invitation a échoué : " + erreur + ". Réessaie depuis sa fiche.");
+            });
+          }
         });
       }
 
@@ -1671,11 +1678,16 @@
           window.alert('L\'e-mail a changé : clique d\'abord sur "Enregistrer" pour le confirmer, puis réessaie d\'inviter.');
           return;
         }
-        sbClient.from('personnel').update({ statut_compte: 'invite' }).eq('id', employe.id).then(function (result) {
-          if (result.error) { window.alert("Erreur : " + result.error.message); return; }
+        btnModalEmployeInviter.disabled = true;
+        sbClient.functions.invoke('inviter-employe', { body: { personnelId: employe.id, email: emailActuel } }).then(function (reponse) {
+          btnModalEmployeInviter.disabled = false;
+          if (reponse.error) { window.alert("Erreur : " + reponse.error.message); return; }
           employe.statut_compte = 'invite';
           actualiserStatutCompteEmploye(employe);
-          window.alert("Statut mis à jour pour " + formatNomAffichage(employe.nom) + " (" + employe.email + "). L'envoi d'un e-mail réel n'est pas encore disponible — à faire manuellement pour l'instant.");
+          window.alert("Invitation envoyée à " + formatNomAffichage(employe.nom) + " (" + employe.email + "). Un e-mail lui permet de créer son mot de passe et d'accéder à son espace.");
+        }).catch(function (erreur) {
+          btnModalEmployeInviter.disabled = false;
+          window.alert("Erreur : " + erreur);
         });
       });
 

@@ -119,12 +119,24 @@
           if (result.error) {
             messageDiv.className = 'erreur';
             messageDiv.textContent = "Erreur : " + result.error.message;
-          } else {
-            messageDiv.className = 'succes';
-            messageDiv.textContent = "Mot de passe mis à jour ! Redirection...";
-            zoneFormulaireEl.style.display = 'none';
-            setTimeout(function () { window.location.href = 'tableau-de-bord.html'; }, 1200);
+            return;
           }
+          messageDiv.className = 'succes';
+          messageDiv.textContent = "Mot de passe mis à jour ! Redirection...";
+          zoneFormulaireEl.style.display = 'none';
+
+          // Compte employé (invité depuis Planning) : active son statut côté
+          // personnel (RLS interdit ce changement en direct depuis le client,
+          // d'où l'Edge Function) puis l'envoie vers son propre espace,
+          // jamais le tableau de bord du patron (accès bloqué par RLS pour
+          // lui de toute façon).
+          var estEmploye = (result.data.user.user_metadata || {}).role === 'employe';
+          var destination = estEmploye ? 'espace-employe.html' : 'tableau-de-bord.html';
+          var apresActivation = function () { setTimeout(function () { window.location.href = destination; }, 1200); };
+
+          if (!estEmploye) { apresActivation(); return; }
+
+          sbClient.functions.invoke('activer-compte-employe', {}).then(apresActivation).catch(apresActivation);
         });
       });
     })();
