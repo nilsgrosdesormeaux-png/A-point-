@@ -473,6 +473,76 @@ async function main() {
         await pageXlsx.close();
       });
 
+      // "Croisant" (faute de frappe) ne doit pas créer silencieusement un
+      // nouveau produit distinct de "Croissant" (déjà existant dans
+      // `tables.produits`) : une confirmation doit être demandée, et le
+      // choix "utiliser l'existant" doit rattacher la vente au bon produit.
+      await test('un nom de produit avec une faute de frappe proche d\'un produit existant déclenche une confirmation avant import', async () => {
+        const csvFaute = 'date,produit,quantite\n2026-08-01,Croisant,40\n2026-08-02,Croisant,35\n';
+        await pageImport.goto(BASE_URL + '/import.html');
+        await pageImport.locator('#fichierImport').waitFor({ state: 'visible' });
+
+        await pageImport.setInputFiles('#fichierImport', {
+          name: 'ventes-faute.csv',
+          mimeType: 'text/csv',
+          buffer: Buffer.from(csvFaute, 'utf-8'),
+        });
+
+        // Avec un nom de produit inconnu ("Croisant"), la détection de
+        // colonnes n'est pas assez confiante pour sauter la vérification :
+        // il faut valider le mapping manuellement avant que la vérification
+        // de correspondance floue s'exécute.
+        await pageImport.locator('#zoneMapping').waitFor({ state: 'visible', timeout: 10000 });
+        await pageImport.locator('#btnValiderMapping').click();
+        await pageImport.locator('#zoneCorrespondances').waitFor({ state: 'visible', timeout: 10000 });
+        const texteCorrespondance = await pageImport.locator('#zoneCorrespondances').innerText();
+        expect(texteCorrespondance).toContain('Croisant');
+        expect(texteCorrespondance).toContain('Croissant');
+        // #btnImporter ne doit pas apparaître tant que la confirmation
+        // n'est pas donnée : rien n'est rapproché silencieusement.
+        expect(await pageImport.locator('#btnImporter').isVisible()).toBe(false);
+
+        // Choix par défaut ("utiliser l'existant") laissé tel quel.
+        await pageImport.locator('#btnConfirmerCorrespondances').click();
+        await pageImport.locator('#btnImporter').waitFor({ state: 'visible', timeout: 10000 });
+        const apercu = await pageImport.locator('#apercu').innerText();
+        // Le nom affiché doit être le produit existant, pas "Croisant".
+        expect(apercu).toContain('Croissant');
+        expect(apercu).not.toContain('Croisant,');
+        expect(apercu).not.toContain('nouveau(x) produit(s)');
+
+        await pageImport.locator('#btnImporter').click();
+        await pageImport.locator('#message.succes').waitFor({ state: 'visible', timeout: 10000 });
+        const messageFinal = await pageImport.locator('#message').innerText();
+        expect(messageFinal).toContain('2 ventes importées avec succès');
+        expect(messageFinal).not.toContain('nouveau(x) produit(s)');
+      });
+
+      // Même faute de frappe, mais cette fois le commerçant choisit de créer
+      // un nouveau produit malgré la suggestion : son choix doit être
+      // respecté (jamais un rapprochement forcé).
+      await test('le commerçant peut refuser la correspondance suggérée et créer un nouveau produit', async () => {
+        const csvFaute = 'date,produit,quantite\n2026-08-01,Croisant,40\n2026-08-02,Croisant,35\n';
+        await pageImport.goto(BASE_URL + '/import.html');
+        await pageImport.locator('#fichierImport').waitFor({ state: 'visible' });
+
+        await pageImport.setInputFiles('#fichierImport', {
+          name: 'ventes-faute2.csv',
+          mimeType: 'text/csv',
+          buffer: Buffer.from(csvFaute, 'utf-8'),
+        });
+
+        await pageImport.locator('#zoneMapping').waitFor({ state: 'visible', timeout: 10000 });
+        await pageImport.locator('#btnValiderMapping').click();
+        await pageImport.locator('#zoneCorrespondances').waitFor({ state: 'visible', timeout: 10000 });
+        await pageImport.locator('#correspondance0').selectOption('nouveau');
+        await pageImport.locator('#btnConfirmerCorrespondances').click();
+        await pageImport.locator('#btnImporter').waitFor({ state: 'visible', timeout: 10000 });
+        const apercu = await pageImport.locator('#apercu').innerText();
+        expect(apercu).toContain('Croisant');
+        expect(apercu).toContain('nouveau(x) produit(s)');
+      });
+
       await pageImport.close();
     });
 

@@ -21,6 +21,11 @@
     .lien-discret:hover { color: var(--texte); }
     .note-produits-auto { font-size: 12px; color: var(--texte-attenue); margin: 8px 0 0; }
     .resume-auto { font-size: 14px; margin: 4px 0 14px; }
+    .zone-correspondances { padding: 12px; border-radius: var(--rayon); background: var(--erreur-fond); margin: 4px 0 14px; }
+    .zone-correspondances p.titre-correspondances { margin: 0 0 10px; font-weight: 600; }
+    .ligne-correspondance { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; font-size: 14px; }
+    .ligne-correspondance:last-child { margin-bottom: 0; }
+    .ligne-correspondance select { width: auto; }
   </style>
   <script src="nav.js"></script>
 </head>
@@ -109,6 +114,8 @@
           <button id="btnValiderMapping">Continuer</button>
         </div>
 
+        <div id="zoneCorrespondances" style="display:none;"></div>
+
         <div id="apercu" class="zone-scroll"></div>
 
         <button id="btnImporter" style="display:none;">Importer ces ventes</button>
@@ -169,8 +176,10 @@
       var ongletPrix = document.getElementById('ongletPrix');
       var zoneChoixFeuille = document.getElementById('zoneChoixFeuille');
       var selectFeuille = document.getElementById('selectFeuille');
+      var zoneCorrespondances = document.getElementById('zoneCorrespondances');
       var commercantId = null;
       var classeurActuel = null; // classeur Excel en attente, tant que la feuille n'est pas choisie
+      var correspondancesEnAttente = null; // { nomImporte: nomExistantChoisiOuNull }, tant que non confirmées
 
       var modeImport = 'ventes'; // 'ventes', 'fiches' ou 'prix'
       var lignesBrutes = [];
@@ -249,6 +258,57 @@
           propre = propre.slice(0, -1);
         }
         return propre;
+      }
+
+      // Distance de Levenshtein classique (nombre minimal d'insertions,
+      // suppressions ou substitutions pour passer de a à b). Sert uniquement
+      // à repérer des fautes de frappe/casse/espaces entre un nom importé et
+      // un produit déjà connu, jamais pour deviner des abréviations.
+      function distanceEdition(a, b) {
+        var m = a.length, n = b.length;
+        if (m === 0) return n;
+        if (n === 0) return m;
+        var ligne = [];
+        for (var j = 0; j <= n; j++) ligne[j] = j;
+        for (var i = 1; i <= m; i++) {
+          var precedent = ligne[0];
+          ligne[0] = i;
+          for (var k = 1; k <= n; k++) {
+            var temp = ligne[k];
+            ligne[k] = a[i - 1] === b[k - 1]
+              ? precedent
+              : 1 + Math.min(precedent, ligne[k], ligne[k - 1]);
+            precedent = temp;
+          }
+        }
+        return ligne[n];
+      }
+
+      // Cherche, parmi les produits déjà connus, celui dont le nom
+      // normalisé ressemble le plus à `nomImporte` sans lui être identique
+      // (une correspondance exacte est déjà gérée ailleurs, en amont).
+      // Seuil volontairement strict (1 caractère de différence pour un nom
+      // court, jusqu'à 2 pour un nom long) : on vise les fautes de frappe et
+      // variations de casse/espaces, pas les abréviations ("pain choc" pour
+      // "pain au chocolat" reste un nouveau produit, pas une correspondance
+      // floue). Ne propose jamais rien seul(e) : à confirmer par le
+      // commerçant avant tout import (cohérence avec "jamais présenté comme
+      // certain").
+      function trouverCorrespondanceFloue(nomImporte, produitsExistantsParCle) {
+        var cleImportee = cleNormaliseeProduit(nomImporte);
+        if (!cleImportee || produitsExistantsParCle[cleImportee]) return null;
+
+        var meilleur = null;
+        var meilleureDistance = Infinity;
+        Object.keys(produitsExistantsParCle).forEach(function (cleExistante) {
+          var seuil = cleExistante.length <= 5 ? 1 : 2;
+          var distance = distanceEdition(cleImportee, cleExistante);
+          if (distance > 0 && distance <= seuil && distance < meilleureDistance) {
+            meilleureDistance = distance;
+            meilleur = produitsExistantsParCle[cleExistante];
+          }
+        });
+        return meilleur;
       }
 
       function chargerProduitsExistants() {
@@ -667,6 +727,9 @@
         fichierInput.value = '';
         zoneChoixFeuille.style.display = 'none';
         classeurActuel = null;
+        zoneCorrespondances.style.display = 'none';
+        zoneCorrespondances.innerHTML = '';
+        correspondancesEnAttente = null;
       }
 
       function definirMode(nouveauMode) {
@@ -1027,6 +1090,9 @@
 
         messageDiv.style.display = 'none';
         apercuDiv.innerHTML = '';
+        zoneCorrespondances.style.display = 'none';
+        zoneCorrespondances.innerHTML = '';
+        correspondancesEnAttente = null;
 
         if (lignesAImporter.length === 0) {
           apercuDiv.innerHTML = '<div class="erreur" style="padding:10px; border-radius:5px;">' + messageAucuneLigneValide(colDate, colProduit, colQuantite) + '</div>';
@@ -1034,6 +1100,20 @@
           return;
         }
 
+        var correspondancesFloues = detecterCorrespondancesFloues(lignesAImporter, function (l) { return l.nom_produit; });
+        if (Object.keys(correspondancesFloues).length > 0) {
+          afficherCorrespondancesFloues(correspondancesFloues, function () {
+            appliquerCorrespondancesConfirmees(lignesAImporter, function (l) { return l.nom_produit; }, function (l, nom) { l.nom_produit = nom; });
+            afficherApercuVentes(lignesAImporter, lignesInvalides);
+          });
+          btnImporter.style.display = 'none';
+          return;
+        }
+
+        afficherApercuVentes(lignesAImporter, lignesInvalides);
+      }
+
+      function afficherApercuVentes(lignesAImporter, lignesInvalides) {
         var tableau = '<table><tr><th>Date</th><th>Produit</th><th>Quantité</th></tr>';
         lignesAImporter.slice(0, 5).forEach(function (l) {
           tableau += '<tr><td>' + l.date_vente + '</td><td>' + l.nom_produit + '</td><td>' + l.quantite + '</td></tr>';
@@ -1049,6 +1129,74 @@
           + noteNouveauxProduits(lignesAImporter, function (l) { return l.nom_produit; })
           + tableau;
         btnImporter.style.display = 'block';
+      }
+
+      // Repère, parmi les noms importés absents tels quels de la liste des
+      // produits connus, ceux qui ressemblent fortement à un produit
+      // existant (faute de frappe, casse, espace). Renvoie un objet
+      // {nomImporte: nomExistantSuggere} pour chaque cas ambigu distinct.
+      function detecterCorrespondancesFloues(lignes, obtenirNom) {
+        var suggestions = {};
+        var vus = {};
+        lignes.forEach(function (l) {
+          var nom = obtenirNom(l);
+          if (!nom || vus[nom]) return;
+          vus[nom] = true;
+          var suggestion = trouverCorrespondanceFloue(nom, produitsExistantsNormalises);
+          if (suggestion) suggestions[nom] = suggestion;
+        });
+        return suggestions;
+      }
+
+      // Affiche une ligne de confirmation par nom ambigu ("Croisant"
+      // ressemble à "Croissant" : utiliser l'existant, ou créer un nouveau
+      // produit ?). Rien n'est appliqué avant que le commerçant ait choisi
+      // pour chaque cas — cohérent avec le principe général de ne jamais
+      // présenter un rapprochement incertain comme acquis.
+      function afficherCorrespondancesFloues(suggestions, quandConfirme) {
+        correspondancesEnAttente = {};
+        var html = '<div class="zone-correspondances"><p class="titre-correspondances">⚠️ Certains noms ressemblent à des produits déjà connus. Vérifie avant de continuer :</p>';
+        Object.keys(suggestions).forEach(function (nomImporte, index) {
+          var nomExistant = suggestions[nomImporte];
+          correspondancesEnAttente[nomImporte] = nomExistant; // "utiliser l'existant" par défaut, modifiable
+          var idSelect = 'correspondance' + index;
+          html += '<div class="ligne-correspondance">'
+            + '<span>« ' + nomImporte + ' » ressemble à « ' + nomExistant + ' » :</span>'
+            + '<select id="' + idSelect + '" data-nom-importe="' + index + '">'
+            + '<option value="existant" selected>Utiliser « ' + nomExistant + ' »</option>'
+            + '<option value="nouveau">Créer « ' + nomImporte + ' » comme nouveau produit</option>'
+            + '</select>'
+            + '</div>';
+        });
+        html += '<button type="button" id="btnConfirmerCorrespondances">Continuer</button></div>';
+        zoneCorrespondances.innerHTML = html;
+        zoneCorrespondances.style.display = 'block';
+
+        var nomsImportesParIndex = Object.keys(suggestions);
+        nomsImportesParIndex.forEach(function (nomImporte, index) {
+          document.getElementById('correspondance' + index).addEventListener('change', function (e) {
+            correspondancesEnAttente[nomImporte] = e.target.value === 'existant' ? suggestions[nomImporte] : null;
+          });
+        });
+
+        document.getElementById('btnConfirmerCorrespondances').addEventListener('click', function () {
+          zoneCorrespondances.style.display = 'none';
+          quandConfirme();
+        });
+      }
+
+      // Remplace, sur chaque ligne, le nom importé par le nom existant
+      // choisi ("utiliser l'existant") — laisse le nom importé tel quel si
+      // le commerçant a choisi de créer un nouveau produit. Appliqué une
+      // seule fois, juste avant l'aperçu, pour que ce que montre l'aperçu
+      // soit exactement ce qui sera importé.
+      function appliquerCorrespondancesConfirmees(lignes, obtenirNom, definirNom) {
+        if (!correspondancesEnAttente) return;
+        lignes.forEach(function (l) {
+          var nomOriginal = obtenirNom(l);
+          var choix = correspondancesEnAttente[nomOriginal];
+          if (choix) definirNom(l, choix);
+        });
       }
 
       function validerMappingFiches() {
@@ -1091,6 +1239,9 @@
 
         messageDiv.style.display = 'none';
         apercuDiv.innerHTML = '';
+        zoneCorrespondances.style.display = 'none';
+        zoneCorrespondances.innerHTML = '';
+        correspondancesEnAttente = null;
 
         if (lignesFichesAImporter.length === 0) {
           apercuDiv.innerHTML = '<div class="erreur" style="padding:10px; border-radius:5px;">Aucune ligne valide trouvée avec ces colonnes. Vérifie ta sélection ci-dessus.</div>';
@@ -1098,6 +1249,20 @@
           return;
         }
 
+        var correspondancesFloues = detecterCorrespondancesFloues(lignesFichesAImporter, function (l) { return l.produit; });
+        if (Object.keys(correspondancesFloues).length > 0) {
+          afficherCorrespondancesFloues(correspondancesFloues, function () {
+            appliquerCorrespondancesConfirmees(lignesFichesAImporter, function (l) { return l.produit; }, function (l, nom) { l.produit = nom; });
+            afficherApercuFiches(lignesFichesAImporter, lignesInvalides);
+          });
+          btnImporter.style.display = 'none';
+          return;
+        }
+
+        afficherApercuFiches(lignesFichesAImporter, lignesInvalides);
+      }
+
+      function afficherApercuFiches(lignesFichesAImporter, lignesInvalides) {
         var tableau = '<table><tr><th>Produit</th><th>Ingrédient</th><th>Quantité</th><th>Unité</th><th>Coût unitaire</th></tr>';
         lignesFichesAImporter.slice(0, 5).forEach(function (l) {
           tableau += '<tr><td>' + l.produit + '</td><td>' + l.ingredient + '</td><td>' + l.quantite + '</td><td>' + (l.unite || '-') + '</td><td>' + (l.cout_unitaire != null ? l.cout_unitaire + ' €' : '-') + '</td></tr>';
@@ -1174,6 +1339,11 @@
       });
 
       function importerVentes() {
+        // Filet de sécurité : appliquerCorrespondancesConfirmees a déjà
+        // corrigé lignesAImporter avant l'aperçu, mais on s'assure ici que
+        // rien ne peut être importé sans être passé par ce remplacement.
+        appliquerCorrespondancesConfirmees(lignesAImporter, function (l) { return l.nom_produit; }, function (l, nom) { l.nom_produit = nom; });
+
         sbClient.from('produits').select('nom').eq('commercant_id', commercantId).then(function (resultatProduits) {
           var nomCanoniqueParCle = {};
           (resultatProduits.data || []).forEach(function (p) { nomCanoniqueParCle[cleNormaliseeProduit(p.nom)] = p.nom; });
@@ -1224,6 +1394,9 @@
       }
 
       function importerFiches() {
+        // Filet de sécurité, comme dans importerVentes.
+        appliquerCorrespondancesConfirmees(lignesFichesAImporter, function (l) { return l.produit; }, function (l, nom) { l.produit = nom; });
+
         sbClient.from('produits').select('id,nom').eq('commercant_id', commercantId).then(function (resultatProduits) {
           var nomVersId = {};
           (resultatProduits.data || []).forEach(function (p) { nomVersId[p.nom] = p.id; });

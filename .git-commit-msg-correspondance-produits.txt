@@ -1,0 +1,21 @@
+Import : confirmation avant de rapprocher un nom proche d'un produit
+
+Une faute de frappe ou une variation de casse/espaces dans un nom de
+produit importé ("Croisant" au lieu de "Croissant") créait jusqu'ici un
+nouveau produit distinct sans aucun avertissement, faussant discrètement
+les prévisions par la suite.
+
+Ajout d'une détection de ressemblance (distance de Levenshtein, seuil
+strict limité aux fautes de frappe et casse/espaces, pas aux
+abréviations) entre les noms importés et les produits déjà connus.
+Quand une ressemblance forte est trouvée, l'aperçu affiche une
+confirmation à faire avant de continuer ("Croisant" ressemble à
+"Croissant", utiliser l'existant ou créer un nouveau produit ?) :
+rien n'est rapproché automatiquement, cohérent avec le principe de ne
+jamais présenter un calcul ou un rapprochement comme certain.
+
+Deux nouveaux tests Playwright couvrent la confirmation et le refus du
+rapprochement suggéré (108 tests, 0 échec).
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01QqbAweooRJCnRuotaJsJ7V
