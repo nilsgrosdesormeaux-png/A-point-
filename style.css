@@ -2466,6 +2466,28 @@ button.lien-supprimer:hover {
 
 .btn-retour-semaine:hover { background: var(--fond); color: var(--texte); }
 
+.entete-semaine-droite {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-telecharger-pdf-semaine {
+  width: auto;
+  margin-top: 0;
+  padding: 6px 13px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--texte-attenue);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.btn-telecharger-pdf-semaine:hover { background: var(--fond); color: var(--texte); }
+
 .grille-semaine {
   display: grid;
   grid-template-columns: 150px repeat(7, minmax(96px, 1fr));

@@ -1701,6 +1701,44 @@ async function main() {
         expect((await pageGantt.locator('#statMeteoJour').textContent()).length > 0).toBe(true);
       });
 
+      await test('le bouton PDF construit un planning visuel de la semaine, jour par jour, avec de vrais blocs horaires positionnés', async () => {
+        const commercantIdPdf = 'test-personnel-pdf';
+        const pagePdf = await browser.newPage();
+        const isoAujourdHui = new Date().toISOString().slice(0, 10);
+        await stubSupabaseAvecDonnees(pagePdf, {
+          commercantId: commercantIdPdf,
+          tables: {
+            personnel: [
+              { id: 'p1', nom: 'Julien', secteur_id: 'salle', poste_id: 'generique', type_contrat: 'Fixe', niveau_hierarchie: 1, contrat_hebdo: 35, jours_repos: [], alternance_weekend: false, statut_compte: 'actif', heures_disponibles: {} },
+            ],
+            ventes: [], parametres_commercant: [], evenements_commercant: [],
+            secteurs_personnel: secteursFixture,
+            postes_personnel: postesFixture,
+            creneaux_personnel: [
+              { id: 'cpdf1', commercant_id: commercantIdPdf, personnel_id: 'p1', date_creneau: isoAujourdHui, heure_debut: '09:00:00', heure_fin: '13:00:00', secteur_id: 'salle', poste_id: 'generique', origine: 'manuel', pause_debut: '10:00:00', pause_fin: '10:15:00' },
+            ],
+          },
+        });
+        await pagePdf.addInitScript(() => { window.__appelsImpression = 0; window.print = function () { window.__appelsImpression++; }; });
+        await pagePdf.goto(BASE_URL + '/personnel.html');
+        await pagePdf.locator('#btnTelechargerPdfSemaine').waitFor({ state: 'visible' });
+        await pagePdf.locator('#btnTelechargerPdfSemaine').click();
+        await pagePdf.waitForFunction(() => window.__appelsImpression === 1);
+
+        // 7 jours en une seule vue (pas un export par jour), un bloc coloré
+        // positionné sur l'axe (pas une ligne de texte), et les autres jours
+        // marqués "Repos" : cf. cahier des charges (export hebdomadaire).
+        expect(await pagePdf.locator('#zoneImpressionPersonnel .impression-jour-bloc').count()).toBe(7);
+        expect(await pagePdf.locator('#zoneImpressionPersonnel .impression-bloc').count()).toBe(1);
+        expect(await pagePdf.locator('#zoneImpressionPersonnel .impression-bloc-pause').count()).toBe(1);
+        expect(await pagePdf.locator('#zoneImpressionPersonnel .impression-jour-vide').count()).toBe(6);
+        expect(await pagePdf.locator('#zoneImpressionPersonnel .impression-legende-item').count()).toBeGreaterThan(0);
+        const styleBloc = await pagePdf.locator('#zoneImpressionPersonnel .impression-bloc').getAttribute('style');
+        expect(styleBloc).toContain('left:');
+        expect(styleBloc).toContain('width:');
+        await pagePdf.close();
+      });
+
       await pageGantt.close();
     });
 
