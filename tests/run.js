@@ -975,6 +975,21 @@ async function main() {
         expect(await lienImport.count()).toBeGreaterThan(0);
       });
 
+      // Retour utilisateur, 23 sept. 2026 : le raccourci "Ajouter les ventes
+      // d'hier" existe sur le Tableau de bord mais nulle part ailleurs, il
+      // fallait y retourner depuis les autres pages pour le retrouver.
+      // Ajouté en haut de Produits, avant le formulaire d'ajout de produit
+      // qui descend en dessous.
+      await test('un raccourci "Ajouter les ventes d\'hier" apparaît en haut, avant le formulaire d\'ajout de produit', async () => {
+        await pageProduits.goto(BASE_URL + '/produits.html');
+        await pageProduits.locator('#zoneFormulaire').waitFor({ state: 'visible' });
+        const lienVentes = pageProduits.locator('a[href="ventes.html"]', { hasText: "Ajouter les ventes d'hier" });
+        expect(await lienVentes.count()).toBeGreaterThan(0);
+        const boiteLien = await lienVentes.first().boundingBox();
+        const boiteFormulaire = await pageProduits.locator('#nomProduit').boundingBox();
+        expect(boiteLien.y < boiteFormulaire.y).toBeTruthy();
+      });
+
       await test('affiche un bloc par catégorie créée, plus un bloc "Non classé" toujours présent', async () => {
         await pageProduits.goto(BASE_URL + '/produits.html');
         await pageProduits.locator('.bloc-categorie-produits').first().waitFor({ state: 'visible' });
