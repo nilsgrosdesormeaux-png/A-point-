@@ -2174,7 +2174,7 @@ button.lien-supprimer:hover {
 /* ---------- Planning : sélecteur de jour unique + contrôles ---------- */
 
 .controles-planning {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .controles-planning-ligne1 {
@@ -2182,8 +2182,8 @@ button.lien-supprimer:hover {
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .selecteur-jour-unique {
@@ -2205,7 +2205,7 @@ button.lien-supprimer:hover {
   align-items: center;
   gap: 6px;
   margin-left: 6px;
-  padding: 3px 10px 3px 8px;
+  padding: 4px 10px 4px 8px;
   background: var(--fond);
   border: 1px solid var(--bordure);
   border-radius: 999px;
@@ -2225,8 +2225,8 @@ button.lien-supprimer:hover {
 
 .jour-fleche {
   flex-shrink: 0;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   margin: 0;
   display: flex;
@@ -2236,14 +2236,11 @@ button.lien-supprimer:hover {
   color: var(--ink);
   border: 1px solid var(--bordure);
   border-radius: 999px;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1;
-  box-shadow: 0 1px 2px rgba(33,29,23,0.04);
-  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
-.jour-fleche:hover { background: var(--fond); box-shadow: 0 2px 6px rgba(33,29,23,0.08); }
-.jour-fleche:active { box-shadow: none; }
+.jour-fleche:hover { background: var(--fond); }
 
 .btn-reinitialiser {
   display: inline-flex;
@@ -2252,17 +2249,15 @@ button.lien-supprimer:hover {
   width: auto;
   margin-top: 0;
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: 999px;
+  border: none;
   color: var(--texte-tres-attenue);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  padding: 4px 9px;
-  transition: background 0.15s ease, color 0.15s ease;
+  padding: 4px 2px;
 }
 
-.btn-reinitialiser:hover { color: var(--texte-attenue); background: var(--fond); }
+.btn-reinitialiser:hover { color: var(--texte-attenue); }
 
 /* Collée directement au-dessus du Gantt, discrète (retour utilisateur,
    sept. 2026 : trop isolée, séparée par un grand espace vide). */
@@ -2273,13 +2268,13 @@ button.lien-supprimer:hover {
 }
 
 .total-effectif-jour {
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--texte);
-  background: var(--accent-clair);
-  border: 1px solid transparent;
+  background: var(--surface);
+  border: 1px solid var(--bordure);
   border-radius: 999px;
-  padding: 6px 13px;
+  padding: 7px 14px;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -2311,7 +2306,7 @@ button.lien-supprimer:hover {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .legende-postes {
@@ -2391,225 +2386,17 @@ button.lien-supprimer:hover {
   background: transparent;
   border: 1px solid transparent;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--texte-attenue);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .btn-gerer-postes:hover { background: var(--fond); color: var(--texte); }
 
-/* ---------- Planning : vue hebdomadaire (vue par défaut) ---------- */
-
-.stats-semaine {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.stat-chip {
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--texte);
-  background: var(--surface);
-  border: 1px solid var(--bordure);
-  border-radius: 999px;
-  padding: 6px 13px;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.stat-chip--meteo {
-  font-weight: 600;
-  color: var(--texte-attenue);
-  background: var(--fond);
-}
-
-.entete-semaine {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.semaine-nav {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.semaine-libelle {
-  font-family: var(--police-titre);
-  font-size: 15px;
-  font-weight: 600;
-  min-width: 170px;
-  text-align: center;
-}
-
-.btn-retour-semaine {
-  width: auto;
-  margin: 0 10px 0 0;
-  padding: 6px 12px;
-  background: transparent;
-  border: 1px solid var(--bordure);
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--texte-attenue);
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.btn-retour-semaine:hover { background: var(--fond); color: var(--texte); }
-
-.entete-semaine-droite {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.btn-telecharger-pdf-semaine {
-  width: auto;
-  margin-top: 0;
-  padding: 6px 13px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--texte-attenue);
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.btn-telecharger-pdf-semaine:hover { background: var(--fond); color: var(--texte); }
-
-.grille-semaine {
-  display: grid;
-  grid-template-columns: 150px repeat(7, minmax(96px, 1fr));
-  width: max-content;
-  min-width: 100%;
-}
-
-.semaine-coin,
-.semaine-entete-jour {
-  position: sticky;
-  top: 0;
-  background: var(--fond);
-  border-bottom: 1px solid var(--bordure);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--texte-tres-attenue);
-  text-align: center;
-  padding: 7px 4px;
-  z-index: 2;
-}
-
-.semaine-coin {
-  position: sticky;
-  left: 0;
-  z-index: 3;
-  text-align: left;
-  padding-left: 14px;
-}
-
-.semaine-entete-jour {
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.semaine-entete-jour:hover { background: var(--accent-clair); color: var(--texte); }
-
-.semaine-entete-jour-nom { text-transform: capitalize; }
-
-.semaine-entete-jour-num {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--texte);
-}
-
-.semaine-entete-jour--aujourdhui .semaine-entete-jour-num {
-  color: var(--accent);
-}
-
-.semaine-nom-cell {
-  position: sticky;
-  left: 0;
-  z-index: 1;
-  background: var(--surface);
-  border-bottom: 1px solid var(--bordure);
-  border-right: 1px solid var(--bordure);
-  padding: 6px 8px 6px 12px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1px;
-  min-height: 44px;
-}
-
-.semaine-nom-employe {
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.semaine-total-heures {
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--texte-attenue);
-  font-variant-numeric: tabular-nums;
-}
-
-.semaine-cellule-jour {
-  border-bottom: 1px solid var(--bordure);
-  border-right: 1px solid var(--fond);
-  padding: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  justify-content: center;
-  cursor: pointer;
-  min-height: 44px;
-  transition: background 0.15s ease;
-}
-
-.semaine-cellule-jour:hover { background: color-mix(in srgb, var(--fond) 60%, transparent); }
-
-.semaine-repos-texte {
-  font-size: 10.5px;
-  color: var(--texte-tres-attenue);
-  font-style: italic;
-  text-align: center;
-}
-
-.semaine-bloc-mini {
-  font-size: 10px;
-  font-weight: 700;
-  color: #fff;
-  border-radius: 5px;
-  padding: 2px 5px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  border: 1px solid rgba(0,0,0,0.12);
-}
-
-.semaine-ligne-ajout {
-  grid-column: 1 / -1;
-  padding: 8px;
-}
-
 /* ---------- Planning : le Gantt nominatif (maquette validée) ---------- */
 
-.gantt-scroll,
-.semaine-scroll {
+.gantt-scroll {
   overflow-x: auto;
   overflow-y: auto;
   /* Scalabilité grandes équipes (15-20 personnes) : le conteneur grandit
@@ -2640,11 +2427,11 @@ button.lien-supprimer:hover {
   top: 0;
   background: var(--fond);
   border-bottom: 1px solid var(--bordure);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--texte-tres-attenue);
   text-align: center;
-  padding: 6px 4px;
+  padding: 8px 4px;
   z-index: 2;
 }
 
@@ -2664,7 +2451,7 @@ button.lien-supprimer:hover {
   background: var(--surface);
   border-bottom: 1px solid var(--bordure);
   border-right: 1px solid var(--bordure);
-  padding: 6px 8px 6px 12px;
+  padding: 10px 8px 10px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2677,13 +2464,13 @@ button.lien-supprimer:hover {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 1px;
+  gap: 2px;
   cursor: pointer;
   min-width: 0;
 }
 
 .gantt-nom {
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -2710,7 +2497,7 @@ button.lien-supprimer:hover {
 }
 
 .gantt-nom-detail {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--texte-attenue);
 }
 
@@ -2723,7 +2510,7 @@ button.lien-supprimer:hover {
   position: relative;
   border-bottom: 1px solid var(--bordure);
   grid-column: 2 / -1;
-  height: 40px;
+  height: 52px;
   cursor: pointer;
 }
 
@@ -2773,15 +2560,15 @@ button.lien-supprimer:hover {
 
 .gantt-bloc {
   position: absolute;
-  top: 4px;
-  bottom: 4px;
-  border-radius: 7px;
+  top: 6px;
+  bottom: 6px;
+  border-radius: 8px;
   color: #fff;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 700;
   display: flex;
   align-items: center;
-  padding: 0 7px;
+  padding: 0 8px;
   overflow: hidden;
   white-space: nowrap;
   cursor: pointer;
@@ -2837,14 +2624,6 @@ button.lien-supprimer:hover {
   font-weight: 600;
   color: var(--texte-attenue);
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-}
-
-.btn-ajouter-membre:hover {
-  border-color: var(--accent);
-  border-style: solid;
-  color: var(--accent);
-  background: var(--accent-clair);
 }
 
 .btn-ajouter-membre:hover { border-color: var(--texte); color: var(--texte); }

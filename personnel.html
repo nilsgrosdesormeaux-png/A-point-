@@ -9,38 +9,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="moteur-prevision.js?v=20260922"></script>
   <script src="nav.js"></script>
-  <style>
-    /* Export PDF du planning : document imprimable révélé uniquement par
-       window.print() (jamais affiché à l'écran). Un vrai planning visuel
-       (blocs horaires positionnés sur un axe temps), jour par jour, en une
-       seule vue, pas une liste de texte. */
-    #zoneImpressionPersonnel { display: none; }
-    @media print {
-      body > *:not(#zoneImpressionPersonnel) { display: none !important; }
-      #zoneImpressionPersonnel {
-        display: block !important;
-        padding: 18px;
-        font-family: Arial, sans-serif;
-        color: #1a1a1a;
-      }
-      #zoneImpressionPersonnel h1 { font-size: 19px; margin: 0 0 3px; }
-      .impression-soustitre { color: #555; font-size: 12px; margin: 0 0 14px; }
-      .impression-legende { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
-      .impression-legende-item { display: flex; align-items: center; gap: 5px; font-size: 11px; }
-      .impression-legende-couleur { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; }
-      .impression-jour-bloc { margin-bottom: 14px; break-inside: avoid; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }
-      .impression-jour-titre { background: #f3f1ec; padding: 6px 10px; font-weight: 700; font-size: 12.5px; border-bottom: 1px solid #ddd; }
-      .impression-jour-vide { padding: 10px; font-size: 11.5px; font-style: italic; color: #888; }
-      .impression-axe { position: relative; height: 14px; margin: 4px 10px 0 140px; }
-      .impression-axe-repere { position: absolute; top: 0; font-size: 8.5px; color: #999; transform: translateX(-50%); }
-      .impression-ligne-employe { display: flex; align-items: center; border-top: 1px solid #eee; min-height: 24px; }
-      .impression-nom-employe { width: 130px; flex-shrink: 0; font-size: 10.5px; font-weight: 600; padding: 3px 6px 3px 10px; }
-      .impression-repos-ligne { font-size: 10px; font-style: italic; color: #999; padding: 3px 6px; }
-      .impression-timeline { position: relative; flex: 1; height: 20px; margin: 2px 10px 2px 0; background: #fafaf8; }
-      .impression-bloc { position: absolute; top: 1px; bottom: 1px; border-radius: 3px; color: #fff; font-size: 8px; font-weight: 700; padding: 1px 4px; overflow: hidden; white-space: nowrap; display: flex; align-items: center; }
-      .impression-bloc-pause { position: absolute; top: 1px; bottom: 1px; background: rgba(255, 255, 255, 0.55); }
-    }
-  </style>
 </head>
 <body>
   <header class="entete-site entete-site--pleine-largeur">
@@ -57,64 +25,33 @@
   <p id="statutConnexion" class="texte-aide statut-connexion-planning">Vérification de la connexion...</p>
 
   <div id="planning" class="planning-plein-ecran" style="display:none;">
-
-    <!-- Vue par défaut : grille hebdomadaire compacte (un coup d'œil sur
-         toute la semaine). Ouvrir un jour bascule vers #vueJour ci-dessous
-         pour l'édition fine (inchangée, juste compactée). -->
-    <div id="vueSemaine">
-      <div class="stats-semaine">
-        <span class="stat-chip" id="statHeuresSemaine" title="Total des heures programmées cette semaine, toute l'équipe confondue"></span>
-        <span class="stat-chip" id="statHeuresMois" title="Total des heures programmées ce mois-ci, toute l'équipe confondue"></span>
-        <span class="stat-chip stat-chip--meteo" id="statMeteoJour" title="Météo prévue aujourd'hui"></span>
-      </div>
-
-      <div class="entete-semaine">
-        <div class="semaine-nav">
-          <button type="button" class="jour-fleche" id="semaineNavPrec" aria-label="Semaine précédente">‹</button>
-          <span class="semaine-libelle" id="semaineLibelle"></span>
-          <button type="button" class="jour-fleche" id="semaineNavSuiv" aria-label="Semaine suivante">›</button>
+    <div class="controles-planning">
+      <div class="controles-planning-ligne1">
+        <div class="selecteur-jour-unique">
+          <button type="button" class="jour-fleche" id="ganttJourPrec" aria-label="Jour précédent">‹</button>
+          <span class="selecteur-jour-unique-libelle" id="ganttJourLibelle"></span>
+          <button type="button" class="jour-fleche" id="ganttJourSuiv" aria-label="Jour suivant">›</button>
+          <span class="badge-meteo-gantt" id="ganttMeteoBadge">
+            <span class="selecteur-jour-unique-meteo" id="ganttMeteoIcone" title="Météo prévue ce jour-là"></span>
+            <span class="badge-meteo-gantt-texte" id="ganttMeteoTexte"></span>
+          </span>
+          <div class="meteo-moments-jour" id="ganttMeteoMoments" style="display:none;"></div>
         </div>
-        <div class="entete-semaine-droite">
-          <button type="button" class="btn-telecharger-pdf-semaine" id="btnTelechargerPdfSemaine">📥 PDF</button>
-          <button type="button" class="btn-gerer-postes" id="btnGererPostesSemaine">⚙️ Gérer les postes</button>
-        </div>
+        <span class="total-effectif-jour" id="ganttTotalEffectif" title="Somme des heures nettes de pause de toute l'équipe visible, pour le jour affiché"></span>
+        <span class="conseil-renfort" id="conseilRenfort" style="display:none;"></span>
       </div>
-
-      <div class="semaine-scroll">
-        <div class="grille-semaine" id="grilleSemaine"></div>
+      <div class="ligne-legende-postes">
+        <div class="legende-postes" id="legendePostes"></div>
+        <button type="button" class="btn-gerer-postes" id="btnGererPostesLigne1">⚙️ Gérer les postes</button>
       </div>
     </div>
 
-    <div id="vueJour" style="display:none;">
-      <div class="controles-planning">
-        <div class="controles-planning-ligne1">
-          <button type="button" class="btn-retour-semaine" id="btnRetourSemaine">← Semaine</button>
-          <div class="selecteur-jour-unique">
-            <button type="button" class="jour-fleche" id="ganttJourPrec" aria-label="Jour précédent">‹</button>
-            <span class="selecteur-jour-unique-libelle" id="ganttJourLibelle"></span>
-            <button type="button" class="jour-fleche" id="ganttJourSuiv" aria-label="Jour suivant">›</button>
-            <span class="badge-meteo-gantt" id="ganttMeteoBadge">
-              <span class="selecteur-jour-unique-meteo" id="ganttMeteoIcone" title="Météo prévue ce jour-là"></span>
-              <span class="badge-meteo-gantt-texte" id="ganttMeteoTexte"></span>
-            </span>
-            <div class="meteo-moments-jour" id="ganttMeteoMoments" style="display:none;"></div>
-          </div>
-          <span class="total-effectif-jour" id="ganttTotalEffectif" title="Somme des heures nettes de pause de toute l'équipe visible, pour le jour affiché"></span>
-          <span class="conseil-renfort" id="conseilRenfort" style="display:none;"></span>
-        </div>
-        <div class="ligne-legende-postes">
-          <div class="legende-postes" id="legendePostes"></div>
-          <button type="button" class="btn-gerer-postes" id="btnGererPostesLigne1">⚙️ Gérer les postes</button>
-        </div>
-      </div>
+    <div class="barre-reinitialiser">
+      <button type="button" class="btn-reinitialiser" id="btnReinitialiser">↺ Réinitialiser (auto)</button>
+    </div>
 
-      <div class="barre-reinitialiser">
-        <button type="button" class="btn-reinitialiser" id="btnReinitialiser">↺ Réinitialiser (auto)</button>
-      </div>
-
-      <div class="gantt-scroll">
-        <div class="gantt-grille" id="ganttGrille"></div>
-      </div>
+    <div class="gantt-scroll">
+      <div class="gantt-grille" id="ganttGrille"></div>
     </div>
 
     <div id="messagePlanning"></div>
@@ -345,8 +282,6 @@
       var zoneVacancesPourCodePostal = MP.zoneVacancesPourCodePostal;
       var estEnVacances = MP.estEnVacances;
       var calculerPrevisionSemaine = MP.calculerPrevisionSemaine;
-      var ajouterJours = MP.ajouterJours;
-      var NOMS_MOIS_COURTS = MP.nomsMoisCourts;
 
       // --- Conseil de renfort (remplace l'ancienne grille "7 prochains
       // jours" en bloc noir) -----------------------------------------------
@@ -1245,7 +1180,7 @@
             supprimerSecteurDistant(secteur);
             rendreContenuModalPostes();
             rendreLegende();
-            rafraichirVueActive();
+            rendreGantt();
           });
           entete.appendChild(supprimerSecteur);
           bloc.appendChild(entete);
@@ -1268,7 +1203,7 @@
                   renommerPoste(secteur, poste, action.trim());
                 }
                 rendreContenuModalPostes();
-                rafraichirVueActive();
+                rendreGantt();
               });
             } else {
               ligne.className += ' etiquette-poste-config--generique';
@@ -1337,273 +1272,6 @@
         var heureEntiere = Math.floor(reel);
         var minutes = (reel % 1 === 0.5) ? '30' : '00';
         return (heureEntiere < 10 ? '0' : '') + heureEntiere + 'h' + (minutes === '30' ? minutes : '');
-      }
-
-      // --- Vue hebdomadaire (vue par défaut) : un coup d'œil sur toute la
-      // semaine, sans remplacer le Gantt jour (accessible en cliquant un
-      // jour) qui reste l'outil d'édition fine. -----------------------------
-      var decalageSemaine = 0; // 0 = semaine courante, +1 = semaine suivante...
-      var creneauxSemaineCache = {}; // { iso: { employeId: [{debut, fin, secteurId, posteId}] } }
-
-      function lundiDate(date) {
-        var jour = date.getDay(); // 0 = dimanche
-        return ajouterJours(date, jour === 0 ? -6 : 1 - jour);
-      }
-
-      function lundiSemaineAffichee() {
-        return ajouterJours(lundiDate(dateDuJour(0)), decalageSemaine * 7);
-      }
-
-      function joursDepuisAujourdhui(date) {
-        return Math.round((date.getTime() - dateDuJour(0).getTime()) / 86400000);
-      }
-
-      function libelleSemaineAffichee(lundi) {
-        var dimanche = ajouterJours(lundi, 6);
-        if (lundi.getMonth() === dimanche.getMonth()) {
-          return 'Semaine du ' + lundi.getDate() + ' au ' + dimanche.getDate() + ' ' + nomsMois[dimanche.getMonth()];
-        }
-        return 'Semaine du ' + lundi.getDate() + ' ' + NOMS_MOIS_COURTS[lundi.getMonth()] + ' au ' + dimanche.getDate() + ' ' + NOMS_MOIS_COURTS[dimanche.getMonth()];
-      }
-
-      function calculerTotalHeuresLignes(lignes) {
-        var total = 0;
-        lignes.forEach(function (c) {
-          var debut = heureVersDecimale(c.heure_debut);
-          var fin = heureVersDecimale(c.heure_fin);
-          if (fin <= debut) fin += 24;
-          var duree = fin - debut;
-          if (c.pause_debut != null && c.pause_fin != null) {
-            duree -= (heureVersDecimale(c.pause_fin) - heureVersDecimale(c.pause_debut));
-          }
-          total += duree;
-        });
-        return Math.round(total * 10) / 10;
-      }
-
-      // Toujours la semaine/le mois RÉELS (pas ceux parcourus avec les
-      // flèches) : un tableau de bord stable, indépendant de la navigation
-      // qui sert à préparer d'autres semaines.
-      function rafraichirStatsGlobales() {
-        var aujourdHui = dateDuJour(0);
-        var lundiCourant = lundiDate(aujourdHui);
-        var dimancheCourant = ajouterJours(lundiCourant, 6);
-        var debutMois = new Date(aujourdHui.getFullYear(), aujourdHui.getMonth(), 1);
-        var finMois = new Date(aujourdHui.getFullYear(), aujourdHui.getMonth() + 1, 0);
-
-        Promise.all([
-          sbClient.from('creneaux_personnel').select('*')
-            .eq('commercant_id', commercantId)
-            .gte('date_creneau', versISO(lundiCourant))
-            .lte('date_creneau', versISO(dimancheCourant)),
-          sbClient.from('creneaux_personnel').select('*')
-            .eq('commercant_id', commercantId)
-            .gte('date_creneau', versISO(debutMois))
-            .lte('date_creneau', versISO(finMois))
-        ]).then(function (resultats) {
-          document.getElementById('statHeuresSemaine').textContent = calculerTotalHeuresLignes(resultats[0].data || []) + 'h cette semaine';
-          document.getElementById('statHeuresMois').textContent = calculerTotalHeuresLignes(resultats[1].data || []) + 'h ce mois-ci';
-        });
-
-        var meteoTexte = meteoDuJour(0);
-        document.getElementById('statMeteoJour').textContent = meteoTexte === '– Météo indisponible' ? meteoTexte : "Aujourd'hui : " + meteoTexte;
-      }
-
-      function chargerCreneauxSemaine(lundi) {
-        return sbClient.from('creneaux_personnel').select('*')
-          .eq('commercant_id', commercantId)
-          .gte('date_creneau', versISO(lundi))
-          .lte('date_creneau', versISO(ajouterJours(lundi, 6)))
-          .then(function (result) {
-            var parJourEtEmploye = {};
-            (result.data || []).forEach(function (c) {
-              var debut = heureVersDecimale(c.heure_debut);
-              var fin = heureVersDecimale(c.heure_fin);
-              if (fin <= debut) fin += 24;
-              var travail = { debut: debut, fin: fin, secteurId: c.secteur_id || 'salle', posteId: c.poste_id || 'generique' };
-              if (c.pause_debut != null && c.pause_fin != null) {
-                travail.pauseDebut = heureVersDecimale(c.pause_debut);
-                travail.pauseFin = heureVersDecimale(c.pause_fin);
-              }
-              if (!parJourEtEmploye[c.date_creneau]) parJourEtEmploye[c.date_creneau] = {};
-              if (!parJourEtEmploye[c.date_creneau][c.personnel_id]) parJourEtEmploye[c.date_creneau][c.personnel_id] = [];
-              parJourEtEmploye[c.date_creneau][c.personnel_id].push(travail);
-            });
-            creneauxSemaineCache = parJourEtEmploye;
-          });
-      }
-
-      function rendreSemaine() {
-        rafraichirStatsGlobales();
-        var lundi = lundiSemaineAffichee();
-        var jours = [];
-        for (var i = 0; i < 7; i++) jours.push(ajouterJours(lundi, i));
-        document.getElementById('semaineLibelle').textContent = libelleSemaineAffichee(lundi);
-
-        chargerCreneauxSemaine(lundi).then(function () {
-          var grille = document.getElementById('grilleSemaine');
-          grille.innerHTML = '';
-          var isoAujourdHui = versISO(dateDuJour(0));
-
-          var coin = document.createElement('div');
-          coin.className = 'semaine-coin';
-          coin.textContent = 'Équipe';
-          grille.appendChild(coin);
-
-          jours.forEach(function (jour) {
-            var iso = versISO(jour);
-            var entete = document.createElement('div');
-            entete.className = 'semaine-entete-jour' + (iso === isoAujourdHui ? ' semaine-entete-jour--aujourdhui' : '');
-            entete.dataset.iso = iso;
-            entete.innerHTML = '<span class="semaine-entete-jour-nom">' + NOMS_JOURS_COURTS[jour.getDay()] + '</span><span class="semaine-entete-jour-num">' + jour.getDate() + '</span>';
-            entete.addEventListener('click', function (jourClique) { return function () { ouvrirJour(jourClique); }; }(jour));
-            grille.appendChild(entete);
-          });
-
-          derniereEquipe.forEach(function (employe) {
-            var nomCell = document.createElement('div');
-            nomCell.className = 'semaine-nom-cell';
-            var totalSemaine = 0;
-            jours.forEach(function (jour) {
-              var creneaux = ((creneauxSemaineCache[versISO(jour)] || {})[employe.id]) || [];
-              creneaux.forEach(function (c) { totalSemaine += (c.fin - c.debut); });
-            });
-            nomCell.innerHTML = '<span class="semaine-nom-employe">' + formatNomAffichage(employe.nom) + '</span><span class="semaine-total-heures">' + (Math.round(totalSemaine * 10) / 10) + 'h cette semaine</span>';
-            grille.appendChild(nomCell);
-
-            jours.forEach(function (jour) {
-              var creneaux = (((creneauxSemaineCache[versISO(jour)] || {})[employe.id]) || []).slice().sort(function (a, b) { return a.debut - b.debut; });
-              var cellule = document.createElement('div');
-              cellule.className = 'semaine-cellule-jour';
-              if (creneaux.length === 0) {
-                cellule.innerHTML = '<span class="semaine-repos-texte">Repos</span>';
-              } else {
-                creneaux.forEach(function (c) {
-                  var secteur = trouverSecteur(c.secteurId);
-                  var pill = document.createElement('span');
-                  pill.className = 'semaine-bloc-mini';
-                  pill.style.background = secteur ? secteur.couleur : '#8a7cc7';
-                  pill.textContent = formatHeureAxe(c.debut) + '-' + formatHeureAxe(c.fin);
-                  cellule.appendChild(pill);
-                });
-              }
-              cellule.addEventListener('click', function (jourClique) { return function () { ouvrirJour(jourClique); }; }(jour));
-              grille.appendChild(cellule);
-            });
-          });
-
-          var ligneAjout = document.createElement('div');
-          ligneAjout.className = 'semaine-ligne-ajout';
-          var boutonAjoutSemaine = document.createElement('button');
-          boutonAjoutSemaine.type = 'button';
-          boutonAjoutSemaine.className = 'btn-ajouter-membre';
-          boutonAjoutSemaine.textContent = '+ Ajouter un membre';
-          boutonAjoutSemaine.addEventListener('click', ouvrirModalMembre);
-          ligneAjout.appendChild(boutonAjoutSemaine);
-          grille.appendChild(ligneAjout);
-        });
-      }
-
-      // Export PDF : planning visuel de la semaine affichée, jour par jour,
-      // avec les vrais blocs horaires positionnés sur un axe temps (pas une
-      // liste de texte). Révélé uniquement à l'impression (@media print),
-      // jamais affiché à l'écran. Réutilise le cache déjà chargé par
-      // rendreSemaine() pour la semaine actuellement affichée.
-      function construireImpressionSemaine(lundi) {
-        var zone = document.getElementById('zoneImpressionPersonnel');
-        var jours = [];
-        for (var i = 0; i < 7; i++) jours.push(ajouterJours(lundi, i));
-
-        var html = '<h1>Planning de la semaine</h1>';
-        html += '<p class="impression-soustitre">' + libelleSemaineAffichee(lundi) + '</p>';
-
-        if (SECTEURS.length > 0) {
-          html += '<div class="impression-legende">';
-          SECTEURS.forEach(function (secteur) {
-            html += '<span class="impression-legende-item"><span class="impression-legende-couleur" style="background:' + secteur.couleur + ';"></span>' + secteur.nom + '</span>';
-          });
-          html += '</div>';
-        }
-
-        jours.forEach(function (jour) {
-          var iso = versISO(jour);
-          var parEmploye = creneauxSemaineCache[iso] || {};
-          var lignesEmployes = derniereEquipe.map(function (employe) {
-            var creneaux = (parEmploye[employe.id] || []).slice().sort(function (a, b) { return a.debut - b.debut; });
-            return { employe: employe, creneaux: creneaux };
-          });
-          var toutesCreneaux = [];
-          lignesEmployes.forEach(function (l) { toutesCreneaux = toutesCreneaux.concat(l.creneaux); });
-
-          html += '<div class="impression-jour-bloc">';
-          html += '<div class="impression-jour-titre">' + capitaliser(formatDateLongue(jour)) + '</div>';
-
-          if (toutesCreneaux.length === 0) {
-            html += '<div class="impression-jour-vide">Repos pour toute l&rsquo;équipe</div>';
-          } else {
-            var axeDebut = Math.max(0, Math.floor(Math.min.apply(null, toutesCreneaux.map(function (c) { return c.debut; }))));
-            var axeFin = Math.ceil(Math.max.apply(null, toutesCreneaux.map(function (c) { return c.fin; })));
-            if (axeFin <= axeDebut) axeFin = axeDebut + 1;
-            var etendue = axeFin - axeDebut;
-
-            html += '<div class="impression-axe">';
-            for (var h = axeDebut; h <= axeFin; h++) {
-              html += '<span class="impression-axe-repere" style="left:' + (((h - axeDebut) / etendue) * 100) + '%;">' + formatHeureAxe(h) + '</span>';
-            }
-            html += '</div>';
-
-            lignesEmployes.forEach(function (l) {
-              html += '<div class="impression-ligne-employe">';
-              html += '<div class="impression-nom-employe">' + formatNomAffichage(l.employe.nom) + '</div>';
-              if (l.creneaux.length === 0) {
-                html += '<div class="impression-repos-ligne">Repos</div>';
-              } else {
-                html += '<div class="impression-timeline">';
-                l.creneaux.forEach(function (c) {
-                  var secteur = trouverSecteur(c.secteurId);
-                  var gauche = ((c.debut - axeDebut) / etendue) * 100;
-                  var largeur = ((c.fin - c.debut) / etendue) * 100;
-                  html += '<div class="impression-bloc" style="left:' + gauche + '%; width:' + largeur + '%; background:' + (secteur ? secteur.couleur : '#8a7cc7') + ';">' + formatHeureAxe(c.debut) + '-' + formatHeureAxe(c.fin) + '</div>';
-                  if (c.pauseDebut != null) {
-                    var pGauche = ((c.pauseDebut - axeDebut) / etendue) * 100;
-                    var pLargeur = ((c.pauseFin - c.pauseDebut) / etendue) * 100;
-                    html += '<div class="impression-bloc-pause" style="left:' + pGauche + '%; width:' + pLargeur + '%;"></div>';
-                  }
-                });
-                html += '</div>';
-              }
-              html += '</div>';
-            });
-          }
-          html += '</div>';
-        });
-
-        zone.innerHTML = html;
-      }
-
-      function ouvrirJour(date) {
-        decalageJour = joursDepuisAujourdhui(date);
-        document.getElementById('vueSemaine').style.display = 'none';
-        document.getElementById('vueJour').style.display = 'block';
-        rendreLegende();
-        rendreGantt();
-      }
-
-      function ouvrirSemaine() {
-        document.getElementById('vueJour').style.display = 'none';
-        document.getElementById('vueSemaine').style.display = 'block';
-        rendreSemaine();
-      }
-
-      // "Gérer les postes" est accessible depuis la semaine ET depuis le
-      // jour : une modification de secteur/poste doit rafraîchir la vue
-      // actuellement affichée, quelle qu'elle soit.
-      function rafraichirVueActive() {
-        if (document.getElementById('vueJour').style.display !== 'none') {
-          rendreGantt();
-        } else {
-          rendreSemaine();
-        }
       }
 
       // --- Rendu du Gantt ------------------------------------------------
@@ -2242,16 +1910,7 @@
 
       modal.addEventListener('click', function (e) { if (e.target === modal) fermerModal(true); });
 
-      // --- Contrôles : navigation semaine / jour + réinitialisation --------
-      document.getElementById('semaineNavPrec').addEventListener('click', function () { decalageSemaine--; rendreSemaine(); });
-      document.getElementById('semaineNavSuiv').addEventListener('click', function () { decalageSemaine++; rendreSemaine(); });
-      document.getElementById('btnGererPostesSemaine').addEventListener('click', ouvrirModalPostes);
-      document.getElementById('btnTelechargerPdfSemaine').addEventListener('click', function () {
-        construireImpressionSemaine(lundiSemaineAffichee());
-        window.print();
-      });
-      document.getElementById('btnRetourSemaine').addEventListener('click', ouvrirSemaine);
-
+      // --- Contrôles : navigation de jour + réinitialisation --------------
       document.getElementById('ganttJourPrec').addEventListener('click', function () { decalageJour--; rendreGantt(); });
       document.getElementById('ganttJourSuiv').addEventListener('click', function () { decalageJour++; rendreGantt(); });
 
@@ -2270,15 +1929,11 @@
       var delaiRedimensionGantt;
       window.addEventListener('resize', function () {
         window.clearTimeout(delaiRedimensionGantt);
-        delaiRedimensionGantt = window.setTimeout(function () {
-          // Le calcul de largeur (ajusterLargeurHeures) ne concerne que le
-          // Gantt jour ; inutile (et coûteux) de le redessiner s'il est
-          // masqué derrière la vue semaine.
-          if (document.getElementById('vueJour').style.display !== 'none') dessinerGantt();
-        }, 120);
+        delaiRedimensionGantt = window.setTimeout(dessinerGantt, 120);
       });
 
       // --- Initialisation du module Planning ------------------------------
+      var planningInitialise = false;
       function initPlanning(equipe, parametres) {
         var chainePreparation = secteursCharges ? Promise.resolve() : chargerSecteursEtPostes();
         chainePreparation = chainePreparation.then(function () {
@@ -2305,9 +1960,11 @@
         }
 
         chainePreparation.then(function () {
-          // Vue par défaut : la semaine. Le Gantt jour (et sa légende) ne se
-          // charge que lorsqu'on ouvre effectivement un jour (ouvrirJour).
-          rendreSemaine();
+          if (!planningInitialise) {
+            planningInitialise = true;
+            rendreLegende();
+          }
+          rendreGantt();
         });
       }
 
@@ -2326,7 +1983,5 @@
       });
     })();
   </script>
-
-  <div id="zoneImpressionPersonnel"></div>
 </body>
 </html>
