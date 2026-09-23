@@ -126,6 +126,36 @@ async function stubSupabaseAvecDonnees(page, { commercantId, tables }) {
   }, { commercantId, tables });
 }
 
+// personnel.html affiche désormais la vue hebdomadaire par défaut : le
+// Gantt jour (et sa légende) ne se charge qu'après avoir cliqué un jour.
+// "iso" peut tomber dans la semaine suivante (ex. fixtures utilisant
+// "demain" un dimanche) : on avance d'une semaine si besoin avant de
+// chercher la colonne.
+async function ouvrirJourParIso(page, iso) {
+  await page.locator('.semaine-entete-jour').first().waitFor({ state: 'visible' });
+  var colonne = page.locator('.semaine-entete-jour[data-iso="' + iso + '"]');
+  if (await colonne.count() === 0) {
+    await page.locator('#semaineNavSuiv').click();
+    colonne = page.locator('.semaine-entete-jour[data-iso="' + iso + '"]');
+  }
+  await colonne.waitFor({ state: 'visible' });
+  await colonne.click();
+  await page.locator('#ganttGrille .gantt-nom-cell').first().waitFor({ state: 'visible' });
+}
+
+// Quand la date importe peu pour le scénario testé (aucune donnée liée à
+// un jour précis, parfois même aucun employé) : ouvre le jour "aujourd'hui"
+// de la semaine affichée (jamais un jour passé de la semaine en cours, qui
+// n'a par exemple pas de prévision météo). N'attend que l'axe des heures
+// (toujours rendu), pas .gantt-nom-cell qui n'existe pas sans employé.
+async function ouvrirPremierJour(page) {
+  const isoAujourdHui = new Date().toISOString().slice(0, 10);
+  const colonne = page.locator('.semaine-entete-jour[data-iso="' + isoAujourdHui + '"]');
+  await colonne.waitFor({ state: 'visible' });
+  await colonne.click();
+  await page.locator('#ganttGrille .gantt-heure-entete').first().waitFor({ state: 'visible' });
+}
+
 let passed = 0;
 let failed = 0;
 const failures = [];
@@ -1473,7 +1503,7 @@ async function main() {
 
       await test('affiche une ligne par personne avec ses créneaux, total d\'heures inclus', async () => {
         await pageGantt.goto(BASE_URL + '/personnel.html');
-        await pageGantt.locator('#ganttGrille .gantt-nom-cell').first().waitFor({ state: 'visible' });
+        await ouvrirJourParIso(pageGantt, isoDemain);
 
         const noms = await pageGantt.locator('.gantt-nom').allTextContents();
         expect(noms.join(',')).toContain('Vincent');
@@ -1487,7 +1517,7 @@ async function main() {
 
       await test('un créneau traversant minuit (19h-02h) est rendu avec une largeur cohérente, pas rejeté', async () => {
         await pageGantt.goto(BASE_URL + '/personnel.html');
-        await pageGantt.locator('#ganttGrille .gantt-nom-cell').first().waitFor({ state: 'visible' });
+        await ouvrirJourParIso(pageGantt, isoDemain);
 
         const pistes = pageGantt.locator('.gantt-piste');
         const blocMirella = pistes.nth(2).locator('.gantt-bloc');
@@ -1502,24 +1532,26 @@ async function main() {
 
       await test('la colonne des noms reste en position sticky (scrollable horizontalement)', async () => {
         await pageGantt.goto(BASE_URL + '/personnel.html');
-        await pageGantt.locator('#ganttGrille .gantt-nom-cell').first().waitFor({ state: 'visible' });
+        await ouvrirJourParIso(pageGantt, isoDemain);
         const position = await pageGantt.locator('.gantt-nom-cell').first().evaluate((el) => getComputedStyle(el).position);
         expect(position).toBe('sticky');
       });
 
       await test('un Extra affiche son badge de type de contrat', async () => {
         await pageGantt.goto(BASE_URL + '/personnel.html');
+        await ouvrirJourParIso(pageGantt, isoDemain);
         await pageGantt.locator('.badge-typecontrat--extra').waitFor({ state: 'visible' });
         expect(await pageGantt.locator('.badge-typecontrat--extra').textContent()).toBe('Extra');
       });
 
       await test('la légende affiche un secteur par pastille, plus le bouton de gestion des postes', async () => {
         await pageGantt.goto(BASE_URL + '/personnel.html');
+        await ouvrirJourParIso(pageGantt, isoDemain);
         await pageGantt.locator('.pastille-poste-nom').first().waitFor({ state: 'visible' });
         const nomsSecteurs = await pageGantt.locator('.pastille-poste-nom').allTextContents();
         expect(nomsSecteurs.join(',')).toContain('Salle');
         expect(nomsSecteurs.join(',')).toContain('Bar');
-        expect(await pageGantt.locator('.btn-gerer-postes').isVisible()).toBe(true);
+        expect(await pageGantt.locator('#vueJour .btn-gerer-postes').isVisible()).toBe(true);
       });
 
       // Retour utilisateur, sept. 2026 : le comportement "tous secteurs
@@ -1529,6 +1561,7 @@ async function main() {
       // suppression de secteur.
       await test('un onglet "Tous" permanent est toujours affiché en premier dans la légende, actif par défaut', async () => {
         await pageGantt.goto(BASE_URL + '/personnel.html');
+        await ouvrirJourParIso(pageGantt, isoDemain);
         await pageGantt.locator('.pastille-poste-nom').first().waitFor({ state: 'visible' });
         const premierePastille = pageGantt.locator('#legendePostes > *').first();
         expect(await premierePastille.locator('.pastille-poste-nom').textContent()).toBe('Tous');
@@ -1537,10 +1570,11 @@ async function main() {
 
       await test('l\'onglet "Tous" n\'apparaît pas dans la liste des secteurs supprimables de la modale "Gérer les postes"', async () => {
         await pageGantt.goto(BASE_URL + '/personnel.html');
-        await pageGantt.locator('.btn-gerer-postes').click();
+        await pageGantt.locator('.btn-gerer-postes').first().click();
         await pageGantt.locator('#listeSecteursPostes .bloc-secteur-postes').first().waitFor({ state: 'visible' });
         const entetes = await pageGantt.locator('#listeSecteursPostes .entete-bloc-secteur strong').allTextContents();
         expect(entetes).not.toContain('Tous');
+        await pageGantt.locator('#btnFermerModalPostes').click();
       });
 
       // Retour utilisateur, sept. 2026 : "Réinitialiser (auto)" et "Gérer
@@ -1551,9 +1585,9 @@ async function main() {
       // collant "Réinitialiser" juste au-dessus du Gantt.
       await test('"Gérer les postes" et "Réinitialiser" ne sont plus isolés sur leur propre ligne pleine largeur', async () => {
         await pageGantt.goto(BASE_URL + '/personnel.html');
-        await pageGantt.locator('#ganttGrille .gantt-nom-cell').first().waitFor({ state: 'visible' });
+        await ouvrirJourParIso(pageGantt, isoDemain);
         const viewport = pageGantt.viewportSize();
-        const boxGererPostes = await pageGantt.locator('.btn-gerer-postes').boundingBox();
+        const boxGererPostes = await pageGantt.locator('#vueJour .btn-gerer-postes').boundingBox();
         const boxReinitialiser = await pageGantt.locator('.btn-reinitialiser').boundingBox();
         expect(boxGererPostes.width < viewport.width * 0.5).toBeTruthy();
         expect(boxReinitialiser.width < viewport.width * 0.5).toBeTruthy();
@@ -1579,6 +1613,7 @@ async function main() {
           },
         });
         await pagePause.goto(BASE_URL + '/personnel.html');
+        await ouvrirJourParIso(pagePause, isoDemain);
         await pagePause.locator('.gantt-bloc-pause').waitFor({ state: 'visible' });
         const zIndexPause = await pagePause.locator('.gantt-bloc-pause').evaluate((el) => getComputedStyle(el).zIndex);
         const zIndexTexte = await pagePause.locator('.gantt-bloc-texte').evaluate((el) => getComputedStyle(el).zIndex);
@@ -1605,7 +1640,7 @@ async function main() {
           },
         });
         await pageFin.goto(BASE_URL + '/personnel.html');
-        await pageFin.locator('#ganttGrille .gantt-nom-cell').first().waitFor({ state: 'visible' });
+        await ouvrirJourParIso(pageFin, isoDemain);
         const detailMarc = await pageFin.locator('.gantt-nom-cell').filter({ hasText: 'Marc' }).locator('.gantt-nom-detail').textContent();
         expect(detailMarc).toContain('jusqu\'au 31/10');
         const detailVincent = await pageFin.locator('.gantt-nom-cell').filter({ hasText: 'Vincent' }).locator('.gantt-nom-detail').textContent();
@@ -1625,6 +1660,45 @@ async function main() {
         await pageModales.selectOption('#modalMembreContrat', 'Fixe');
         expect(await pageModales.locator('#champDateFinMembre').isHidden()).toBe(true);
         await pageModales.close();
+      });
+
+      // --- Vue hebdomadaire (nouvelle vue par défaut) ---------------------
+      await test('la vue hebdomadaire est affichée par défaut, avec un aperçu du planning de chaque employé', async () => {
+        await pageGantt.goto(BASE_URL + '/personnel.html');
+        await pageGantt.locator('.semaine-entete-jour').first().waitFor({ state: 'visible' });
+        expect(await pageGantt.locator('#vueSemaine').isVisible()).toBe(true);
+        expect(await pageGantt.locator('#vueJour').isVisible()).toBe(false);
+        const noms = await pageGantt.locator('.semaine-nom-employe').allTextContents();
+        expect(noms.join(',')).toContain('Vincent');
+        expect(noms.join(',')).toContain('Océane');
+        expect(noms.join(',')).toContain('Mirella');
+      });
+
+      await test('la grille hebdomadaire affiche les horaires du jour en mini-blocs colorés, "Repos" les autres jours', async () => {
+        await pageGantt.goto(BASE_URL + '/personnel.html');
+        await pageGantt.locator('.semaine-bloc-mini').first().waitFor({ state: 'visible' });
+        const horaires = await pageGantt.locator('.semaine-bloc-mini').allTextContents();
+        expect(horaires.join(',')).toContain('11h-15h');
+        expect(horaires.join(',')).toContain('18h-23h');
+        expect(await pageGantt.locator('.semaine-repos-texte').count()).toBeGreaterThan(0);
+      });
+
+      await test('cliquer un jour de la semaine ouvre son planning détaillé, "Semaine" y ramène', async () => {
+        await pageGantt.goto(BASE_URL + '/personnel.html');
+        await ouvrirJourParIso(pageGantt, isoDemain);
+        expect(await pageGantt.locator('#vueJour').isVisible()).toBe(true);
+        expect(await pageGantt.locator('#vueSemaine').isVisible()).toBe(false);
+        await pageGantt.locator('#btnRetourSemaine').click();
+        await pageGantt.locator('#vueSemaine').waitFor({ state: 'visible' });
+        expect(await pageGantt.locator('#vueJour').isVisible()).toBe(false);
+      });
+
+      await test('les statistiques heures semaine / heures mois / météo sont affichées au-dessus de la grille', async () => {
+        await pageGantt.goto(BASE_URL + '/personnel.html');
+        await pageGantt.locator('#statHeuresSemaine').waitFor({ state: 'visible' });
+        expect(await pageGantt.locator('#statHeuresSemaine').textContent()).toContain('h');
+        expect(await pageGantt.locator('#statHeuresMois').textContent()).toContain('h');
+        expect((await pageGantt.locator('#statMeteoJour').textContent()).length > 0).toBe(true);
       });
 
       await pageGantt.close();
@@ -1656,6 +1730,7 @@ async function main() {
         const page = await browser.newPage();
         await stubSupabaseAvecDonnees(page, { commercantId, tables });
         await page.goto(BASE_URL + '/personnel.html');
+        await ouvrirPremierJour(page);
         await page.locator('.gantt-nom').filter({ hasText: 'Sophie' }).click();
         await page.locator('#modalEmploye').waitFor({ state: 'visible' });
         await page.locator('#btnModalEmployeInviter').click();
@@ -1671,6 +1746,7 @@ async function main() {
         const page = await browser.newPage();
         await stubSupabaseAvecDonnees(page, { commercantId, tables });
         await page.goto(BASE_URL + '/personnel.html');
+        await ouvrirPremierJour(page);
         await page.locator('.gantt-nom').filter({ hasText: 'Sophie' }).click();
         await page.locator('#modalEmploye').waitFor({ state: 'visible' });
         await page.locator('#btnModalEmployeInviter').click();
@@ -1723,6 +1799,7 @@ async function main() {
 
       await test('le badge météo du Gantt affiche aussi matin/midi/soir, distincts de la synthèse du jour', async () => {
         await pageGanttMoments.goto(BASE_URL + '/personnel.html');
+        await ouvrirPremierJour(pageGanttMoments);
         await pageGanttMoments.locator('#ganttMeteoMoments').waitFor({ state: 'visible', timeout: 10000 });
         const temperatures = await pageGanttMoments.locator('#ganttMeteoMoments .meteo-moment-temperature').allTextContents();
         expect(temperatures).toHaveLength(3);
