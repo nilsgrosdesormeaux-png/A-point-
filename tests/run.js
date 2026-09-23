@@ -1959,6 +1959,7 @@ async function main() {
                     lte: function () { return chain; },
                     order: function () { return chain; },
                     then: function (cb) { return Promise.resolve({ data: data, error: null }).then(cb); },
+                    update: function () { return { eq: function () { return Promise.resolve({ data: [], error: null }); } }; },
                   };
                   return chain;
                 },
@@ -2035,6 +2036,42 @@ async function main() {
         expect(await page.locator('.bloc-jour-horaire').first().textContent()).toContain('09h00');
         expect(await page.locator('.bloc-jour-poste').first().textContent()).toContain('Salle');
         expect(await page.locator('#zoneRepos').isVisible()).toBe(false);
+        await page.close();
+      });
+
+      await test('la météo du jour affiché est visible quand le commerçant a un code postal renseigné', async () => {
+        const page = await browser.newPage();
+        await stubEspaceEmploye(page, {
+          session: { user: { id: 'u1', user_metadata: { role: 'employe' } } },
+          tables: {
+            personnel: [PERSONNEL_U1],
+            secteurs_personnel: [], postes_personnel: [], creneaux_personnel: [],
+            parametres_commercant: [{ commercant_id: 'c1', code_postal: '49100', ville: 'Angers', latitude: null, longitude: null }],
+          },
+        });
+        await page.route('https://geo.api.gouv.fr/**', (route) => {
+          route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ nom: 'Angers', centre: { type: 'Point', coordinates: [-0.5629, 47.4819] }, code: '49007' }]) });
+        });
+        await page.route('https://api.open-meteo.com/**', (route) => {
+          const dates = [];
+          for (let i = 0; i < 10; i++) { const d = new Date(); d.setDate(d.getDate() + i); dates.push(d.toISOString().slice(0, 10)); }
+          route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ daily: { time: dates, precipitation_sum: dates.map(() => 0), temperature_2m_max: dates.map(() => 18), weathercode: dates.map(() => 1) } }) });
+        });
+        await page.goto(BASE_URL + '/espace-employe.html');
+        await page.locator('#badgeMeteoJour').waitFor({ state: 'visible' });
+        expect(await page.locator('#badgeMeteoJour').textContent()).toContain('18°C');
+        await page.close();
+      });
+
+      await test('sans code postal renseigné, aucune météo affichée (pas d\'erreur)', async () => {
+        const page = await browser.newPage();
+        await stubEspaceEmploye(page, {
+          session: { user: { id: 'u1', user_metadata: { role: 'employe' } } },
+          tables: { personnel: [PERSONNEL_U1], secteurs_personnel: [], postes_personnel: [], creneaux_personnel: [], parametres_commercant: [] },
+        });
+        await page.goto(BASE_URL + '/espace-employe.html');
+        await page.locator('#zoneContenu').waitFor({ state: 'visible' });
+        expect(await page.locator('#badgeMeteoJour').isVisible()).toBe(false);
         await page.close();
       });
 

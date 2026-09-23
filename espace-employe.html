@@ -23,22 +23,46 @@
     }
     .sous-titre { text-align: center; margin-bottom: 18px; font-size: 13px; }
 
+    /* Carte unique regroupant navigation, date, météo et emploi du temps :
+       un seul bloc visuel cohérent plutôt que des éléments flottants sur
+       le fond de page (retour utilisateur : la page manquait d'esthétique
+       et de hiérarchie visuelle). */
+    .carte-jour {
+      background: var(--surface);
+      border: 1px solid var(--bordure);
+      border-radius: var(--rayon-lg);
+      box-shadow: var(--ombre);
+      padding: 18px 16px 6px;
+    }
+
     .entete-jour {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 12px;
+      gap: 14px;
       margin-bottom: 4px;
     }
     .date-complete {
       text-align: center;
       font-size: 12px;
       color: var(--texte-tres-attenue);
-      margin: 0 0 14px;
+      margin: 0 0 8px;
+    }
+    .badge-meteo-jour {
+      display: block;
+      text-align: center;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--texte);
+      background: var(--accent-clair);
+      border-radius: 999px;
+      padding: 5px 13px;
+      margin: 0 auto 14px;
+      width: fit-content;
     }
     .bouton-nav-jour {
-      width: 32px;
-      height: 32px;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
       border: 1px solid var(--bordure);
       background: var(--surface);
@@ -46,25 +70,31 @@
       font-size: 14px;
       cursor: pointer;
       flex-shrink: 0;
+      box-shadow: 0 1px 2px rgba(33, 29, 23, 0.06);
+      transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
     }
-    .bouton-nav-jour:hover { background: var(--accent-clair); }
+    .bouton-nav-jour:hover { background: var(--accent-clair); border-color: var(--texte-tres-attenue); }
+    .bouton-nav-jour:active { transform: scale(0.93); }
     .libelle-jour {
       font-family: var(--police-titre);
-      font-size: 16px;
+      font-size: 16.5px;
       font-weight: 600;
+      letter-spacing: -0.01em;
       text-align: center;
       min-width: 140px;
     }
 
     /* Jour de repos : une ligne discrète, jamais un grand bloc vide. */
-    .zone-repos { padding: 18px; text-align: center; }
+    .zone-repos { padding: 16px 0 22px; text-align: center; }
     .jour-repos-texte { margin: 0; color: var(--texte-tres-attenue); font-size: 14px; font-style: italic; }
 
     /* Jour travaillé : timeline verticale façon agenda, un bloc coloré
        positionné et dimensionné selon l'horaire réel du créneau — reprend
        le principe du Gantt du planning patron (positionnement par heure
-       décimale), transposé à la verticale pour un seul employé. */
-    .zone-timeline { padding: 10px 10px 10px 0; overflow: hidden; }
+       décimale), transposé à la verticale pour un seul employé. Compactée
+       (retour utilisateur : trop grande, ne tenait pas à l'écran) : heures
+       resserrées pour voir la quasi-totalité de la journée sans défiler. */
+    .zone-timeline { padding: 6px 6px 16px 0; overflow: hidden; }
     .grille-jour { position: relative; }
 
     .ligne-heure {
@@ -75,9 +105,9 @@
     .ligne-heure:first-child { border-top: none; }
     .ligne-heure-libelle {
       position: absolute;
-      top: -7px;
-      left: 6px;
-      font-size: 10px;
+      top: -6px;
+      left: 4px;
+      font-size: 9px;
       font-weight: 600;
       color: var(--texte-tres-attenue);
       background: var(--surface);
@@ -86,18 +116,18 @@
 
     .bloc-jour {
       position: absolute;
-      left: 46px;
-      right: 6px;
+      left: 38px;
+      right: 4px;
       border-radius: 7px;
       color: #fff;
       border: 1px solid rgba(0,0,0,0.12);
       overflow: hidden;
       cursor: default;
     }
-    .bloc-jour-corps { position: relative; z-index: 1; padding: 5px 8px; }
-    .bloc-jour-horaire { display: block; font-weight: 700; font-size: 12px; line-height: 1.25; }
-    .bloc-jour-poste { display: block; font-size: 11px; opacity: 0.92; margin-top: 1px; line-height: 1.2; }
-    .bloc-jour-pause-texte { display: block; font-size: 10px; opacity: 0.85; margin-top: 1px; font-style: italic; line-height: 1.2; }
+    .bloc-jour-corps { position: relative; z-index: 1; padding: 4px 7px; }
+    .bloc-jour-horaire { display: block; font-weight: 700; font-size: 11.5px; line-height: 1.2; }
+    .bloc-jour-poste { display: block; font-size: 10.5px; opacity: 0.92; margin-top: 1px; line-height: 1.15; }
+    .bloc-jour-pause-texte { display: block; font-size: 9.5px; opacity: 0.85; margin-top: 1px; font-style: italic; line-height: 1.15; }
 
     .bloc-jour-pause {
       position: absolute;
@@ -118,15 +148,49 @@
     .bouton-deconnexion {
       display: block;
       width: 100%;
-      margin-top: 24px;
+      margin-top: 20px;
+      background: transparent;
+      color: var(--texte-tres-attenue);
+      border: none;
+      box-shadow: none;
+      font-weight: 600;
+      font-size: 13px;
+      padding: 6px;
     }
+    .bouton-deconnexion:hover { background: transparent; color: var(--texte); }
 
     .boutons-actions-employe {
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      margin-top: 18px;
+      gap: 10px;
+      margin-top: 22px;
     }
+
+    /* Bouton PDF : action la plus utile de la page (garder son planning sur
+       soi), mise en avant visuellement — rempli, plus haut, avec ombre —
+       plutôt qu'un simple lien secondaire parmi d'autres. */
+    .bouton-pdf-principal {
+      margin-top: 0;
+      width: 100%;
+      padding: 16px 18px;
+      font-family: var(--police);
+      font-size: 14.5px;
+      font-weight: 700;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      cursor: pointer;
+      box-shadow: var(--ombre);
+      transition: background-color 0.15s ease, transform 0.1s ease;
+    }
+    .bouton-pdf-principal:hover { background: var(--accent-fonce); }
+    .bouton-pdf-principal:active { transform: scale(0.98); }
+
     .bouton-pill-secondaire {
       margin-top: 0;
       width: 100%;
@@ -143,8 +207,10 @@
       justify-content: center;
       gap: 8px;
       cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
     }
     .bouton-pill-secondaire:hover { background: var(--accent-clair); }
+    .bouton-pill-secondaire:active { transform: scale(0.98); }
 
     /* Export PDF : une vue imprimable de la semaine (7 jours d'un coup),
        masquée à l'écran et révélée uniquement par window.print(). Distincte
@@ -181,23 +247,26 @@
     <p class="sous-titre texte-aide" id="sousTitre">Vérification de la connexion...</p>
 
     <div id="zoneContenu" style="display:none;">
-      <div class="entete-jour">
-        <button id="btnJourPrec" class="bouton-nav-jour" aria-label="Jour précédent">←</button>
-        <div class="libelle-jour" id="libelleJour">Aujourd'hui</div>
-        <button id="btnJourSuiv" class="bouton-nav-jour" aria-label="Jour suivant">→</button>
-      </div>
-      <p class="date-complete" id="dateComplete"></p>
+      <div class="carte-jour">
+        <div class="entete-jour">
+          <button id="btnJourPrec" class="bouton-nav-jour" aria-label="Jour précédent">←</button>
+          <div class="libelle-jour" id="libelleJour">Aujourd'hui</div>
+          <button id="btnJourSuiv" class="bouton-nav-jour" aria-label="Jour suivant">→</button>
+        </div>
+        <p class="date-complete" id="dateComplete"></p>
+        <p class="badge-meteo-jour" id="badgeMeteoJour" style="display:none;"></p>
 
-      <div id="zoneRepos" class="carte-claire zone-repos" style="display:none;">
-        <p class="jour-repos-texte">Repos</p>
-      </div>
+        <div id="zoneRepos" class="zone-repos" style="display:none;">
+          <p class="jour-repos-texte">Repos</p>
+        </div>
 
-      <div id="zoneTimeline" class="carte-claire zone-timeline" style="display:none;">
-        <div class="grille-jour" id="grilleJour"></div>
+        <div id="zoneTimeline" class="zone-timeline" style="display:none;">
+          <div class="grille-jour" id="grilleJour"></div>
+        </div>
       </div>
 
       <div class="boutons-actions-employe">
-        <button id="btnTelechargerPdf" type="button" class="bouton-pill-secondaire">📥 Télécharger le planning (PDF)</button>
+        <button id="btnTelechargerPdf" type="button" class="bouton-pdf-principal">📥 Télécharger le planning (PDF)</button>
         <button id="btnSyncCalendrier" type="button" class="bouton-pill-secondaire">📅 Synchroniser avec mon calendrier</button>
       </div>
 
@@ -236,11 +305,23 @@
       var SECTEURS_PAR_ID = {};
       var POSTES_PAR_ID = {};
       var decalageJour = 0;
-      var PX_PAR_HEURE = 42;
-      var HAUTEUR_MIN_BLOC = 40;
+      var PX_PAR_HEURE = 34;
+      var HAUTEUR_MIN_BLOC = 34;
+      var meteoParIso = {};
 
       function dateDuJour(decalage) {
         return MP.ajouterJours(new Date(), decalage);
+      }
+
+      // Météo prévue du jour affiché (même principe que le planning patron :
+      // géocodage une fois via le code postal du commerçant, prévision
+      // Open-Meteo). Prévisionnelle uniquement (10 jours), comme ailleurs
+      // dans l'app : pas de valeur pour un jour passé.
+      function meteoDuJour(decalage) {
+        var iso = MP.versISO(dateDuJour(decalage));
+        var meteo = meteoParIso[iso];
+        if (!meteo) return null;
+        return meteo.icone + ' ' + meteo.libelle + (meteo.temperature !== null ? ', ' + meteo.temperature + '°C' : '');
       }
 
       function libelleJourAffiche(decalage) {
@@ -271,6 +352,15 @@
         var iso = MP.versISO(jour);
         libelleJourEl.textContent = libelleJourAffiche(decalageJour);
         dateCompleteEl.textContent = MP.formatDateLongue(jour);
+
+        var badgeMeteoEl = document.getElementById('badgeMeteoJour');
+        var texteMeteo = meteoDuJour(decalageJour);
+        if (texteMeteo) {
+          badgeMeteoEl.textContent = texteMeteo;
+          badgeMeteoEl.style.display = 'inline-block';
+        } else {
+          badgeMeteoEl.style.display = 'none';
+        }
 
         sbClient.from('creneaux_personnel').select('*')
           .eq('personnel_id', moiPersonnel.id)
@@ -486,11 +576,23 @@
 
           Promise.all([
             sbClient.from('secteurs_personnel').select('*').eq('commercant_id', moiPersonnel.commercant_id).order('ordre', { ascending: true }),
-            sbClient.from('postes_personnel').select('*').eq('commercant_id', moiPersonnel.commercant_id).order('ordre', { ascending: true })
+            sbClient.from('postes_personnel').select('*').eq('commercant_id', moiPersonnel.commercant_id).order('ordre', { ascending: true }),
+            sbClient.from('parametres_commercant').select('*').eq('commercant_id', moiPersonnel.commercant_id)
           ]).then(function (resultats) {
             (resultats[0].data || []).forEach(function (s) { SECTEURS_PAR_ID[s.id] = s; });
             (resultats[1].data || []).forEach(function (p) { POSTES_PAR_ID[p.secteur_id + '|' + p.id] = p; });
-            rendreJour();
+            var parametres = (resultats[2].data && resultats[2].data[0]) || null;
+
+            var chaineMeteo = Promise.resolve();
+            if (parametres && parametres.code_postal) {
+              chaineMeteo = MP.obtenirCoordonnees(sbClient, parametres, moiPersonnel.commercant_id).then(function (coords) {
+                if (!coords) return;
+                return MP.recupererMeteoPrevue(coords.latitude, coords.longitude).then(function (meteo) {
+                  meteoParIso = meteo || {};
+                });
+              }).catch(function () { /* météo indisponible : le planning reste utilisable sans */ });
+            }
+            chaineMeteo.then(function () { rendreJour(); });
           });
         });
       });
