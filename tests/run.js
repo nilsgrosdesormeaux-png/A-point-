@@ -2075,6 +2075,36 @@ async function main() {
         await page.close();
       });
 
+      await test('le nom du restaurant du commerçant est affiché dans le sous-titre', async () => {
+        const page = await browser.newPage();
+        await stubEspaceEmploye(page, {
+          session: { user: { id: 'u1', user_metadata: { role: 'employe' } } },
+          tables: {
+            personnel: [PERSONNEL_U1],
+            secteurs_personnel: [], postes_personnel: [], creneaux_personnel: [],
+            parametres_commercant: [{ commercant_id: 'c1', nom_restaurant: 'Boulangerie Martin' }],
+          },
+        });
+        await page.goto(BASE_URL + '/espace-employe.html');
+        await page.locator('#zoneContenu').waitFor({ state: 'visible' });
+        await page.waitForFunction(() => document.getElementById('sousTitre').textContent.includes('Boulangerie Martin'));
+        expect(await page.locator('#sousTitre').textContent()).toContain('Boulangerie Martin');
+        await page.close();
+      });
+
+      await test('sans nom de restaurant renseigné, le sous-titre générique reste affiché', async () => {
+        const page = await browser.newPage();
+        await stubEspaceEmploye(page, {
+          session: { user: { id: 'u1', user_metadata: { role: 'employe' } } },
+          tables: { personnel: [PERSONNEL_U1], secteurs_personnel: [], postes_personnel: [], creneaux_personnel: [], parametres_commercant: [] },
+        });
+        await page.goto(BASE_URL + '/espace-employe.html');
+        await page.locator('#zoneContenu').waitFor({ state: 'visible' });
+        await page.waitForTimeout(200);
+        expect(await page.locator('#sousTitre').textContent()).toContain('Voici ton planning');
+        await page.close();
+      });
+
       await test('la navigation vers le jour suivant change le libellé affiché', async () => {
         const page = await browser.newPage();
         await stubEspaceEmploye(page, {

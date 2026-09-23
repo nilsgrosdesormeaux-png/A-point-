@@ -633,6 +633,7 @@
             (resultats[0].data || []).forEach(function (s) { SECTEURS_PAR_ID[s.id] = s; });
             (resultats[1].data || []).forEach(function (p) { POSTES_PAR_ID[p.secteur_id + '|' + p.id] = p; });
             var parametres = (resultats[2].data && resultats[2].data[0]) || null;
+            sousTitreEl.textContent = (parametres && parametres.nom_restaurant) ? 'Ton planning chez ' + parametres.nom_restaurant + '.' : 'Voici ton planning.';
 
             var chaineMeteo = Promise.resolve();
             if (parametres && parametres.code_postal) {
