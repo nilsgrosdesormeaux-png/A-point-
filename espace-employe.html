@@ -15,14 +15,14 @@
     h1#titre { text-align: center; font-size: 20px; margin-bottom: 2px; }
     .sous-titre { text-align: center; margin-bottom: 18px; font-size: 13px; }
 
-    .entete-semaine {
+    .entete-jour {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 14px;
       margin-bottom: 14px;
     }
-    .bouton-nav-semaine {
+    .bouton-nav-jour {
       width: 32px;
       height: 32px;
       border-radius: 50%;
@@ -33,66 +33,73 @@
       cursor: pointer;
       flex-shrink: 0;
     }
-    .bouton-nav-semaine:hover { background: var(--accent-clair); }
-    .libelle-semaine {
+    .bouton-nav-jour:hover { background: var(--accent-clair); }
+    .libelle-jour {
       font-family: var(--police-titre);
-      font-size: 15px;
+      font-size: 16px;
       font-weight: 600;
       text-align: center;
-      min-width: 130px;
+      min-width: 140px;
     }
 
-    /* Un seul conteneur pour toute la semaine : chaque jour est une ligne
-       fine séparée par un filet, pas une carte pleine grandeur — un jour de
-       repos ne doit occuper qu'une ligne discrète, jamais un bloc vide. */
-    .carte-semaine-employe { padding: 4px 6px; }
+    /* Jour de repos : une ligne discrète, jamais un grand bloc vide. */
+    .zone-repos { padding: 18px; text-align: center; }
+    .jour-repos-texte { margin: 0; color: var(--texte-tres-attenue); font-size: 14px; font-style: italic; }
 
-    .ligne-jour {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 8px;
-      border-bottom: 1px solid var(--bordure);
+    /* Jour travaillé : timeline verticale façon agenda, un bloc coloré
+       positionné et dimensionné selon l'horaire réel du créneau — reprend
+       le principe du Gantt du planning patron (positionnement par heure
+       décimale), transposé à la verticale pour un seul employé. */
+    .zone-timeline { padding: 10px 10px 10px 0; overflow: hidden; }
+    .grille-jour { position: relative; }
+
+    .ligne-heure {
+      position: relative;
+      border-top: 1px solid var(--bordure);
+      box-sizing: border-box;
     }
-    .ligne-jour:last-child { border-bottom: none; }
-    .ligne-jour--aujourdhui { background: var(--accent-clair); border-radius: 10px; }
-
-    .ligne-jour-date {
-      width: 48px;
-      flex-shrink: 0;
+    .ligne-heure:first-child { border-top: none; }
+    .ligne-heure-libelle {
+      position: absolute;
+      top: -8px;
+      left: 8px;
       font-size: 11px;
       font-weight: 600;
-      color: var(--texte-attenue);
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      line-height: 1.35;
-    }
-    .ligne-jour-date strong {
-      display: block;
-      font-size: 15px;
-      color: var(--texte);
-      font-weight: 700;
-      text-transform: none;
-    }
-    .ligne-jour--repos .ligne-jour-date { opacity: 0.55; }
-
-    .ligne-jour-repos-texte {
       color: var(--texte-tres-attenue);
-      font-size: 12px;
-      font-style: italic;
+      background: var(--surface);
+      padding: 0 4px;
     }
 
-    .ligne-jour-creneaux { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-    .ligne-jour-creneau {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      font-size: 13px;
-      flex-wrap: wrap;
+    .bloc-jour {
+      position: absolute;
+      left: 58px;
+      right: 8px;
+      border-radius: 8px;
+      color: #fff;
+      border: 1px solid rgba(0,0,0,0.12);
+      overflow: hidden;
+      cursor: default;
     }
-    .ligne-jour-creneau .pastille-couleur-inline { width: 10px; height: 10px; }
-    .ligne-jour-horaire { font-weight: 700; color: var(--texte); }
-    .ligne-jour-poste { color: var(--texte-attenue); font-size: 12px; }
+    .bloc-jour-corps { position: relative; z-index: 1; padding: 6px 10px; }
+    .bloc-jour-horaire { display: block; font-weight: 700; font-size: 13px; }
+    .bloc-jour-poste { display: block; font-size: 12px; opacity: 0.92; margin-top: 1px; }
+    .bloc-jour-pause-texte { display: block; font-size: 11px; opacity: 0.85; margin-top: 2px; font-style: italic; }
+
+    .bloc-jour-pause {
+      position: absolute;
+      left: 0;
+      right: 0;
+      z-index: 0;
+      opacity: 0.5;
+      background: repeating-linear-gradient(
+        135deg,
+        var(--surface),
+        var(--surface) 4px,
+        var(--bordure) 4px,
+        var(--bordure) 8px
+      );
+      pointer-events: none;
+    }
 
     .bouton-deconnexion {
       display: block;
@@ -114,13 +121,19 @@
     <p class="sous-titre texte-aide" id="sousTitre">Vérification de la connexion...</p>
 
     <div id="zoneContenu" style="display:none;">
-      <div class="entete-semaine">
-        <button id="btnSemainePrec" class="bouton-nav-semaine" aria-label="Semaine précédente">←</button>
-        <div class="libelle-semaine" id="libelleSemaine">Cette semaine</div>
-        <button id="btnSemaineSuiv" class="bouton-nav-semaine" aria-label="Semaine suivante">→</button>
+      <div class="entete-jour">
+        <button id="btnJourPrec" class="bouton-nav-jour" aria-label="Jour précédent">←</button>
+        <div class="libelle-jour" id="libelleJour">Aujourd'hui</div>
+        <button id="btnJourSuiv" class="bouton-nav-jour" aria-label="Jour suivant">→</button>
       </div>
 
-      <div class="carte-claire carte-semaine-employe" id="listeJours"></div>
+      <div id="zoneRepos" class="carte-claire zone-repos" style="display:none;">
+        <p class="jour-repos-texte">Repos</p>
+      </div>
+
+      <div id="zoneTimeline" class="carte-claire zone-timeline" style="display:none;">
+        <div class="grille-jour" id="grilleJour"></div>
+      </div>
 
       <button id="btnDeconnexion" class="bouton-deconnexion">Se déconnecter</button>
     </div>
@@ -142,127 +155,155 @@
       var sousTitreEl = document.getElementById('sousTitre');
       var zoneContenuEl = document.getElementById('zoneContenu');
       var zoneNonAutoriseEl = document.getElementById('zoneNonAutorise');
-      var libelleSemaineEl = document.getElementById('libelleSemaine');
-      var listeJoursEl = document.getElementById('listeJours');
-      var btnSemainePrec = document.getElementById('btnSemainePrec');
-      var btnSemaineSuiv = document.getElementById('btnSemaineSuiv');
+      var libelleJourEl = document.getElementById('libelleJour');
+      var zoneReposEl = document.getElementById('zoneRepos');
+      var zoneTimelineEl = document.getElementById('zoneTimeline');
+      var grilleJourEl = document.getElementById('grilleJour');
+      var btnJourPrec = document.getElementById('btnJourPrec');
+      var btnJourSuiv = document.getElementById('btnJourSuiv');
 
       var moiPersonnel = null;
       var SECTEURS_PAR_ID = {};
       var POSTES_PAR_ID = {};
-      var decalageSemaine = 0;
+      var decalageJour = 0;
+      var PX_PAR_HEURE = 64;
 
-      // Lundi de la semaine contenant "date" (dimanche = fin de semaine,
-      // jamais début, cohérent avec l'usage français).
-      function lundiDeLaSemaine(date) {
-        var d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-        var jour = d.getDay();
-        var diff = (jour === 0 ? -6 : 1) - jour;
-        d.setDate(d.getDate() + diff);
-        return d;
+      function dateDuJour(decalage) {
+        return MP.ajouterJours(new Date(), decalage);
       }
 
-      function joursDeLaSemaineAffichee() {
-        var lundi = MP.ajouterJours(lundiDeLaSemaine(new Date()), decalageSemaine * 7);
-        var jours = [];
-        for (var i = 0; i < 7; i++) jours.push(MP.ajouterJours(lundi, i));
-        return jours;
+      function libelleJourAffiche(decalage) {
+        if (decalage === 0) return "Aujourd'hui";
+        if (decalage === 1) return 'Demain';
+        if (decalage === -1) return 'Hier';
+        var d = dateDuJour(decalage);
+        return MP.capitaliser(MP.nomsJoursCourts[d.getDay()]) + ' ' + d.getDate() + ' ' + MP.nomsMoisCourts[d.getMonth()];
       }
 
-      function libelleSemaineAffiche(jours) {
-        if (decalageSemaine === 0) return 'Cette semaine';
-        if (decalageSemaine === 1) return 'Semaine prochaine';
-        if (decalageSemaine === -1) return 'Semaine dernière';
-        var premier = jours[0], dernier = jours[6];
-        return 'Du ' + premier.getDate() + ' au ' + dernier.getDate() + ' ' + MP.nomsMoisCourts[dernier.getMonth()];
+      // Même logique que le décalage décimal du planning patron : une
+      // heure de fin inférieure ou égale à l'heure de début signifie que le
+      // créneau traverse minuit (ex. 19h - 02h ⇒ fin = 26).
+      function heureVersDecimale(heureStr) {
+        var p = (heureStr || '').toString().split(':');
+        return parseInt(p[0], 10) + (parseInt(p[1], 10) || 0) / 60;
       }
 
-      // "09:00:00" (format SQL) -> "09h00".
-      function formatHeureSQL(h) {
-        if (!h) return '';
-        var parts = h.split(':');
-        return parts[0] + 'h' + parts[1];
+      // Heure entière décimale -> "06h00" (gère aussi les heures > 24 pour
+      // un créneau qui traverse minuit).
+      function formatHeureEntiere(h) {
+        var reel = ((h % 24) + 24) % 24;
+        return (reel < 10 ? '0' : '') + reel + 'h00';
       }
 
-      function rendreSemaine() {
-        var jours = joursDeLaSemaineAffichee();
-        libelleSemaineEl.textContent = libelleSemaineAffiche(jours);
-        var premierIso = MP.versISO(jours[0]);
-        var dernierIso = MP.versISO(jours[6]);
-        var aujourdhuiIso = MP.versISO(new Date());
+      function rendreJour() {
+        var jour = dateDuJour(decalageJour);
+        var iso = MP.versISO(jour);
+        libelleJourEl.textContent = libelleJourAffiche(decalageJour);
 
         sbClient.from('creneaux_personnel').select('*')
           .eq('personnel_id', moiPersonnel.id)
-          .gte('date_creneau', premierIso)
-          .lte('date_creneau', dernierIso)
+          .eq('date_creneau', iso)
           .then(function (resultCreneaux) {
-            var parJour = {};
-            (resultCreneaux.data || []).forEach(function (c) {
-              if (!parJour[c.date_creneau]) parJour[c.date_creneau] = [];
-              parJour[c.date_creneau].push(c);
-            });
+            var creneaux = (resultCreneaux.data || []).map(function (c) {
+              var debut = heureVersDecimale(c.heure_debut);
+              var fin = heureVersDecimale(c.heure_fin);
+              if (fin <= debut) fin += 24;
+              var travail = { debut: debut, fin: fin, secteurId: c.secteur_id, posteId: c.poste_id };
+              if (c.pause_debut != null && c.pause_fin != null) {
+                travail.pauseDebut = heureVersDecimale(c.pause_debut);
+                travail.pauseFin = heureVersDecimale(c.pause_fin);
+                if (travail.pauseFin <= travail.pauseDebut) { travail.pauseDebut += 24; travail.pauseFin += 24; }
+              }
+              return travail;
+            }).sort(function (a, b) { return a.debut - b.debut; });
 
-            listeJoursEl.innerHTML = '';
-            jours.forEach(function (jour) {
-              var iso = MP.versISO(jour);
-              var creneauxJour = (parJour[iso] || []).slice().sort(function (a, b) {
-                return a.heure_debut < b.heure_debut ? -1 : (a.heure_debut > b.heure_debut ? 1 : 0);
-              });
+            if (creneaux.length === 0) {
+              zoneReposEl.style.display = 'block';
+              zoneTimelineEl.style.display = 'none';
+              return;
+            }
 
-              var ligne = document.createElement('div');
-              ligne.className = 'ligne-jour' + (creneauxJour.length === 0 ? ' ligne-jour--repos' : ' ligne-jour--travail') + (iso === aujourdhuiIso ? ' ligne-jour--aujourdhui' : '');
+            zoneReposEl.style.display = 'none';
+            zoneTimelineEl.style.display = 'block';
 
-              var dateEl = document.createElement('div');
-              dateEl.className = 'ligne-jour-date';
-              dateEl.innerHTML = MP.capitaliser(MP.nomsJoursCourts[jour.getDay()]) + '<strong>' + jour.getDate() + '</strong>';
-              ligne.appendChild(dateEl);
+            // Cadre l'axe des heures sur les créneaux du jour (± 1h de
+            // marge), plutôt qu'un axe fixe sur 24h : un employé qui
+            // travaille 4h n'a pas besoin de faire défiler une journée
+            // entière vide.
+            var debutMin = Math.min.apply(null, creneaux.map(function (c) { return c.debut; }));
+            var finMax = Math.max.apply(null, creneaux.map(function (c) { return c.fin; }));
+            var axeDebut = Math.max(0, Math.floor(debutMin) - 1);
+            var axeFin = Math.ceil(finMax) + 1;
 
-              if (creneauxJour.length === 0) {
-                var repos = document.createElement('span');
-                repos.className = 'ligne-jour-repos-texte';
-                repos.textContent = 'Repos';
-                ligne.appendChild(repos);
-              } else {
-                var zoneCreneaux = document.createElement('div');
-                zoneCreneaux.className = 'ligne-jour-creneaux';
+            grilleJourEl.innerHTML = '';
+            grilleJourEl.style.height = ((axeFin - axeDebut) * PX_PAR_HEURE) + 'px';
 
-                creneauxJour.forEach(function (c) {
-                  var secteur = SECTEURS_PAR_ID[c.secteur_id];
-                  var poste = POSTES_PAR_ID[c.secteur_id + '|' + c.poste_id];
+            for (var h = axeDebut; h < axeFin; h++) {
+              var ligneHeure = document.createElement('div');
+              ligneHeure.className = 'ligne-heure';
+              ligneHeure.style.height = PX_PAR_HEURE + 'px';
+              var libelleHeure = document.createElement('span');
+              libelleHeure.className = 'ligne-heure-libelle';
+              libelleHeure.textContent = formatHeureEntiere(h);
+              ligneHeure.appendChild(libelleHeure);
+              grilleJourEl.appendChild(ligneHeure);
+            }
 
-                  var creneauEl = document.createElement('div');
-                  creneauEl.className = 'ligne-jour-creneau';
+            creneaux.forEach(function (c) {
+              var secteur = SECTEURS_PAR_ID[c.secteurId];
+              var poste = POSTES_PAR_ID[c.secteurId + '|' + c.posteId];
 
-                  var pastille = document.createElement('span');
-                  pastille.className = 'pastille-couleur-inline';
-                  pastille.style.background = secteur ? secteur.couleur : '#8a7cc7';
-                  creneauEl.appendChild(pastille);
+              var bloc = document.createElement('div');
+              bloc.className = 'bloc-jour';
+              bloc.style.top = ((c.debut - axeDebut) * PX_PAR_HEURE) + 'px';
+              bloc.style.height = ((c.fin - c.debut) * PX_PAR_HEURE) + 'px';
+              bloc.style.background = secteur ? secteur.couleur : '#8a7cc7';
 
-                  var horaire = document.createElement('span');
-                  horaire.className = 'ligne-jour-horaire';
-                  var texteHoraire = formatHeureSQL(c.heure_debut) + ' – ' + formatHeureSQL(c.heure_fin);
-                  if (c.pause_debut && c.pause_fin) {
-                    texteHoraire += ' (pause ' + formatHeureSQL(c.pause_debut) + '-' + formatHeureSQL(c.pause_fin) + ')';
-                  }
-                  horaire.textContent = texteHoraire;
-                  creneauEl.appendChild(horaire);
-
-                  var libellePoste = document.createElement('span');
-                  libellePoste.className = 'ligne-jour-poste';
-                  var texte = secteur ? secteur.nom : '';
-                  if (poste && poste.nom && poste.nom !== 'Générique') texte += ' · ' + poste.nom;
-                  libellePoste.textContent = texte;
-                  creneauEl.appendChild(libellePoste);
-
-                  zoneCreneaux.appendChild(creneauEl);
-                });
-
-                ligne.appendChild(zoneCreneaux);
+              if (c.pauseDebut != null) {
+                var pause = document.createElement('div');
+                pause.className = 'bloc-jour-pause';
+                pause.style.top = ((c.pauseDebut - c.debut) * PX_PAR_HEURE) + 'px';
+                pause.style.height = ((c.pauseFin - c.pauseDebut) * PX_PAR_HEURE) + 'px';
+                bloc.appendChild(pause);
               }
 
-              listeJoursEl.appendChild(ligne);
+              var corps = document.createElement('div');
+              corps.className = 'bloc-jour-corps';
+
+              var horaire = document.createElement('span');
+              horaire.className = 'bloc-jour-horaire';
+              horaire.textContent = formatHeureDecimale(c.debut) + ' – ' + formatHeureDecimale(c.fin);
+              corps.appendChild(horaire);
+
+              var libellePoste = document.createElement('span');
+              libellePoste.className = 'bloc-jour-poste';
+              var texte = secteur ? secteur.nom : '';
+              if (poste && poste.nom && poste.nom !== 'Générique') texte += ' · ' + poste.nom;
+              libellePoste.textContent = texte;
+              corps.appendChild(libellePoste);
+
+              if (c.pauseDebut != null) {
+                var pauseTexte = document.createElement('span');
+                pauseTexte.className = 'bloc-jour-pause-texte';
+                pauseTexte.textContent = 'Pause ' + formatHeureDecimale(c.pauseDebut) + '–' + formatHeureDecimale(c.pauseFin);
+                corps.appendChild(pauseTexte);
+              }
+
+              bloc.appendChild(corps);
+              grilleJourEl.appendChild(bloc);
             });
           });
+      }
+
+      // Heure décimale (ex. 17.5) -> "17h30", pour l'affichage à l'intérieur
+      // d'un bloc (converti depuis la valeur décimale, pas directement
+      // depuis la chaîne SQL, car un créneau traversant minuit dépasse 24).
+      function formatHeureDecimale(h) {
+        var reel = ((h % 24) + 24) % 24;
+        var heureEntiere = Math.floor(reel);
+        var minutes = Math.round((reel - heureEntiere) * 60);
+        if (minutes === 60) { heureEntiere = (heureEntiere + 1) % 24; minutes = 0; }
+        return (heureEntiere < 10 ? '0' : '') + heureEntiere + 'h' + ('0' + minutes).slice(-2);
       }
 
       sbClient.auth.getSession().then(function (result) {
@@ -286,7 +327,7 @@
           }
 
           titreEl.textContent = 'Bonjour ' + MP.formatNomAffichage(moiPersonnel.nom) + ' !';
-          sousTitreEl.textContent = 'Voici ton planning de la semaine.';
+          sousTitreEl.textContent = 'Voici ton planning.';
           zoneContenuEl.style.display = 'block';
 
           Promise.all([
@@ -295,13 +336,13 @@
           ]).then(function (resultats) {
             (resultats[0].data || []).forEach(function (s) { SECTEURS_PAR_ID[s.id] = s; });
             (resultats[1].data || []).forEach(function (p) { POSTES_PAR_ID[p.secteur_id + '|' + p.id] = p; });
-            rendreSemaine();
+            rendreJour();
           });
         });
       });
 
-      btnSemainePrec.addEventListener('click', function () { decalageSemaine--; rendreSemaine(); });
-      btnSemaineSuiv.addEventListener('click', function () { decalageSemaine++; rendreSemaine(); });
+      btnJourPrec.addEventListener('click', function () { decalageJour--; rendreJour(); });
+      btnJourSuiv.addEventListener('click', function () { decalageJour++; rendreJour(); });
 
       document.getElementById('btnDeconnexion').addEventListener('click', function () {
         sbClient.auth.signOut().then(function () {

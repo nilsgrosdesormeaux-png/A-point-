@@ -2000,7 +2000,20 @@ async function main() {
         await page.close();
       });
 
-      await test('un jour sans créneau affiche Repos, un jour avec créneau affiche l\'horaire et le secteur', async () => {
+      await test('un jour sans créneau affiche Repos, jamais un bloc horaire', async () => {
+        const page = await browser.newPage();
+        await stubEspaceEmploye(page, {
+          session: { user: { id: 'u1', user_metadata: { role: 'employe' } } },
+          tables: { personnel: [PERSONNEL_U1], secteurs_personnel: [], postes_personnel: [], creneaux_personnel: [] },
+        });
+        await page.goto(BASE_URL + '/espace-employe.html');
+        await page.locator('#zoneRepos').waitFor({ state: 'visible' });
+        expect(await page.locator('.jour-repos-texte').textContent()).toContain('Repos');
+        expect(await page.locator('#zoneTimeline').isVisible()).toBe(false);
+        await page.close();
+      });
+
+      await test('un jour avec créneau affiche un bloc horaire positionné avec le secteur', async () => {
         const page = await browser.newPage();
         const iso = (() => {
           const d = new Date();
@@ -2018,13 +2031,14 @@ async function main() {
           },
         });
         await page.goto(BASE_URL + '/espace-employe.html');
-        await page.locator('.ligne-jour-horaire').first().waitFor({ state: 'visible' });
-        expect(await page.locator('.ligne-jour-horaire').first().textContent()).toContain('09h00');
-        expect(await page.locator('.ligne-jour-repos-texte').count()).toBe(6);
+        await page.locator('.bloc-jour-horaire').first().waitFor({ state: 'visible' });
+        expect(await page.locator('.bloc-jour-horaire').first().textContent()).toContain('09h00');
+        expect(await page.locator('.bloc-jour-poste').first().textContent()).toContain('Salle');
+        expect(await page.locator('#zoneRepos').isVisible()).toBe(false);
         await page.close();
       });
 
-      await test('la navigation vers la semaine suivante change le libellé affiché', async () => {
+      await test('la navigation vers le jour suivant change le libellé affiché', async () => {
         const page = await browser.newPage();
         await stubEspaceEmploye(page, {
           session: { user: { id: 'u1', user_metadata: { role: 'employe' } } },
@@ -2032,8 +2046,9 @@ async function main() {
         });
         await page.goto(BASE_URL + '/espace-employe.html');
         await page.locator('#zoneContenu').waitFor({ state: 'visible' });
-        await page.locator('#btnSemaineSuiv').click();
-        expect(await page.locator('#libelleSemaine').textContent()).toBe('Semaine prochaine');
+        expect(await page.locator('#libelleJour').textContent()).toBe("Aujourd'hui");
+        await page.locator('#btnJourSuiv').click();
+        expect(await page.locator('#libelleJour').textContent()).toBe('Demain');
         await page.close();
       });
     });
