@@ -154,6 +154,17 @@ body {
   display: none;
 }
 
+/* Bug corrigé (sept. 2026) : le défilement horizontal de secours n'avait
+   aucun indice visuel — entre ~800 et 1040px de large, "Statistiques"
+   pouvait être coupé net en bord de nav sans que rien ne signale qu'il
+   suffit de faire défiler pour le voir. Dégradé de fondu ajouté côté
+   droit, uniquement quand nav.js détecte un vrai débordement (classe
+   .nav-globale--defilable, voir nav.js). */
+.nav-globale--defilable {
+  mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+}
+
 .nav-lien-g {
   font-size: 13.5px;
   font-weight: 500;
@@ -1334,6 +1345,13 @@ button.lien-supprimer:hover {
   color: var(--ink);
 }
 
+/* Bug corrigé (audit sept. 2026) : "Précision de l'outil" s'affichait
+   toujours en vert (--hausse), même pour un score faible — contraire à
+   l'honnêteté statistique du produit. */
+.carte-kpi-valeur--attention {
+  color: var(--erreur-texte);
+}
+
 .carte-kpi-detail {
   font-size: 11.5px;
   color: var(--texte-tres-attenue);
@@ -1679,7 +1697,13 @@ button.lien-supprimer:hover {
   letter-spacing: normal;
 }
 
-.info-bulle:hover .info-bulle-texte {
+.info-bulle:hover .info-bulle-texte,
+.info-bulle:focus .info-bulle-texte,
+.info-bulle:focus-within .info-bulle-texte {
+  /* :focus-within couvre aussi le cas où l'infobulle a tabindex="0" (elle
+     reçoit alors elle-même le focus) : sans cette règle, un utilisateur au
+     clavier pouvait tabuler jusqu'à l'icône ⓘ mais l'explication ne
+     s'affichait jamais (bug corrigé). */
   display: block;
 }
 
@@ -1757,6 +1781,23 @@ button.lien-supprimer:hover {
   font-size: 13.5px;
   color: var(--texte);
   font-weight: 500;
+}
+
+.ligne-prod-jour-droite {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/* Bug corrigé (audit sept. 2026) : la fourchette n'était jamais affichée
+   sur cette liste (seulement le chiffre point), contrairement au principe
+   produit "toujours une fourchette". Même traitement que
+   .produit-top-fourchette (tableau-de-bord.html). */
+.ligne-prod-jour-fourchette {
+  font-size: 11.5px;
+  color: var(--texte-tres-attenue);
 }
 
 .ligne-prod-jour-quantite {
@@ -2085,7 +2126,32 @@ button.lien-supprimer:hover {
   padding: 0;
 }
 
-.btn-lien-discret:hover { color: #c14a3a; }
+/* Bug corrigé (audit sept. 2026) : le survol passait systématiquement au
+   rouge (couleur d'action destructive), y compris pour "Inviter" et
+   "Marquer absent(e)" qui n'effacent rien. Rouge réservé au modificateur
+   --destructif (ex. "Supprimer le secteur"), neutre partout ailleurs. */
+.btn-lien-discret:hover { color: var(--texte); }
+
+.btn-lien-discret--destructif:hover { color: #c14a3a; }
+
+/* Classe partagée par import.html (déjà présente en local) et
+   commandes.html (bug corrigé sept. 2026 : classe utilisée mais jamais
+   définie, le bouton retombait sur le style <button> par défaut — gros
+   bouton noir plein au lieu d'un lien discret). */
+.lien-discret {
+  font-size: 13px;
+  color: var(--texte-attenue);
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 10px;
+  display: inline-block;
+  font-family: inherit;
+}
+
+.lien-discret:hover { color: var(--texte); }
 
 .btn-absent-jour-modal {
   display: block;
@@ -3200,8 +3266,12 @@ ul.liste-produits li.ligne-produit--fiche-ouverte {
 }
 
 @media (max-width: 560px) {
+  /* Bug corrigé (audit sept. 2026) : 88px coupait presque tous les noms de
+     produits réels ("Baguette trad…", "Pain au choc…") — illisible pour
+     identifier le produit d'un coup d'œil. Élargi au détriment de la barre
+     (purement décorative), qui reste lisible avec moins de largeur. */
   .classement-nom {
-    width: 88px;
+    width: 132px;
     font-size: 12.5px;
   }
 

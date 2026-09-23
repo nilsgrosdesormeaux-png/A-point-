@@ -532,8 +532,11 @@
     // déjà — pas de cumul d'incertitudes.
     var meteoCible = (!evenementCible && !cibleFeriee && !cibleVacances && meteoPrevue) ? meteoPrevue[isoCible] : undefined;
 
+    // Bug corrigé (audit sept. 2026) : new Date(iso) sans 'T00:00:00' parse
+    // en UTC, ce qui peut décaler .getDay() d'un jour dans un fuseau à
+    // l'ouest de l'UTC (Antilles/Guyane). Convention du projet respectée.
     var ventesMemeJour = ventesDuProduit.filter(function (vente) {
-      var d = new Date(vente.date_vente);
+      var d = new Date(vente.date_vente + 'T00:00:00');
       return d.getDay() === numeroJourCible && !estJourFerie(d) && !estEnVacances(d, zoneVacances);
     });
 
@@ -800,7 +803,9 @@
       });
       var parJour = {};
       lignes.forEach(function (v) {
-        var jour = new Date(v.date_vente).getDay();
+        // Bug corrigé (audit sept. 2026) : idem, .getDay() sur une date
+        // parsée en UTC pouvait décaler le regroupement par jour de semaine.
+        var jour = new Date(v.date_vente + 'T00:00:00').getDay();
         if (!parJour[jour]) parJour[jour] = [];
         parJour[jour].push(v);
       });

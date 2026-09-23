@@ -358,9 +358,17 @@
         return (reel < 10 ? '0' : '') + reel + 'h00';
       }
 
+      // Bug corrigé : deux clics rapides sur jour précédent/suivant lançaient
+      // deux requêtes Supabase concurrentes ; sans garde, le planning affiché
+      // pouvait ne pas correspondre au jour sélectionné si les réponses
+      // réseau arrivaient dans le désordre. generationJour identifie chaque
+      // appel, une réponse périmée n'est simplement plus appliquée à l'écran.
+      var generationJour = 0;
+
       function rendreJour() {
         var jour = dateDuJour(decalageJour);
         var iso = MP.versISO(jour);
+        var maGeneration = ++generationJour;
         libelleJourEl.textContent = libelleJourAffiche(decalageJour);
         dateCompleteEl.textContent = MP.formatDateLongue(jour);
 
@@ -377,6 +385,7 @@
           .eq('personnel_id', moiPersonnel.id)
           .eq('date_creneau', iso)
           .then(function (resultCreneaux) {
+            if (maGeneration !== generationJour) return;
             var creneaux = (resultCreneaux.data || []).map(function (c) {
               var debut = heureVersDecimale(c.heure_debut);
               var fin = heureVersDecimale(c.heure_fin);
@@ -588,7 +597,13 @@
           var debut = heureVersDecimale(c.heure_debut);
           var fin = heureVersDecimale(c.heure_fin);
           var dateFinIso = c.date_creneau;
-          if (fin <= debut) dateFinIso = MP.versISO(MP.ajouterJours(new Date(c.date_creneau), 1));
+          // Bug corrigé : new Date("2026-09-25") (chaîne date seule) est
+          // interprété comme minuit UTC, alors que MP.ajouterJours calcule en
+          // heure locale — dans un DOM/TOM en décalage négatif (Guadeloupe,
+          // Martinique, Guyane...), ça perdait un jour sur le fichier .ics
+          // d'un créneau de nuit. Ajouter "T00:00:00" force un parsing en
+          // heure locale, comme partout ailleurs dans le site (versISO).
+          if (fin <= debut) dateFinIso = MP.versISO(MP.ajouterJours(new Date(c.date_creneau + 'T00:00:00'), 1));
 
           lignes.push('BEGIN:VEVENT');
           lignes.push('UID:' + c.id + '@apointapp.fr');

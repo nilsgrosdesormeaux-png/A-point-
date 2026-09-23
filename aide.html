@@ -128,7 +128,7 @@
       sbClient.auth.getSession().then(function (result) {
         var session = result.data.session;
         if (!session) {
-          statutDiv.textContent = "Tu n'es pas connecté. Va d'abord sur la page de connexion.";
+          statutDiv.innerHTML = "Tu n'es pas connecté. <a href='connexion.html'>Va sur la page de connexion →</a>";
           return;
         }
         commercantId = session.user.id;

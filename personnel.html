@@ -1194,10 +1194,20 @@
 
           var supprimerSecteur = document.createElement('button');
           supprimerSecteur.type = 'button';
-          supprimerSecteur.className = 'btn-lien-discret';
+          supprimerSecteur.className = 'btn-lien-discret btn-lien-discret--destructif';
           supprimerSecteur.textContent = 'Supprimer le secteur';
           supprimerSecteur.addEventListener('click', function () {
             if (SECTEURS.length <= 1) { window.alert('Il faut garder au moins un secteur.'); return; }
+            // Garde-fou (bug corrigé) : supprimer un secteur encore assigné à
+            // un employé laissait sa fiche pointer vers un secteur qui
+            // n'existe plus, et l'écran d'édition affichait alors le premier
+            // secteur de la liste sans le dire, avec le risque d'écraser le
+            // bon secteur de l'employé au prochain enregistrement.
+            var employesConcernes = derniereEquipe.filter(function (e) { return e.secteur_id === secteur.id; });
+            if (employesConcernes.length > 0) {
+              window.alert('Impossible de supprimer "' + secteur.nom + '" : ' + employesConcernes.length + ' employé(s) y sont encore rattaché(s) (' + employesConcernes.map(function (e) { return formatNomAffichage(e.nom); }).join(', ') + '). Change d\'abord leur secteur.');
+              return;
+            }
             if (!window.confirm('Supprimer le secteur "' + secteur.nom + '" ?')) return;
             supprimerSecteurDistant(secteur);
             rendreContenuModalPostes();
@@ -1219,6 +1229,11 @@
                 var action = window.prompt('Renommer ce poste (laisser vide pour le supprimer) :', poste.nom);
                 if (action === null) return;
                 if (action.trim() === '') {
+                  var employesConcernesPoste = derniereEquipe.filter(function (e) { return e.secteur_id === secteur.id && e.poste_id === poste.id; });
+                  if (employesConcernesPoste.length > 0) {
+                    window.alert('Impossible de supprimer "' + poste.nom + '" : ' + employesConcernesPoste.length + ' employé(s) y sont encore rattaché(s) (' + employesConcernesPoste.map(function (e) { return formatNomAffichage(e.nom); }).join(', ') + '). Change d\'abord leur poste.');
+                    return;
+                  }
                   if (!window.confirm('Supprimer le poste "' + poste.nom + '" ?')) return;
                   supprimerPosteDistant(secteur, poste);
                 } else {
@@ -1298,25 +1313,44 @@
 
       // --- Rendu du Gantt ------------------------------------------------
       var jourEnCoursDeRendu = null; // évite un double rendreGantt() concurrent pendant le chargement async
+      // Bugs corrigés : (1) deux clics rapides sur jour précédent/suivant
+      // lançaient deux chaînes async en parallèle qui écrivaient toutes les
+      // deux dans les mêmes variables globales (creneauxDuJourCache...),
+      // pouvant afficher/persister le planning du mauvais jour selon l'ordre
+      // de retour réseau — generationRendu identifie chaque appel et les
+      // versions périmées s'arrêtent avant de toucher au cache ou à la base.
+      // (2) l'esquisse automatique se déclenchait aussi en naviguant vers un
+      // jour PASSÉ sans créneau, fabriquant un planning fictif pour un jour
+      // déjà vécu (contraire au principe du produit de ne jamais inventer une
+      // donnée) — elle ne se déclenche plus que pour aujourd'hui et l'avenir.
+      var generationRendu = 0;
 
       function rendreGantt() {
         var iso = versISO(dateDuJour(decalageJour));
         if (jourEnCoursDeRendu === iso) return;
         jourEnCoursDeRendu = iso;
+        var maGeneration = ++generationRendu;
+        var jourPasse = decalageJour < 0;
 
         Promise.all([
           jourCourantCharge === iso ? Promise.resolve() : chargerCreneauxJourCourant(),
           chargerCumulSemaine(derniereEquipe)
         ]).then(function () {
+          if (maGeneration !== generationRendu) return;
           var aDejaDesCreneaux = Object.keys(creneauxDuJourCache).some(function (id) { return creneauxDuJourCache[id].length > 0; });
-          if (!aDejaDesCreneaux) {
+          if (!aDejaDesCreneaux && !jourPasse) {
             return genererEsquisse(derniereEquipe).then(function (esquisse) {
+              if (maGeneration !== generationRendu) return;
               creneauxDuJourCache = esquisse;
-              return persisterEsquisse(esquisse, iso).then(function () { return chargerCreneauxJourCourant(); });
+              return persisterEsquisse(esquisse, iso).then(function () {
+                if (maGeneration !== generationRendu) return;
+                return chargerCreneauxJourCourant();
+              });
             });
           }
         }).then(function () {
-          jourEnCoursDeRendu = null;
+          if (jourEnCoursDeRendu === iso) jourEnCoursDeRendu = null;
+          if (maGeneration !== generationRendu) return;
           dessinerGantt();
         });
       }
@@ -2000,7 +2034,7 @@
           document.getElementById('planning').style.display = 'block';
           rafraichirTout();
         } else {
-          statutDiv.textContent = "Tu n'es pas connecté. Va d'abord sur la page de connexion.";
+          statutDiv.innerHTML = "Tu n'es pas connecté. <a href='connexion.html'>Va sur la page de connexion →</a>";
         }
       });
     })();

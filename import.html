@@ -17,8 +17,9 @@
     .banniere-verification.ok { background: var(--succes-fond); color: var(--succes-texte); }
     .banniere-verification.attention { background: var(--erreur-fond); color: var(--erreur-texte); }
     .zone-scroll { overflow-x: auto; max-width: 100%; }
-    .lien-discret { font-size: 13px; color: var(--texte-attenue); text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0; margin-top: 10px; display: inline-block; font-family: inherit; }
-    .lien-discret:hover { color: var(--texte); }
+    /* .lien-discret déménagée dans style.css (audit sept. 2026) : elle
+       n'existait qu'ici en local alors que commandes.html l'utilise aussi
+       sans jamais la définir (bouton retombant sur le style par défaut). */
     .note-produits-auto { font-size: 12px; color: var(--texte-attenue); margin: 8px 0 0; }
     .resume-auto { font-size: 14px; margin: 4px 0 14px; }
     .zone-correspondances { padding: 12px; border-radius: var(--rayon); background: var(--erreur-fond); margin: 4px 0 14px; }
@@ -902,7 +903,7 @@
           zoneFormulaire.style.display = 'block';
           definirMode('ventes');
         } else {
-          statutDiv.textContent = "Tu n'es pas connecté. Va d'abord sur la page de connexion.";
+          statutDiv.innerHTML = "Tu n'es pas connecté. <a href='connexion.html'>Va sur la page de connexion →</a>";
         }
       }).catch(function (erreur) {
         statutDiv.textContent = "Erreur de connexion : " + erreur.message;

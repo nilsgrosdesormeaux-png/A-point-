@@ -188,7 +188,7 @@
       sbClient.auth.getSession().then(function (result) {
         var session = result.data.session;
         if (!session) {
-          statutDiv.textContent = "Non connecté. Va sur connexion.html";
+          statutDiv.innerHTML = 'Non connecté. <a href="connexion.html">Va sur la page de connexion →</a>';
           return;
         }
 
@@ -203,7 +203,14 @@
             sbClient.from('parametres_commercant').select('*').eq('commercant_id', commercantId),
             sbClient.from('evenements_commercant').select('*').eq('commercant_id', commercantId),
             sbClient.from('categories_produit').select('*').eq('commercant_id', commercantId)
-          ]).then(function (resultats) {
+          ]).catch(function () {
+            // Bug corrigé : sans ce filet, un seul appel réseau en échec
+            // (Supabase indisponible, RLS, coupure) laissait la page bloquée
+            // indéfiniment sur "Chargement...", sans aucun message.
+            statutDiv.innerHTML = "Impossible de charger tes données pour l'instant. Vérifie ta connexion et réessaie.";
+            return null;
+          }).then(function (resultats) {
+            if (!resultats) return;
             var ventes = resultats[0].data || [];
             var produits = resultats[1].data || [];
             var parametres = (resultats[2].data && resultats[2].data[0]) || null;
@@ -304,13 +311,25 @@
             var info = INFO_TIER[j.tier] || INFO_TIER.normal;
             var chip = document.createElement('button');
             chip.type = 'button';
-            chip.className = 'chip-jour chip-jour--' + info.classe + (index === indexJourActif ? ' actif' : '') + (j.tier === 'ferme' ? ' chip-jour--ferme' : '');
+            chip.className = 'chip-jour chip-jour--' + info.classe + (index === indexJourActif ? ' actif' : '');
+            // Bug corrigé (audit sept. 2026) : l'affluence n'était portée
+            // que par la couleur du point (.chip-jour-point), invisible pour
+            // un lecteur d'écran ou un utilisateur daltonien.
+            chip.setAttribute('aria-label', capitaliser(nomsJoursCourts[j.date.getDay()]) + ' ' + j.date.getDate() + ' ' + nomsMoisCourts[j.date.getMonth()] + ' — ' + info.badge);
             chip.innerHTML =
               '<span class="chip-jour-nom">' + capitaliser(nomsJoursCourts[j.date.getDay()]) + '</span>' +
               '<span class="chip-jour-date">' + j.date.getDate() + ' ' + nomsMoisCourts[j.date.getMonth()] + '</span>' +
               '<span class="chip-jour-point"></span>';
             chip.addEventListener('click', function () {
               indexJourActif = index;
+              // Bug corrigé : le modificateur manuel ("+ Plus de monde" /
+              // "− Moins de monde") n'était jamais réinitialisé en changeant
+              // de jour dans le bandeau. Activé pour lundi puis en
+              // consultant mardi, l'ajustement ±15% (et le bouton "actif")
+              // se reportait silencieusement sur mardi, sans qu'aucun
+              // événement n'ait été signalé pour ce jour-là — risque réel de
+              // sur/sous-production sur un jour non concerné.
+              modificateurActif = null;
               afficherStripSemaine();
               afficherMeteoJourActif();
               afficherJourActif();
@@ -416,7 +435,15 @@
           }
           var categorie = { id: id, commercant_id: commercantId, nom: nom, ordre: CATEGORIES.length };
           CATEGORIES.push(categorie);
-          sbClient.from('categories_produit').insert(categorie).then(function () {});
+          // Bug corrigé (audit sept. 2026) : sans filet d'erreur, un échec
+          // d'écriture (réseau, RLS) laissait la catégorie visible
+          // localement alors qu'elle n'existait pas en base — elle
+          // disparaissait silencieusement au prochain chargement. Deuxième
+          // argument de .then() plutôt que .catch() : les objets renvoyés
+          // par le client Supabase ne sont pas toujours de vraies Promise.
+          sbClient.from('categories_produit').insert(categorie).then(function () {}, function () {
+            window.alert('La catégorie "' + nom + '" n\'a pas pu être enregistrée. Vérifie ta connexion et réessaie.');
+          });
           construireFiltresCategories(donneesGlobales ? donneesGlobales.ventes : []);
           afficherJourActif();
         }
@@ -434,7 +461,9 @@
             if (categorieParNom[nom] === categorie.nom) delete categorieParNom[nom];
           });
           if (categorieActive === categorie.nom) categorieActive = 'Tous';
-          sbClient.from('categories_produit').delete().eq('commercant_id', commercantId).eq('id', categorie.id).then(function () {});
+          sbClient.from('categories_produit').delete().eq('commercant_id', commercantId).eq('id', categorie.id).then(function () {}, function () {
+            window.alert('La suppression de "' + categorie.nom + '" n\'a pas pu être enregistrée. Recharge la page pour vérifier son état réel.');
+          });
           construireFiltresCategories(donneesGlobales ? donneesGlobales.ventes : []);
           afficherJourActif();
         }
@@ -467,13 +496,27 @@
             // Croix de suppression : uniquement sur les catégories créées
             // par le commerçant, jamais sur "Tous" ni "Non classé".
             if (categorieObjet) {
+              // Bug corrigé (audit sept. 2026) : ce <span> n'était
+              // atteignable qu'à la souris (pas de tabindex/rôle/clavier).
+              // Reste un <span> (jamais un <button> imbriqué dans le
+              // <button> parent, invalide en HTML) mais devient un vrai
+              // contrôle clavier, comme les autres onglets custom du site.
               var croix = document.createElement('span');
               croix.className = 'pill-categorie-supprimer';
               croix.textContent = '×';
+              croix.setAttribute('role', 'button');
+              croix.setAttribute('tabindex', '0');
               croix.setAttribute('aria-label', 'Supprimer la catégorie ' + cat);
               croix.addEventListener('click', function (e) {
                 e.stopPropagation();
                 supprimerCategorieDepuisPrevisions(categorieObjet);
+              });
+              croix.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  supprimerCategorieDepuisPrevisions(categorieObjet);
+                }
               });
               bouton.appendChild(croix);
             }
@@ -502,8 +545,12 @@
           var vacances = !evenementJour && !feriee && estEnVacances(j.date, zoneVacances);
           var meteoJour = (!evenementJour && !feriee && !vacances && contexteAffichage && contexteAffichage.meteoPrevue) ? contexteAffichage.meteoPrevue[j.iso] : null;
 
+          // Bug corrigé (audit sept. 2026) : new Date(v.date_vente) sans
+          // 'T00:00:00' parse la date ISO en UTC ; dans un fuseau à l'ouest
+          // de l'UTC (Antilles/Guyane), d.getDay() pouvait décaler le
+          // comptage d'un jour (convention du projet, voir moteur-prevision.js).
           var ventesMemeJourSemaine = ventes.filter(function (v) {
-            var d = new Date(v.date_vente);
+            var d = new Date(v.date_vente + 'T00:00:00');
             return d.getDay() === j.date.getDay() && !estJourFerie(d) && !estEnVacances(d, zoneVacances);
           });
 
@@ -564,24 +611,47 @@
 
             if (categorieActive !== 'Tous' && categorieDeduite(nomProduit) !== categorieActive) return;
 
+            // Modificateur manuel : ajustement local instantané, appliqué
+            // uniquement à l'affichage (jamais au calcul ni à la base).
+            var facteurModificateur = modificateurActif === 'plus' ? 1.15 : (modificateurActif === 'moins' ? 0.85 : 1);
+            var quantiteAffichee = modificateurActif ? Math.ceil(r.quantite * facteurModificateur) : r.quantite;
+
+            // Bug corrigé (audit sept. 2026) : le delta était calculé à
+            // partir de r.quantite (avant ajustement manuel), et donc
+            // incohérent avec quantiteAffichee juste à côté dès qu'un
+            // modificateur +/-15% est actif. On le recalcule par rapport à
+            // la même référence (dernier jour réel comparable).
             var deltaHTML = '';
             if (r.delta !== null) {
-              if (r.delta > 0) deltaHTML = '<span class="delta delta-hausse">+' + r.delta + '</span>';
-              else if (r.delta < 0) deltaHTML = '<span class="delta delta-baisse">' + r.delta + '</span>';
+              var dernierJourReel = r.quantite - r.delta;
+              var deltaAffiche = quantiteAffichee - dernierJourReel;
+              if (deltaAffiche > 0) deltaHTML = '<span class="delta delta-hausse">+' + deltaAffiche + '</span>';
+              else if (deltaAffiche < 0) deltaHTML = '<span class="delta delta-baisse">' + deltaAffiche + '</span>';
               else deltaHTML = '<span class="delta delta-stable">=</span>';
             }
 
-            // Modificateur manuel : ajustement local instantané, appliqué
-            // uniquement à l'affichage (jamais au calcul ni à la base).
-            var quantiteAffichee = r.quantite;
-            if (modificateurActif === 'plus') quantiteAffichee = Math.ceil(r.quantite * 1.15);
-            else if (modificateurActif === 'moins') quantiteAffichee = Math.ceil(r.quantite * 0.85);
+            // Bug corrigé (audit sept. 2026) : la fourchette n'était jamais
+            // affichée ici (seulement le chiffre point), contrairement au
+            // principe produit "toujours une fourchette, jamais un chiffre
+            // présenté comme certain" — voir .produit-top-fourchette sur
+            // tableau-de-bord.html, repris ici à l'identique. Mise à
+            // l'échelle avec le modificateur manuel pour rester cohérente
+            // avec quantiteAffichee.
+            var fourchetteHTML = '';
+            if (r.fourchette) {
+              var basAffiche = modificateurActif ? Math.round(r.fourchette.bas * facteurModificateur) : r.fourchette.bas;
+              var hautAffiche = modificateurActif ? Math.round(r.fourchette.haut * facteurModificateur) : r.fourchette.haut;
+              fourchetteHTML = '<span class="ligne-prod-jour-fourchette">' + basAffiche + ' – ' + hautAffiche + '</span>';
+            }
 
             var ligne = document.createElement('div');
             ligne.className = 'ligne-prod-jour';
             ligne.innerHTML =
               '<span class="ligne-prod-jour-nom">' + nomProduit + '</span>' +
-              '<span class="ligne-prod-jour-quantite">' + deltaHTML + quantiteAffichee + '</span>';
+              '<span class="ligne-prod-jour-droite">' +
+                '<span class="ligne-prod-jour-quantite">' + deltaHTML + quantiteAffichee + '</span>' +
+                fourchetteHTML +
+              '</span>';
 
             // Rangement manuel dans une catégorie créée par le commerçant
             // (ou "Non classé") : un simple sélecteur, jamais de
@@ -591,6 +661,10 @@
             if (produit && CATEGORIES.length > 0) {
               var selecteur = document.createElement('select');
               selecteur.className = 'select-categorie-produit';
+              // Bug corrigé (audit sept. 2026) : sans label ni aria-label,
+              // un lecteur d'écran ne pouvait pas savoir à quel produit ce
+              // sélecteur se rapportait.
+              selecteur.setAttribute('aria-label', 'Catégorie de ' + nomProduit);
               var optionNonClasse = document.createElement('option');
               optionNonClasse.value = '';
               optionNonClasse.textContent = 'Non classé';
@@ -606,7 +680,9 @@
               selecteur.addEventListener('change', function () {
                 var nouveauId = selecteur.value || null;
                 produit.categorie_id = nouveauId;
-                sbClient.from('produits').update({ categorie_id: nouveauId }).eq('id', produit.id).then(function () {});
+                sbClient.from('produits').update({ categorie_id: nouveauId }).eq('id', produit.id).then(function () {}, function () {
+                  window.alert('Le rangement de "' + nomProduit + '" n\'a pas pu être enregistré. Vérifie ta connexion et réessaie.');
+                });
                 categorieParNom[nomProduit] = nouveauId ? (CATEGORIES.find(function (c) { return c.id === nouveauId; }) || {}).nom : null;
                 construireFiltresCategories(donneesGlobales.ventes);
                 afficherJourActif();

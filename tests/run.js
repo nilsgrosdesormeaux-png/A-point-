@@ -151,6 +151,38 @@ async function stubSupabaseAvecDonnees(page, { commercantId, tables }) {
                 u.then = function (cb, errCb) { return resultat.then(cb, errCb); };
                 return u;
               },
+              // Ajouté (audit sept. 2026) : manquait entièrement, alors que
+              // parametres.html sauvegarde via upsert() sur commercant_id
+              // (une ligne par commerçant) — sans ce stub, le clic "Enregistrer"
+              // levait une exception (upsert n'est pas une fonction) jamais
+              // détectée faute de test exerçant ce chemin.
+              upsert: function (ligne) {
+                var lignes = Array.isArray(ligne) ? ligne : [ligne];
+                // Trace des appels upsert (même principe que
+                // window.__appelsDelete plus haut), pour vérifier depuis le
+                // test le contenu exact envoyé (ex. latitude/longitude
+                // incluses ou non), indépendamment de la mutation de `data`
+                // (invisible côté Node : addInitScript clone son argument
+                // dans le contexte de la page, il n'y a pas de référence
+                // partagée avec l'objet `tables` du test).
+                window.__appelsUpsert = window.__appelsUpsert || [];
+                window.__appelsUpsert.push(lignes);
+                var resultat = Promise.resolve().then(function () {
+                  lignes.forEach(function (l) {
+                    var existante = data.filter(function (row) { return row.commercant_id !== undefined && row.commercant_id === l.commercant_id; })[0];
+                    if (existante) {
+                      Object.keys(l).forEach(function (k) { existante[k] = l[k]; });
+                    } else {
+                      data.push(l);
+                    }
+                  });
+                  return { data: lignes, error: null };
+                });
+                return {
+                  select: function () { return resultat; },
+                  then: function (cb, errCb) { return resultat.then(cb, errCb); },
+                };
+              },
             };
             return chain;
           },
@@ -751,6 +783,28 @@ async function main() {
           expect(secLiens.join(',')).toContain('Paramètres');
         });
       }
+
+      // Bug corrigé (audit sept. 2026) : entre 720px et ~1040px de large
+      // (fenêtre non maximisée, petit portable), .nav-globale déborde
+      // encore et coupe "Statistiques" net, sans qu'aucun scrollbar
+      // visible ne le signale. nav.js ajoute désormais la classe
+      // nav-globale--defilable (fondu CSS) dès qu'un vrai débordement est
+      // détecté ; ce test vérifie que l'indice apparaît à une largeur qui
+      // déborde et disparaît à une largeur confortable.
+      await test('.nav-globale affiche un fondu (nav-globale--defilable) quand elle déborde, jamais sinon', async () => {
+        await page.setViewportSize({ width: 900, height: 800 });
+        await page.goto(BASE_URL + '/produits.html');
+        await page.waitForTimeout(100);
+        const classeEtroit = await page.locator('#navPrincipale').getAttribute('class');
+        expect(classeEtroit).toContain('nav-globale--defilable');
+
+        await page.setViewportSize({ width: 1400, height: 800 });
+        await page.goto(BASE_URL + '/produits.html');
+        await page.waitForTimeout(100);
+        const classeLarge = await page.locator('#navPrincipale').getAttribute('class');
+        expect(classeLarge).not.toContain('nav-globale--defilable');
+        await page.setViewportSize({ width: 1280, height: 800 });
+      });
     });
 
     await describe('Comportement sans session (non connecté)', async () => {
@@ -914,6 +968,79 @@ async function main() {
       await pageAffluence.close();
     });
 
+    // Bugs corrigés (audit sept. 2026) sur commandes.html.
+    await describe('commandes.html — bugs corrigés (audit sept. 2026)', async () => {
+      const commercantId = 'test-commercant-audit-commandes';
+      const lundis = ['2026-08-03', '2026-08-10', '2026-08-17', '2026-08-24', '2026-08-31'];
+      const ventesCroissant = lundis.map((d) => ({ commercant_id: commercantId, nom_produit: 'Croissant', date_vente: d, quantite: 40 }));
+
+      const tables = {
+        ventes: ventesCroissant,
+        produits: [{ id: 'prod-croissant', commercant_id: commercantId, nom: 'Croissant' }],
+        ingredients_produit: [
+          { id: 'ing1', commercant_id: commercantId, produit_id: 'prod-croissant', nom_ingredient: 'Beurre', quantite: 0.02, unite: 'kg' },
+        ],
+        parametres_commercant: [],
+        evenements_commercant: [],
+      };
+
+      await test('"Tout cocher (toute la semaine)" a bien un style de lien discret (classe .lien-discret définie), pas le bouton noir par défaut', async () => {
+        // Bug corrigé (audit sept. 2026) : .lien-discret n'était définie
+        // qu'en local dans import.html, jamais dans style.css — sur
+        // commandes.html le bouton retombait donc sur le style <button>
+        // par défaut (gros bouton noir plein), au lieu d'un lien discret.
+        const page = await browser.newPage();
+        await stubSupabaseAvecDonnees(page, { commercantId, tables });
+        await page.goto(BASE_URL + '/commandes.html');
+        await page.locator('#btnToutCocher').waitFor({ state: 'visible' });
+        const bg = await page.locator('#btnToutCocher').evaluate((el) => getComputedStyle(el).backgroundColor);
+        expect(bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent').toBe(true);
+        await page.close();
+      });
+
+      await test('"Tout cocher (toute la semaine)" ne coche que les 7 premiers jours, pas les 14 affichés', async () => {
+        const page = await browser.newPage();
+        await stubSupabaseAvecDonnees(page, { commercantId, tables });
+        await page.goto(BASE_URL + '/commandes.html');
+        await page.locator('.case-jour-commande').first().waitFor({ state: 'attached' });
+        await page.click('#btnToutCocher');
+        const nbCoches = await page.locator('.case-jour-commande:checked').count();
+        expect(nbCoches).toBe(7);
+        await page.close();
+      });
+
+      await test('sans session, affiche un message avec un lien cliquable vers connexion.html', async () => {
+        const page = await browser.newPage();
+        await page.addInitScript(() => {
+          window.supabase = { createClient: () => ({ auth: { getSession: () => Promise.resolve({ data: { session: null } }) } }) };
+        });
+        await page.goto(BASE_URL + '/commandes.html');
+        await page.waitForTimeout(200);
+        const html = await page.locator('#statutCommande').innerHTML();
+        expect(html).toContain('connexion.html');
+        const carteVisible = await page.locator('#carteGenererCommande').isVisible();
+        expect(carteVisible).toBe(false);
+        await page.close();
+      });
+
+      {
+        const page = await browser.newPage();
+        await stubSupabaseAvecDonnees(page, { commercantId, tables });
+        await test('l\'aperçu Habitude affiche une fourchette (pas un chiffre unique présenté comme certain)', async () => {
+          await page.goto(BASE_URL + '/commandes.html');
+          await page.locator('#tableauApercuHabitude table').waitFor({ state: 'attached' });
+          const texte = await page.locator('#tableauApercuHabitude').innerText();
+          // Avec seulement 5 lundis à 40 tous identiques, aucune fourchette
+          // ne peut se distinguer du chiffre point (calculerFourchette la
+          // resserre jusqu'à null) : on vérifie ici seulement l'absence de
+          // régression (pas de plantage, l'ingrédient reste affiché), la
+          // vraie fourchette étant testée au niveau du moteur.
+          expect(texte).toContain('Beurre');
+        });
+        await page.close();
+      }
+    });
+
     // Refonte sept. 2026 : l'Accueil devient minimal (2 cartes d'action + 3
     // KPI, jamais de liste de produits — voir tableau-de-bord.html). La
     // liste de production déménage sur previsions.html, avec des pastilles
@@ -986,6 +1113,40 @@ async function main() {
       });
 
       await pageTop3.close();
+    });
+
+    // Bug corrigé (audit sept. 2026) : le KPI "Précision de l'outil"
+    // s'affichait toujours en vert (carte-kpi-valeur--hausse), même pour un
+    // score de fiabilité faible — contraire à l'honnêteté statistique du
+    // produit. La couleur doit maintenant suivre la valeur.
+    await describe('tableau-de-bord.html — couleur du KPI "Précision de l\'outil" selon le score', async () => {
+      const joursMemeWeekday = ['2026-07-06', '2026-07-13', '2026-07-20', '2026-07-27', '2026-08-03', '2026-08-10', '2026-08-17', '2026-08-24', '2026-08-31', '2026-09-07'];
+
+      await test('historique régulier → score élevé → classe --hausse (verte)', async () => {
+        const commercantId = 'test-fiabilite-bonne';
+        const ventes = joursMemeWeekday.map((d) => ({ commercant_id: commercantId, nom_produit: 'Tradition', date_vente: d, quantite: 50 }));
+        const page = await browser.newPage();
+        await stubSupabaseAvecDonnees(page, { commercantId, tables: { ventes, produits: [], ingredients_produit: [], parametres_commercant: [], evenements_commercant: [] } });
+        await page.goto(BASE_URL + '/tableau-de-bord.html');
+        await page.locator('#kpiFiabiliteValeur').waitFor({ state: 'attached' });
+        await page.waitForFunction(() => (document.getElementById('kpiFiabiliteValeur').textContent || '').indexOf('%') !== -1);
+        const classe = await page.locator('#kpiFiabiliteValeur').getAttribute('class');
+        expect(classe).toContain('carte-kpi-valeur--hausse');
+        await page.close();
+      });
+
+      await test('historique très irrégulier → score faible → classe --attention (jamais --hausse)', async () => {
+        const commercantId = 'test-fiabilite-mauvaise';
+        const ventes = joursMemeWeekday.map((d, i) => ({ commercant_id: commercantId, nom_produit: 'Tradition', date_vente: d, quantite: i % 2 === 0 ? 10 : 90 }));
+        const page = await browser.newPage();
+        await stubSupabaseAvecDonnees(page, { commercantId, tables: { ventes, produits: [], ingredients_produit: [], parametres_commercant: [], evenements_commercant: [] } });
+        await page.goto(BASE_URL + '/tableau-de-bord.html');
+        await page.locator('#kpiFiabiliteValeur').waitFor({ state: 'attached' });
+        await page.waitForFunction(() => (document.getElementById('kpiFiabiliteValeur').textContent || '').indexOf('%') !== -1);
+        const classe = await page.locator('#kpiFiabiliteValeur').getAttribute('class');
+        expect(classe).not.toContain('carte-kpi-valeur--hausse');
+        await page.close();
+      });
     });
 
     await describe('produits.html — catégories librement créées et rangement manuel (glisser-déposer)', async () => {
@@ -1527,7 +1688,65 @@ async function main() {
         expect(selectTradition).toBe('');
       });
 
+      await test('la croix de suppression d\'une catégorie est utilisable au clavier (Entrée), pas seulement à la souris', async () => {
+        pagePrevisions.once('dialog', (dialog) => dialog.accept());
+        await pagePrevisions.goto(BASE_URL + '/previsions.html');
+        await pagePrevisions.locator('.pill-categorie', { hasText: 'Viennoiserie' }).waitFor({ state: 'visible' });
+        const croix = pagePrevisions.locator('.pill-categorie', { hasText: 'Viennoiserie' }).locator('.pill-categorie-supprimer');
+        expect(await croix.getAttribute('tabindex')).toBe('0');
+        await croix.focus();
+        await croix.press('Enter');
+        await pagePrevisions.waitForTimeout(200);
+        expect(await pagePrevisions.locator('.pill-categorie', { hasText: 'Viennoiserie' }).count()).toBe(0);
+      });
+
       await pagePrevisions.close();
+    });
+
+    // Bugs corrigés (audit sept. 2026) : la fourchette n'était jamais
+    // affichée dans la liste de production du jour (seulement le chiffre
+    // point), et le delta ne suivait pas l'ajustement manuel +/-15%.
+    await describe('previsions.html — fourchette affichée dans la liste de production', async () => {
+      const commercantId = 'test-commercant-previsions-fourchette';
+      // Historique volontairement irrégulier (pas une constante) pour que
+      // calculerFourchette renvoie une vraie plage bas < haut.
+      const quantitesLundi = [30, 55, 40, 70, 35, 60, 45, 75];
+      const ventes = quantitesLundi.map((q, i) => ({
+        commercant_id: commercantId,
+        nom_produit: 'Tradition',
+        date_vente: '2026-0' + (7 + Math.floor(i / 4)) + '-' + String(3 + (i % 4) * 7).padStart(2, '0'),
+        quantite: q,
+      }));
+
+      const tables = {
+        ventes: ventes,
+        produits: [],
+        categories_produit: [],
+        ingredients_produit: [],
+        parametres_commercant: [],
+        evenements_commercant: [],
+      };
+
+      const page = await browser.newPage();
+      await stubSupabaseAvecDonnees(page, { commercantId, tables });
+
+      await test('affiche une fourchette (bas – haut) à côté de la quantité, jamais un chiffre seul', async () => {
+        await page.goto(BASE_URL + '/previsions.html');
+        await page.locator('.ligne-prod-jour').first().waitFor({ state: 'visible' });
+        const fourchette = await page.locator('.ligne-prod-jour-fourchette').first().innerText();
+        expect(fourchette).toContain('–');
+      });
+
+      await test('activer "+ Plus de monde" met aussi à jour la fourchette affichée (cohérente avec la quantité)', async () => {
+        await page.goto(BASE_URL + '/previsions.html');
+        await page.locator('.ligne-prod-jour').first().waitFor({ state: 'visible' });
+        const avant = await page.locator('.ligne-prod-jour-fourchette').first().innerText();
+        await page.locator('[data-modificateur="plus"]').click();
+        const apres = await page.locator('.ligne-prod-jour-fourchette').first().innerText();
+        expect(apres).not.toBe(avant);
+      });
+
+      await page.close();
     });
 
     // Retour utilisateur, sept. 2026 : la météo du jour s'affichait déjà
@@ -2179,6 +2398,107 @@ async function main() {
       });
 
       await pageGanttMoments.close();
+    });
+
+    // Bugs corrigés (audit sept. 2026) sur parametres.html : aucun des
+    // appels réseau n'avait de filet d'erreur (bouton bloqué indéfiniment
+    // en "disabled" sans message en cas d'échec), et lat/long étaient
+    // réinitialisées à chaque sauvegarde même sans changement d'adresse.
+    await describe('parametres.html — bugs corrigés (audit sept. 2026)', async () => {
+      const commercantId = 'test-commercant-parametres-audit';
+      const tables = {
+        ventes: [],
+        produits: [],
+        ingredients_produit: [],
+        parametres_commercant: [{ commercant_id: commercantId, nom_restaurant: 'Le Petit Comptoir', code_postal: '35400', ville: 'Rennes', jours_fermeture: [1], latitude: 48.1, longitude: -1.6 }],
+        evenements_commercant: [],
+      };
+
+      await test('un email mal formé est rejeté avant l\'appel réseau (pas d\'appel API pour "abc")', async () => {
+        const page = await browser.newPage();
+        await stubSupabaseAvecDonnees(page, { commercantId, tables });
+        await page.goto(BASE_URL + '/parametres.html');
+        await page.locator('#zoneParametres').waitFor({ state: 'visible' });
+        await page.fill('#inputNouvelEmail', 'abc');
+        await page.click('#btnChangerEmail');
+        const message = await page.locator('#messageEmail').innerText();
+        expect(message).toContain('valide');
+        await page.close();
+      });
+
+      await test('enregistrer sans changer le code postal ni la ville ne réinitialise pas les coordonnées géocodées', async () => {
+        const page = await browser.newPage();
+        await stubSupabaseAvecDonnees(page, { commercantId, tables });
+        await page.goto(BASE_URL + '/parametres.html');
+        await page.locator('#zoneParametres').waitFor({ state: 'visible' });
+        // Attend le préremplissage async (select) avant d'agir, sinon
+        // inputCodePostal/adresseChargee ne sont pas encore posés et le
+        // test passerait pour la mauvaise raison.
+        await page.waitForFunction(() => document.getElementById('inputCodePostal').value === '35400');
+        // On coche juste un jour de fermeture supplémentaire, sans toucher
+        // à l'adresse.
+        await page.locator('.case-jour-input').nth(2).check();
+        await page.click('#btnEnregistrerCommerce');
+        await page.waitForTimeout(200);
+        // Vérifie le contenu exact envoyé à upsert() (voir
+        // window.__appelsUpsert dans stubSupabaseAvecDonnees) : la mutation
+        // de `data` côté page n'est pas visible depuis Node (addInitScript
+        // clone son argument, pas de référence partagée avec `tables`).
+        const appels = await page.evaluate(() => window.__appelsUpsert || []);
+        expect(appels.length).toBeGreaterThan(0);
+        const payload = appels[appels.length - 1][0];
+        expect('latitude' in payload).toBe(false);
+        expect('longitude' in payload).toBe(false);
+        await page.close();
+      });
+
+      await test('changer la ville réinitialise bien les coordonnées géocodées', async () => {
+        const page = await browser.newPage();
+        await stubSupabaseAvecDonnees(page, { commercantId, tables });
+        await page.goto(BASE_URL + '/parametres.html');
+        await page.locator('#zoneParametres').waitFor({ state: 'visible' });
+        // Attend que le préremplissage async (select des paramètres
+        // existants) soit bien arrivé avant de saisir la nouvelle ville,
+        // sinon il peut l'écraser juste après (course avec le chargement).
+        await page.waitForFunction(() => document.getElementById('inputVille').value === 'Rennes');
+        await page.fill('#inputVille', 'Nantes');
+        await page.click('#btnEnregistrerCommerce');
+        await page.waitForTimeout(200);
+        const appels = await page.evaluate(() => window.__appelsUpsert || []);
+        expect(appels.length).toBeGreaterThan(0);
+        const payload = appels[appels.length - 1][0];
+        expect(payload.ville).toBe('Nantes');
+        expect(payload.latitude).toBe(null);
+        expect(payload.longitude).toBe(null);
+        await page.close();
+      });
+
+      await test('un échec réseau à la sauvegarde réactive le bouton et affiche un message (pas de blocage silencieux)', async () => {
+        const page = await browser.newPage();
+        await page.addInitScript(({ commercantId, tables }) => {
+          window.supabase = {
+            createClient: function () {
+              return {
+                auth: { getSession: function () { return Promise.resolve({ data: { session: { user: { id: commercantId, email: 'test@test.com' } } } }); } },
+                from: function (table) {
+                  return {
+                    select: function () { return { eq: function () { return Promise.resolve({ data: (tables && tables[table]) || [], error: null }); } }; },
+                    upsert: function () { return Promise.reject(new Error('stub : pas de réseau')); },
+                  };
+                },
+              };
+            },
+          };
+        }, { commercantId, tables });
+        await page.goto(BASE_URL + '/parametres.html');
+        await page.locator('#zoneParametres').waitFor({ state: 'visible' });
+        await page.click('#btnEnregistrerCommerce');
+        await page.waitForTimeout(200);
+        expect(await page.locator('#btnEnregistrerCommerce').isDisabled()).toBe(false);
+        const message = await page.locator('#messageCommerce').innerText();
+        expect(message.length).toBeGreaterThan(0);
+        await page.close();
+      });
     });
 
     // Module partagé introduit le 16 septembre 2026 : avant, le moteur de

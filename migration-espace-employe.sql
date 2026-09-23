@@ -57,7 +57,14 @@ create policy "Un employe peut voir les postes de son commercant" on public.post
 -- delete pour l'employe sur quelque table que ce soit (espace employe en
 -- lecture seule pour l'instant, conforme au cahier des charges : "vue
 -- planning hebdomadaire complete", pas de saisie). Aucun acces employe a
--- ventes, produits, parametres_commercant, evenements_commercant,
--- categories_produit, ingredients_produit : ces tables restent strictement
--- limitees au commercant (auth.uid() = commercant_id), rien n'y est ajoute.
+-- ventes, produits, evenements_commercant, categories_produit,
+-- ingredients_produit : ces tables restent strictement limitees au
+-- commercant (auth.uid() = commercant_id), rien n'y est ajoute.
+--
+-- Correctif du 23 septembre 2026 (voir migration-fix-rls-espace-employe.sql) :
+-- parametres_commercant fait exception, en lecture seule, pour que l'espace
+-- employe puisse afficher le nom du commerce et la meteo du jour (bug trouve
+-- en pilote : ces deux infos ne s'affichaient jamais pour un employe, faute
+-- de policy). Applique directement en base a l'epoque sans migration
+-- correspondante dans ce depot ; ce fichier comble cet ecart.
 -- ============================================================

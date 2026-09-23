@@ -140,6 +140,23 @@
     entete.parentNode.insertBefore(panneau, entete.nextSibling);
 
     activerHamburger(bouton, panneau);
+
+    // Bug corrigé (sept. 2026) : .nav-globale défile horizontalement en
+    // dernier recours (voir commentaire plus haut) mais sans indice visuel,
+    // "Statistiques" pouvait être coupé net sans que rien ne signale qu'il
+    // suffit de faire défiler pour le voir. On ajoute un fondu (voir
+    // .nav-globale--defilable dans style.css) seulement quand il y a un
+    // vrai débordement, recalculé au chargement des polices et au
+    // redimensionnement de la fenêtre.
+    function mettreAJourDefilementNav() {
+      var deborde = nav.scrollWidth > nav.clientWidth + 1;
+      nav.classList.toggle('nav-globale--defilable', deborde);
+    }
+    mettreAJourDefilementNav();
+    window.addEventListener('resize', mettreAJourDefilementNav);
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(mettreAJourDefilementNav);
+    }
   }
 
   if (document.readyState === 'loading') {

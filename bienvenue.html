@@ -167,9 +167,9 @@
   </div>
 
   <div class="onglets-bienvenue-wrap">
-    <div class="onglets">
-      <div class="onglet actif" id="ongletGuide">Guide</div>
-      <div class="onglet" id="ongletFaq">? Questions fréquentes</div>
+    <div class="onglets" role="tablist">
+      <div class="onglet actif" id="ongletGuide" role="tab" tabindex="0" aria-selected="true">Guide</div>
+      <div class="onglet" id="ongletFaq" role="tab" tabindex="0" aria-selected="false">? Questions fréquentes</div>
     </div>
   </div>
 
@@ -177,7 +177,7 @@
     <div class="section-bienvenue">
       <div class="carte-page">
         <p class="eyebrow">EN BREF</p>
-        <h1 style="font-size: 22px;">À quoi sert l'outil ?</h1>
+        <h2 style="font-size: 22px; font-family: var(--police-titre); letter-spacing: -0.01em; margin: 0 0 6px;">À quoi sert l'outil ?</h2>
         <p class="texte-aide">À Point regarde ton historique de ventes et te dit, chaque jour, <strong style="color: var(--texte);">quelle quantité produire ou commander</strong> pour ton prochain jour d'ouverture, automatiquement, produit par produit.</p>
         <ul class="pitch-liste">
           <li>Basé sur <strong>tes propres ventes passées</strong>, jamais un modèle générique qui suppose que ton commerce ressemble à un autre.</li>
@@ -190,7 +190,7 @@
 
     <div class="section-bienvenue">
       <p class="eyebrow" style="padding: 0 4px;">POUR DÉMARRER</p>
-      <h1 style="font-size: 22px; padding: 0 4px; margin-bottom: 28px;">Étape par étape</h1>
+      <h2 style="font-size: 22px; font-family: var(--police-titre); letter-spacing: -0.01em; padding: 0 4px; margin-top: 0; margin-bottom: 28px;">Étape par étape</h2>
 
       <div class="etape">
         <div class="etape-numero">1</div>
@@ -220,7 +220,7 @@
         <div class="bloc-choix">
           <div class="choix-carte">
             <p class="titre-choix">Tu as un export de ta caisse</p>
-            <p>Va dans <strong>« Importer »</strong>, onglet « Mes ventes », dépose ton fichier (CSV, Excel...). Une colonne date, une colonne produit, une colonne quantité suffisent. L'ordre et le nom exact n'ont pas d'importance, c'est détecté automatiquement.</p>
+            <p>Va dans <strong>« Imports »</strong>, onglet « Mes ventes », dépose ton fichier (CSV, Excel...). Une colonne date, une colonne produit, une colonne quantité suffisent. L'ordre et le nom exact n'ont pas d'importance, c'est détecté automatiquement.</p>
           </div>
           <div class="choix-carte">
             <p class="titre-choix">Tu n'as pas d'export</p>
@@ -251,7 +251,7 @@
         </div>
         <p class="etape-texte">L'écran que tu regarderas au quotidien : la <strong>quantité recommandée par produit</strong>, une <strong>fourchette</strong>, et, quand ça joue un rôle, la raison d'un ajustement (jour férié, vacances, météo, événement signalé). Le détail du calcul est dans la FAQ ci-dessus, si ça t'intéresse.</p>
         <div class="etape-capture"><img src="7-tableau-de-bord_2.png" alt="Tableau de bord avec les recommandations du jour"></div>
-        <p class="etape-note">Un onglet <strong>« Semaine »</strong> donne aussi une vue sur les 7 prochains jours, avec un badge par jour et la possibilité de signaler toi-même un jour où tu attends plus ou moins de monde.</p>
+        <p class="etape-note">L'onglet <strong>« Prévisions »</strong> donne aussi une vue sur les 7 prochains jours, avec un badge par jour et la possibilité de signaler toi-même un jour où tu attends plus ou moins de monde.</p>
         <div class="etape-capture" style="margin-top: 14px;"><img src="8-semaine_2.png" alt="Vue de la semaine à venir"></div>
       </div>
     </div>
@@ -267,7 +267,7 @@
   <div id="contenuFaq" style="display:none;">
     <div class="section-bienvenue">
       <p class="eyebrow" style="padding: 0 4px;">QUESTIONS FRÉQUENTES</p>
-      <h1 style="font-size: 22px; padding: 0 4px; margin-bottom: 20px;">Les réponses aux questions les plus courantes</h1>
+      <h2 style="font-size: 22px; font-family: var(--police-titre); letter-spacing: -0.01em; padding: 0 4px; margin-top: 0; margin-bottom: 20px;">Les réponses aux questions les plus courantes</h2>
 
       <details class="faq-item">
         <summary>Est-ce que ça remplace mon propre jugement ?</summary>
@@ -322,7 +322,7 @@
   </div>
 
   <div class="cta-finale">
-    <a href="connexion.html" class="bouton-principal">Créer mon compte →</a>
+    <a href="connexion.html?inscription" class="bouton-principal">Créer mon compte →</a>
     <p class="texte-aide">Ça prend deux minutes.</p>
     <p class="pied-page"><a href="cgu.html">Conditions générales d'utilisation</a></p>
   </div>
@@ -337,6 +337,8 @@
       ongletGuide.addEventListener('click', function () {
         ongletGuide.classList.add('actif');
         ongletFaq.classList.remove('actif');
+        ongletGuide.setAttribute('aria-selected', 'true');
+        ongletFaq.setAttribute('aria-selected', 'false');
         contenuGuide.style.display = 'block';
         contenuFaq.style.display = 'none';
       });
@@ -344,8 +346,17 @@
       ongletFaq.addEventListener('click', function () {
         ongletFaq.classList.add('actif');
         ongletGuide.classList.remove('actif');
+        ongletFaq.setAttribute('aria-selected', 'true');
+        ongletGuide.setAttribute('aria-selected', 'false');
         contenuFaq.style.display = 'block';
         contenuGuide.style.display = 'none';
+      });
+
+      // Onglets accessibles au clavier (Entrée/Espace) — bug corrigé.
+      [ongletGuide, ongletFaq].forEach(function (onglet) {
+        onglet.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onglet.click(); }
+        });
       });
     })();
   </script>

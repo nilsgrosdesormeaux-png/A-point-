@@ -38,8 +38,10 @@
       <nav id="navPrincipale"></nav>
     </header>
 
+    <p id="statutCommande" class="texte-aide">Vérification de la connexion...</p>
+
     <!-- Sélection de jours + génération PDF -->
-    <div class="carte-page" id="carteGenererCommande">
+    <div class="carte-page" id="carteGenererCommande" style="display:none;">
       <div class="entete-page">
         <div>
           <p class="eyebrow">Achats & commandes</p>
@@ -104,9 +106,17 @@
       // ================================================================
 
       function chargerDonneesCommande() {
+        var statutDiv = document.getElementById('statutCommande');
+        var carteEl = document.getElementById('carteGenererCommande');
         sbClient.auth.getSession().then(function (result) {
           var session = result.data.session;
-          if (!session) return;
+          if (!session) {
+            // Bug corrigé (audit sept. 2026) : la page ne montrait
+            // jusqu'ici aucun message ni aucun lien de connexion, elle
+            // restait simplement vide.
+            statutDiv.innerHTML = "Tu n'es pas connecté. <a href='connexion.html'>Va sur la page de connexion →</a>";
+            return;
+          }
           var commercantId = session.user.id;
 
           Promise.all([
@@ -133,7 +143,14 @@
               joursFermeture: (parametres && parametres.jours_fermeture) || []
             };
 
+            statutDiv.style.display = 'none';
+            carteEl.style.display = 'block';
             initialiserGenerationCommande(donneesGlobales);
+          }).catch(function () {
+            // Bug corrigé (audit sept. 2026) : sans ce filet, un échec
+            // réseau ici laissait la page bloquée indéfiniment sur
+            // "Vérification de la connexion...".
+            statutDiv.textContent = "Impossible de charger tes données pour l'instant. Vérifie ta connexion et réessaie.";
           });
         });
       }
@@ -185,7 +202,11 @@
         var params = new URLSearchParams(window.location.search);
         var jourISO = params.get('jour');
         var affluence = params.get('affluence');
-        if (!jourISO) return null;
+        // Bug corrigé (audit sept. 2026) : un ?jour= mal formé (lien
+        // modifié à la main, obsolète) produisait une Date invalide plus
+        // loin, ce qui plantait silencieusement toute l'initialisation de
+        // la page (grille de jours, bouton PDF jamais branchés).
+        if (!jourISO || !/^\d{4}-\d{2}-\d{2}$/.test(jourISO)) return null;
         return { jourISO: jourISO, affluence: affluence };
       }
 
@@ -249,6 +270,12 @@
           previsionParIso[j.iso] = j.tier;
         });
 
+        // Bug corrigé (audit sept. 2026) : joursAGenerer[0] est le PROCHAIN
+        // JOUR OUVERT, pas forcément demain (si le commerce est fermé
+        // demain, ça peut être J+2 ou plus) — "(demain)" était affiché à
+        // tort dans ce cas. On ne l'affiche que si c'est vraiment demain.
+        var demainISO = versISO(new Date(new Date().setDate(new Date().getDate() + 1)));
+
         function rendreCasesJours() {
           grilleJoursEl.innerHTML = '';
           joursAGenerer.forEach(function (date, index) {
@@ -264,7 +291,8 @@
             var span = document.createElement('span');
             var tierJour = previsionParIso[versISO(date)];
             var badgeAffluence = (tierJour && LIBELLES_AFFLUENCE_CONTEXTE[tierJour]) ? ' — ' + LIBELLES_AFFLUENCE_CONTEXTE[tierJour] : '';
-            span.textContent = capitaliser(nomsJours[date.getDay()]) + ' ' + date.getDate() + '/' + (date.getMonth() + 1) + (index === 0 ? ' (demain)' : '') + badgeAffluence;
+            var estDemain = versISO(date) === demainISO;
+            span.textContent = capitaliser(nomsJours[date.getDay()]) + ' ' + date.getDate() + '/' + (date.getMonth() + 1) + (estDemain ? ' (demain)' : '') + badgeAffluence;
             label.appendChild(input);
             label.appendChild(span);
             grilleJoursEl.appendChild(label);
@@ -293,18 +321,38 @@
             parProduit[nomNormalise].push(vente);
           });
 
+          // Bug corrigé (audit sept. 2026) : seul le chiffre point était
+          // agrégé, jamais la fourchette — contraire au principe "toujours
+          // une fourchette, jamais un chiffre présenté comme certain",
+          // particulièrement sensible ici où l'engagement (commande
+          // fournisseur) est le plus concret. On agrège aussi bas/haut, en
+          // retombant sur le chiffre point quand aucune fourchette n'est
+          // disponible (événement signalé, historique trop court) plutôt
+          // que d'inventer une marge.
           var totauxParCle = {};
           joursCouverts.forEach(function (jourCible) {
             var recommandationsParNom = {};
+            var recommandationsBasParNom = {};
+            var recommandationsHautParNom = {};
             Object.keys(parProduit).forEach(function (nomProduit) {
               var r = calculerRecommandation(parProduit[nomProduit], jourCible, zoneVacances, evenements, {}, {});
               recommandationsParNom[nomProduit] = r.quantite;
+              recommandationsBasParNom[nomProduit] = r.fourchette ? r.fourchette.bas : r.quantite;
+              recommandationsHautParNom[nomProduit] = r.fourchette ? r.fourchette.haut : r.quantite;
             });
             var ingredients = calculerConsommationIngredients(recommandationsParNom, produits, ingredientsLignes);
+            var ingredientsBas = calculerConsommationIngredients(recommandationsBasParNom, produits, ingredientsLignes);
+            var ingredientsHaut = calculerConsommationIngredients(recommandationsHautParNom, produits, ingredientsLignes);
+            var basParCle = {};
+            ingredientsBas.forEach(function (ing) { basParCle[ing.nom.trim().toLowerCase() + '|' + (ing.unite || '').trim().toLowerCase()] = ing.total; });
+            var hautParCle = {};
+            ingredientsHaut.forEach(function (ing) { hautParCle[ing.nom.trim().toLowerCase() + '|' + (ing.unite || '').trim().toLowerCase()] = ing.total; });
             ingredients.forEach(function (ing) {
               var cle = ing.nom.trim().toLowerCase() + '|' + (ing.unite || '').trim().toLowerCase();
-              if (!totauxParCle[cle]) totauxParCle[cle] = { nom: ing.nom, unite: ing.unite, total: 0 };
+              if (!totauxParCle[cle]) totauxParCle[cle] = { nom: ing.nom, unite: ing.unite, total: 0, totalBas: 0, totalHaut: 0 };
               totauxParCle[cle].total += ing.total;
+              totauxParCle[cle].totalBas += (basParCle[cle] !== undefined ? basParCle[cle] : ing.total);
+              totauxParCle[cle].totalHaut += (hautParCle[cle] !== undefined ? hautParCle[cle] : ing.total);
             });
           });
 
@@ -334,7 +382,13 @@
               .sort(function (a, b) { return b.total - a.total; })
               .forEach(function (ligne) {
                 var totalArrondi = Math.round(ligne.total * 10) / 10;
-                html += '<tr><td>' + ligne.nom + '</td><td>' + String(totalArrondi).replace('.', ',') + (ligne.unite ? ' ' + ligne.unite : '') + '</td></tr>';
+                var basArrondi = Math.round(ligne.totalBas * 10) / 10;
+                var hautArrondi = Math.round(ligne.totalHaut * 10) / 10;
+                var texteQuantite = String(totalArrondi).replace('.', ',') + (ligne.unite ? ' ' + ligne.unite : '');
+                if (hautArrondi > basArrondi) {
+                  texteQuantite += ' <span class="texte-aide">(' + String(basArrondi).replace('.', ',') + ' – ' + String(hautArrondi).replace('.', ',') + ')</span>';
+                }
+                html += '<tr><td>' + ligne.nom + '</td><td>' + texteQuantite + '</td></tr>';
               });
           });
           html += '</tbody></table>';
@@ -354,11 +408,27 @@
         rendreApercuHabitude();
 
         document.getElementById('btnToutCocher').addEventListener('click', function () {
-          document.querySelectorAll('.case-jour-commande').forEach(function (c) { c.checked = true; });
+          // Bug corrigé (audit sept. 2026) : la grille affiche jusqu'à 14
+          // jours (MAX_JOURS_COUVERTURE), donc cocher "toutes les cases"
+          // couvrait en réalité deux semaines, pas une — risque réel de
+          // surcommande. On limite bien aux 7 premiers jours affichés.
+          document.querySelectorAll('.case-jour-commande').forEach(function (c) {
+            if (parseInt(c.value, 10) < 7) c.checked = true;
+          });
         });
 
         document.getElementById('btnGenererPdf').addEventListener('click', function () {
-          genererPdfCommande(donnees, joursAGenerer);
+          // Bug corrigé (audit sept. 2026) : sans filet, un échec de
+          // chargement de jsPDF (CDN indisponible, réseau coupé) rendait ce
+          // clic silencieusement inopérant, sans aucun message.
+          try {
+            genererPdfCommande(donnees, joursAGenerer);
+          } catch (erreur) {
+            var messageCommandeEl = document.getElementById('messageCommande');
+            messageCommandeEl.style.display = 'block';
+            messageCommandeEl.className = 'erreur';
+            messageCommandeEl.textContent = "Impossible de générer le PDF pour l'instant. Vérifie ta connexion et réessaie.";
+          }
         });
       }
 
@@ -395,18 +465,34 @@
         // chaque jour, la météo n'étant volontairement pas ré-appelée ici
         // (déjà appelée pour le tableau de bord ; ce PDF reste utilisable même
         // hors ligne côté météo, best-effort comme partout ailleurs).
+        // Bug corrigé (audit sept. 2026) : même agrégation de la fourchette
+        // que dans l'aperçu ci-dessus (voir rendreApercuHabitude) — le PDF
+        // envoyé au fournisseur ne doit pas présenter un chiffre unique
+        // comme certain.
         var totauxParCle = {};
         joursChoisis.forEach(function (jourCible) {
           var recommandationsParNom = {};
+          var recommandationsBasParNom = {};
+          var recommandationsHautParNom = {};
           Object.keys(parProduit).forEach(function (nomProduit) {
             var r = calculerRecommandation(parProduit[nomProduit], jourCible, zoneVacances, evenements, {}, {});
             recommandationsParNom[nomProduit] = r.quantite;
+            recommandationsBasParNom[nomProduit] = r.fourchette ? r.fourchette.bas : r.quantite;
+            recommandationsHautParNom[nomProduit] = r.fourchette ? r.fourchette.haut : r.quantite;
           });
           var ingredients = calculerConsommationIngredients(recommandationsParNom, produits, ingredientsLignes);
+          var ingredientsBas = calculerConsommationIngredients(recommandationsBasParNom, produits, ingredientsLignes);
+          var ingredientsHaut = calculerConsommationIngredients(recommandationsHautParNom, produits, ingredientsLignes);
+          var basParCle = {};
+          ingredientsBas.forEach(function (ing) { basParCle[ing.nom.trim().toLowerCase() + '|' + (ing.unite || '').trim().toLowerCase()] = ing.total; });
+          var hautParCle = {};
+          ingredientsHaut.forEach(function (ing) { hautParCle[ing.nom.trim().toLowerCase() + '|' + (ing.unite || '').trim().toLowerCase()] = ing.total; });
           ingredients.forEach(function (ing) {
             var cle = ing.nom.trim().toLowerCase() + '|' + (ing.unite || '').trim().toLowerCase();
-            if (!totauxParCle[cle]) totauxParCle[cle] = { nom: ing.nom, unite: ing.unite, total: 0 };
+            if (!totauxParCle[cle]) totauxParCle[cle] = { nom: ing.nom, unite: ing.unite, total: 0, totalBas: 0, totalHaut: 0 };
             totauxParCle[cle].total += ing.total;
+            totauxParCle[cle].totalBas += (basParCle[cle] !== undefined ? basParCle[cle] : ing.total);
+            totauxParCle[cle].totalHaut += (hautParCle[cle] !== undefined ? hautParCle[cle] : ing.total);
           });
         });
 
@@ -438,7 +524,16 @@
           head: [['Article', 'Quantité totale', 'Unité']],
           body: lignesTableau.map(function (l) {
             var totalArrondi = Math.round(l.total * 10) / 10;
-            return [l.nom, totalArrondi, l.unite || '-'];
+            var basArrondi = Math.round(l.totalBas * 10) / 10;
+            var hautArrondi = Math.round(l.totalHaut * 10) / 10;
+            // Bug corrigé : le nombre était passé brut à autoTable, qui
+            // l'affichait avec un point ("1.4") au lieu de la virgule
+            // française utilisée partout ailleurs sur le site.
+            var texteQuantite = String(totalArrondi).replace('.', ',');
+            if (hautArrondi > basArrondi) {
+              texteQuantite += ' (' + String(basArrondi).replace('.', ',') + ' - ' + String(hautArrondi).replace('.', ',') + ')';
+            }
+            return [l.nom, texteQuantite, l.unite || '-'];
           }),
           styles: { fontSize: 10 },
           headStyles: { fillColor: [33, 29, 23] }

@@ -95,6 +95,14 @@
         });
       }, 1200);
 
+      // Valider avec la touche Entrée depuis l'un ou l'autre champ, pas
+      // seulement en cliquant sur le bouton.
+      [nouveauMdpEl, confirmerMdpEl].forEach(function (champ) {
+        champ.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') btnValiderEl.click();
+        });
+      });
+
       btnValiderEl.addEventListener('click', function () {
         var nouveauMdp = nouveauMdpEl.value;
         var confirmation = confirmerMdpEl.value;
@@ -142,6 +150,13 @@
             if (!estEmploye) { apresActivation(); return; }
 
             sbClient.functions.invoke('activer-compte-employe', {}).then(apresActivation).catch(apresActivation);
+          }).catch(function () {
+            // Bug corrigé : sans ce filet, un échec réseau ici laissait la
+            // personne bloquée indéfiniment sur "Mot de passe mis à jour !
+            // Redirection...", alors que le changement avait bien fonctionné.
+            // connexion.html sait déjà rediriger correctement selon le rôle
+            // dès qu'une session existe, donc l'y renvoyer suffit.
+            setTimeout(function () { window.location.href = 'connexion.html'; }, 1200);
           });
         });
       });

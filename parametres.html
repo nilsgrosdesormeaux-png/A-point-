@@ -46,12 +46,18 @@
         <input type="text" id="inputVille" placeholder="Ex : Rennes">
         <p class="texte-aide" style="margin-top:-4px;">Un même code postal peut couvrir plusieurs communes voisines : précise le nom de ta ville pour que la météo soit bien celle de ton emplacement exact, pas celle d'une commune à côté.</p>
 
-        <label>Jours de fermeture habituels</label>
-        <div class="grille-jours" id="grilleJoursFermeture"></div>
+        <!-- Bug corrigé (audit sept. 2026) : un <label> isolé ne peut pas
+             regrouper plusieurs cases à cocher pour un lecteur d'écran ;
+             <fieldset>/<legend> reprend exactement le style du label
+             existant pour ne rien changer visuellement. -->
+        <fieldset style="border:none; padding:0; margin:16px 0 6px;">
+          <legend style="font-weight:600; font-size:13px; padding:0;">Jours de fermeture habituels</legend>
+          <div class="grille-jours" id="grilleJoursFermeture"></div>
+        </fieldset>
         <p class="texte-aide">Les jours cochés ne seront jamais recommandés à la production, et ne compteront pas comme des jours "ratés" dans le calcul de fiabilité.</p>
 
         <button id="btnEnregistrerCommerce" type="button">Enregistrer</button>
-        <div id="messageCommerce"></div>
+        <div id="messageCommerce" aria-live="polite"></div>
 
         <p class="section-titre">Compte</p>
         <p class="texte-aide" id="emailActuel"></p>
@@ -61,14 +67,14 @@
           <input type="email" id="inputNouvelEmail" placeholder="nouvelle@adresse.fr">
           <button id="btnChangerEmail" type="button">Enregistrer</button>
         </div>
-        <div id="messageEmail"></div>
+        <div id="messageEmail" aria-live="polite"></div>
 
         <label for="inputNouveauMdp">Changer de mot de passe</label>
         <input type="password" id="inputNouveauMdp" placeholder="Nouveau mot de passe (8 caractères minimum)">
         <label for="inputConfirmerMdp" style="margin-top:10px;">Confirmer le nouveau mot de passe</label>
         <input type="password" id="inputConfirmerMdp" placeholder="Confirme le nouveau mot de passe">
         <button id="btnChangerMdp" type="button">Enregistrer</button>
-        <div id="messageMdp"></div>
+        <div id="messageMdp" aria-live="polite"></div>
 
         <p class="section-titre">Session</p>
         <button id="btnDeconnexion" type="button" style="background-color: var(--surface); color: var(--texte); border: 1px solid var(--bordure);">Se déconnecter</button>
@@ -121,13 +127,28 @@
       }
 
       var commercantId = null;
+      // Bug corrigé (audit sept. 2026) : sert à ne réinitialiser les
+      // coordonnées géocodées (lat/long) que si le code postal ou la ville
+      // ont réellement changé, pas à chaque clic sur "Enregistrer" (par ex.
+      // en cochant juste un jour de fermeture) — évite un re-géocodage
+      // inutile au prochain chargement du tableau de bord.
+      var adresseChargee = { codePostal: '', ville: '' };
 
       sbClient.auth.getSession().then(function (result) {
         var session = result.data.session;
         if (!session) {
-          statutDiv.textContent = "Tu n'es pas connecté. Va d'abord sur la page de connexion.";
+          statutDiv.innerHTML = "Tu n'es pas connecté. <a href='connexion.html'>Va sur la page de connexion →</a>";
           return;
         }
+        chargerParametres(session);
+      }, function () {
+        // Bug corrigé (audit sept. 2026) : sans ce filet, un échec réseau
+        // ici laissait la page bloquée indéfiniment sur "Vérification de la
+        // connexion...", même sans jamais avoir été "non connecté".
+        statutDiv.textContent = "Impossible de vérifier ta connexion pour l'instant. Vérifie ta connexion et réessaie.";
+      });
+
+      function chargerParametres(session) {
         commercantId = session.user.id;
         statutDiv.style.display = 'none';
         zoneParametresEl.style.display = 'block';
@@ -152,13 +173,20 @@
           inputNomRestaurantEl.value = parametres.nom_restaurant || '';
           inputCodePostalEl.value = parametres.code_postal || '';
           inputVilleEl.value = parametres.ville || '';
+          adresseChargee = { codePostal: parametres.code_postal || '', ville: parametres.ville || '' };
           var fermes = parametres.jours_fermeture || [];
           var cases = grilleJoursFermetureEl.querySelectorAll('.case-jour-input');
           cases.forEach(function (c) {
             c.checked = fermes.indexOf(Number(c.value)) !== -1;
           });
+        }, function () {
+          // Bug corrigé (audit sept. 2026) : sans ce filet, un échec réseau
+          // laissait le formulaire silencieusement vide, sans que
+          // l'utilisateur ne sache s'il doit tout re-remplir ou si c'est un
+          // bug.
+          afficherMessage(messageCommerceEl, "Impossible de charger tes réglages actuels. Vérifie ta connexion et réessaie.", true);
         });
-      });
+      }
 
       btnEnregistrerCommerceEl.addEventListener('click', function () {
         if (!commercantId) return;
@@ -172,27 +200,39 @@
           if (c.checked) joursFermeture.push(Number(c.value));
         });
         btnEnregistrerCommerceEl.disabled = true;
-        sbClient.from('parametres_commercant').upsert({
+        var nouvelleVille = inputVilleEl.value.trim();
+        // Bug corrigé (audit sept. 2026) : lat/long étaient réinitialisées à
+        // CHAQUE clic sur "Enregistrer", même en cochant juste un jour de
+        // fermeture sans toucher à l'adresse — forçait un re-géocodage
+        // inutile au prochain chargement. On ne les réinitialise que si le
+        // code postal ou la ville ont réellement changé.
+        var adresseAChange = (cp || '') !== adresseChargee.codePostal || nouvelleVille !== adresseChargee.ville;
+        var payloadCommerce = {
           commercant_id: commercantId,
           nom_restaurant: inputNomRestaurantEl.value.trim() || null,
           code_postal: cp || null,
-          ville: inputVilleEl.value.trim() || null,
-          // On réinitialise les coordonnées mises en cache à chaque
-          // enregistrement : un changement de code postal ou de ville doit
-          // être repris par la météo dès le prochain chargement du tableau
-          // de bord, plutôt que de garder d'anciennes coordonnées géocodées
-          // avant que la ville ne soit renseignée.
-          latitude: null,
-          longitude: null,
+          ville: nouvelleVille || null,
           jours_fermeture: joursFermeture,
           updated_at: new Date().toISOString()
-        }).then(function (res) {
+        };
+        if (adresseAChange) {
+          payloadCommerce.latitude = null;
+          payloadCommerce.longitude = null;
+        }
+        sbClient.from('parametres_commercant').upsert(payloadCommerce).then(function (res) {
           btnEnregistrerCommerceEl.disabled = false;
           if (res.error) {
             afficherMessage(messageCommerceEl, "Erreur : " + res.error.message, true);
             return;
           }
+          adresseChargee = { codePostal: cp || '', ville: nouvelleVille || '' };
           afficherMessage(messageCommerceEl, "Réglages enregistrés.", false);
+        }, function () {
+          // Bug corrigé (audit sept. 2026) : sans ce filet, un échec réseau
+          // laissait le bouton bloqué en "disabled" pour toujours, sans
+          // aucun message.
+          btnEnregistrerCommerceEl.disabled = false;
+          afficherMessage(messageCommerceEl, "Impossible d'enregistrer pour l'instant. Vérifie ta connexion et réessaie.", true);
         });
       });
 
@@ -200,6 +240,14 @@
         var nouvelEmail = inputNouvelEmailEl.value.trim();
         if (!nouvelEmail) {
           afficherMessage(messageEmailEl, "Entre une adresse email.", true);
+          return;
+        }
+        // Bug corrigé (audit sept. 2026) : aucun format n'était vérifié
+        // avant l'appel API (pas de <form>, bouton type="button" — la
+        // validation HTML5 native de l'input type="email" ne se déclenche
+        // jamais ici).
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nouvelEmail)) {
+          afficherMessage(messageEmailEl, "Cette adresse email ne semble pas valide.", true);
           return;
         }
         btnChangerEmailEl.disabled = true;
@@ -211,6 +259,11 @@
           }
           afficherMessage(messageEmailEl, "Vérifie ta boîte mail (ancienne et nouvelle adresse) pour confirmer le changement.", false);
           inputNouvelEmailEl.value = '';
+        }, function () {
+          // Bug corrigé (audit sept. 2026) : sans ce filet, un échec réseau
+          // laissait le bouton bloqué en "disabled" pour toujours.
+          btnChangerEmailEl.disabled = false;
+          afficherMessage(messageEmailEl, "Impossible d'enregistrer pour l'instant. Vérifie ta connexion et réessaie.", true);
         });
       });
 
@@ -235,6 +288,11 @@
           afficherMessage(messageMdpEl, "Mot de passe mis à jour.", false);
           inputNouveauMdpEl.value = '';
           inputConfirmerMdpEl.value = '';
+        }, function () {
+          // Bug corrigé (audit sept. 2026) : sans ce filet, un échec réseau
+          // laissait le bouton bloqué en "disabled" pour toujours.
+          btnChangerMdpEl.disabled = false;
+          afficherMessage(messageMdpEl, "Impossible d'enregistrer pour l'instant. Vérifie ta connexion et réessaie.", true);
         });
       });
 

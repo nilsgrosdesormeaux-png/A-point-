@@ -401,7 +401,7 @@
       sbClient.auth.getSession().then(function (result) {
         var session = result.data.session;
         if (!session) {
-          statutDiv.textContent = "Non connecté. Va sur connexion.html";
+          statutDiv.innerHTML = 'Non connecté. <a href="connexion.html">Va sur la page de connexion →</a>';
           return;
         }
         var commercantId = session.user.id;
@@ -419,6 +419,11 @@
           rafraichirJoursRecords();
           rafraichirClassement();
           rafraichirAffluence();
+        }).catch(function () {
+          // Bug corrigé (audit sept. 2026) : sans ce filet, un échec réseau
+          // laissait la page bloquée indéfiniment sur "Vérification de la
+          // connexion...".
+          statutDiv.textContent = "Impossible de charger tes données pour l'instant. Vérifie ta connexion et réessaie.";
         });
       });
     })();
