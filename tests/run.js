@@ -982,19 +982,29 @@ async function main() {
         expect(await lienImport.count()).toBeGreaterThan(0);
       });
 
-      // Retour utilisateur, 23 sept. 2026 : le raccourci "Ajouter les ventes
-      // d'hier" existe sur le Tableau de bord mais nulle part ailleurs, il
-      // fallait y retourner depuis les autres pages pour le retrouver.
-      // Ajouté en haut de Produits, avant le formulaire d'ajout de produit
-      // qui descend en dessous.
-      await test('un raccourci "Ajouter les ventes d\'hier" apparaît en haut, avant le formulaire d\'ajout de produit', async () => {
+      // Retour utilisateur, 23 sept. 2026 : le lien discret "Ajouter les
+      // ventes d'hier" ne convenait pas ("je ne veux pas un petit lien, je
+      // veux pouvoir noter les produits vendus directement ici"). Remplacé
+      // par une vraie section "Ventes du jour" intégrée, avant le
+      // formulaire d'ajout de produit qui descend en dessous.
+      await test('"Ventes du jour" apparaît en haut, avant le formulaire d\'ajout de produit, avec la date d\'hier par défaut', async () => {
         await pageProduits.goto(BASE_URL + '/produits.html');
         await pageProduits.locator('#zoneFormulaire').waitFor({ state: 'visible' });
-        const lienVentes = pageProduits.locator('a[href="ventes.html"]', { hasText: "Ajouter les ventes d'hier" });
-        expect(await lienVentes.count()).toBeGreaterThan(0);
-        const boiteLien = await lienVentes.first().boundingBox();
+        await pageProduits.locator('#libelleJourVentes').waitFor({ state: 'visible' });
+        expect(await pageProduits.locator('#libelleJourVentes').textContent()).toBe('Hier');
+        const boiteVentes = await pageProduits.locator('#zoneVentesJour').boundingBox();
         const boiteFormulaire = await pageProduits.locator('#nomProduit').boundingBox();
-        expect(boiteLien.y < boiteFormulaire.y).toBeTruthy();
+        expect(boiteVentes.y < boiteFormulaire.y).toBeTruthy();
+        // Les deux produits du commerçant apparaissent bien comme champs de saisie.
+        expect(await pageProduits.locator('#listeProduitsVentes .quantiteVendue').count()).toBe(2);
+      });
+
+      await test('enregistrer une vente dans "Ventes du jour" fonctionne sans quitter la page Produits', async () => {
+        await pageProduits.goto(BASE_URL + '/produits.html');
+        await pageProduits.locator('#libelleJourVentes').waitFor({ state: 'visible' });
+        await pageProduits.locator('.quantiteVendue[data-produit="Margherita"]').fill('7');
+        await pageProduits.locator('#btnEnregistrerVentes').click();
+        await pageProduits.locator('#messageVentes.succes').waitFor({ state: 'visible' });
       });
 
       await test('affiche un bloc par catégorie créée, plus un bloc "Non classé" toujours présent', async () => {

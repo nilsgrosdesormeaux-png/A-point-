@@ -11,7 +11,28 @@
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="moteur-prevision.js?v=20260922"></script>
   <script src="nav.js"></script>
+  <style>
+    /* Ventes du jour : même style de navigation par jour que ventes.html
+       et espace-employe.html. Retour utilisateur, 23 sept. 2026 : "je ne
+       veux pas un petit lien, je veux pouvoir noter les produits vendus
+       directement ici" — remplace le lien vers ventes.html par la saisie
+       intégrée. */
+    .nav-jour-ventes { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 10px 0 4px; }
+    .date-complete { text-align: center; font-size: 12px; color: var(--texte-tres-attenue); margin: 2px 0 0; }
+    .libelle-jour { font-family: var(--police-titre); font-size: 16.5px; font-weight: 600; letter-spacing: -0.01em; text-align: center; min-width: 140px; margin: 0; }
+    .bouton-nav-jour {
+      width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--bordure);
+      background: var(--surface); color: var(--texte); font-size: 14px; cursor: pointer; flex-shrink: 0;
+      box-shadow: 0 1px 2px rgba(33, 29, 23, 0.06);
+      transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+    }
+    .bouton-nav-jour:hover { background: var(--accent-clair); border-color: var(--texte-tres-attenue); }
+    .bouton-nav-jour:active { transform: scale(0.93); }
+    .bouton-nav-jour:disabled { opacity: 0.35; cursor: default; }
+    .bouton-nav-jour:disabled:hover { background: var(--surface); border-color: var(--bordure); }
+  </style>
 </head>
 <body>
   <header class="entete-site entete-site--pleine-largeur">
@@ -37,9 +58,22 @@
       <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
 
       <div id="zoneFormulaire" style="display:none;">
-        <p class="texte-aide" style="margin-top:18px; margin-bottom:0;">🕐 <a href="ventes.html">Ajouter les ventes d'hier</a></p>
+        <div id="zoneVentesJour" style="margin-top:18px;">
+          <p class="section-titre" style="margin:0;">Ventes du jour</p>
+          <div class="nav-jour-ventes">
+            <button type="button" id="btnJourPrecedentVentes" class="bouton-nav-jour" aria-label="Jour précédent">←</button>
+            <div>
+              <p class="libelle-jour" id="libelleJourVentes">Hier</p>
+              <p class="date-complete" id="dateCompleteVentes"></p>
+            </div>
+            <button type="button" id="btnJourSuivantVentes" class="bouton-nav-jour" aria-label="Jour suivant">→</button>
+          </div>
+          <div id="listeProduitsVentes"></div>
+          <button id="btnEnregistrerVentes" type="button">Enregistrer mes ventes</button>
+          <div id="messageVentes"></div>
+        </div>
 
-        <p class="section-titre" style="margin-top:22px;">Ajouter un produit</p>
+        <p class="section-titre" style="margin-top:26px;">Ajouter un produit</p>
         <div class="ligne-form">
           <input type="text" id="nomProduit" placeholder="Exemple : Baguette tradition" aria-label="Nom du produit">
           <button id="btnAjouter">Ajouter</button>
@@ -122,6 +156,154 @@
       // recharger Supabase après un simple glisser-déposer.
       var CATEGORIES = [];
       var produitsCourants = [];
+
+      // --- Ventes du jour (saisie manuelle intégrée ici, remplace l'ancien
+      // lien discret vers ventes.html — retour utilisateur, 23 sept. 2026).
+      // Bloc volontairement autonome (son propre fetch produits/ventes),
+      // même logique de navigation par jour et de remplacement à
+      // l'enregistrement que ventes.html.
+      var MP = window.MoteurPrevision;
+      var decalageJourVentes = -1;
+      var LIMITE_DECALAGE_VENTES = -7;
+      var produitsVentes = [];
+      var libelleJourVentesEl = document.getElementById('libelleJourVentes');
+      var dateCompleteVentesEl = document.getElementById('dateCompleteVentes');
+      var btnJourPrecedentVentes = document.getElementById('btnJourPrecedentVentes');
+      var btnJourSuivantVentes = document.getElementById('btnJourSuivantVentes');
+      var listeProduitsVentesEl = document.getElementById('listeProduitsVentes');
+      var btnEnregistrerVentesEl = document.getElementById('btnEnregistrerVentes');
+      var messageVentesEl = document.getElementById('messageVentes');
+
+      function jourAfficheVentes() { return MP.ajouterJours(new Date(), decalageJourVentes); }
+      function dateSelectionneeVentes() { return MP.versISO(jourAfficheVentes()); }
+
+      function majEnteteJourVentes() {
+        var libelle = decalageJourVentes === -1 ? 'Hier' : decalageJourVentes === -2 ? 'Avant-hier' : MP.formatDateLongue(jourAfficheVentes());
+        libelleJourVentesEl.textContent = libelle;
+        dateCompleteVentesEl.textContent = MP.formatDateLongue(jourAfficheVentes()) + ' ' + jourAfficheVentes().getFullYear();
+        btnJourPrecedentVentes.disabled = decalageJourVentes <= LIMITE_DECALAGE_VENTES;
+        btnJourSuivantVentes.disabled = decalageJourVentes >= -1;
+      }
+
+      function afficherProduitsVentes(quantitesExistantes) {
+        listeProduitsVentesEl.innerHTML = '';
+        if (produitsVentes.length === 0) {
+          listeProduitsVentesEl.innerHTML = '<p class="texte-aide">Ajoute un produit ci-dessous pour pouvoir saisir ses ventes.</p>';
+          btnEnregistrerVentesEl.style.display = 'none';
+          return;
+        }
+        btnEnregistrerVentesEl.style.display = '';
+        produitsVentes.forEach(function (produit) {
+          var div = document.createElement('div');
+          div.className = 'ligne-produit';
+
+          var label = document.createElement('label');
+          label.textContent = formatNomAffichage(produit.nom);
+
+          var stepper = document.createElement('div');
+          stepper.className = 'stepper';
+
+          var input = document.createElement('input');
+          input.type = 'number';
+          input.min = '0';
+          input.inputMode = 'numeric';
+          input.className = 'quantiteVendue stepper-valeur';
+          input.setAttribute('data-produit', produit.nom);
+          input.placeholder = '0';
+          if (quantitesExistantes && Object.prototype.hasOwnProperty.call(quantitesExistantes, produit.nom)) {
+            input.value = quantitesExistantes[produit.nom];
+          }
+
+          var btnMoins = document.createElement('button');
+          btnMoins.type = 'button';
+          btnMoins.className = 'stepper-bouton';
+          btnMoins.setAttribute('aria-label', 'Diminuer la quantité de ' + formatNomAffichage(produit.nom));
+          btnMoins.textContent = '−';
+          btnMoins.addEventListener('click', function () {
+            var v = parseInt(input.value, 10);
+            if (isNaN(v)) v = 0;
+            input.value = Math.max(0, v - 1);
+          });
+
+          var btnPlus = document.createElement('button');
+          btnPlus.type = 'button';
+          btnPlus.className = 'stepper-bouton';
+          btnPlus.setAttribute('aria-label', 'Augmenter la quantité de ' + formatNomAffichage(produit.nom));
+          btnPlus.textContent = '+';
+          btnPlus.addEventListener('click', function () {
+            var v = parseInt(input.value, 10);
+            if (isNaN(v)) v = 0;
+            input.value = v + 1;
+          });
+
+          stepper.appendChild(btnMoins);
+          stepper.appendChild(input);
+          stepper.appendChild(btnPlus);
+          div.appendChild(label);
+          div.appendChild(stepper);
+          listeProduitsVentesEl.appendChild(div);
+        });
+      }
+
+      function chargerVentesJour() {
+        majEnteteJourVentes();
+        messageVentesEl.style.display = 'none';
+        Promise.all([
+          sbClient.from('produits').select('*').eq('commercant_id', commercantId),
+          sbClient.from('ventes').select('*').eq('commercant_id', commercantId).eq('date_vente', dateSelectionneeVentes())
+        ]).then(function (resultats) {
+          produitsVentes = resultats[0].data || [];
+          var quantitesExistantes = {};
+          (resultats[1].data || []).forEach(function (ligne) { quantitesExistantes[ligne.nom_produit] = ligne.quantite; });
+          afficherProduitsVentes(quantitesExistantes);
+        });
+      }
+
+      btnJourPrecedentVentes.addEventListener('click', function () {
+        if (decalageJourVentes > LIMITE_DECALAGE_VENTES) { decalageJourVentes--; chargerVentesJour(); }
+      });
+      btnJourSuivantVentes.addEventListener('click', function () {
+        if (decalageJourVentes < -1) { decalageJourVentes++; chargerVentesJour(); }
+      });
+
+      btnEnregistrerVentesEl.addEventListener('click', function () {
+        var champs = listeProduitsVentesEl.querySelectorAll('.quantiteVendue');
+        var lignesAEnregistrer = [];
+        var dateJour = dateSelectionneeVentes();
+
+        champs.forEach(function (champ) {
+          var quantite = parseInt(champ.value);
+          if (!isNaN(quantite) && quantite >= 0) {
+            lignesAEnregistrer.push({
+              commercant_id: commercantId,
+              nom_produit: champ.getAttribute('data-produit'),
+              quantite: quantite,
+              date_vente: dateJour
+            });
+          }
+        });
+
+        if (lignesAEnregistrer.length === 0) {
+          messageVentesEl.style.display = 'block';
+          messageVentesEl.className = 'erreur';
+          messageVentesEl.textContent = "Entre au moins une quantité.";
+          return;
+        }
+
+        var nomsProduits = produitsVentes.map(function (p) { return p.nom; });
+        sbClient.from('ventes').delete().eq('commercant_id', commercantId).eq('date_vente', dateJour).in('nom_produit', nomsProduits).then(function () {
+          sbClient.from('ventes').insert(lignesAEnregistrer).then(function (result) {
+            messageVentesEl.style.display = 'block';
+            if (result.error) {
+              messageVentesEl.className = 'erreur';
+              messageVentesEl.textContent = "Erreur : " + result.error.message;
+            } else {
+              messageVentesEl.className = 'succes';
+              messageVentesEl.textContent = "Ventes enregistrées !";
+            }
+          });
+        });
+      });
 
       // Nettoie un nom de produit pour l'affichage (espaces superflus, casse
       // hétérogène après un import CSV un peu sale) sans toucher à la valeur
@@ -343,6 +525,7 @@
               messageDiv.textContent = "Impossible de modifier : " + result.error.message;
             } else {
               chargerProduits();
+              chargerVentesJour();
             }
           });
         });
@@ -363,6 +546,7 @@
               ficheTechniqueDiv.style.display = 'none';
             }
             chargerProduits();
+            chargerVentesJour();
           }
         });
       }
@@ -424,6 +608,7 @@
           zoneFormulaire.style.display = 'block';
           chargerProduits();
           chargerNomsIngredientsConnus();
+          chargerVentesJour();
         } else {
           statutDiv.textContent = "Tu n'es pas connecté. Va d'abord sur la page de connexion.";
         }
@@ -470,6 +655,7 @@
               messageDiv.textContent = "Produit ajouté !";
               document.getElementById('nomProduit').value = '';
               chargerProduits();
+              chargerVentesJour();
             }
           });
         });
