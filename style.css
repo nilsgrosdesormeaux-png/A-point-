@@ -2313,56 +2313,76 @@ button.lien-supprimer:hover {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
+/* Redesign du 23 sept. 2026 (retour Nils : "moches, dégueulasses") : pastilles
+   plus respirées, retour visuel net au survol/actif, cercle de couleur propre
+   plutôt que le rendu brut d'un <input type="color">. Le clic reste posé sur
+   toute la pastille (span), jamais seulement sur le texte, voir rendreLegende()
+   dans personnel.html. */
 .pastille-poste {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 10px 5px 6px;
-  background: var(--fond);
-  border: 1px solid var(--bordure);
+  gap: 8px;
+  padding: 8px 16px 8px 8px;
+  background: var(--surface);
+  border: 1.5px solid var(--bordure);
   border-radius: 999px;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
+  color: var(--texte-attenue);
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  box-shadow: 0 1px 2px rgba(33, 29, 23, 0.04);
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease, color 0.15s ease;
+}
+
+.pastille-poste:hover {
+  border-color: var(--texte-tres-attenue);
+  box-shadow: 0 3px 10px rgba(33, 29, 23, 0.08);
+}
+
+.pastille-poste:active {
+  transform: scale(0.97);
 }
 
 .pastille-poste--active {
-  background: var(--surface);
+  background: var(--accent-clair);
   border-color: var(--ink);
-  box-shadow: 0 1px 3px rgba(33,29,23,0.12);
+  color: var(--texte);
+  box-shadow: 0 2px 8px rgba(33, 29, 23, 0.1);
+}
+
+.pastille-poste--active .pastille-poste-nom {
+  font-weight: 700;
 }
 
 .pastille-poste--tous {
-  padding-left: 10px;
-  border-style: solid;
-  border-width: 1px;
-}
-
-.pastille-poste--tous .pastille-poste-nom {
-  color: var(--texte);
+  padding-left: 14px;
 }
 
 .pastille-poste-couleur {
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
   padding: 0;
-  border: 1px solid rgba(0,0,0,0.15);
+  border: none;
   border-radius: 50%;
   cursor: pointer;
+  flex-shrink: 0;
   -webkit-appearance: none;
   appearance: none;
+  box-shadow: 0 0 0 1.5px rgba(33, 29, 23, 0.14), inset 0 0 0 2px rgba(255, 255, 255, 0.55);
+  transition: transform 0.12s ease;
 }
+
+.pastille-poste-couleur:hover { transform: scale(1.15); }
 
 .pastille-poste-nom {
   background: none;
   border: none;
   font: inherit;
-  font-weight: 600;
-  color: var(--texte);
+  font-weight: inherit;
+  color: inherit;
   cursor: pointer;
   padding: 0;
 }

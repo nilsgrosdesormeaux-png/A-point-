@@ -1119,7 +1119,18 @@
 
         SECTEURS.forEach(function (secteur) {
           var pastille = document.createElement('span');
-          pastille.className = 'pastille-poste' + (filtreSecteurActif === secteur.id ? ' pastille-poste--active' : '');
+          var estActif = filtreSecteurActif === secteur.id;
+          pastille.className = 'pastille-poste' + (estActif ? ' pastille-poste--active' : '');
+          // Redesign du 23 sept. 2026 : la pastille active se teinte avec la
+          // couleur propre du secteur plutôt qu'un gris générique identique
+          // pour tous, pour rester lisible même avec plusieurs secteurs actifs
+          // l'un après l'autre. hexAvecAlpha ajoute un canal alpha au hex
+          // (ex. "#3b82f6" + "22" ≈ 13% d'opacité), en style inline pour
+          // primer sur le fond gris de la classe --active.
+          if (estActif && /^#[0-9a-fA-F]{6}$/.test(secteur.couleur)) {
+            pastille.style.background = secteur.couleur + '22';
+            pastille.style.borderColor = secteur.couleur;
+          }
 
           var couleur = document.createElement('input');
           couleur.type = 'color';
