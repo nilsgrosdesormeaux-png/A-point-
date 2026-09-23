@@ -1485,6 +1485,26 @@ async function main() {
         expect(blocsVincent).toBe(2);
       });
 
+      // Retour utilisateur, 23 sept. 2026 : "il n'y a que le nom qui ouvre
+      // le planning, pas toute la case". Vérifié que toute la surface du
+      // bloc (pas seulement le texte du libellé) ouvre bien la modale
+      // d'édition.
+      await test('cliquer n\'importe où dans le bloc du créneau (pas seulement le texte) ouvre la modale d\'édition', async () => {
+        await pageGantt.goto(BASE_URL + '/personnel.html');
+        await pageGantt.locator('#ganttGrille .gantt-nom-cell').first().waitFor({ state: 'visible' });
+        const bloc = pageGantt.locator('.gantt-piste').first().locator('.gantt-bloc').first();
+        const boiteBloc = await bloc.boundingBox();
+        // Clique volontairement dans la zone vide à droite du bloc, loin du
+        // texte du libellé (mais pas collé au bord : le bloc est rendu 4px
+        // plus étroit que son créneau pour laisser un espace visuel avec le
+        // suivant, donc un point trop proche du bord droit peut retomber
+        // sur la piste au lieu du bloc).
+        await bloc.click({ position: { x: boiteBloc.width - 12, y: boiteBloc.height - 10 } });
+        expect(await pageGantt.locator('#modalCreneau').getAttribute('hidden')).toBe(null);
+        // Referme proprement pour ne pas polluer les tests suivants.
+        await pageGantt.evaluate(() => { document.getElementById('modalCreneau').hidden = true; });
+      });
+
       await test('un créneau traversant minuit (19h-02h) est rendu avec une largeur cohérente, pas rejeté', async () => {
         await pageGantt.goto(BASE_URL + '/personnel.html');
         await pageGantt.locator('#ganttGrille .gantt-nom-cell').first().waitFor({ state: 'visible' });
@@ -1586,6 +1606,45 @@ async function main() {
         const opacitePause = await pagePause.locator('.gantt-bloc-pause').evaluate((el) => Number(getComputedStyle(el).opacity));
         expect(opacitePause < 1).toBeTruthy();
         await pagePause.close();
+      });
+
+      // Retour utilisateur, 23 sept. 2026 : les heures "Pause de ... à ..."
+      // dans la modale d'édition étaient mal cadrées (le 2e select
+      // débordait hors de la carte de la modale, invisible). Cause : les
+      // <select> flex:1 gardaient leur min-width auto (comportement flexbox
+      // par défaut) et refusaient de rétrécir. Corrigé avec min-width:0.
+      await test('les deux select "Pause de ... à ..." restent entièrement visibles dans la modale, sans déborder', async () => {
+        const commercantIdCadrage = 'test-pause-cadrage';
+        const pageCadrage = await browser.newPage();
+        await stubSupabaseAvecDonnees(pageCadrage, {
+          commercantId: commercantIdCadrage,
+          tables: {
+            personnel: [{ id: 'p1', nom: 'Julien', secteur_id: 'salle', poste_id: 'generique', type_contrat: 'Fixe', niveau_hierarchie: 1, contrat_hebdo: 35, jours_repos: [], alternance_weekend: false, statut_compte: 'actif', heures_disponibles: {} }],
+            ventes: [], parametres_commercant: [], evenements_commercant: [],
+            secteurs_personnel: secteursFixture,
+            postes_personnel: postesFixture,
+            creneaux_personnel: [
+              { id: 'cpc1', commercant_id: commercantIdCadrage, personnel_id: 'p1', date_creneau: isoDemain, heure_debut: '11:00:00', heure_fin: '15:00:00', secteur_id: 'salle', poste_id: 'generique', origine: 'manuel', pause_debut: '11:30:00', pause_fin: '12:30:00' },
+            ],
+          },
+        });
+        await pageCadrage.goto(BASE_URL + '/personnel.html');
+        await pageCadrage.locator('.gantt-bloc').first().waitFor({ state: 'visible' });
+        await pageCadrage.locator('.gantt-bloc').first().click({ position: { x: 5, y: 5 } });
+        await pageCadrage.locator('#modalPauseFin').waitFor({ state: 'visible' });
+
+        const boiteModale = await pageCadrage.locator('#modalCreneau .contenu-modal').boundingBox();
+        const boitePauseDebut = await pageCadrage.locator('#modalPauseDebut').boundingBox();
+        const boitePauseFin = await pageCadrage.locator('#modalPauseFin').boundingBox();
+
+        expect(boitePauseFin.width > 0).toBeTruthy();
+        expect((boitePauseDebut.x + boitePauseDebut.width) <= (boiteModale.x + boiteModale.width + 1)).toBeTruthy();
+        expect((boitePauseFin.x + boitePauseFin.width) <= (boiteModale.x + boiteModale.width + 1)).toBeTruthy();
+
+        const valeurAffichee = await pageCadrage.locator('#modalPauseFin').evaluate((el) => el.value);
+        expect(valeurAffichee).toBe('12.5');
+
+        await pageCadrage.close();
       });
 
       await test('un Saisonnier affiche sa date de fin de contrat, un Fixe non', async () => {

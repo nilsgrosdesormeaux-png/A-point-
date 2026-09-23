@@ -1984,7 +1984,7 @@ button.lien-supprimer:hover {
   flex-shrink: 0;
 }
 
-.champs-pause select { width: auto; flex: 1; }
+.champs-pause select { width: auto; flex: 1; min-width: 0; }
 
 .actions-modal {
   display: flex;
