@@ -1570,6 +1570,23 @@ async function main() {
         expect(await premierePastille.evaluate((el) => el.classList.contains('pastille-poste--active'))).toBe(true);
       });
 
+      // Retour utilisateur, 23 sept. 2026 : "ça ne clique que sur le mot, pas
+      // sur toute la pastille". Le clic était posé sur le <button> texte
+      // seul ; il est maintenant posé sur toute la pastille (span parent).
+      await test('cliquer n\'importe où dans une pastille de secteur (pas seulement le texte) filtre bien dessus', async () => {
+        await pageGantt.goto(BASE_URL + '/personnel.html');
+        await pageGantt.locator('.pastille-poste-nom').first().waitFor({ state: 'visible' });
+        const pastilleSalle = pageGantt.locator('.pastille-poste', { hasText: 'Salle' });
+        // Clique dans la zone de padding à droite du texte, hors du <button>.
+        const boite = await pastilleSalle.boundingBox();
+        await pastilleSalle.click({ position: { x: boite.width - 4, y: boite.height / 2 } });
+        expect(await pastilleSalle.evaluate((el) => el.classList.contains('pastille-poste--active'))).toBe(true);
+        // Reclique au même endroit : doit désactiver le filtre (retour à "Tous").
+        await pastilleSalle.click({ position: { x: boite.width - 4, y: boite.height / 2 } });
+        const pastilleTous = pageGantt.locator('#legendePostes > *').first();
+        expect(await pastilleTous.evaluate((el) => el.classList.contains('pastille-poste--active'))).toBe(true);
+      });
+
       await test('l\'onglet "Tous" n\'apparaît pas dans la liste des secteurs supprimables de la modale "Gérer les postes"', async () => {
         await pageGantt.goto(BASE_URL + '/personnel.html');
         await pageGantt.locator('.btn-gerer-postes').click();

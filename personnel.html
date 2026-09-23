@@ -1105,7 +1105,11 @@
         boutonTous.className = 'pastille-poste-nom';
         boutonTous.textContent = 'Tous';
         boutonTous.title = "Voir le planning de toute l'équipe, tous secteurs confondus";
-        boutonTous.addEventListener('click', function () {
+        pastilleTous.title = boutonTous.title;
+        // Retour utilisateur, 23 sept. 2026 : le clic ne fonctionnait que sur
+        // le mot, pas sur toute la pastille. Le clic est maintenant posé sur
+        // la pastille entière plutôt que sur le seul bouton texte.
+        pastilleTous.addEventListener('click', function () {
           filtreSecteurActif = null;
           rendreLegende();
           rendreGantt();
@@ -1133,15 +1137,22 @@
           nom.className = 'pastille-poste-nom';
           nom.textContent = secteur.nom;
           nom.title = 'Filtrer sur ce secteur (double-clic pour renommer)';
-          nom.addEventListener('click', function () {
-            filtreSecteurActif = (filtreSecteurActif === secteur.id) ? null : secteur.id;
-            rendreLegende();
-            rendreGantt();
-          });
           nom.addEventListener('dblclick', function (e) {
             e.stopPropagation();
             var nouveauNom = window.prompt('Renommer ce secteur :', secteur.nom);
             if (nouveauNom) { renommerSecteur(secteur, nouveauNom); rendreLegende(); rendreGantt(); }
+          });
+
+          // Retour utilisateur, 23 sept. 2026 : le clic ne fonctionnait que
+          // sur le mot, pas sur toute la pastille. Le clic est maintenant
+          // posé sur la pastille entière (le rond de couleur garde son
+          // stopPropagation pour ne pas déclencher le filtre en changeant
+          // la couleur).
+          pastille.title = nom.title;
+          pastille.addEventListener('click', function () {
+            filtreSecteurActif = (filtreSecteurActif === secteur.id) ? null : secteur.id;
+            rendreLegende();
+            rendreGantt();
           });
 
           pastille.appendChild(couleur);
