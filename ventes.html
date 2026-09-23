@@ -10,7 +10,48 @@
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="moteur-prevision.js?v=20260922"></script>
   <script src="nav.js"></script>
+  <style>
+    /* Navigation par jour (même style que la navigation de espace-employe.html) :
+       retour utilisateur, 23 sept. 2026, "vente d'hier, on n'a pas une date
+       précise" — remplace le titre figé "Mes ventes d'hier" par une date
+       explicite et navigable sur les 7 derniers jours. */
+    .nav-jour-ventes {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      margin-top: 18px;
+    }
+    .date-complete { text-align: center; font-size: 12px; color: var(--texte-tres-attenue); margin: 2px 0 0; }
+    .libelle-jour {
+      font-family: var(--police-titre);
+      font-size: 16.5px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      text-align: center;
+      min-width: 140px;
+      margin: 0;
+    }
+    .bouton-nav-jour {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid var(--bordure);
+      background: var(--surface);
+      color: var(--texte);
+      font-size: 14px;
+      cursor: pointer;
+      flex-shrink: 0;
+      box-shadow: 0 1px 2px rgba(33, 29, 23, 0.06);
+      transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+    }
+    .bouton-nav-jour:hover { background: var(--accent-clair); border-color: var(--texte-tres-attenue); }
+    .bouton-nav-jour:active { transform: scale(0.93); }
+    .bouton-nav-jour:disabled { opacity: 0.35; cursor: default; }
+    .bouton-nav-jour:disabled:hover { background: var(--surface); border-color: var(--bordure); }
+  </style>
 </head>
 <body>
   <header class="entete-site entete-site--pleine-largeur">
@@ -29,13 +70,21 @@
       <div class="entete-page">
         <div>
           <p class="eyebrow">Saisie</p>
-          <h1>Mes ventes d'hier</h1>
+          <h1>Mes ventes</h1>
         </div>
       </div>
       <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
 
       <div id="zoneFormulaire" style="display:none;">
-        <p class="section-titre" style="margin-top:22px;">Entre le nombre vendu hier pour chaque produit</p>
+        <div class="nav-jour-ventes">
+          <button type="button" id="btnJourPrecedent" class="bouton-nav-jour" aria-label="Jour précédent">←</button>
+          <div>
+            <p class="libelle-jour" id="libelleJour">Hier</p>
+            <p class="date-complete" id="dateComplete"></p>
+          </div>
+          <button type="button" id="btnJourSuivant" class="bouton-nav-jour" aria-label="Jour suivant">→</button>
+        </div>
+        <p class="section-titre" style="margin-top:14px;">Entre le nombre vendu ce jour-là pour chaque produit</p>
         <div id="listeProduits"></div>
 
         <button id="btnEnregistrer">Enregistrer mes ventes</button>
@@ -51,26 +100,38 @@
       var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
       var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
       var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      var MP = window.MoteurPrevision;
 
       var statutDiv = document.getElementById('statutConnexion');
       var zoneFormulaire = document.getElementById('zoneFormulaire');
       var listeProduits = document.getElementById('listeProduits');
       var messageDiv = document.getElementById('message');
+      var libelleJourEl = document.getElementById('libelleJour');
+      var dateCompleteEl = document.getElementById('dateComplete');
+      var btnJourPrecedent = document.getElementById('btnJourPrecedent');
+      var btnJourSuivant = document.getElementById('btnJourSuivant');
       var commercantId = null;
       var produits = [];
-      
-      // Attention : toISOString() convertit en UTC, ce qui décale la date d'un
-      // jour entre minuit et l'heure du décalage horaire (ex: entre 0h et 2h en
-      // heure d'été française) — un commerçant qui saisit ses ventes tard le
-      // soir ou tôt le matin obtiendrait alors la mauvaise date. On construit
-      // la date à la main à partir des composants locaux à la place (même
-      // logique que versISO() sur le tableau de bord et la page Semaine).
-      function dateHier() {
-        var d = new Date();
-        d.setDate(d.getDate() - 1);
-        var mm = ('0' + (d.getMonth() + 1)).slice(-2);
-        var jj = ('0' + d.getDate()).slice(-2);
-        return d.getFullYear() + '-' + mm + '-' + jj;
+
+      // Retour utilisateur, 23 sept. 2026 : le titre "Mes ventes d'hier" ne
+      // donnait aucune date précise, et il n'était possible de saisir que la
+      // veille. decalageJour va de -1 (hier) à -7 (il y a une semaine).
+      var decalageJour = -1;
+      var LIMITE_DECALAGE = -7;
+
+      // MP.ajouterJours/versISO reprennent la même construction de date à
+      // partir des composants locaux que l'ancien dateHier() (jamais
+      // toISOString(), qui décale d'un jour en UTC entre minuit et l'heure
+      // du décalage horaire local).
+      function jourAffiche() { return MP.ajouterJours(new Date(), decalageJour); }
+      function dateSelectionnee() { return MP.versISO(jourAffiche()); }
+
+      function majEnteteJour() {
+        var libelle = decalageJour === -1 ? 'Hier' : decalageJour === -2 ? 'Avant-hier' : MP.formatDateLongue(jourAffiche());
+        libelleJourEl.textContent = libelle;
+        dateCompleteEl.textContent = MP.formatDateLongue(jourAffiche()) + ' ' + jourAffiche().getFullYear();
+        btnJourPrecedent.disabled = decalageJour <= LIMITE_DECALAGE;
+        btnJourSuivant.disabled = decalageJour >= -1;
       }
 
       // Nettoie un nom de produit pour l'affichage uniquement (espaces
@@ -82,7 +143,10 @@
         return propre.charAt(0).toUpperCase() + propre.slice(1).toLowerCase();
       }
 
-      function afficherProduits() {
+      // quantitesExistantes : { nom_produit: quantite } déjà enregistré pour
+      // le jour affiché, pour pré-remplir plutôt que de repartir à zéro
+      // quand on revient sur un jour déjà saisi.
+      function afficherProduits(quantitesExistantes) {
         listeProduits.innerHTML = '';
         produits.forEach(function (produit) {
           var div = document.createElement('div');
@@ -101,6 +165,9 @@
           input.className = 'quantiteVendue stepper-valeur';
           input.setAttribute('data-produit', produit.nom);
           input.placeholder = '0';
+          if (quantitesExistantes && Object.prototype.hasOwnProperty.call(quantitesExistantes, produit.nom)) {
+            input.value = quantitesExistantes[produit.nom];
+          }
 
           // Boutons tactiles +/- : plus faciles à utiliser sur mobile/tablette
           // qu'un champ numérique nu, notamment avec les mains occupées en
@@ -136,6 +203,27 @@
         });
       }
 
+      // Recharge les ventes déjà enregistrées pour le jour affiché (pour
+      // pré-remplir) puis (re)affiche les champs produits.
+      function chargerVentesJour() {
+        majEnteteJour();
+        messageDiv.style.display = 'none';
+        sbClient.from('ventes').select('*').eq('commercant_id', commercantId).eq('date_vente', dateSelectionnee()).then(function (result) {
+          var quantitesExistantes = {};
+          (result.data || []).forEach(function (ligne) {
+            quantitesExistantes[ligne.nom_produit] = ligne.quantite;
+          });
+          afficherProduits(quantitesExistantes);
+        });
+      }
+
+      btnJourPrecedent.addEventListener('click', function () {
+        if (decalageJour > LIMITE_DECALAGE) { decalageJour--; chargerVentesJour(); }
+      });
+      btnJourSuivant.addEventListener('click', function () {
+        if (decalageJour < -1) { decalageJour++; chargerVentesJour(); }
+      });
+
       sbClient.auth.getSession().then(function (result) {
         var session = result.data.session;
         if (session) {
@@ -148,7 +236,7 @@
               statutDiv.textContent = "Tu n'as pas encore ajouté de produits.";
             } else {
               zoneFormulaire.style.display = 'block';
-              afficherProduits();
+              chargerVentesJour();
             }
           });
         } else {
@@ -159,6 +247,7 @@
       document.getElementById('btnEnregistrer').addEventListener('click', function () {
         var champs = document.querySelectorAll('.quantiteVendue');
         var lignesAEnregistrer = [];
+        var dateJour = dateSelectionnee();
 
         champs.forEach(function (champ) {
           var quantite = parseInt(champ.value);
@@ -167,7 +256,7 @@
               commercant_id: commercantId,
               nom_produit: champ.getAttribute('data-produit'),
               quantite: quantite,
-              date_vente: dateHier()
+              date_vente: dateJour
             });
           }
         });
@@ -179,15 +268,22 @@
           return;
         }
 
-        sbClient.from('ventes').insert(lignesAEnregistrer).then(function (result) {
-          messageDiv.style.display = 'block';
-          if (result.error) {
-            messageDiv.className = 'erreur';
-            messageDiv.textContent = "Erreur : " + result.error.message;
-          } else {
-            messageDiv.className = 'succes';
-            messageDiv.textContent = "Ventes enregistrées !";
-          }
+        // Retour utilisateur, 23 sept. 2026 : on peut maintenant revenir sur
+        // un jour déjà saisi (navigation sur les 7 derniers jours). On
+        // remplace donc les lignes déjà enregistrées ce jour-là pour ces
+        // produits plutôt que d'en réinsérer des doublons.
+        var nomsProduits = produits.map(function (p) { return p.nom; });
+        sbClient.from('ventes').delete().eq('commercant_id', commercantId).eq('date_vente', dateJour).in('nom_produit', nomsProduits).then(function () {
+          sbClient.from('ventes').insert(lignesAEnregistrer).then(function (result) {
+            messageDiv.style.display = 'block';
+            if (result.error) {
+              messageDiv.className = 'erreur';
+              messageDiv.textContent = "Erreur : " + result.error.message;
+            } else {
+              messageDiv.className = 'succes';
+              messageDiv.textContent = "Ventes enregistrées !";
+            }
+          });
         });
       });
     })();

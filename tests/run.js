@@ -99,10 +99,17 @@ async function stubSupabaseAvecDonnees(page, { commercantId, tables }) {
                 };
               },
               delete: function () {
+                // Trace des appels delete (table + filtres), pour pouvoir
+                // vérifier dans les tests qu'un enregistrement remplace bien
+                // les lignes existantes plutôt que d'en créer des doublons.
+                var appel = { table: table, filtres: [] };
+                window.__appelsDelete = window.__appelsDelete || [];
+                window.__appelsDelete.push(appel);
                 var d = {
-                  eq: function () { return d; },
-                  gte: function () { return d; },
-                  lte: function () { return d; },
+                  eq: function (col, val) { appel.filtres.push(['eq', col, val]); return d; },
+                  gte: function (col, val) { appel.filtres.push(['gte', col, val]); return d; },
+                  lte: function (col, val) { appel.filtres.push(['lte', col, val]); return d; },
+                  in: function (col, val) { appel.filtres.push(['in', col, val]); return d; },
                   then: function (cb) { return Promise.resolve({ data: [], error: null }).then(cb); },
                 };
                 return d;
@@ -1023,6 +1030,71 @@ async function main() {
       });
 
       await pageProduits.close();
+    });
+
+    await describe('ventes.html — saisie manuelle avec navigation par jour', async () => {
+      const commercantId = 'test-commercant-ventes-nav';
+      const isoDe = (decalage) => { const d = new Date(); d.setDate(d.getDate() + decalage); return d.toISOString().slice(0, 10); };
+      const isoHier = isoDe(-1);
+
+      const tables = {
+        produits: [
+          { id: 'p1', commercant_id: commercantId, nom: 'Croissant' },
+          { id: 'p2', commercant_id: commercantId, nom: 'Pain au chocolat' },
+        ],
+        ventes: [
+          { commercant_id: commercantId, nom_produit: 'Croissant', quantite: 12, date_vente: isoHier },
+        ],
+        parametres_commercant: [],
+        evenements_commercant: [],
+      };
+
+      const pageVentes = await browser.newPage();
+      await stubSupabaseAvecDonnees(pageVentes, { commercantId, tables });
+
+      // Retour utilisateur, 23 sept. 2026 : "vente d'hier, on n'a pas une
+      // date précise". Le titre fixe est remplacé par une date affichée et
+      // navigable ; les quantités déjà enregistrées ce jour-là préremplissent
+      // les champs plutôt que de repartir à zéro.
+      await test('affiche "Hier" avec la date précise en dessous, préremplit les quantités déjà enregistrées, et bloque "jour suivant"', async () => {
+        await pageVentes.goto(BASE_URL + '/ventes.html');
+        await pageVentes.locator('#libelleJour').waitFor({ state: 'visible' });
+        expect(await pageVentes.locator('#libelleJour').textContent()).toBe('Hier');
+        expect((await pageVentes.locator('#dateComplete').textContent()).length).toBeGreaterThan(0);
+        const champCroissant = pageVentes.locator('.quantiteVendue[data-produit="Croissant"]');
+        expect(await champCroissant.inputValue()).toBe('12');
+        const champPain = pageVentes.locator('.quantiteVendue[data-produit="Pain au chocolat"]');
+        expect(await champPain.inputValue()).toBe('');
+        expect(await pageVentes.locator('#btnJourSuivant').isDisabled()).toBe(true);
+        expect(await pageVentes.locator('#btnJourPrecedent').isDisabled()).toBe(false);
+      });
+
+      await test('un clic sur "jour précédent" affiche "Avant-hier" et se bloque après 7 jours en arrière', async () => {
+        await pageVentes.goto(BASE_URL + '/ventes.html');
+        await pageVentes.locator('#libelleJour').waitFor({ state: 'visible' });
+        await pageVentes.locator('#btnJourPrecedent').click();
+        expect(await pageVentes.locator('#libelleJour').textContent()).toBe('Avant-hier');
+        expect(await pageVentes.locator('#btnJourSuivant').isDisabled()).toBe(false);
+        // Encore 5 clics pour atteindre la limite (-2 -> -7).
+        for (let i = 0; i < 5; i++) { await pageVentes.locator('#btnJourPrecedent').click(); }
+        expect(await pageVentes.locator('#btnJourPrecedent').isDisabled()).toBe(true);
+      });
+
+      await test('enregistrer remplace les lignes déjà présentes pour ce jour (delete puis insert), pas de doublon', async () => {
+        await pageVentes.goto(BASE_URL + '/ventes.html');
+        await pageVentes.locator('#libelleJour').waitFor({ state: 'visible' });
+        await pageVentes.evaluate(() => { window.__appelsDelete = []; });
+        await pageVentes.locator('.quantiteVendue[data-produit="Croissant"]').fill('20');
+        await pageVentes.locator('#btnEnregistrer').click();
+        await pageVentes.locator('#message.succes').waitFor({ state: 'visible' });
+        const appels = await pageVentes.evaluate(() => window.__appelsDelete);
+        const appelVentes = appels.find((a) => a.table === 'ventes');
+        expect(appelVentes).toBeTruthy();
+        const filtreDate = appelVentes.filtres.find((f) => f[1] === 'date_vente');
+        expect(filtreDate[2]).toBe(isoHier);
+      });
+
+      await pageVentes.close();
     });
 
     await describe('previsions.html — production du jour, catégories déduites et ingrédients', async () => {
