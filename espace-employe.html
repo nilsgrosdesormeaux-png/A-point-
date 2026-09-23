@@ -8,15 +8,69 @@
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="moteur-prevision.js"></script>
   <style>
-    body { display: flex; align-items: center; min-height: 100vh; }
-    .conteneur { margin: auto; width: 100%; padding-top: 0; padding-bottom: 40px; }
+    body { align-items: flex-start; min-height: 100vh; }
+    .conteneur { margin: 0 auto; width: 100%; max-width: 480px; padding: 24px 16px 40px; }
     h1 { text-align: center; }
-    .sous-titre { text-align: center; margin-bottom: 26px; }
+    .sous-titre { text-align: center; margin-bottom: 22px; }
+
+    .entete-semaine {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .bouton-nav-semaine {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 1px solid var(--bordure);
+      background: var(--surface);
+      color: var(--texte);
+      font-size: 16px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .bouton-nav-semaine:hover { background: var(--accent-clair); }
+    .libelle-semaine {
+      font-family: var(--police-titre);
+      font-size: 17px;
+      font-weight: 600;
+      text-align: center;
+      flex: 1;
+    }
+
+    .carte-jour-employe { margin-bottom: 12px; padding: 16px 18px; }
+    .carte-jour-employe.jour-aujourdhui { border-color: var(--accent); border-width: 2px; }
+
+    .creneau-employe {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      font-size: 14px;
+      flex-wrap: wrap;
+    }
+    .creneau-horaire { font-weight: 600; color: var(--texte); }
+    .creneau-poste { color: var(--texte-attenue); }
+
+    .jour-repos {
+      margin: 8px 0 0;
+      color: var(--texte-tres-attenue);
+      font-size: 14px;
+    }
+
+    .bouton-deconnexion {
+      display: block;
+      width: 100%;
+      margin-top: 24px;
+    }
   </style>
 </head>
 <body>
-  <div class="conteneur" style="max-width: 420px;">
+  <div class="conteneur">
     <div class="logo-centre">
       <svg class="logo-marque" viewBox="0 0 100 100" width="56" height="56" aria-hidden="true">
         <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
@@ -28,13 +82,15 @@
     <p class="sous-titre texte-aide" id="sousTitre">Vérification de la connexion...</p>
 
     <div id="zoneContenu" style="display:none;">
-      <p class="texte-aide" style="text-align:center;">
-        Ton espace employé arrive bientôt : tu pourras y consulter ton planning de la semaine directement depuis ton téléphone.
-      </p>
-      <p class="texte-aide" style="text-align:center; margin-top:10px;">
-        En attendant, ton planning reste consultable auprès de ton responsable.
-      </p>
-      <button id="btnDeconnexion" style="margin-top:20px;">Se déconnecter</button>
+      <div class="entete-semaine">
+        <button id="btnSemainePrec" class="bouton-nav-semaine" aria-label="Semaine précédente">←</button>
+        <div class="libelle-semaine" id="libelleSemaine">Cette semaine</div>
+        <button id="btnSemaineSuiv" class="bouton-nav-semaine" aria-label="Semaine suivante">→</button>
+      </div>
+
+      <div id="listeJours"></div>
+
+      <button id="btnDeconnexion" class="bouton-deconnexion">Se déconnecter</button>
     </div>
 
     <div id="zoneNonAutorise" style="display:none;">
@@ -48,11 +104,129 @@
       var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
       var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
       var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      var MP = window.MoteurPrevision;
 
       var titreEl = document.getElementById('titre');
       var sousTitreEl = document.getElementById('sousTitre');
       var zoneContenuEl = document.getElementById('zoneContenu');
       var zoneNonAutoriseEl = document.getElementById('zoneNonAutorise');
+      var libelleSemaineEl = document.getElementById('libelleSemaine');
+      var listeJoursEl = document.getElementById('listeJours');
+      var btnSemainePrec = document.getElementById('btnSemainePrec');
+      var btnSemaineSuiv = document.getElementById('btnSemaineSuiv');
+
+      var moiPersonnel = null;
+      var SECTEURS_PAR_ID = {};
+      var POSTES_PAR_ID = {};
+      var decalageSemaine = 0;
+
+      // Lundi de la semaine contenant "date" (dimanche = fin de semaine,
+      // jamais début, cohérent avec l'usage français).
+      function lundiDeLaSemaine(date) {
+        var d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        var jour = d.getDay();
+        var diff = (jour === 0 ? -6 : 1) - jour;
+        d.setDate(d.getDate() + diff);
+        return d;
+      }
+
+      function joursDeLaSemaineAffichee() {
+        var lundi = MP.ajouterJours(lundiDeLaSemaine(new Date()), decalageSemaine * 7);
+        var jours = [];
+        for (var i = 0; i < 7; i++) jours.push(MP.ajouterJours(lundi, i));
+        return jours;
+      }
+
+      function libelleSemaineAffiche(jours) {
+        if (decalageSemaine === 0) return 'Cette semaine';
+        if (decalageSemaine === 1) return 'Semaine prochaine';
+        if (decalageSemaine === -1) return 'Semaine dernière';
+        var premier = jours[0], dernier = jours[6];
+        return 'Du ' + premier.getDate() + ' au ' + dernier.getDate() + ' ' + MP.nomsMoisCourts[dernier.getMonth()];
+      }
+
+      // "09:00:00" (format SQL) -> "09h00".
+      function formatHeureSQL(h) {
+        if (!h) return '';
+        var parts = h.split(':');
+        return parts[0] + 'h' + parts[1];
+      }
+
+      function rendreSemaine() {
+        var jours = joursDeLaSemaineAffichee();
+        libelleSemaineEl.textContent = libelleSemaineAffiche(jours);
+        var premierIso = MP.versISO(jours[0]);
+        var dernierIso = MP.versISO(jours[6]);
+        var aujourdhuiIso = MP.versISO(new Date());
+
+        sbClient.from('creneaux_personnel').select('*')
+          .eq('personnel_id', moiPersonnel.id)
+          .gte('date_creneau', premierIso)
+          .lte('date_creneau', dernierIso)
+          .then(function (resultCreneaux) {
+            var parJour = {};
+            (resultCreneaux.data || []).forEach(function (c) {
+              if (!parJour[c.date_creneau]) parJour[c.date_creneau] = [];
+              parJour[c.date_creneau].push(c);
+            });
+
+            listeJoursEl.innerHTML = '';
+            jours.forEach(function (jour) {
+              var iso = MP.versISO(jour);
+              var carte = document.createElement('div');
+              carte.className = 'carte-claire carte-jour-employe' + (iso === aujourdhuiIso ? ' jour-aujourdhui' : '');
+
+              var dateEl = document.createElement('p');
+              dateEl.className = 'claire-date';
+              dateEl.textContent = MP.capitaliser(MP.nomsJours[jour.getDay()]) + ' ' + jour.getDate() + ' ' + MP.nomsMoisCourts[jour.getMonth()];
+              carte.appendChild(dateEl);
+
+              var creneauxJour = (parJour[iso] || []).slice().sort(function (a, b) {
+                return a.heure_debut < b.heure_debut ? -1 : (a.heure_debut > b.heure_debut ? 1 : 0);
+              });
+
+              if (creneauxJour.length === 0) {
+                var repos = document.createElement('p');
+                repos.className = 'jour-repos';
+                repos.textContent = 'Repos';
+                carte.appendChild(repos);
+              } else {
+                creneauxJour.forEach(function (c) {
+                  var secteur = SECTEURS_PAR_ID[c.secteur_id];
+                  var poste = POSTES_PAR_ID[c.secteur_id + '|' + c.poste_id];
+
+                  var ligne = document.createElement('div');
+                  ligne.className = 'creneau-employe';
+
+                  var pastille = document.createElement('span');
+                  pastille.className = 'pastille-couleur-inline';
+                  pastille.style.background = secteur ? secteur.couleur : '#8a7cc7';
+                  ligne.appendChild(pastille);
+
+                  var horaire = document.createElement('span');
+                  horaire.className = 'creneau-horaire';
+                  var texteHoraire = formatHeureSQL(c.heure_debut) + ' – ' + formatHeureSQL(c.heure_fin);
+                  if (c.pause_debut && c.pause_fin) {
+                    texteHoraire += ' (pause ' + formatHeureSQL(c.pause_debut) + '-' + formatHeureSQL(c.pause_fin) + ')';
+                  }
+                  horaire.textContent = texteHoraire;
+                  ligne.appendChild(horaire);
+
+                  var libellePoste = document.createElement('span');
+                  libellePoste.className = 'creneau-poste';
+                  var texte = secteur ? secteur.nom : '';
+                  if (poste && poste.nom && poste.nom !== 'Générique') texte += ' · ' + poste.nom;
+                  libellePoste.textContent = texte;
+                  ligne.appendChild(libellePoste);
+
+                  carte.appendChild(ligne);
+                });
+              }
+
+              listeJoursEl.appendChild(carte);
+            });
+          });
+      }
 
       sbClient.auth.getSession().then(function (result) {
         var session = result.data.session;
@@ -66,10 +240,31 @@
           zoneNonAutoriseEl.style.display = 'block';
           return;
         }
-        titreEl.textContent = 'Bienvenue !';
-        sousTitreEl.textContent = 'Ton compte est actif.';
-        zoneContenuEl.style.display = 'block';
+
+        sbClient.from('personnel').select('*').eq('user_id', session.user.id).then(function (resultPersonnel) {
+          moiPersonnel = (resultPersonnel.data || [])[0];
+          if (!moiPersonnel) {
+            sousTitreEl.textContent = "Impossible de retrouver ta fiche employé. Contacte ton responsable.";
+            return;
+          }
+
+          titreEl.textContent = 'Bonjour ' + MP.formatNomAffichage(moiPersonnel.nom) + ' !';
+          sousTitreEl.textContent = 'Voici ton planning de la semaine.';
+          zoneContenuEl.style.display = 'block';
+
+          Promise.all([
+            sbClient.from('secteurs_personnel').select('*').eq('commercant_id', moiPersonnel.commercant_id).order('ordre', { ascending: true }),
+            sbClient.from('postes_personnel').select('*').eq('commercant_id', moiPersonnel.commercant_id).order('ordre', { ascending: true })
+          ]).then(function (resultats) {
+            (resultats[0].data || []).forEach(function (s) { SECTEURS_PAR_ID[s.id] = s; });
+            (resultats[1].data || []).forEach(function (p) { POSTES_PAR_ID[p.secteur_id + '|' + p.id] = p; });
+            rendreSemaine();
+          });
+        });
       });
+
+      btnSemainePrec.addEventListener('click', function () { decalageSemaine--; rendreSemaine(); });
+      btnSemaineSuiv.addEventListener('click', function () { decalageSemaine++; rendreSemaine(); });
 
       document.getElementById('btnDeconnexion').addEventListener('click', function () {
         sbClient.auth.signOut().then(function () {

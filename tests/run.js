@@ -1936,9 +1936,13 @@ async function main() {
     // compte employé actif (contenu de bienvenue), un compte connecté mais
     // pas employé (accès refusé, jamais le contenu employé), et une absence
     // de session (redirection vers connexion.html).
-    await describe('espace-employe.html — accès selon le rôle du compte connecté', async () => {
-      async function stubSession(page, session) {
-        await page.addInitScript((session) => {
+    await describe('espace-employe.html — accès et planning hebdomadaire', async () => {
+      // tables : { personnel, secteurs_personnel, postes_personnel, creneaux_personnel }
+      // Chaîne générique (select/eq/gte/lte/order renvoient toute la table,
+      // sans filtrage réel) : suffisant ici, chaque test ne fournit que les
+      // lignes pertinentes pour son scénario.
+      async function stubEspaceEmploye(page, { session, tables }) {
+        await page.addInitScript(({ session, tables }) => {
           window.supabase = {
             createClient: function () {
               return {
@@ -1946,24 +1950,42 @@ async function main() {
                   getSession: function () { return Promise.resolve({ data: { session: session } }); },
                   signOut: function () { return Promise.resolve({ error: null }); },
                 },
+                from: function (table) {
+                  var data = (tables && tables[table]) || [];
+                  var chain = {
+                    select: function () { return chain; },
+                    eq: function () { return chain; },
+                    gte: function () { return chain; },
+                    lte: function () { return chain; },
+                    order: function () { return chain; },
+                    then: function (cb) { return Promise.resolve({ data: data, error: null }).then(cb); },
+                  };
+                  return chain;
+                },
               };
             },
           };
-        }, session);
+        }, { session, tables });
       }
 
-      await test('un compte employé actif voit le message de bienvenue', async () => {
+      const PERSONNEL_U1 = { id: 6, user_id: 'u1', nom: 'Test Employe', commercant_id: 'c1' };
+
+      await test('un compte employé actif voit son planning (message personnalisé, jamais l\'accès refusé)', async () => {
         const page = await browser.newPage();
-        await stubSession(page, { user: { id: 'u1', user_metadata: { role: 'employe' } } });
+        await stubEspaceEmploye(page, {
+          session: { user: { id: 'u1', user_metadata: { role: 'employe' } } },
+          tables: { personnel: [PERSONNEL_U1], secteurs_personnel: [], postes_personnel: [], creneaux_personnel: [] },
+        });
         await page.goto(BASE_URL + '/espace-employe.html');
         await page.locator('#zoneContenu').waitFor({ state: 'visible' });
         expect(await page.locator('#zoneNonAutorise').isVisible()).toBe(false);
+        expect(await page.locator('#titre').textContent()).toContain('Test employe');
         await page.close();
       });
 
       await test('un compte connecté mais pas employé voit un accès refusé, jamais le contenu employé', async () => {
         const page = await browser.newPage();
-        await stubSession(page, { user: { id: 'u2', user_metadata: {} } });
+        await stubEspaceEmploye(page, { session: { user: { id: 'u2', user_metadata: {} } }, tables: {} });
         await page.goto(BASE_URL + '/espace-employe.html');
         await page.locator('#zoneNonAutorise').waitFor({ state: 'visible' });
         expect(await page.locator('#zoneContenu').isVisible()).toBe(false);
@@ -1972,9 +1994,46 @@ async function main() {
 
       await test('sans session, redirige vers connexion.html', async () => {
         const page = await browser.newPage();
-        await stubSession(page, null);
+        await stubEspaceEmploye(page, { session: null, tables: {} });
         await page.goto(BASE_URL + '/espace-employe.html');
         await page.waitForURL(/connexion\.html/);
+        await page.close();
+      });
+
+      await test('un jour sans créneau affiche Repos, un jour avec créneau affiche l\'horaire et le secteur', async () => {
+        const page = await browser.newPage();
+        const iso = (() => {
+          const d = new Date();
+          const mm = ('0' + (d.getMonth() + 1)).slice(-2);
+          const dd = ('0' + d.getDate()).slice(-2);
+          return d.getFullYear() + '-' + mm + '-' + dd;
+        })();
+        await stubEspaceEmploye(page, {
+          session: { user: { id: 'u1', user_metadata: { role: 'employe' } } },
+          tables: {
+            personnel: [PERSONNEL_U1],
+            secteurs_personnel: [{ id: 'salle', commercant_id: 'c1', nom: 'Salle', couleur: '#4caf6d', ordre: 0 }],
+            postes_personnel: [{ id: 'generique', secteur_id: 'salle', commercant_id: 'c1', nom: 'Générique', ordre: 0 }],
+            creneaux_personnel: [{ id: 1, commercant_id: 'c1', personnel_id: 6, date_creneau: iso, heure_debut: '09:00:00', heure_fin: '17:00:00', secteur_id: 'salle', poste_id: 'generique' }],
+          },
+        });
+        await page.goto(BASE_URL + '/espace-employe.html');
+        await page.locator('.creneau-horaire').first().waitFor({ state: 'visible' });
+        expect(await page.locator('.creneau-horaire').first().textContent()).toContain('09h00');
+        expect(await page.locator('.jour-repos').count()).toBe(6);
+        await page.close();
+      });
+
+      await test('la navigation vers la semaine suivante change le libellé affiché', async () => {
+        const page = await browser.newPage();
+        await stubEspaceEmploye(page, {
+          session: { user: { id: 'u1', user_metadata: { role: 'employe' } } },
+          tables: { personnel: [PERSONNEL_U1], secteurs_personnel: [], postes_personnel: [], creneaux_personnel: [] },
+        });
+        await page.goto(BASE_URL + '/espace-employe.html');
+        await page.locator('#zoneContenu').waitFor({ state: 'visible' });
+        await page.locator('#btnSemaineSuiv').click();
+        expect(await page.locator('#libelleSemaine').textContent()).toBe('Semaine prochaine');
         await page.close();
       });
     });
