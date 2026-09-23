@@ -11,56 +11,88 @@
   <script src="moteur-prevision.js"></script>
   <style>
     body { align-items: flex-start; min-height: 100vh; }
-    .conteneur { margin: 0 auto; width: 100%; max-width: 480px; padding: 24px 16px 40px; }
-    h1 { text-align: center; }
-    .sous-titre { text-align: center; margin-bottom: 22px; }
+    .conteneur { margin: 0 auto; width: 100%; max-width: 480px; padding: 20px 16px 40px; }
+    h1#titre { text-align: center; font-size: 20px; margin-bottom: 2px; }
+    .sous-titre { text-align: center; margin-bottom: 18px; font-size: 13px; }
 
     .entete-semaine {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 16px;
+      justify-content: center;
+      gap: 14px;
+      margin-bottom: 14px;
     }
     .bouton-nav-semaine {
-      width: 40px;
-      height: 40px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       border: 1px solid var(--bordure);
       background: var(--surface);
       color: var(--texte);
-      font-size: 16px;
+      font-size: 14px;
       cursor: pointer;
       flex-shrink: 0;
     }
     .bouton-nav-semaine:hover { background: var(--accent-clair); }
     .libelle-semaine {
       font-family: var(--police-titre);
-      font-size: 17px;
+      font-size: 15px;
       font-weight: 600;
       text-align: center;
-      flex: 1;
+      min-width: 130px;
     }
 
-    .carte-jour-employe { margin-bottom: 12px; padding: 16px 18px; }
-    .carte-jour-employe.jour-aujourdhui { border-color: var(--accent); border-width: 2px; }
+    /* Un seul conteneur pour toute la semaine : chaque jour est une ligne
+       fine séparée par un filet, pas une carte pleine grandeur — un jour de
+       repos ne doit occuper qu'une ligne discrète, jamais un bloc vide. */
+    .carte-semaine-employe { padding: 4px 6px; }
 
-    .creneau-employe {
+    .ligne-jour {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-top: 8px;
-      font-size: 14px;
+      gap: 12px;
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--bordure);
+    }
+    .ligne-jour:last-child { border-bottom: none; }
+    .ligne-jour--aujourdhui { background: var(--accent-clair); border-radius: 10px; }
+
+    .ligne-jour-date {
+      width: 48px;
+      flex-shrink: 0;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--texte-attenue);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      line-height: 1.35;
+    }
+    .ligne-jour-date strong {
+      display: block;
+      font-size: 15px;
+      color: var(--texte);
+      font-weight: 700;
+      text-transform: none;
+    }
+    .ligne-jour--repos .ligne-jour-date { opacity: 0.55; }
+
+    .ligne-jour-repos-texte {
+      color: var(--texte-tres-attenue);
+      font-size: 12px;
+      font-style: italic;
+    }
+
+    .ligne-jour-creneaux { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .ligne-jour-creneau {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
       flex-wrap: wrap;
     }
-    .creneau-horaire { font-weight: 600; color: var(--texte); }
-    .creneau-poste { color: var(--texte-attenue); }
-
-    .jour-repos {
-      margin: 8px 0 0;
-      color: var(--texte-tres-attenue);
-      font-size: 14px;
-    }
+    .ligne-jour-creneau .pastille-couleur-inline { width: 10px; height: 10px; }
+    .ligne-jour-horaire { font-weight: 700; color: var(--texte); }
+    .ligne-jour-poste { color: var(--texte-attenue); font-size: 12px; }
 
     .bouton-deconnexion {
       display: block;
@@ -88,7 +120,7 @@
         <button id="btnSemaineSuiv" class="bouton-nav-semaine" aria-label="Semaine suivante">→</button>
       </div>
 
-      <div id="listeJours"></div>
+      <div class="carte-claire carte-semaine-employe" id="listeJours"></div>
 
       <button id="btnDeconnexion" class="bouton-deconnexion">Se déconnecter</button>
     </div>
@@ -173,57 +205,62 @@
             listeJoursEl.innerHTML = '';
             jours.forEach(function (jour) {
               var iso = MP.versISO(jour);
-              var carte = document.createElement('div');
-              carte.className = 'carte-claire carte-jour-employe' + (iso === aujourdhuiIso ? ' jour-aujourdhui' : '');
-
-              var dateEl = document.createElement('p');
-              dateEl.className = 'claire-date';
-              dateEl.textContent = MP.capitaliser(MP.nomsJours[jour.getDay()]) + ' ' + jour.getDate() + ' ' + MP.nomsMoisCourts[jour.getMonth()];
-              carte.appendChild(dateEl);
-
               var creneauxJour = (parJour[iso] || []).slice().sort(function (a, b) {
                 return a.heure_debut < b.heure_debut ? -1 : (a.heure_debut > b.heure_debut ? 1 : 0);
               });
 
+              var ligne = document.createElement('div');
+              ligne.className = 'ligne-jour' + (creneauxJour.length === 0 ? ' ligne-jour--repos' : ' ligne-jour--travail') + (iso === aujourdhuiIso ? ' ligne-jour--aujourdhui' : '');
+
+              var dateEl = document.createElement('div');
+              dateEl.className = 'ligne-jour-date';
+              dateEl.innerHTML = MP.capitaliser(MP.nomsJoursCourts[jour.getDay()]) + '<strong>' + jour.getDate() + '</strong>';
+              ligne.appendChild(dateEl);
+
               if (creneauxJour.length === 0) {
-                var repos = document.createElement('p');
-                repos.className = 'jour-repos';
+                var repos = document.createElement('span');
+                repos.className = 'ligne-jour-repos-texte';
                 repos.textContent = 'Repos';
-                carte.appendChild(repos);
+                ligne.appendChild(repos);
               } else {
+                var zoneCreneaux = document.createElement('div');
+                zoneCreneaux.className = 'ligne-jour-creneaux';
+
                 creneauxJour.forEach(function (c) {
                   var secteur = SECTEURS_PAR_ID[c.secteur_id];
                   var poste = POSTES_PAR_ID[c.secteur_id + '|' + c.poste_id];
 
-                  var ligne = document.createElement('div');
-                  ligne.className = 'creneau-employe';
+                  var creneauEl = document.createElement('div');
+                  creneauEl.className = 'ligne-jour-creneau';
 
                   var pastille = document.createElement('span');
                   pastille.className = 'pastille-couleur-inline';
                   pastille.style.background = secteur ? secteur.couleur : '#8a7cc7';
-                  ligne.appendChild(pastille);
+                  creneauEl.appendChild(pastille);
 
                   var horaire = document.createElement('span');
-                  horaire.className = 'creneau-horaire';
+                  horaire.className = 'ligne-jour-horaire';
                   var texteHoraire = formatHeureSQL(c.heure_debut) + ' – ' + formatHeureSQL(c.heure_fin);
                   if (c.pause_debut && c.pause_fin) {
                     texteHoraire += ' (pause ' + formatHeureSQL(c.pause_debut) + '-' + formatHeureSQL(c.pause_fin) + ')';
                   }
                   horaire.textContent = texteHoraire;
-                  ligne.appendChild(horaire);
+                  creneauEl.appendChild(horaire);
 
                   var libellePoste = document.createElement('span');
-                  libellePoste.className = 'creneau-poste';
+                  libellePoste.className = 'ligne-jour-poste';
                   var texte = secteur ? secteur.nom : '';
                   if (poste && poste.nom && poste.nom !== 'Générique') texte += ' · ' + poste.nom;
                   libellePoste.textContent = texte;
-                  ligne.appendChild(libellePoste);
+                  creneauEl.appendChild(libellePoste);
 
-                  carte.appendChild(ligne);
+                  zoneCreneaux.appendChild(creneauEl);
                 });
+
+                ligne.appendChild(zoneCreneaux);
               }
 
-              listeJoursEl.appendChild(carte);
+              listeJoursEl.appendChild(ligne);
             });
           });
       }

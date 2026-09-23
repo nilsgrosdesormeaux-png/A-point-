@@ -2018,9 +2018,9 @@ async function main() {
           },
         });
         await page.goto(BASE_URL + '/espace-employe.html');
-        await page.locator('.creneau-horaire').first().waitFor({ state: 'visible' });
-        expect(await page.locator('.creneau-horaire').first().textContent()).toContain('09h00');
-        expect(await page.locator('.jour-repos').count()).toBe(6);
+        await page.locator('.ligne-jour-horaire').first().waitFor({ state: 'visible' });
+        expect(await page.locator('.ligne-jour-horaire').first().textContent()).toContain('09h00');
+        expect(await page.locator('.ligne-jour-repos-texte').count()).toBe(6);
         await page.close();
       });
 
