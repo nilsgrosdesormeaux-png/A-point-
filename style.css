@@ -722,6 +722,70 @@ ul.liste-produits--espacee li {
 
 /* ---------- Fiche technique (ingrédients d'un produit) ---------- */
 
+/* Retour pilote, 23 sept. 2026 (point 5) : la fiche technique se déplie
+   directement sous le produit cliqué (voir afficherFicheTechnique dans
+   produits.html), plutôt qu'un panneau séparé tout en bas de page.
+   grid-column: 1/-1 lui fait prendre toute la largeur de la grille de
+   produits, quel que soit le nombre de colonnes affichées. */
+#ficheTechnique {
+  display: block;
+  grid-column: 1 / -1;
+  cursor: default;
+  background: var(--surface);
+  border: 1.5px solid var(--ink);
+  border-radius: var(--rayon-lg);
+  padding: 18px 20px;
+  animation: apparitionFicheTechnique 0.16s ease;
+}
+
+#ficheTechnique::before { display: none; }
+
+@keyframes apparitionFicheTechnique {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ligne-produit--fiche-ouverte .ligne-produit-chevron {
+  transform: rotate(180deg);
+  color: var(--texte);
+}
+
+/* Bandeau facultatif proposé à la création d'un produit (point 5) : jamais
+   bloquant, une suggestion avec un accès direct ou un moyen de l'ignorer. */
+.bandeau-suggestion-fiche {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding: 12px 16px;
+  background: var(--info-fond);
+  color: var(--info-texte);
+  border-radius: var(--rayon);
+  font-size: 13.5px;
+  animation: apparitionFicheTechnique 0.16s ease;
+}
+
+.bandeau-suggestion-fiche-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.lien-suggestion {
+  background: none;
+  border: none;
+  font: inherit;
+  font-weight: 700;
+  color: var(--info-texte);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+}
+
 .ligne-ingredient {
   display: flex;
   align-items: center;
@@ -2705,6 +2769,30 @@ button.lien-supprimer:hover {
 .nom-produit {
   flex: 1;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Petit chevron sur le nom du produit, retour pilote 23 sept. 2026 (point 5) :
+   signale que la fiche technique est dépliable directement au clic, et
+   pivote quand elle est ouverte (voir .ligne-produit--fiche-ouverte). */
+.ligne-produit-chevron {
+  font-size: 11px;
+  color: var(--texte-tres-attenue);
+  transition: transform 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+
+ul.liste-produits li.ligne-produit--fiche-ouverte {
+  border-color: var(--ink);
+  box-shadow: 0 2px 8px rgba(33, 29, 23, 0.1);
+}
+
+.ligne-produit--fiche-ouverte .ligne-produit-chevron {
+  transform: rotate(180deg);
+  color: var(--texte);
 }
 
 .actions-produit {

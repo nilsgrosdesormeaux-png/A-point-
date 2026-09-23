@@ -81,6 +81,17 @@
 
         <div id="message"></div>
 
+        <!-- Retour pilote, 23 sept. 2026 (point 5) : bandeau facultatif proposé
+             juste après la création d'un produit, jamais imposé, voir
+             proposerFicheTechniquePourProduit() plus bas. -->
+        <div id="suggestionFiche" class="bandeau-suggestion-fiche" style="display:none;">
+          <span id="suggestionFicheTexte"></span>
+          <span class="bandeau-suggestion-fiche-actions">
+            <button type="button" id="btnSuggestionFicheOui" class="lien-suggestion">Ajouter sa fiche technique</button>
+            <button type="button" id="btnSuggestionFicheNon" class="icone-action" aria-label="Ignorer la suggestion">×</button>
+          </span>
+        </div>
+
         <div class="entete-page" style="margin-top:22px; margin-bottom:0;">
           <p class="section-titre" style="margin:0;">Produits vendus actuels</p>
           <a href="import.html" class="btn-gerer-postes">📋 Importer une carte/menu</a>
@@ -89,7 +100,13 @@
         <div id="listeProduitsParCategorie" class="grille-produits-vendus"></div>
         <ul id="listeProduits" class="liste-produits" style="display:none;"></ul>
 
-        <div id="ficheTechnique" style="display:none;">
+        <!-- Retour pilote, 23 sept. 2026 (point 5) : c'est un <li>, pas un
+             <div>, pour pouvoir s'insérer directement dans la grille de
+             produits (ul.liste-produits, en grid-column: 1/-1) juste après
+             le produit cliqué, plutôt qu'un panneau fixe en bas de page.
+             Un seul élément, déplacé en JS d'un produit à l'autre (voir
+             afficherFicheTechnique) plutôt que dupliqué par produit. -->
+        <li id="ficheTechnique" class="ligne-fiche-technique" style="display:none;">
           <p class="section-titre">Fiche technique : <span id="ficheProduitNom"></span></p>
           <div id="listeIngredients"></div>
           <div class="ligne-form" style="margin-top:10px; flex-wrap:wrap; align-items:flex-end;">
@@ -123,7 +140,7 @@
             <button id="btnAjouterIngredient" style="flex:0 0 auto; min-width:100px;">Ajouter</button>
           </div>
           <div id="messageIngredient"></div>
-        </div>
+        </li>
       </div>
       <p class="pied-page"><a href="cgu.html">Conditions générales d'utilisation</a></p>
     </div>
@@ -146,6 +163,8 @@
       var messageIngredientDiv = document.getElementById('messageIngredient');
       var ingredientsConnusEl = document.getElementById('ingredientsConnus');
       var listeProduitsParCategorieEl = document.getElementById('listeProduitsParCategorie');
+      var suggestionFicheDiv = document.getElementById('suggestionFiche');
+      var suggestionFicheTexteEl = document.getElementById('suggestionFicheTexte');
       var commercantId = null;
       var produitSelectionne = null;
       // CATEGORIES : catégories créées et gérées depuis Prévisions (source
@@ -357,7 +376,10 @@
         });
       }
 
-      function chargerProduits() {
+      // apresChargement (optionnel) : callback exécuté une fois la grille
+      // reconstruite, utilisé par le bandeau de suggestion de fiche technique
+      // (point 5) pour retrouver le produit qui vient d'être créé.
+      function chargerProduits(apresChargement) {
         Promise.all([
           sbClient.from('produits').select('*').eq('commercant_id', commercantId),
           sbClient.from('categories_produit').select('*').eq('commercant_id', commercantId).order('ordre', { ascending: true })
@@ -370,6 +392,7 @@
           badgeProduits.style.display = 'inline-block';
 
           rendreProduitsParCategorie();
+          if (typeof apresChargement === 'function') apresChargement();
         });
       }
 
@@ -389,9 +412,20 @@
 
         var nomSpan = document.createElement('span');
         nomSpan.className = 'nom-produit';
-        nomSpan.textContent = formatNomAffichage(produit.nom);
-        nomSpan.title = 'Cliquer pour définir la fiche technique';
+        nomSpan.title = 'Cliquer pour déplier/replier la fiche technique';
         nomSpan.addEventListener('click', function () { afficherFicheTechnique(produit); });
+
+        var nomTexte = document.createElement('span');
+        nomTexte.textContent = formatNomAffichage(produit.nom);
+        // Retour pilote, 23 sept. 2026 (point 5) : chevron indiquant que la
+        // fiche technique se déplie directement ici (pivote une fois ouverte,
+        // voir .ligne-produit--fiche-ouverte dans style.css).
+        var chevron = document.createElement('span');
+        chevron.className = 'ligne-produit-chevron';
+        chevron.textContent = '▾';
+        chevron.setAttribute('aria-hidden', 'true');
+        nomSpan.appendChild(nomTexte);
+        nomSpan.appendChild(chevron);
 
         var actions = document.createElement('span');
         actions.className = 'actions-produit';
@@ -494,6 +528,23 @@
           rendreBlocDropCategorie(bloc);
           listeProduitsParCategorieEl.appendChild(bloc);
         });
+
+        // Retour pilote, 23 sept. 2026 (point 5) : cette fonction reconstruit
+        // toute la grille (ajout/renommage/suppression/glisser-déposer), ce
+        // qui détache la fiche technique si elle était ouverte. On la
+        // raccroche juste après le produit concerné, s'il existe encore,
+        // plutôt que de la refermer silencieusement à chaque rechargement.
+        if (produitSelectionne) {
+          var ligneRestante = listeProduitsParCategorieEl.querySelector('li[data-produit-id="' + produitSelectionne.id + '"]');
+          if (ligneRestante) {
+            ligneRestante.classList.add('ligne-produit--fiche-ouverte');
+            ligneRestante.insertAdjacentElement('afterend', ficheTechniqueDiv);
+            ficheTechniqueDiv.style.display = 'block';
+          } else {
+            produitSelectionne = null;
+            ficheTechniqueDiv.style.display = 'none';
+          }
+        }
       }
 
       // Renomme un produit existant (utile pour corriger un nom mal saisi ou
@@ -551,15 +602,62 @@
         });
       }
 
-      // Affiche l'éditeur de fiche technique (liste d'ingrédients) pour un produit donné.
+      // Affiche l'éditeur de fiche technique (liste d'ingrédients) pour un
+      // produit donné, dépliée directement sous ce produit dans la grille.
+      // Retour pilote, 23 sept. 2026 (point 5) : comportement accordéon, une
+      // seule fiche ouverte à la fois, un second clic sur le même produit la
+      // replie plutôt que de la laisser ouverte en permanence.
       function afficherFicheTechnique(produit) {
+        var dejaOuvertePourCeProduit = produitSelectionne && produitSelectionne.id === produit.id && ficheTechniqueDiv.style.display !== 'none';
+
+        document.querySelectorAll('.ligne-produit--fiche-ouverte').forEach(function (el) {
+          el.classList.remove('ligne-produit--fiche-ouverte');
+        });
+        suggestionFicheDiv.style.display = 'none';
+
+        if (dejaOuvertePourCeProduit) {
+          produitSelectionne = null;
+          ficheTechniqueDiv.style.display = 'none';
+          return;
+        }
+
         produitSelectionne = produit;
         ficheProduitNomEl.textContent = produit.nom;
-        ficheTechniqueDiv.style.display = 'block';
         messageIngredientDiv.innerHTML = '';
+
+        var ligneProduit = listeProduitsParCategorieEl.querySelector('li[data-produit-id="' + produit.id + '"]');
+        if (ligneProduit) {
+          ligneProduit.classList.add('ligne-produit--fiche-ouverte');
+          ligneProduit.insertAdjacentElement('afterend', ficheTechniqueDiv);
+        }
+        ficheTechniqueDiv.style.display = 'block';
         chargerIngredients();
         ficheTechniqueDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
+
+      // Bandeau facultatif proposé juste après la création d'un produit
+      // (retour pilote, 23 sept. 2026, point 5) : jamais bloquant, une simple
+      // suggestion avec un accès direct à la fiche technique de ce produit,
+      // ou un moyen de l'ignorer complètement.
+      function proposerFicheTechniquePourProduit(nomProduit) {
+        var cle = cleNormaliseeProduit(nomProduit);
+        var produit = produitsCourants.find(function (p) { return cleNormaliseeProduit(p.nom) === cle; });
+        if (!produit) return;
+        suggestionFicheTexteEl.textContent = 'Envie d\'ajouter la fiche technique (ingrédients) de "' + formatNomAffichage(produit.nom) + '" ? Toujours facultatif.';
+        suggestionFicheDiv.dataset.produitId = produit.id;
+        suggestionFicheDiv.style.display = 'flex';
+      }
+
+      document.getElementById('btnSuggestionFicheOui').addEventListener('click', function () {
+        var id = suggestionFicheDiv.dataset.produitId;
+        var produit = produitsCourants.find(function (p) { return String(p.id) === String(id); });
+        suggestionFicheDiv.style.display = 'none';
+        if (produit) afficherFicheTechnique(produit);
+      });
+
+      document.getElementById('btnSuggestionFicheNon').addEventListener('click', function () {
+        suggestionFicheDiv.style.display = 'none';
+      });
 
       function chargerIngredients() {
         if (!produitSelectionne) return;
@@ -654,7 +752,7 @@
               messageDiv.className = 'succes';
               messageDiv.textContent = "Produit ajouté !";
               document.getElementById('nomProduit').value = '';
-              chargerProduits();
+              chargerProduits(function () { proposerFicheTechniquePourProduit(nomProduit); });
               chargerVentesJour();
             }
           });

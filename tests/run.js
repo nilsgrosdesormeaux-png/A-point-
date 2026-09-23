@@ -90,9 +90,24 @@ async function stubSupabaseAvecDonnees(page, { commercantId, tables }) {
               lte: function () { return chain; },
               lt: function () { return chain; },
               in: function () { return chain; },
-              then: function (cb) { return Promise.resolve({ data: chain._data, error: null }).then(cb); },
+              // Retourne une COPIE du tableau (comme un vrai select, dont le
+              // résultat est toujours des données fraîches et indépendantes),
+              // jamais la référence live de data : une page qui garde le
+              // résultat dans une variable locale (ex. CATEGORIES = result.data
+              // dans previsions.html) ne doit pas se retrouver à pointer sur le
+              // même tableau que celui muté plus bas par insert/delete.
+              then: function (cb) { return Promise.resolve({ data: chain._data.slice(), error: null }).then(cb); },
               insert: function (lignes) {
-                var inserted = { data: Array.isArray(lignes) ? lignes : [lignes], error: null };
+                // Persiste réellement dans data (comme un vrai insert), pour
+                // qu'un rechargement ultérieur dans la même page (ex.
+                // chargerProduits() après ajout) voie la nouvelle ligne,
+                // plutôt qu'un no-op qui laissait data inchangé.
+                var nouvelles = Array.isArray(lignes) ? lignes : [lignes];
+                nouvelles.forEach(function (ligne) {
+                  if (ligne.id === undefined) ligne.id = 'stub-' + Math.random().toString(36).slice(2);
+                  data.push(ligne);
+                });
+                var inserted = { data: nouvelles, error: null };
                 return {
                   select: function () { return Promise.resolve(inserted); },
                   then: function (cb) { return Promise.resolve(inserted).then(cb); },
@@ -1037,6 +1052,76 @@ async function main() {
         expect(await pageProduits.locator('#modalCategories').count()).toBe(0);
         const lienPrevisions = pageProduits.locator('a[href="previsions.html"]');
         expect(await lienPrevisions.count()).toBeGreaterThan(0);
+      });
+
+      // Retour pilote, 23 sept. 2026 (point 5) : "je ne veux pas un petit
+      // lien, je veux une case ingrédients dépliable directement au clic".
+      // La fiche technique s'insère maintenant juste après le produit
+      // cliqué (accordéon), pas dans un panneau séparé en bas de page.
+      await test('cliquer un produit déplie sa fiche technique juste en dessous (accordéon, un second clic la replie)', async () => {
+        await pageProduits.goto(BASE_URL + '/produits.html');
+        await pageProduits.locator('.bloc-categorie-produits').first().waitFor({ state: 'visible' });
+
+        const ligneMargherita = pageProduits.locator('li[data-produit-id="p1"]');
+        await ligneMargherita.locator('.nom-produit').click();
+
+        await pageProduits.locator('#ficheTechnique').waitFor({ state: 'visible' });
+        expect(await pageProduits.locator('#ficheProduitNom').textContent()).toBe('Margherita');
+        expect(await ligneMargherita.evaluate((el) => el.classList.contains('ligne-produit--fiche-ouverte'))).toBe(true);
+        // La fiche est bien le prochain frère juste après la ligne cliquée.
+        expect(await ligneMargherita.evaluate((el) => el.nextElementSibling && el.nextElementSibling.id)).toBe('ficheTechnique');
+
+        // Un second clic sur le même produit replie la fiche.
+        await ligneMargherita.locator('.nom-produit').click();
+        expect(await pageProduits.locator('#ficheTechnique').isVisible()).toBe(false);
+        expect(await ligneMargherita.evaluate((el) => el.classList.contains('ligne-produit--fiche-ouverte'))).toBe(false);
+      });
+
+      await test('cliquer un autre produit déplace la fiche technique : une seule ouverte à la fois', async () => {
+        await pageProduits.goto(BASE_URL + '/produits.html');
+        await pageProduits.locator('.bloc-categorie-produits').first().waitFor({ state: 'visible' });
+
+        const ligneMargherita = pageProduits.locator('li[data-produit-id="p1"]');
+        const ligneTiramisu = pageProduits.locator('li[data-produit-id="p2"]');
+
+        await ligneMargherita.locator('.nom-produit').click();
+        await pageProduits.locator('#ficheTechnique').waitFor({ state: 'visible' });
+
+        await ligneTiramisu.locator('.nom-produit').click();
+        expect(await pageProduits.locator('#ficheProduitNom').textContent()).toBe('Tiramisu');
+        expect(await ligneMargherita.evaluate((el) => el.classList.contains('ligne-produit--fiche-ouverte'))).toBe(false);
+        expect(await ligneTiramisu.evaluate((el) => el.classList.contains('ligne-produit--fiche-ouverte'))).toBe(true);
+        expect(await ligneTiramisu.evaluate((el) => el.nextElementSibling && el.nextElementSibling.id)).toBe('ficheTechnique');
+      });
+
+      // Retour pilote, 23 sept. 2026 (point 5) : bandeau facultatif proposé à
+      // la création d'un produit, jamais bloquant, avec un accès direct à sa
+      // fiche technique ou un moyen de l'ignorer.
+      await test('créer un produit propose un bandeau facultatif pour ajouter sa fiche technique', async () => {
+        await pageProduits.goto(BASE_URL + '/produits.html');
+        await pageProduits.locator('#nomProduit').waitFor({ state: 'visible' });
+        await pageProduits.locator('#nomProduit').fill('Baguette tradition');
+        await pageProduits.locator('#btnAjouter').click();
+
+        await pageProduits.locator('#suggestionFiche').waitFor({ state: 'visible' });
+        expect(await pageProduits.locator('#suggestionFicheTexte').textContent()).toContain('Baguette tradition');
+
+        await pageProduits.locator('#btnSuggestionFicheOui').click();
+        await pageProduits.locator('#ficheTechnique').waitFor({ state: 'visible' });
+        expect(await pageProduits.locator('#ficheProduitNom').textContent()).toBe('Baguette tradition');
+        expect(await pageProduits.locator('#suggestionFiche').isVisible()).toBe(false);
+      });
+
+      await test('le bandeau de suggestion peut être ignoré sans rien ouvrir', async () => {
+        await pageProduits.goto(BASE_URL + '/produits.html');
+        await pageProduits.locator('#nomProduit').waitFor({ state: 'visible' });
+        await pageProduits.locator('#nomProduit').fill('Éclair au café');
+        await pageProduits.locator('#btnAjouter').click();
+
+        await pageProduits.locator('#suggestionFiche').waitFor({ state: 'visible' });
+        await pageProduits.locator('#btnSuggestionFicheNon').click();
+        expect(await pageProduits.locator('#suggestionFiche').isVisible()).toBe(false);
+        expect(await pageProduits.locator('#ficheTechnique').isVisible()).toBe(false);
       });
 
       await pageProduits.close();
