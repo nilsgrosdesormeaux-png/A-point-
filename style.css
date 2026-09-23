@@ -3081,3 +3081,156 @@ ul.liste-produits li.ligne-produit--fiche-ouverte {
     gap: 8px;
   }
 }
+
+/* ---------- Statistiques : jours records (grille de 4), classement produits
+   (barres horizontales), affluence (colonnes verticales) ---------- */
+
+.grille-kpi--quatre {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 860px) and (min-width: 621px) {
+  .grille-kpi--quatre {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.ligne-classement {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+}
+
+.classement-rang {
+  width: 26px;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--texte-tres-attenue);
+}
+
+.classement-nom {
+  width: 150px;
+  flex-shrink: 0;
+  font-size: 13.5px;
+  color: var(--texte);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.classement-piste {
+  flex: 1;
+  height: 18px;
+  background: var(--accent-clair);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.classement-remplissage {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  min-width: 4px;
+  transition: width 0.2s ease;
+}
+
+.classement-valeur {
+  width: 44px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--texte);
+  font-variant-numeric: tabular-nums;
+}
+
+.graphique-colonnes {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 180px;
+  padding-top: 22px;
+}
+
+.colonne-affluence {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.colonne-valeur {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--texte-attenue);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.colonne-barre {
+  width: 100%;
+  max-width: 28px;
+  background: var(--accent);
+  border-radius: 6px 6px 0 0;
+  /* Pas de min-height : une période à 0 vente ne doit montrer aucune barre
+     (jamais un soupçon d'activité inventé). Le minimum de 4% n'est appliqué
+     que côté JS, et seulement pour une valeur réellement positive. */
+}
+
+.colonne-etiquette {
+  font-size: 10.5px;
+  color: var(--texte-tres-attenue);
+  white-space: nowrap;
+}
+
+/* Rappel explicite (l'ordre dans le fichier ferait sinon gagner
+   .grille-kpi--quatre, placée après la règle mobile générique de
+   .grille-kpi plus haut) : sous 620px, ces 4 cartes s'empilent comme
+   n'importe quelle autre grille-kpi. */
+@media (max-width: 620px) {
+  .grille-kpi--quatre {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .classement-nom {
+    width: 88px;
+    font-size: 12.5px;
+  }
+
+  .classement-rang {
+    width: 20px;
+  }
+
+  .classement-valeur {
+    width: 34px;
+    font-size: 12px;
+  }
+
+  /* 12 colonnes ne tiennent pas sur un écran de téléphone sans que les
+     étiquettes se chevauchent (déjà vu avec le tableau brut de l'import,
+     point 10 du lot pilote) : même remède, défilement horizontal plutôt
+     que des colonnes écrasées. */
+  .graphique-colonnes {
+    gap: 10px;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding-bottom: 4px;
+  }
+
+  .colonne-affluence {
+    flex: 0 0 40px;
+  }
+
+  .colonne-valeur,
+  .colonne-etiquette {
+    font-size: 9.5px;
+  }
+}

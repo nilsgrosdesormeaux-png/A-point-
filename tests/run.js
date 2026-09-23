@@ -25,6 +25,7 @@ const PAGES_PROTEGEES = [
   'commandes.html',
   'personnel.html',
   'import.html',
+  'statistiques.html',
 ];
 
 // Ce sandbox bloque cdn.jsdelivr.net (politique réseau de l'organisation,
@@ -673,10 +674,10 @@ async function main() {
         expect(await actif.textContent()).toBe('Achats & commandes');
       });
 
-      await test('Produits vendus / Achats & commandes / Imports sont en repli (cachés sous 720px)', async () => {
+      await test('Produits vendus / Achats & commandes / Imports / Statistiques sont en repli (cachés sous 720px)', async () => {
         await page.goto(BASE_URL + '/tableau-de-bord.html');
         const liens = await page.locator('#navPrincipale a.nav-lien-g--repli').allTextContents();
-        expect(liens.join(',')).toBe('Produits vendus,Achats & commandes,Imports');
+        expect(liens.join(',')).toBe('Produits vendus,Achats & commandes,Imports,Statistiques');
       });
 
       await test('nav secondaire contient Paramètres et Aide', async () => {
@@ -757,6 +758,7 @@ async function main() {
         'tableau-de-bord.html': 'Non connecté',
         'aide.html': "n'es pas connecté",
         'import.html': "n'es pas connecté",
+        'statistiques.html': 'Non connecté',
       };
       for (const [fichier, texteAttendu] of Object.entries(attentes)) {
         await test(fichier + ' affiche un message de non-connexion sans exception JS', async () => {
@@ -1216,6 +1218,102 @@ async function main() {
       });
 
       await pageProduits.close();
+    });
+
+    // Nouvel onglet Statistiques (23 sept. 2026, point 2 du lot pilote) :
+    // "produits les plus vendus, affluence semaine/mois/année, jour le plus
+    // chargé du mois/de l'année". Tout est recalculé côté client à partir de
+    // `ventes` déjà en base, sans aucune API externe.
+    await describe('statistiques.html — jours records, classement produits, affluence', async () => {
+      const commercantId = 'test-commercant-statistiques';
+      const isoDe = (decalage) => { const d = new Date(); d.setDate(d.getDate() + decalage); return d.toISOString().slice(0, 10); };
+      const nomsMoisCourts = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+      const nomsJoursTest = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+      const capitaliserTest = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+      const labelJour = (decalage) => { const d = new Date(); d.setDate(d.getDate() + decalage); return d.getDate() + ' ' + nomsMoisCourts[d.getMonth()]; };
+      const nomJourSemaine = (decalage) => { const d = new Date(); d.setDate(d.getDate() + decalage); return capitaliserTest(nomsJoursTest[d.getDay()]); };
+
+      const isoAujourdhui = isoDe(0);
+      const isoHier = isoDe(-1);
+
+      // Totaux volontairement choisis pour ne jamais être à égalité :
+      // aujourd'hui = 32 (30+2), hier = 8 (5+3), Croissant = 35, Pain au
+      // chocolat = 5 sur l'ensemble de la période.
+      const tables = {
+        produits: [
+          { id: 'p1', commercant_id: commercantId, nom: 'Croissant' },
+          { id: 'p2', commercant_id: commercantId, nom: 'Pain au chocolat' },
+        ],
+        ventes: [
+          { commercant_id: commercantId, nom_produit: 'Croissant', quantite: 30, date_vente: isoAujourdhui },
+          { commercant_id: commercantId, nom_produit: 'Pain au chocolat', quantite: 2, date_vente: isoAujourdhui },
+          { commercant_id: commercantId, nom_produit: 'Croissant', quantite: 5, date_vente: isoHier },
+          { commercant_id: commercantId, nom_produit: 'Pain au chocolat', quantite: 3, date_vente: isoHier },
+        ],
+        parametres_commercant: [],
+        evenements_commercant: [],
+      };
+
+      const pageStats = await browser.newPage();
+      await stubSupabaseAvecDonnees(pageStats, { commercantId, tables });
+
+      await test('affiche le jour le plus chargé et le plus calme du mois et de l\'année', async () => {
+        await pageStats.goto(BASE_URL + '/statistiques.html');
+        await pageStats.locator('#moisChargeValeur').waitFor({ state: 'visible' });
+
+        expect(await pageStats.locator('#moisChargeValeur').textContent()).toBe(labelJour(0));
+        expect(await pageStats.locator('#moisChargeDetail').textContent()).toBe(nomJourSemaine(0) + ' · 32 articles vendus');
+        expect(await pageStats.locator('#moisCalmeValeur').textContent()).toBe(labelJour(-1));
+        expect(await pageStats.locator('#moisCalmeDetail').textContent()).toBe(nomJourSemaine(-1) + ' · 8 articles vendus');
+
+        expect(await pageStats.locator('#anneeChargeValeur').textContent()).toBe(labelJour(0));
+        expect(await pageStats.locator('#anneeCalmeValeur').textContent()).toBe(labelJour(-1));
+      });
+
+      await test('le classement produits place Croissant en tête, avec son total sur la période', async () => {
+        await pageStats.goto(BASE_URL + '/statistiques.html');
+        await pageStats.locator('.ligne-classement').first().waitFor({ state: 'visible' });
+        const lignes = await pageStats.locator('.ligne-classement').allTextContents();
+        expect(lignes[0]).toContain('Croissant');
+        expect(lignes[0]).toContain('35');
+        expect(lignes[1]).toContain('Pain au chocolat');
+        expect(lignes[1]).toContain('5');
+      });
+
+      await test('changer la période du classement à "30 jours" recalcule sans casser l\'affichage', async () => {
+        await pageStats.goto(BASE_URL + '/statistiques.html');
+        await pageStats.locator('.ligne-classement').first().waitFor({ state: 'visible' });
+        await pageStats.locator('#selecteurPeriodeClassement button[data-periode="30"]').click();
+        const lignes = await pageStats.locator('.ligne-classement').allTextContents();
+        expect(lignes[0]).toContain('Croissant');
+        expect(lignes[0]).toContain('35');
+      });
+
+      await test('le graphique d\'affluence affiche 12 colonnes (vue "Mois" par défaut), la dernière portant le total du jour', async () => {
+        await pageStats.goto(BASE_URL + '/statistiques.html');
+        await pageStats.locator('.colonne-affluence').first().waitFor({ state: 'attached' });
+        expect(await pageStats.locator('.colonne-affluence').count()).toBe(12);
+        const derniereValeur = await pageStats.locator('.colonne-affluence').last().locator('.colonne-valeur').textContent();
+        expect(derniereValeur).toBe('40');
+      });
+
+      await test('passer l\'affluence en vue "Semaine" affiche toujours 12 colonnes', async () => {
+        await pageStats.goto(BASE_URL + '/statistiques.html');
+        await pageStats.locator('.colonne-affluence').first().waitFor({ state: 'attached' });
+        await pageStats.locator('#selecteurGranulariteAffluence button[data-granularite="semaine"]').click();
+        expect(await pageStats.locator('.colonne-affluence').count()).toBe(12);
+      });
+
+      await test('sans aucune vente, la page affiche un état vide plutôt que des sections cassées', async () => {
+        const pageVide = await browser.newPage();
+        await stubSupabaseAvecDonnees(pageVide, { commercantId: 'test-commercant-statistiques-vide', tables: { produits: [], ventes: [], parametres_commercant: [], evenements_commercant: [] } });
+        await pageVide.goto(BASE_URL + '/statistiques.html');
+        await pageVide.locator('.carte-vide-claire').waitFor({ state: 'visible' });
+        expect(await pageVide.locator('.carte-vide-claire').textContent()).toContain('Pas encore assez de ventes');
+        await pageVide.close();
+      });
+
+      await pageStats.close();
     });
 
     await describe('ventes.html — saisie manuelle avec navigation par jour', async () => {

@@ -1,0 +1,427 @@
+
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>À Point - Statistiques</title>
+  <link rel="icon" href="logo.svg">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="moteur-prevision.js?v=20260922"></script>
+  <script src="nav.js"></script>
+</head>
+<body>
+  <header class="entete-site entete-site--pleine-largeur">
+    <a href="tableau-de-bord.html" class="logo">
+      <svg class="logo-marque" viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
+        <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <circle cx="50" cy="56" r="8" fill="currentColor"/>
+      </svg>
+    </a>
+    <nav id="navPrincipale"></nav>
+  </header>
+
+  <div class="conteneur conteneur--large">
+    <div class="carte-page">
+      <div class="entete-page">
+        <div>
+          <p class="eyebrow">Analyse</p>
+          <h1>Statistiques</h1>
+        </div>
+      </div>
+      <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
+
+      <div id="zoneContenu" style="display:none;">
+        <p class="texte-aide" style="margin-top:4px;">Ce que ton historique de ventes raconte : tes jours records, tes produits qui marchent, et le rythme de ton activité dans le temps.</p>
+
+        <!-- Jours records : pas de sélecteur, fenêtres fixes (mois en cours / année en cours), cohérent avec la demande pilote ("jour le plus chargé du mois/de l'année"). -->
+        <section class="section-resultats">
+          <div class="entete-resultats">
+            <div>
+              <p class="eyebrow" style="margin:0;">Jours records</p>
+              <h2 class="titre-resultats">Ce mois-ci et cette année</h2>
+            </div>
+          </div>
+          <p class="section-titre" style="margin-top:0;">Ce mois-ci</p>
+          <div class="grille-kpi grille-kpi--quatre" style="margin-bottom:22px;">
+            <div class="carte-kpi">
+              <p class="carte-kpi-titre">Jour le plus chargé</p>
+              <p class="carte-kpi-valeur carte-kpi-valeur--hausse" id="moisChargeValeur">-</p>
+              <p class="carte-kpi-detail" id="moisChargeDetail">Pas encore assez d'historique</p>
+            </div>
+            <div class="carte-kpi">
+              <p class="carte-kpi-titre">Jour le plus calme</p>
+              <p class="carte-kpi-valeur carte-kpi-valeur--neutre" id="moisCalmeValeur">-</p>
+              <p class="carte-kpi-detail" id="moisCalmeDetail">Pas encore assez d'historique</p>
+            </div>
+          </div>
+          <p class="section-titre" style="margin-top:0;">Cette année</p>
+          <div class="grille-kpi grille-kpi--quatre">
+            <div class="carte-kpi">
+              <p class="carte-kpi-titre">Jour le plus chargé</p>
+              <p class="carte-kpi-valeur carte-kpi-valeur--hausse" id="anneeChargeValeur">-</p>
+              <p class="carte-kpi-detail" id="anneeChargeDetail">Pas encore assez d'historique</p>
+            </div>
+            <div class="carte-kpi">
+              <p class="carte-kpi-titre">Jour le plus calme</p>
+              <p class="carte-kpi-valeur carte-kpi-valeur--neutre" id="anneeCalmeValeur">-</p>
+              <p class="carte-kpi-detail" id="anneeCalmeDetail">Pas encore assez d'historique</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Classement produits : sélecteur de période, réutilise le même
+             composant que "Vos résultats" sur l'Accueil (cohérence visuelle). -->
+        <section class="section-resultats">
+          <div class="entete-resultats">
+            <div>
+              <p class="eyebrow" style="margin:0;">Classement</p>
+              <h2 class="titre-resultats">Produits les plus vendus</h2>
+            </div>
+            <div class="selecteur-periode" id="selecteurPeriodeClassement">
+              <button type="button" class="periode-bouton" data-periode="30">30 jours</button>
+              <button type="button" class="periode-bouton" data-periode="90">90 jours</button>
+              <button type="button" class="periode-bouton" data-periode="annee">Cette année</button>
+              <button type="button" class="periode-bouton actif" data-periode="tout">Depuis le début</button>
+            </div>
+          </div>
+          <div id="classementProduits"></div>
+        </section>
+
+        <!-- Affluence : tendance de l'activité globale (tous produits
+             confondus), agrégée par semaine, mois ou année selon l'onglet
+             choisi. Un seul graphique, jamais deux échelles superposées. -->
+        <section class="section-resultats">
+          <div class="entete-resultats">
+            <div>
+              <p class="eyebrow" style="margin:0;">Tendance</p>
+              <h2 class="titre-resultats">Affluence dans le temps</h2>
+            </div>
+            <div class="selecteur-periode" id="selecteurGranulariteAffluence">
+              <button type="button" class="periode-bouton" data-granularite="semaine">Semaine</button>
+              <button type="button" class="periode-bouton actif" data-granularite="mois">Mois</button>
+              <button type="button" class="periode-bouton" data-granularite="annee">Année</button>
+            </div>
+          </div>
+          <p class="texte-aide texte-aide--discret" style="margin:0 0 14px;">Total des articles vendus (tous produits confondus), par période.</p>
+          <div class="graphique-colonnes" id="graphiqueAffluence"></div>
+        </section>
+      </div>
+    </div>
+    <p class="pied-page"><a href="cgu.html">Conditions générales d'utilisation</a></p>
+  </div>
+
+  <script>
+    (function () {
+      var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
+      var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
+      var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      var MP = window.MoteurPrevision;
+      var formatNomAffichage = MP.formatNomAffichage;
+      var versISO = MP.versISO;
+      var ajouterJours = MP.ajouterJours;
+      var nomsJours = MP.nomsJours;
+      var nomsMoisCourts = MP.nomsMoisCourts;
+      var capitaliser = MP.capitaliser;
+
+      var statutDiv = document.getElementById('statutConnexion');
+      var zoneContenuEl = document.getElementById('zoneContenu');
+      var ventesToutes = [];
+
+      // ---------- Jours records (mois en cours / année en cours) ----------
+
+      function agregerParJour(ventes) {
+        var parJour = {};
+        ventes.forEach(function (v) {
+          parJour[v.date_vente] = (parJour[v.date_vente] || 0) + (v.quantite || 0);
+        });
+        return parJour;
+      }
+
+      // Ne considère que des jours où une vente a réellement été saisie :
+      // un jour absent de l'historique peut être un jour fermé ou un jour
+      // simplement pas encore saisi, jamais assimilé à "0 vente" (même
+      // principe honnête que le reste du moteur de prévision).
+      function calculerJourRecord(parJour, isoDebut, isoFin) {
+        var jours = Object.keys(parJour).filter(function (iso) { return iso >= isoDebut && iso <= isoFin; });
+        if (jours.length === 0) return null;
+        jours.sort(function (a, b) { return parJour[a] - parJour[b]; });
+        var jourCalme = jours[0];
+        var jourCharge = jours[jours.length - 1];
+        return {
+          charge: { iso: jourCharge, total: parJour[jourCharge] },
+          calme: { iso: jourCalme, total: parJour[jourCalme] },
+          nbJours: jours.length
+        };
+      }
+
+      function formatJourValeur(iso) {
+        var d = new Date(iso + 'T00:00:00');
+        return d.getDate() + ' ' + nomsMoisCourts[d.getMonth()];
+      }
+
+      function formatJourDetail(point) {
+        var d = new Date(point.iso + 'T00:00:00');
+        var unite = point.total > 1 ? ' articles vendus' : ' article vendu';
+        return capitaliser(nomsJours[d.getDay()]) + ' · ' + point.total + unite;
+      }
+
+      function rendreJoursRecords(prefixe, resultat) {
+        var valeurChargeEl = document.getElementById(prefixe + 'ChargeValeur');
+        var detailChargeEl = document.getElementById(prefixe + 'ChargeDetail');
+        var valeurCalmeEl = document.getElementById(prefixe + 'CalmeValeur');
+        var detailCalmeEl = document.getElementById(prefixe + 'CalmeDetail');
+
+        if (!resultat) {
+          valeurChargeEl.textContent = '-';
+          detailChargeEl.textContent = 'Pas encore de ventes enregistrées.';
+          valeurCalmeEl.textContent = '-';
+          detailCalmeEl.textContent = 'Pas encore de ventes enregistrées.';
+          return;
+        }
+
+        valeurChargeEl.textContent = formatJourValeur(resultat.charge.iso);
+        detailChargeEl.textContent = formatJourDetail(resultat.charge);
+
+        if (resultat.nbJours < 2) {
+          valeurCalmeEl.textContent = '-';
+          detailCalmeEl.textContent = 'Pas assez de jours enregistrés pour comparer.';
+        } else {
+          valeurCalmeEl.textContent = formatJourValeur(resultat.calme.iso);
+          detailCalmeEl.textContent = formatJourDetail(resultat.calme);
+        }
+      }
+
+      function rafraichirJoursRecords() {
+        var parJour = agregerParJour(ventesToutes);
+        var aujourdHui = new Date();
+        var isoAujourdHui = versISO(aujourdHui);
+
+        var mm = String(aujourdHui.getMonth() + 1);
+        if (mm.length < 2) mm = '0' + mm;
+        var isoDebutMois = aujourdHui.getFullYear() + '-' + mm + '-01';
+        var isoDebutAnnee = aujourdHui.getFullYear() + '-01-01';
+
+        rendreJoursRecords('mois', calculerJourRecord(parJour, isoDebutMois, isoAujourdHui));
+        rendreJoursRecords('annee', calculerJourRecord(parJour, isoDebutAnnee, isoAujourdHui));
+      }
+
+      // ---------- Classement produits ----------
+
+      function calculerClassementProduits(ventes, isoDebut) {
+        var parProduit = {};
+        ventes.forEach(function (v) {
+          if (isoDebut && v.date_vente < isoDebut) return;
+          var nom = formatNomAffichage(v.nom_produit);
+          parProduit[nom] = (parProduit[nom] || 0) + (v.quantite || 0);
+        });
+        var lignes = Object.keys(parProduit).map(function (nom) { return { nom: nom, total: parProduit[nom] }; });
+        lignes.sort(function (a, b) { return b.total - a.total; });
+        return lignes.slice(0, 10);
+      }
+
+      function rendreClassement(lignes) {
+        var conteneur = document.getElementById('classementProduits');
+        conteneur.innerHTML = '';
+        if (lignes.length === 0) {
+          conteneur.innerHTML = '<p class="carte-vide-claire">Pas encore de ventes enregistrées sur cette période.</p>';
+          return;
+        }
+        var max = lignes[0].total;
+        lignes.forEach(function (ligne, i) {
+          var pct = Math.max(4, Math.round((ligne.total / max) * 100));
+          var div = document.createElement('div');
+          div.className = 'ligne-classement';
+          div.innerHTML =
+            '<span class="classement-rang">#' + (i + 1) + '</span>' +
+            '<span class="classement-nom">' + ligne.nom + '</span>' +
+            '<div class="classement-piste"><div class="classement-remplissage" style="width:' + pct + '%;"></div></div>' +
+            '<span class="classement-valeur">' + ligne.total + '</span>';
+          conteneur.appendChild(div);
+        });
+      }
+
+      var periodeClassementActuelle = 'tout';
+      function rafraichirClassement() {
+        var isoDebut = null;
+        var aujourdHui = new Date();
+        if (periodeClassementActuelle === '30') isoDebut = versISO(ajouterJours(aujourdHui, -30));
+        else if (periodeClassementActuelle === '90') isoDebut = versISO(ajouterJours(aujourdHui, -90));
+        else if (periodeClassementActuelle === 'annee') isoDebut = aujourdHui.getFullYear() + '-01-01';
+        rendreClassement(calculerClassementProduits(ventesToutes, isoDebut));
+      }
+
+      document.querySelectorAll('#selecteurPeriodeClassement .periode-bouton').forEach(function (bouton) {
+        bouton.addEventListener('click', function () {
+          document.querySelectorAll('#selecteurPeriodeClassement .periode-bouton').forEach(function (b) { b.classList.remove('actif'); });
+          bouton.classList.add('actif');
+          periodeClassementActuelle = bouton.getAttribute('data-periode');
+          rafraichirClassement();
+        });
+      });
+
+      // ---------- Affluence (semaine / mois / année) ----------
+
+      function lundiDeLaSemaine(date) {
+        var d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        var jour = d.getDay();
+        var decalage = jour === 0 ? -6 : 1 - jour;
+        d.setDate(d.getDate() + decalage);
+        return d;
+      }
+
+      function bucketiserParSemaine(ventes) {
+        var buckets = {};
+        ventes.forEach(function (v) {
+          var lundi = lundiDeLaSemaine(new Date(v.date_vente + 'T00:00:00'));
+          var cle = versISO(lundi);
+          buckets[cle] = (buckets[cle] || 0) + (v.quantite || 0);
+        });
+        return buckets;
+      }
+
+      function bucketiserParMois(ventes) {
+        var buckets = {};
+        ventes.forEach(function (v) {
+          var cle = v.date_vente.slice(0, 7);
+          buckets[cle] = (buckets[cle] || 0) + (v.quantite || 0);
+        });
+        return buckets;
+      }
+
+      function bucketiserParAnnee(ventes) {
+        var buckets = {};
+        ventes.forEach(function (v) {
+          var cle = v.date_vente.slice(0, 4);
+          buckets[cle] = (buckets[cle] || 0) + (v.quantite || 0);
+        });
+        return buckets;
+      }
+
+      function derniersLundis(n) {
+        var cles = [];
+        var lundiCourant = lundiDeLaSemaine(new Date());
+        for (var i = n - 1; i >= 0; i--) {
+          var d = new Date(lundiCourant);
+          d.setDate(d.getDate() - i * 7);
+          cles.push(versISO(d));
+        }
+        return cles;
+      }
+
+      function derniersMois(n) {
+        var cles = [];
+        var aujourdHui = new Date();
+        for (var i = n - 1; i >= 0; i--) {
+          var d = new Date(aujourdHui.getFullYear(), aujourdHui.getMonth() - i, 1);
+          var mm = String(d.getMonth() + 1);
+          if (mm.length < 2) mm = '0' + mm;
+          cles.push(d.getFullYear() + '-' + mm);
+        }
+        return cles;
+      }
+
+      function anneesEntre(anneeMin, anneeMax) {
+        var cles = [];
+        for (var a = anneeMin; a <= anneeMax; a++) cles.push(String(a));
+        return cles;
+      }
+
+      function etiquetteSemaine(cle) {
+        var d = new Date(cle + 'T00:00:00');
+        return d.getDate() + ' ' + nomsMoisCourts[d.getMonth()];
+      }
+
+      function etiquetteMois(cle) {
+        var parts = cle.split('-');
+        return nomsMoisCourts[parseInt(parts[1], 10) - 1] + ' ' + parts[0].slice(2);
+      }
+
+      function etiquetteAnnee(cle) { return cle; }
+
+      function rendreGraphiqueAffluence(cles, buckets, formatterEtiquette) {
+        var conteneur = document.getElementById('graphiqueAffluence');
+        conteneur.innerHTML = '';
+        var valeurs = cles.map(function (cle) { return buckets[cle] || 0; });
+        var max = Math.max.apply(null, valeurs.concat([0]));
+        if (max === 0) {
+          conteneur.innerHTML = '<p class="carte-vide-claire">Pas encore assez de ventes enregistrées.</p>';
+          return;
+        }
+        cles.forEach(function (cle, i) {
+          var valeur = valeurs[i];
+          var hauteurPct = valeur > 0 ? Math.max(4, Math.round((valeur / max) * 100)) : 0;
+          var colonne = document.createElement('div');
+          colonne.className = 'colonne-affluence';
+          colonne.innerHTML =
+            '<span class="colonne-valeur">' + (valeur > 0 ? valeur : '') + '</span>' +
+            '<div class="colonne-barre" style="height:' + hauteurPct + '%;"></div>' +
+            '<span class="colonne-etiquette">' + formatterEtiquette(cle) + '</span>';
+          conteneur.appendChild(colonne);
+        });
+        // Sur mobile, le graphique défile horizontalement (colonnes à
+        // largeur fixe, voir style.css) : on part sur la période la plus
+        // récente, la plus pertinente, l'historique plus ancien reste
+        // accessible en glissant vers la gauche. Sans effet sur desktop
+        // (pas de défilement là où tout tient déjà à l'écran).
+        conteneur.scrollLeft = conteneur.scrollWidth;
+      }
+
+      var granulariteActuelle = 'mois';
+      function rafraichirAffluence() {
+        if (granulariteActuelle === 'semaine') {
+          rendreGraphiqueAffluence(derniersLundis(12), bucketiserParSemaine(ventesToutes), etiquetteSemaine);
+        } else if (granulariteActuelle === 'annee') {
+          var buckets = bucketiserParAnnee(ventesToutes);
+          var annees = Object.keys(buckets).map(function (a) { return parseInt(a, 10); });
+          var anneeMax = new Date().getFullYear();
+          var anneeMin = annees.length ? Math.min.apply(null, annees) : anneeMax;
+          rendreGraphiqueAffluence(anneesEntre(anneeMin, anneeMax), buckets, etiquetteAnnee);
+        } else {
+          rendreGraphiqueAffluence(derniersMois(12), bucketiserParMois(ventesToutes), etiquetteMois);
+        }
+      }
+
+      document.querySelectorAll('#selecteurGranulariteAffluence .periode-bouton').forEach(function (bouton) {
+        bouton.addEventListener('click', function () {
+          document.querySelectorAll('#selecteurGranulariteAffluence .periode-bouton').forEach(function (b) { b.classList.remove('actif'); });
+          bouton.classList.add('actif');
+          granulariteActuelle = bouton.getAttribute('data-granularite');
+          rafraichirAffluence();
+        });
+      });
+
+      // ---------- Chargement ----------
+
+      sbClient.auth.getSession().then(function (result) {
+        var session = result.data.session;
+        if (!session) {
+          statutDiv.textContent = "Non connecté. Va sur connexion.html";
+          return;
+        }
+        var commercantId = session.user.id;
+
+        sbClient.from('ventes').select('*').eq('commercant_id', commercantId).then(function (result) {
+          ventesToutes = result.data || [];
+          statutDiv.style.display = 'none';
+          zoneContenuEl.style.display = 'block';
+
+          if (ventesToutes.length === 0) {
+            zoneContenuEl.innerHTML = '<p class="carte-vide-claire">Pas encore assez de ventes enregistrées pour construire des statistiques. <a href="produits.html">Ajoute tes premières ventes →</a></p>';
+            return;
+          }
+
+          rafraichirJoursRecords();
+          rafraichirClassement();
+          rafraichirAffluence();
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
