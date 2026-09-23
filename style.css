@@ -6,11 +6,18 @@
 
 :root {
   --ink: #211d17;
-  --accent: #23211c;
-  --accent-fonce: #1a1a1a;
-  --accent-clair: #e7e2d5;
-  --fond: #f8f4ec;
-  --surface: #fffdf9;
+  /* Direction "Artisanale Premium" (validée sept. 2026) : l'ancien --accent
+     était en réalité un quasi-noir (#23211c), utilisé pour tous les
+     boutons/pastilles actives du site ("blocs noirs"). Remplacé par une
+     vraie couleur d'accent (terre cuite), avec ses propres variantes plus
+     foncée (survol) et plus claire (fonds discrets). --fond et --surface
+     s'éclaircissent pour que les cartes blanches se détachent du fond crème
+     au lieu de s'y fondre. */
+  --accent: #c28059;
+  --accent-fonce: #9b6647;
+  --accent-clair: #f6e8dd;
+  --fond: #faf8ef;
+  --surface: #ffffff;
   --bordure: #eae1d1;
   --texte: #211d17;
   --texte-attenue: #77695a;
@@ -1076,8 +1083,8 @@ button.lien-supprimer:hover {
 
 .action-carte:hover {
   border-color: var(--texte-tres-attenue);
-  box-shadow: 0 6px 16px rgba(33, 29, 23, 0.08);
-  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(33, 29, 23, 0.1);
+  transform: translateY(-3px);
 }
 
 .action-carte-texte {
@@ -1223,8 +1230,8 @@ button.lien-supprimer:hover {
 }
 
 .produit-top:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(33, 29, 23, 0.08);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(33, 29, 23, 0.1);
 }
 
 .produit-top--principal {
@@ -1267,8 +1274,8 @@ button.lien-supprimer:hover {
 }
 
 .produit-top-quantite {
-  font-family: var(--police-titre);
-  font-size: 22px;
+  font-family: var(--police);
+  font-size: 23px;
   font-weight: 700;
   color: var(--texte);
   margin: 4px 0 0;
@@ -1276,7 +1283,7 @@ button.lien-supprimer:hover {
 }
 
 .produit-top--principal .produit-top-quantite {
-  font-size: 30px;
+  font-size: 32px;
   margin: 0;
 }
 
@@ -1296,7 +1303,7 @@ button.lien-supprimer:hover {
     gap: 4px;
   }
   .produit-top--principal .produit-top-quantite {
-    font-size: 26px;
+    font-size: 27px;
   }
 }
 
@@ -1329,9 +1336,9 @@ button.lien-supprimer:hover {
 }
 
 .carte-kpi-valeur {
-  font-family: var(--police-titre);
+  font-family: var(--police);
   font-size: 26px;
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
@@ -1491,8 +1498,8 @@ button.lien-supprimer:hover {
 }
 
 .chip-jour.actif {
-  background: var(--ink);
-  border-color: var(--ink);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .chip-jour.actif .chip-jour-nom,
@@ -1554,7 +1561,7 @@ button.lien-supprimer:hover {
 }
 
 .badge-meteo-temperature {
-  font-family: var(--police-titre);
+  font-family: var(--police);
   font-size: 16px;
   font-weight: 700;
   color: var(--texte);
@@ -1663,8 +1670,8 @@ button.lien-supprimer:hover {
 }
 
 .pill-categorie.actif {
-  background: var(--ink);
-  border-color: var(--ink);
+  background: var(--accent);
+  border-color: var(--accent);
   color: var(--surface);
 }
 
@@ -1880,6 +1887,16 @@ button.lien-supprimer:hover {
 
 .ligne-fiabilite.actif .valeur {
   color: #2f8f52;
+}
+
+/* Rattache visuellement "Fiabilité des prévisions" à la carte principale
+   (direction "Artisanale Premium") : vit maintenant DANS la même carte que
+   la production du jour, séparée par un simple filet plutôt que sa propre
+   carte flottante plus bas sur la page. */
+.bloc-fiabilite-rattache {
+  margin-top: 26px;
+  padding-top: 20px;
+  border-top: 1px solid var(--bordure);
 }
 
 /* ---------- Signal d'affluence du jour sélectionné (Prévisions) ---------- */
