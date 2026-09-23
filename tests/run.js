@@ -129,8 +129,25 @@ async function stubSupabaseAvecDonnees(page, { commercantId, tables }) {
                 };
                 return d;
               },
-              update: function () {
-                var u = { eq: function () { return Promise.resolve({ data: [], error: null }); } };
+              update: function (patch) {
+                // Corrige un no-op total (ne mutait jamais `data`) : un vrai
+                // client Supabase exécute la requête dès la construction de
+                // la chaîne (pas seulement si on consomme le résultat via
+                // .then()), donc la mise à jour est planifiée en microtâche
+                // dès l'appel, et .eq() se contente d'accumuler les filtres
+                // pendant que la chaîne synchrone se construit.
+                var filtres = [];
+                var u = { eq: function (col, val) { filtres.push([col, val]); return u; } };
+                var resultat = Promise.resolve().then(function () {
+                  var correspondent = data.filter(function (row) {
+                    return filtres.every(function (f) { return String(row[f[0]]) === String(f[1]); });
+                  });
+                  correspondent.forEach(function (row) {
+                    Object.keys(patch || {}).forEach(function (k) { row[k] = patch[k]; });
+                  });
+                  return { data: correspondent, error: null };
+                });
+                u.then = function (cb, errCb) { return resultat.then(cb, errCb); };
                 return u;
               },
             };
@@ -1122,6 +1139,80 @@ async function main() {
         await pageProduits.locator('#btnSuggestionFicheNon').click();
         expect(await pageProduits.locator('#suggestionFiche').isVisible()).toBe(false);
         expect(await pageProduits.locator('#ficheTechnique').isVisible()).toBe(false);
+      });
+
+      // Retour utilisateur, suite au point 5 : la poubelle et le crayon
+      // étaient jugés "moches" (boutons encadrés). Remplacés par des icônes
+      // discrètes sans cadre, la suppression reprenant l'esprit "croix
+      // rouge" déjà utilisé pour retirer un ingrédient.
+      await test('le bouton de suppression d\'un produit est une croix discrète, pas une icône poubelle', async () => {
+        await pageProduits.goto(BASE_URL + '/produits.html');
+        await pageProduits.locator('.bloc-categorie-produits').first().waitFor({ state: 'visible' });
+        const btnSupprimer = pageProduits.locator('li[data-produit-id="p1"] .icone-action--supprimer');
+        expect(await btnSupprimer.textContent()).toBe('×');
+      });
+
+      // Retour utilisateur, suite au point 5 : "modifier" un produit ne doit
+      // pas se limiter à renommer via une popup, ça doit aussi donner accès
+      // à la fiche technique. Le crayon ouvre maintenant la fiche technique
+      // ET révèle un champ de renommage inline, préempli, au même endroit.
+      await test('cliquer le crayon ouvre la fiche technique et révèle un champ de renommage prérempli', async () => {
+        await pageProduits.goto(BASE_URL + '/produits.html');
+        await pageProduits.locator('.bloc-categorie-produits').first().waitFor({ state: 'visible' });
+
+        const ligneMargherita = pageProduits.locator('li[data-produit-id="p1"]');
+        await ligneMargherita.locator('button[aria-label="Modifier le produit (nom et fiche technique)"]').click();
+
+        await pageProduits.locator('#ficheTechnique').waitFor({ state: 'visible' });
+        expect(await pageProduits.locator('#ficheProduitNom').textContent()).toBe('Margherita');
+        await pageProduits.locator('#zoneRenommerProduit').waitFor({ state: 'visible' });
+        expect(await pageProduits.locator('#nouveauNomProduit').inputValue()).toBe('Margherita');
+      });
+
+      await test('valider le renommage inline met à jour le nom sur la ligne et dans l\'en-tête de la fiche', async () => {
+        await pageProduits.goto(BASE_URL + '/produits.html');
+        await pageProduits.locator('.bloc-categorie-produits').first().waitFor({ state: 'visible' });
+
+        const ligneMargherita = pageProduits.locator('li[data-produit-id="p1"]');
+        await ligneMargherita.locator('button[aria-label="Modifier le produit (nom et fiche technique)"]').click();
+        await pageProduits.locator('#zoneRenommerProduit').waitFor({ state: 'visible' });
+
+        await pageProduits.locator('#nouveauNomProduit').fill('Margherita royale');
+        await pageProduits.locator('#btnValiderRenommer').click();
+
+        await pageProduits.locator('#zoneRenommerProduit').waitFor({ state: 'hidden' });
+        expect(await pageProduits.locator('#ficheProduitNom').textContent()).toBe('Margherita royale');
+        expect(await pageProduits.locator('li[data-produit-id="p1"] .nom-produit').textContent()).toContain('Margherita royale');
+      });
+
+      await test('renommer vers un nom déjà utilisé par un autre produit affiche une erreur, sans renommer', async () => {
+        await pageProduits.goto(BASE_URL + '/produits.html');
+        await pageProduits.locator('.bloc-categorie-produits').first().waitFor({ state: 'visible' });
+
+        const ligneMargherita = pageProduits.locator('li[data-produit-id="p1"]');
+        await ligneMargherita.locator('button[aria-label="Modifier le produit (nom et fiche technique)"]').click();
+        await pageProduits.locator('#zoneRenommerProduit').waitFor({ state: 'visible' });
+
+        await pageProduits.locator('#nouveauNomProduit').fill('Tiramisu');
+        await pageProduits.locator('#btnValiderRenommer').click();
+
+        await pageProduits.locator('#messageRenommer .erreur').waitFor({ state: 'visible' });
+        expect(await pageProduits.locator('#ficheProduitNom').textContent()).toBe('Margherita');
+      });
+
+      // Retour utilisateur, suite au point 5 : pas d'endroit pour dire
+      // qu'on a fini de remplir la fiche technique. Bouton "Terminé" ajouté.
+      await test('le bouton "Terminé" referme la fiche technique ouverte', async () => {
+        await pageProduits.goto(BASE_URL + '/produits.html');
+        await pageProduits.locator('.bloc-categorie-produits').first().waitFor({ state: 'visible' });
+
+        const ligneTiramisu = pageProduits.locator('li[data-produit-id="p2"]');
+        await ligneTiramisu.locator('.nom-produit').click();
+        await pageProduits.locator('#ficheTechnique').waitFor({ state: 'visible' });
+
+        await pageProduits.locator('#btnFermerFiche').click();
+        expect(await pageProduits.locator('#ficheTechnique').isVisible()).toBe(false);
+        expect(await ligneTiramisu.evaluate((el) => el.classList.contains('ligne-produit--fiche-ouverte'))).toBe(false);
       });
 
       await pageProduits.close();

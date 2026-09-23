@@ -2803,17 +2803,18 @@ ul.liste-produits li.ligne-produit--fiche-ouverte {
 
 .icone-action {
   margin: 0;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   background: transparent;
-  color: var(--texte-attenue);
-  border: 1px solid var(--bordure);
+  color: var(--texte-tres-attenue);
+  border: none;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 12px;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .icone-action:hover {
@@ -2821,10 +2822,20 @@ ul.liste-produits li.ligne-produit--fiche-ouverte {
   color: var(--texte);
 }
 
+/* Croix rouge discrète plutôt qu'une icône poubelle "lourde" (retour
+   pilote) : visible mais pas agressive par défaut, pleinement rouge au
+   survol seulement, même esprit que .lien-supprimer sur les ingrédients. */
+.icone-action--supprimer {
+  color: var(--erreur-texte);
+  opacity: 0.5;
+  font-size: 16px;
+  font-weight: 700;
+}
+
 .icone-action--supprimer:hover {
+  opacity: 1;
   background: var(--erreur-fond);
   color: var(--erreur-texte);
-  border-color: var(--erreur-texte);
 }
 
 /* ---------- Stepper (saisie manuelle des ventes) ---------- */

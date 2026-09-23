@@ -107,7 +107,21 @@
              Un seul élément, déplacé en JS d'un produit à l'autre (voir
              afficherFicheTechnique) plutôt que dupliqué par produit. -->
         <li id="ficheTechnique" class="ligne-fiche-technique" style="display:none;">
-          <p class="section-titre">Fiche technique : <span id="ficheProduitNom"></span></p>
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+            <p class="section-titre" style="margin:0;">Fiche technique : <span id="ficheProduitNom"></span></p>
+            <button type="button" id="btnRenommerProduit" class="icone-action" aria-label="Renommer le produit" title="Renommer le produit">✎</button>
+          </div>
+          <div id="zoneRenommerProduit" style="display:none; margin-top:8px;">
+            <div class="ligne-form" style="flex-wrap:wrap; align-items:flex-end;">
+              <div style="flex:2; min-width:160px;">
+                <label for="nouveauNomProduit" style="margin-top:0;">Nouveau nom</label>
+                <input type="text" id="nouveauNomProduit">
+              </div>
+              <button type="button" id="btnValiderRenommer" style="flex:0 0 auto; min-width:100px;">Valider</button>
+              <button type="button" id="btnAnnulerRenommer" class="bouton-secondaire" style="flex:0 0 auto; min-width:100px;">Annuler</button>
+            </div>
+            <div id="messageRenommer"></div>
+          </div>
           <div id="listeIngredients"></div>
           <div class="ligne-form" style="margin-top:10px; flex-wrap:wrap; align-items:flex-end;">
             <div style="flex:2; min-width:160px;">
@@ -140,6 +154,9 @@
             <button id="btnAjouterIngredient" style="flex:0 0 auto; min-width:100px;">Ajouter</button>
           </div>
           <div id="messageIngredient"></div>
+          <div style="margin-top:14px; display:flex; justify-content:flex-end;">
+            <button type="button" id="btnFermerFiche" class="bouton-secondaire" style="width:auto; min-width:100px;">Terminé</button>
+          </div>
         </li>
       </div>
       <p class="pied-page"><a href="cgu.html">Conditions générales d'utilisation</a></p>
@@ -433,7 +450,7 @@
         var btnEditer = document.createElement('button');
         btnEditer.type = 'button';
         btnEditer.className = 'icone-action';
-        btnEditer.setAttribute('aria-label', 'Modifier le nom du produit');
+        btnEditer.setAttribute('aria-label', 'Modifier le produit (nom et fiche technique)');
         btnEditer.textContent = '✎';
         btnEditer.addEventListener('click', function (e) {
           e.stopPropagation();
@@ -444,7 +461,7 @@
         btnSupprimer.type = 'button';
         btnSupprimer.className = 'icone-action icone-action--supprimer';
         btnSupprimer.setAttribute('aria-label', 'Supprimer le produit');
-        btnSupprimer.textContent = '🗑';
+        btnSupprimer.textContent = '×';
         btnSupprimer.addEventListener('click', function (e) {
           e.stopPropagation();
           supprimerProduit(produit);
@@ -547,38 +564,39 @@
         }
       }
 
-      // Renomme un produit existant (utile pour corriger un nom mal saisi ou
-      // fusionner visuellement des doublons issus d'un import CSV).
+      // Retour pilote (après le point 5) : "modifier" un produit ne se
+      // limite plus à un window.prompt() pour le nom seul. Ça ouvre
+      // maintenant la fiche technique (comme un clic sur le nom) ET révèle
+      // un champ de renommage inline au même endroit, pour que renommer et
+      // gérer les ingrédients se fassent au même endroit.
       function modifierProduit(produit) {
-        var nouveauNom = window.prompt('Nouveau nom du produit :', produit.nom);
-        if (nouveauNom === null) return;
-        nouveauNom = nouveauNom.trim();
-        if (!nouveauNom || nouveauNom === produit.nom) return;
+        var dejaOuvert = produitSelectionne && produitSelectionne.id === produit.id && ficheTechniqueDiv.style.display !== 'none';
+        if (!dejaOuvert) {
+          afficherFicheTechnique(produit);
+        }
+        ouvrirRenommerProduit();
+      }
 
-        var cleNouveau = cleNormaliseeProduit(nouveauNom);
+      // Révèle le champ de renommage inline dans la fiche technique déjà
+      // ouverte, préremplie avec le nom actuel.
+      function ouvrirRenommerProduit() {
+        if (!produitSelectionne) return;
+        document.getElementById('messageRenommer').innerHTML = '';
+        var input = document.getElementById('nouveauNomProduit');
+        input.value = produitSelectionne.nom;
+        document.getElementById('zoneRenommerProduit').style.display = 'block';
+        input.focus();
+        input.select();
+      }
 
-        sbClient.from('produits').select('id, nom').eq('commercant_id', commercantId).then(function (resultExistants) {
-          var doublon = (resultExistants.data || []).find(function (p) {
-            return p.id !== produit.id && cleNormaliseeProduit(p.nom) === cleNouveau;
-          });
-
-          if (doublon) {
-            messageDiv.style.display = 'block';
-            messageDiv.className = 'erreur';
-            messageDiv.textContent = 'Impossible de modifier : "' + formatNomAffichage(doublon.nom) + '" existe déjà dans tes produits.';
-            return;
-          }
-
-          sbClient.from('produits').update({ nom: nouveauNom }).eq('id', produit.id).then(function (result) {
-            if (result.error) {
-              messageDiv.style.display = 'block';
-              messageDiv.className = 'erreur';
-              messageDiv.textContent = "Impossible de modifier : " + result.error.message;
-            } else {
-              chargerProduits();
-              chargerVentesJour();
-            }
-          });
+      // Referme la fiche technique ouverte (accordéon), quel que soit le
+      // déclencheur (re-clic sur le produit, bouton "Terminé").
+      function fermerFicheTechnique() {
+        produitSelectionne = null;
+        ficheTechniqueDiv.style.display = 'none';
+        document.getElementById('zoneRenommerProduit').style.display = 'none';
+        document.querySelectorAll('.ligne-produit--fiche-ouverte').forEach(function (el) {
+          el.classList.remove('ligne-produit--fiche-ouverte');
         });
       }
 
@@ -593,8 +611,7 @@
             messageDiv.textContent = "Impossible de supprimer : " + result.error.message;
           } else {
             if (produitSelectionne && produitSelectionne.id === produit.id) {
-              produitSelectionne = null;
-              ficheTechniqueDiv.style.display = 'none';
+              fermerFicheTechnique();
             }
             chargerProduits();
             chargerVentesJour();
@@ -616,14 +633,14 @@
         suggestionFicheDiv.style.display = 'none';
 
         if (dejaOuvertePourCeProduit) {
-          produitSelectionne = null;
-          ficheTechniqueDiv.style.display = 'none';
+          fermerFicheTechnique();
           return;
         }
 
         produitSelectionne = produit;
         ficheProduitNomEl.textContent = produit.nom;
         messageIngredientDiv.innerHTML = '';
+        document.getElementById('zoneRenommerProduit').style.display = 'none';
 
         var ligneProduit = listeProduitsParCategorieEl.querySelector('li[data-produit-id="' + produit.id + '"]');
         if (ligneProduit) {
@@ -657,6 +674,65 @@
 
       document.getElementById('btnSuggestionFicheNon').addEventListener('click', function () {
         suggestionFicheDiv.style.display = 'none';
+      });
+
+      document.getElementById('btnFermerFiche').addEventListener('click', function () {
+        fermerFicheTechnique();
+      });
+
+      document.getElementById('btnRenommerProduit').addEventListener('click', function () {
+        var zone = document.getElementById('zoneRenommerProduit');
+        if (zone.style.display === 'none') {
+          ouvrirRenommerProduit();
+        } else {
+          zone.style.display = 'none';
+        }
+      });
+
+      document.getElementById('btnAnnulerRenommer').addEventListener('click', function () {
+        document.getElementById('zoneRenommerProduit').style.display = 'none';
+      });
+
+      document.getElementById('btnValiderRenommer').addEventListener('click', function () {
+        if (!produitSelectionne) return;
+        var produit = produitSelectionne;
+        var messageRenommerDiv = document.getElementById('messageRenommer');
+        messageRenommerDiv.innerHTML = '';
+        var nouveauNom = document.getElementById('nouveauNomProduit').value.trim();
+
+        if (!nouveauNom || nouveauNom === produit.nom) {
+          document.getElementById('zoneRenommerProduit').style.display = 'none';
+          return;
+        }
+
+        var cleNouveau = cleNormaliseeProduit(nouveauNom);
+
+        sbClient.from('produits').select('id, nom').eq('commercant_id', commercantId).then(function (resultExistants) {
+          var doublon = (resultExistants.data || []).find(function (p) {
+            return p.id !== produit.id && cleNormaliseeProduit(p.nom) === cleNouveau;
+          });
+
+          if (doublon) {
+            messageRenommerDiv.innerHTML = '<p class="erreur" style="padding:8px 10px; border-radius:6px; margin:8px 0 0;">"' + formatNomAffichage(doublon.nom) + '" existe déjà dans tes produits.</p>';
+            return;
+          }
+
+          sbClient.from('produits').update({ nom: nouveauNom }).eq('id', produit.id).then(function (result) {
+            if (result.error) {
+              messageRenommerDiv.innerHTML = '<p class="erreur" style="padding:8px 10px; border-radius:6px; margin:8px 0 0;">Erreur : ' + result.error.message + '</p>';
+            } else {
+              document.getElementById('zoneRenommerProduit').style.display = 'none';
+              chargerProduits(function () {
+                var miseAJour = produitsCourants.find(function (p) { return p.id === produit.id; });
+                if (miseAJour) {
+                  produitSelectionne = miseAJour;
+                  ficheProduitNomEl.textContent = miseAJour.nom;
+                }
+              });
+              chargerVentesJour();
+            }
+          });
+        });
       });
 
       function chargerIngredients() {
