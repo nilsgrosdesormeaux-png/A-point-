@@ -2130,7 +2130,7 @@ async function main() {
             personnel: [PERSONNEL_U1],
             secteurs_personnel: [{ id: 'salle', commercant_id: 'c1', nom: 'Salle', couleur: '#4caf6d', ordre: 0 }],
             postes_personnel: [{ id: 'generique', secteur_id: 'salle', commercant_id: 'c1', nom: 'Générique', ordre: 0 }],
-            creneaux_personnel: [{ id: 1, commercant_id: 'c1', personnel_id: 6, date_creneau: isoAujourdHui, heure_debut: '09:00:00', heure_fin: '17:00:00', secteur_id: 'salle', poste_id: 'generique' }],
+            creneaux_personnel: [{ id: 1, commercant_id: 'c1', personnel_id: 6, date_creneau: isoAujourdHui, heure_debut: '09:00:00', heure_fin: '17:00:00', secteur_id: 'salle', poste_id: 'generique', pause_debut: '12:00:00', pause_fin: '12:30:00' }],
           },
         });
         await page.addInitScript(() => { window.__appelsImpression = 0; window.print = function () { window.__appelsImpression++; }; });
@@ -2138,8 +2138,18 @@ async function main() {
         await page.locator('#btnTelechargerPdf').waitFor({ state: 'visible' });
         await page.locator('#btnTelechargerPdf').click();
         await page.waitForFunction(() => window.__appelsImpression === 1);
-        expect(await page.locator('#zoneImpression .impression-jour').count()).toBe(7);
-        expect(await page.locator('#zoneImpression .impression-creneau').count()).toBeGreaterThan(0);
+
+        // 7 jours en une seule vue, un vrai bloc positionné sur un axe temps
+        // (pas une liste de texte à puces) : cf. demande explicite de
+        // l'utilisateur ("un véritable planning visuel, avec les vrais
+        // blocs horaires").
+        expect(await page.locator('#zoneImpression .impression-jour-bloc').count()).toBe(7);
+        expect(await page.locator('#zoneImpression .impression-bloc').count()).toBe(1);
+        expect(await page.locator('#zoneImpression .impression-bloc-pause').count()).toBe(1);
+        expect(await page.locator('#zoneImpression .impression-jour-vide').count()).toBe(6);
+        const styleBloc = await page.locator('#zoneImpression .impression-bloc').getAttribute('style');
+        expect(styleBloc).toContain('left:');
+        expect(styleBloc).toContain('width:');
         await page.close();
       });
 
