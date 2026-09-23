@@ -12,15 +12,29 @@
   <style>
     body { align-items: flex-start; min-height: 100vh; }
     .conteneur { margin: 0 auto; width: 100%; max-width: 480px; padding: 20px 16px 40px; }
-    h1#titre { text-align: center; font-size: 20px; margin-bottom: 2px; }
+    h1#titre {
+      font-family: var(--police);
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      text-align: center;
+      font-size: 19px;
+      margin-bottom: 2px;
+      color: var(--texte);
+    }
     .sous-titre { text-align: center; margin-bottom: 18px; font-size: 13px; }
 
     .entete-jour {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 14px;
-      margin-bottom: 14px;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+    .date-complete {
+      text-align: center;
+      font-size: 12px;
+      color: var(--texte-tres-attenue);
+      margin: 0 0 14px;
     }
     .bouton-nav-jour {
       width: 32px;
@@ -61,29 +75,29 @@
     .ligne-heure:first-child { border-top: none; }
     .ligne-heure-libelle {
       position: absolute;
-      top: -8px;
-      left: 8px;
-      font-size: 11px;
+      top: -7px;
+      left: 6px;
+      font-size: 10px;
       font-weight: 600;
       color: var(--texte-tres-attenue);
       background: var(--surface);
-      padding: 0 4px;
+      padding: 0 3px;
     }
 
     .bloc-jour {
       position: absolute;
-      left: 58px;
-      right: 8px;
-      border-radius: 8px;
+      left: 46px;
+      right: 6px;
+      border-radius: 7px;
       color: #fff;
       border: 1px solid rgba(0,0,0,0.12);
       overflow: hidden;
       cursor: default;
     }
-    .bloc-jour-corps { position: relative; z-index: 1; padding: 6px 10px; }
-    .bloc-jour-horaire { display: block; font-weight: 700; font-size: 13px; }
-    .bloc-jour-poste { display: block; font-size: 12px; opacity: 0.92; margin-top: 1px; }
-    .bloc-jour-pause-texte { display: block; font-size: 11px; opacity: 0.85; margin-top: 2px; font-style: italic; }
+    .bloc-jour-corps { position: relative; z-index: 1; padding: 5px 8px; }
+    .bloc-jour-horaire { display: block; font-weight: 700; font-size: 12px; line-height: 1.25; }
+    .bloc-jour-poste { display: block; font-size: 11px; opacity: 0.92; margin-top: 1px; line-height: 1.2; }
+    .bloc-jour-pause-texte { display: block; font-size: 10px; opacity: 0.85; margin-top: 1px; font-style: italic; line-height: 1.2; }
 
     .bloc-jour-pause {
       position: absolute;
@@ -106,6 +120,52 @@
       width: 100%;
       margin-top: 24px;
     }
+
+    .boutons-actions-employe {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 18px;
+    }
+    .bouton-pill-secondaire {
+      margin-top: 0;
+      width: 100%;
+      padding: 11px 16px;
+      font-family: var(--police);
+      font-size: 13.5px;
+      font-weight: 600;
+      background: var(--surface);
+      color: var(--texte);
+      border: 1px solid var(--bordure);
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    .bouton-pill-secondaire:hover { background: var(--accent-clair); }
+
+    /* Export PDF : une vue imprimable de la semaine (7 jours d'un coup),
+       masquée à l'écran et révélée uniquement par window.print(). Distincte
+       de l'agenda jour par jour visible dans l'app. */
+    .zone-impression { display: none; }
+    @media print {
+      .conteneur { display: none !important; }
+      .zone-impression {
+        display: block !important;
+        padding: 24px;
+        font-family: var(--police);
+        color: #000;
+      }
+      .zone-impression h1 { font-family: var(--police); font-size: 20px; margin: 0 0 4px; }
+      .impression-sous-titre { color: #555; font-size: 13px; margin: 0 0 20px; }
+      .impression-jour { margin-bottom: 14px; break-inside: avoid; }
+      .impression-jour-nom { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+      .impression-creneau { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; }
+      .impression-creneau-couleur { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+      .impression-repos { color: #888; font-size: 13px; font-style: italic; }
+    }
   </style>
 </head>
 <body>
@@ -126,6 +186,7 @@
         <div class="libelle-jour" id="libelleJour">Aujourd'hui</div>
         <button id="btnJourSuiv" class="bouton-nav-jour" aria-label="Jour suivant">→</button>
       </div>
+      <p class="date-complete" id="dateComplete"></p>
 
       <div id="zoneRepos" class="carte-claire zone-repos" style="display:none;">
         <p class="jour-repos-texte">Repos</p>
@@ -133,6 +194,11 @@
 
       <div id="zoneTimeline" class="carte-claire zone-timeline" style="display:none;">
         <div class="grille-jour" id="grilleJour"></div>
+      </div>
+
+      <div class="boutons-actions-employe">
+        <button id="btnTelechargerPdf" type="button" class="bouton-pill-secondaire">📥 Télécharger le planning (PDF)</button>
+        <button id="btnSyncCalendrier" type="button" class="bouton-pill-secondaire">📅 Synchroniser avec mon calendrier</button>
       </div>
 
       <button id="btnDeconnexion" class="bouton-deconnexion">Se déconnecter</button>
@@ -143,6 +209,8 @@
       <a href="connexion.html" class="lien-retour" style="margin-top:6px;">← Retour à la connexion</a>
     </div>
   </div>
+
+  <div id="zoneImpression" class="zone-impression"></div>
 
   <script>
     (function () {
@@ -159,6 +227,8 @@
       var zoneReposEl = document.getElementById('zoneRepos');
       var zoneTimelineEl = document.getElementById('zoneTimeline');
       var grilleJourEl = document.getElementById('grilleJour');
+      var dateCompleteEl = document.getElementById('dateComplete');
+      var zoneImpressionEl = document.getElementById('zoneImpression');
       var btnJourPrec = document.getElementById('btnJourPrec');
       var btnJourSuiv = document.getElementById('btnJourSuiv');
 
@@ -166,7 +236,8 @@
       var SECTEURS_PAR_ID = {};
       var POSTES_PAR_ID = {};
       var decalageJour = 0;
-      var PX_PAR_HEURE = 64;
+      var PX_PAR_HEURE = 42;
+      var HAUTEUR_MIN_BLOC = 40;
 
       function dateDuJour(decalage) {
         return MP.ajouterJours(new Date(), decalage);
@@ -199,6 +270,7 @@
         var jour = dateDuJour(decalageJour);
         var iso = MP.versISO(jour);
         libelleJourEl.textContent = libelleJourAffiche(decalageJour);
+        dateCompleteEl.textContent = MP.formatDateLongue(jour);
 
         sbClient.from('creneaux_personnel').select('*')
           .eq('personnel_id', moiPersonnel.id)
@@ -256,7 +328,7 @@
               var bloc = document.createElement('div');
               bloc.className = 'bloc-jour';
               bloc.style.top = ((c.debut - axeDebut) * PX_PAR_HEURE) + 'px';
-              bloc.style.height = ((c.fin - c.debut) * PX_PAR_HEURE) + 'px';
+              bloc.style.height = Math.max((c.fin - c.debut) * PX_PAR_HEURE, HAUTEUR_MIN_BLOC) + 'px';
               bloc.style.background = secteur ? secteur.couleur : '#8a7cc7';
 
               if (c.pauseDebut != null) {
@@ -306,6 +378,88 @@
         return (heureEntiere < 10 ? '0' : '') + heureEntiere + 'h' + ('0' + minutes).slice(-2);
       }
 
+      // Lundi de la semaine contenant "date" (dimanche = 0 en JS, on le
+      // renvoie donc en fin de semaine, pas en tête).
+      function lundiDeSemaine(date) {
+        var jour = date.getDay();
+        var decalage = (jour === 0) ? -6 : 1 - jour;
+        return MP.ajouterJours(date, decalage);
+      }
+
+      function telechargerFichier(nomFichier, contenu, type) {
+        var blob = new Blob([contenu], { type: type });
+        var url = URL.createObjectURL(blob);
+        var lien = document.createElement('a');
+        lien.href = url;
+        lien.download = nomFichier;
+        document.body.appendChild(lien);
+        lien.click();
+        document.body.removeChild(lien);
+        URL.revokeObjectURL(url);
+      }
+
+      // Construit la vue imprimable (7 jours d'un coup, cf. cahier des
+      // charges), révélée uniquement via @media print au moment du
+      // window.print() ; jamais affichée à l'écran.
+      function construireImpressionSemaine(lundi, creneauxParJourIso) {
+        var html = '<h1>Planning de ' + MP.formatNomAffichage(moiPersonnel.nom) + '</h1>';
+        html += '<p class="impression-sous-titre">Semaine du ' + MP.formatDateLongue(lundi) + '</p>';
+        for (var i = 0; i < 7; i++) {
+          var jour = MP.ajouterJours(lundi, i);
+          var creneauxJour = creneauxParJourIso[MP.versISO(jour)] || [];
+          html += '<div class="impression-jour"><div class="impression-jour-nom">' + MP.formatDateLongue(jour) + '</div>';
+          if (creneauxJour.length === 0) {
+            html += '<div class="impression-repos">Repos</div>';
+          } else {
+            creneauxJour.forEach(function (c) {
+              var secteur = SECTEURS_PAR_ID[c.secteur_id];
+              var poste = POSTES_PAR_ID[c.secteur_id + '|' + c.poste_id];
+              var texte = formatHeureDecimale(heureVersDecimale(c.heure_debut)) + ' – ' + formatHeureDecimale(heureVersDecimale(c.heure_fin));
+              texte += ' · ' + (secteur ? secteur.nom : '');
+              if (poste && poste.nom && poste.nom !== 'Générique') texte += ' (' + poste.nom + ')';
+              html += '<div class="impression-creneau"><span class="impression-creneau-couleur" style="background:' + (secteur ? secteur.couleur : '#8a7cc7') + ';"></span><span>' + texte + '</span></div>';
+            });
+          }
+          html += '</div>';
+        }
+        zoneImpressionEl.innerHTML = html;
+      }
+
+      function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+      function dateHeureIcs(dateIso, heureStr) {
+        var p = dateIso.split('-');
+        var h = (heureStr || '00:00:00').split(':');
+        return p[0] + p[1] + p[2] + 'T' + pad2(parseInt(h[0], 10) % 24) + pad2(parseInt(h[1], 10) || 0) + '00';
+      }
+
+      // Fichier .ics standard (import direct dans Google Agenda / Calendrier
+      // Apple) : plus léger et plus fiable qu'une intégration OAuth par
+      // fournisseur, et cohérent avec le principe "zéro friction".
+      function genererIcs(creneaux) {
+        var lignes = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//A Point//Planning employe//FR'];
+        creneaux.forEach(function (c) {
+          var secteur = SECTEURS_PAR_ID[c.secteur_id];
+          var poste = POSTES_PAR_ID[c.secteur_id + '|' + c.poste_id];
+          var titre = secteur ? secteur.nom : 'Shift';
+          if (poste && poste.nom && poste.nom !== 'Générique') titre += ' - ' + poste.nom;
+
+          var debut = heureVersDecimale(c.heure_debut);
+          var fin = heureVersDecimale(c.heure_fin);
+          var dateFinIso = c.date_creneau;
+          if (fin <= debut) dateFinIso = MP.versISO(MP.ajouterJours(new Date(c.date_creneau), 1));
+
+          lignes.push('BEGIN:VEVENT');
+          lignes.push('UID:' + c.id + '@apointapp.fr');
+          lignes.push('DTSTART:' + dateHeureIcs(c.date_creneau, c.heure_debut));
+          lignes.push('DTEND:' + dateHeureIcs(dateFinIso, c.heure_fin));
+          lignes.push('SUMMARY:' + titre);
+          lignes.push('END:VEVENT');
+        });
+        lignes.push('END:VCALENDAR');
+        return lignes.join('\r\n');
+      }
+
       sbClient.auth.getSession().then(function (result) {
         var session = result.data.session;
         if (!session) {
@@ -343,6 +497,40 @@
 
       btnJourPrec.addEventListener('click', function () { decalageJour--; rendreJour(); });
       btnJourSuiv.addEventListener('click', function () { decalageJour++; rendreJour(); });
+
+      document.getElementById('btnTelechargerPdf').addEventListener('click', function () {
+        var lundi = lundiDeSemaine(dateDuJour(decalageJour));
+        var isoDebut = MP.versISO(lundi);
+        var isoFin = MP.versISO(MP.ajouterJours(lundi, 6));
+        sbClient.from('creneaux_personnel').select('*')
+          .eq('personnel_id', moiPersonnel.id)
+          .gte('date_creneau', isoDebut)
+          .lte('date_creneau', isoFin)
+          .then(function (resultat) {
+            var parJour = {};
+            (resultat.data || []).forEach(function (c) {
+              if (!parJour[c.date_creneau]) parJour[c.date_creneau] = [];
+              parJour[c.date_creneau].push(c);
+            });
+            Object.keys(parJour).forEach(function (iso) {
+              parJour[iso].sort(function (a, b) { return a.heure_debut.localeCompare(b.heure_debut); });
+            });
+            construireImpressionSemaine(lundi, parJour);
+            window.print();
+          });
+      });
+
+      document.getElementById('btnSyncCalendrier').addEventListener('click', function () {
+        var aujourdHui = MP.versISO(new Date());
+        sbClient.from('creneaux_personnel').select('*')
+          .eq('personnel_id', moiPersonnel.id)
+          .gte('date_creneau', aujourdHui)
+          .then(function (resultat) {
+            var ics = genererIcs(resultat.data || []);
+            var nomFichier = 'planning-' + MP.formatNomAffichage(moiPersonnel.nom).replace(/\s+/g, '-').toLowerCase() + '.ics';
+            telechargerFichier(nomFichier, ics, 'text/calendar');
+          });
+      });
 
       document.getElementById('btnDeconnexion').addEventListener('click', function () {
         sbClient.auth.signOut().then(function () {

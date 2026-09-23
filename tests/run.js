@@ -2051,6 +2051,85 @@ async function main() {
         expect(await page.locator('#libelleJour').textContent()).toBe('Demain');
         await page.close();
       });
+
+      await test('la date complète du jour est affichée sous le sélecteur, distincte du libellé relatif', async () => {
+        const page = await browser.newPage();
+        await stubEspaceEmploye(page, {
+          session: { user: { id: 'u1', user_metadata: { role: 'employe' } } },
+          tables: { personnel: [PERSONNEL_U1], secteurs_personnel: [], postes_personnel: [], creneaux_personnel: [] },
+        });
+        await page.goto(BASE_URL + '/espace-employe.html');
+        await page.locator('#zoneContenu').waitFor({ state: 'visible' });
+        const texteDate = await page.locator('#dateComplete').textContent();
+        expect(texteDate.length > 5).toBe(true);
+        expect(texteDate).not.toBe("Aujourd'hui");
+        await page.close();
+      });
+
+      await test('les boutons de téléchargement PDF et de synchronisation calendrier sont visibles', async () => {
+        const page = await browser.newPage();
+        await stubEspaceEmploye(page, {
+          session: { user: { id: 'u1', user_metadata: { role: 'employe' } } },
+          tables: { personnel: [PERSONNEL_U1], secteurs_personnel: [], postes_personnel: [], creneaux_personnel: [] },
+        });
+        await page.goto(BASE_URL + '/espace-employe.html');
+        await page.locator('#btnTelechargerPdf').waitFor({ state: 'visible' });
+        expect(await page.locator('#btnTelechargerPdf').textContent()).toContain('PDF');
+        expect(await page.locator('#btnSyncCalendrier').textContent()).toContain('calendrier');
+        await page.close();
+      });
+
+      await test('le bouton PDF construit une vue imprimable des 7 jours de la semaine et lance l\'impression', async () => {
+        const page = await browser.newPage();
+        const isoAujourdHui = (() => {
+          const d = new Date();
+          const mm = ('0' + (d.getMonth() + 1)).slice(-2);
+          const dd = ('0' + d.getDate()).slice(-2);
+          return d.getFullYear() + '-' + mm + '-' + dd;
+        })();
+        await stubEspaceEmploye(page, {
+          session: { user: { id: 'u1', user_metadata: { role: 'employe' } } },
+          tables: {
+            personnel: [PERSONNEL_U1],
+            secteurs_personnel: [{ id: 'salle', commercant_id: 'c1', nom: 'Salle', couleur: '#4caf6d', ordre: 0 }],
+            postes_personnel: [{ id: 'generique', secteur_id: 'salle', commercant_id: 'c1', nom: 'Générique', ordre: 0 }],
+            creneaux_personnel: [{ id: 1, commercant_id: 'c1', personnel_id: 6, date_creneau: isoAujourdHui, heure_debut: '09:00:00', heure_fin: '17:00:00', secteur_id: 'salle', poste_id: 'generique' }],
+          },
+        });
+        await page.addInitScript(() => { window.__appelsImpression = 0; window.print = function () { window.__appelsImpression++; }; });
+        await page.goto(BASE_URL + '/espace-employe.html');
+        await page.locator('#btnTelechargerPdf').waitFor({ state: 'visible' });
+        await page.locator('#btnTelechargerPdf').click();
+        await page.waitForFunction(() => window.__appelsImpression === 1);
+        expect(await page.locator('#zoneImpression .impression-jour').count()).toBe(7);
+        expect(await page.locator('#zoneImpression .impression-creneau').count()).toBeGreaterThan(0);
+        await page.close();
+      });
+
+      await test('le bouton de synchronisation calendrier télécharge un fichier .ics valide', async () => {
+        const page = await browser.newPage();
+        await stubEspaceEmploye(page, {
+          session: { user: { id: 'u1', user_metadata: { role: 'employe' } } },
+          tables: {
+            personnel: [PERSONNEL_U1],
+            secteurs_personnel: [{ id: 'salle', commercant_id: 'c1', nom: 'Salle', couleur: '#4caf6d', ordre: 0 }],
+            postes_personnel: [{ id: 'generique', secteur_id: 'salle', commercant_id: 'c1', nom: 'Générique', ordre: 0 }],
+            creneaux_personnel: [{ id: 1, commercant_id: 'c1', personnel_id: 6, date_creneau: '2026-01-05', heure_debut: '09:00:00', heure_fin: '17:00:00', secteur_id: 'salle', poste_id: 'generique' }],
+          },
+        });
+        await page.goto(BASE_URL + '/espace-employe.html');
+        await page.locator('#btnSyncCalendrier').waitFor({ state: 'visible' });
+        const [telechargement] = await Promise.all([
+          page.waitForEvent('download'),
+          page.locator('#btnSyncCalendrier').click(),
+        ]);
+        expect(telechargement.suggestedFilename().endsWith('.ics')).toBe(true);
+        const cheminFichier = await telechargement.path();
+        const contenu = require('fs').readFileSync(cheminFichier, 'utf8');
+        expect(contenu.indexOf('BEGIN:VCALENDAR') !== -1).toBe(true);
+        expect(contenu.indexOf('DTSTART:20260105T090000') !== -1).toBe(true);
+        await page.close();
+      });
     });
 
     await describe('connexion.html — redirection selon le rôle du compte', async () => {
