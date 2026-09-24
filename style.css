@@ -2742,6 +2742,17 @@ button.lien-supprimer:hover {
   cursor: pointer;
   border: 1px solid rgba(0,0,0,0.12);
   min-width: 18px;
+  /* Retour utilisateur (24 sept.) : texte dédoublé/fantôme par-dessus le
+     bloc (deux libellés superposés, illisibles) sur certains rendus.
+     Vérifié : le code ne crée jamais deux libellés pour un même créneau (y
+     compris avec deux créneaux qui se chevauchent en base — un seul bloc,
+     bien net, s'affiche par-dessus l'autre). Tout pointe vers un bug de
+     composition du navigateur, connu sur les blocs position:absolute avec
+     border-radius + overflow:hidden qui ne sont pas promus sur leur propre
+     calque GPU. Cette règle force ce calque, sans changer l'apparence.
+  */
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .gantt-bloc:hover { filter: brightness(1.08); }
