@@ -390,7 +390,14 @@
           var meteoHTML = '';
           if (j.tier !== 'ferme' && contexteAffichage && contexteAffichage.meteoPrevue) {
             var meteoJour = contexteAffichage.meteoPrevue[j.iso];
-            if (meteoJour) {
+            // Retour utilisateur (24 sept.) : cette ligne répétait une synthèse
+            // météo du jour (ex. "Couvert, 31°C") différente du détail
+            // matin/midi/soir affiché juste au-dessus (meteo.moments, ex.
+            // soleil à 15/26/29°C) — deux prévisions météo visiblement
+            // incohérentes pour le même jour. Quand le détail est affiché, il
+            // fait déjà foi ; cette ligne ne réapparaît qu'en repli, comme le
+            // badge du haut (voir afficherMeteoJourActif).
+            if (meteoJour && !(meteoJour.moments && meteoJour.moments.length > 0)) {
               meteoHTML = '<p class="detail-meteo">Météo prévue : ' + meteoJour.icone + ' ' + meteoJour.libelle +
                 (meteoJour.temperature !== null ? ', ' + meteoJour.temperature + '°C' : '') + '</p>';
             }
@@ -563,7 +570,15 @@
           else if (evenementJour === 'moins') items.push('Événement signalé : moins de monde attendu (estimation manuelle, pas calculée)');
           else if (feriee) items.push('Jour férié : oui — l\'activité peut différer d\'un ' + j.nomJour + ' normal');
           else if (vacances) items.push('Vacances scolaires : oui — l\'activité peut différer d\'un ' + j.nomJour + ' normal');
-          else if (meteoJour) items.push('Météo prévue : ' + meteoJour.icone + ' ' + meteoJour.libelle + (meteoJour.temperature !== null ? ', ' + meteoJour.temperature + '°C' : '') + ' (prise en compte seulement si assez d\'historique par temps similaire)');
+          else if (meteoJour) {
+            // Même raison qu'afficherDetailJour ci-dessus : ne pas répéter ici
+            // une synthèse météo du jour qui peut différer du détail
+            // matin/midi/soir déjà affiché en haut de la carte.
+            var descriptionMeteo = (meteoJour.moments && meteoJour.moments.length > 0)
+              ? 'voir le détail matin/midi/soir ci-dessus'
+              : meteoJour.icone + ' ' + meteoJour.libelle + (meteoJour.temperature !== null ? ', ' + meteoJour.temperature + '°C' : '');
+            items.push('Météo prévue : ' + descriptionMeteo + ' (prise en compte seulement si assez d\'historique par temps similaire)');
+          }
 
           listePourquoiEl.innerHTML = items.map(function (texte) { return '<li>' + texte + '</li>'; }).join('');
           blocPourquoiEl.style.display = 'block';
