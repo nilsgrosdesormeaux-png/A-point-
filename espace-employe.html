@@ -220,6 +220,17 @@
     @media print {
       html, body { background: #fff !important; }
       .conteneur { display: none !important; }
+      /* Bug corrigé (retour utilisateur, 24 sept. 2026) : sans cette
+         propriété, Chrome/Safari suppriment par défaut les fonds colorés à
+         l'impression/export PDF (économie d'encre) — le bloc de créneau
+         perdait sa couleur de secteur et son texte blanc devenait invisible
+         sur la page blanche, ne laissant qu'un flou illisible sans aucun
+         repère visuel sur l'axe. */
+      .zone-impression, .zone-impression * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        color-adjust: exact;
+      }
       .zone-impression {
         display: block !important;
         padding: 20px;
