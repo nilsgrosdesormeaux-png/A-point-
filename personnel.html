@@ -1482,18 +1482,27 @@
             bloc.style.background = secteur ? secteur.couleur : '#8a7cc7';
 
             var aPause = creneau.pauseDebut != null && creneau.pauseFin != null;
-            var libelleTexte = formatHeureAxe(creneau.debut) + '–' + formatHeureAxe(creneau.fin) + ' · ' + libellePoste(creneau.secteurId, creneau.posteId) +
-              (aPause ? ' (pause ' + formatHeureAxe(creneau.pauseDebut) + '–' + formatHeureAxe(creneau.pauseFin) + ')' : '');
+            // Retour utilisateur (24 sept. 2026) : caser "(pause 12h-13h)" dans
+            // le même libellé que l'horaire et le poste rendait le texte trop
+            // long pour la largeur du bloc, illisible une fois compressé par
+            // l'ellipse par-dessus le hachurage de pause. Le libellé garde
+            // seulement l'horaire et le poste ; le détail de la pause passe en
+            // infobulle (title), et c'est le hachurage lui-même (rendu plus
+            // contrasté ci-dessous) qui porte l'information visuelle.
+            var libelleTexte = formatHeureAxe(creneau.debut) + '–' + formatHeureAxe(creneau.fin) + ' · ' + libellePoste(creneau.secteurId, creneau.posteId);
             var texteBloc = document.createElement('span');
             texteBloc.className = 'gantt-bloc-texte';
             texteBloc.textContent = libelleTexte;
             bloc.appendChild(texteBloc);
 
             if (aPause) {
+              var libellePause = 'Pause de ' + formatHeureAxe(creneau.pauseDebut) + ' à ' + formatHeureAxe(creneau.pauseFin);
+              bloc.title = libelleTexte + ' — ' + libellePause;
               var pauseEl = document.createElement('div');
               pauseEl.className = 'gantt-bloc-pause';
               pauseEl.style.left = ((creneau.pauseDebut - creneau.debut) * PX_PAR_HEURE) + 'px';
               pauseEl.style.width = ((creneau.pauseFin - creneau.pauseDebut) * PX_PAR_HEURE) + 'px';
+              pauseEl.title = libellePause;
               bloc.appendChild(pauseEl);
             }
 

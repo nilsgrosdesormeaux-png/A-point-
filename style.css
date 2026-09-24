@@ -2761,16 +2761,21 @@ button.lien-supprimer:hover {
   top: -1px;
   bottom: -1px;
   z-index: 0;
-  opacity: 0.5;
+  opacity: 0.85;
+  /* Hachurage sombre/clair sur fond transparent (au lieu de --surface/--bordure,
+     deux tons clairs qui se distinguaient à peine des couleurs de secteur les
+     plus pâles) : reste lisible quel que soit le secteur (vert, bleu, doré,
+     violet), retour utilisateur du 24 sept. 2026 ("pas beau", pause peu
+     visible). */
   background: repeating-linear-gradient(
     135deg,
-    var(--surface),
-    var(--surface) 4px,
-    var(--bordure) 4px,
-    var(--bordure) 8px
+    rgba(255, 255, 255, 0.55),
+    rgba(255, 255, 255, 0.55) 4px,
+    rgba(0, 0, 0, 0.22) 4px,
+    rgba(0, 0, 0, 0.22) 8px
   );
-  border-left: 1px solid rgba(0,0,0,0.18);
-  border-right: 1px solid rgba(0,0,0,0.18);
+  border-left: 1px solid rgba(0,0,0,0.32);
+  border-right: 1px solid rgba(0,0,0,0.32);
   pointer-events: none;
 }
 
