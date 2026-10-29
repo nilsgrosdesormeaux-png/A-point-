@@ -46,6 +46,12 @@
   // plus proche de 0 = très sensible aux dernières occurrences.
   var DECALAGE_PONDERATION = 0.75;
 
+  // Marge de sécurité appliquée à la prévision de demande pour obtenir la
+  // quantité à produire. La précision (calculerFiabilite) se mesure sur la
+  // prévision SANS cette marge : sinon le moteur perd ~10 points d'office
+  // face à la moyenne simple, qui elle n'en a pas.
+  var MARGE_PRODUCTION = 1.1;
+
   // Détecte et écarte les valeurs aberrantes (méthode IQR) avant de calculer
   // la moyenne, pour qu'un jour exceptionnel (fermeture, événement, erreur de
   // saisie) ne fausse pas la recommandation. Ne s'applique qu'à partir de 5
@@ -160,8 +166,8 @@
 
     var facteur = 1 + 3 / Math.sqrt(n);
     var margeBrute = ecartType * facteur;
-    var bas = Math.max(0, Math.round((moyenne - margeBrute) * 1.1));
-    var haut = Math.round((moyenne + margeBrute) * 1.1);
+    var bas = Math.max(0, Math.round((moyenne - margeBrute) * MARGE_PRODUCTION));
+    var haut = Math.round((moyenne + margeBrute) * MARGE_PRODUCTION);
     if (haut < quantitePoint) haut = quantitePoint;
     if (bas > quantitePoint) bas = quantitePoint;
     if (bas === haut) return null;
@@ -548,7 +554,7 @@
     var filtrage = exclureValeursAberrantes(baseTriee);
     var baseFinale = filtrage.ventesFiltrees;
     var moyenne = moyennePonderee(baseFinale);
-    var quantite = Math.round(moyenne * 1.1);
+    var quantite = Math.round(moyenne * MARGE_PRODUCTION);
 
     // Ajustement météo : compare, parmi les jours de même jour de semaine,
     // ceux qui avaient la même catégorie météo à l'ensemble de ces jours-là.
@@ -621,10 +627,12 @@
     // Référence "instinct" (mémoire fatiguée) utilisée uniquement pour le
     // calcul d'économies : une moyenne simple, NON pondérée et SANS
     // exclusion des valeurs aberrantes, sur le même jour de semaine. Jamais
-    // affichée comme recommandation.
+    // affichée comme recommandation. Même marge de production que l'outil :
+    // sans elle, l'outil recommandait presque toujours plus que l'instinct
+    // et « Invendus évités » restait bloqué à 0.
     var sommeInstinct = 0;
     baseVentes.forEach(function (v) { sommeInstinct += v.quantite; });
-    var quantiteInstinct = baseVentes.length > 0 ? Math.round(sommeInstinct / baseVentes.length) : quantite;
+    var quantiteInstinct = baseVentes.length > 0 ? Math.round(sommeInstinct / baseVentes.length * MARGE_PRODUCTION) : quantite;
 
     return {
       quantite: quantite,
@@ -835,7 +843,7 @@
   function calculerFiabilite(ventes) {
     return retroTesterMethode(ventes, function (historique) {
       var filtrage = exclureValeursAberrantes(historique);
-      return Math.round(moyennePonderee(filtrage.ventesFiltrees) * 1.1);
+      return Math.round(moyennePonderee(filtrage.ventesFiltrees));
     });
   }
 
