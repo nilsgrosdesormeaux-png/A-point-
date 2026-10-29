@@ -1,0 +1,25 @@
+# Réveil Supabase : l'offre gratuite met le projet en pause après ~7 jours
+# sans activité. Une requête tous les 3 jours suffit à l'éviter pendant la
+# phase pilote. L'URL et la clé publique sont lues dans connexion.html
+# (elles y sont déjà publiques), pour ne pas les dupliquer ici.
+name: Réveil Supabase
+
+on:
+  schedule:
+    - cron: '0 6 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  reveil:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Interroger la base
+        run: |
+          URL=$(grep -o 'SUPABASE_URL = "[^"]*"' connexion.html | cut -d'"' -f2)
+          CLE=$(grep -o 'SUPABASE_KEY = "[^"]*"' connexion.html | cut -d'"' -f2)
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            "$URL/rest/v1/produits?select=id&limit=1" \
+            -H "apikey: $CLE" -H "Authorization: Bearer $CLE")
+          echo "Réponse Supabase : $code"
+          test "$code" = "200"
