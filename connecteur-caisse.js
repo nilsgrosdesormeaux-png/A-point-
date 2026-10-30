@@ -1,5 +1,6 @@
 // Bloc « Connecter ma caisse » de Paramètres (REFONTE.md § 4 bis).
-// Autonome : la page fournit seulement un <div id="blocCaisse"></div> et
+// Autonome : la page fournit un <div id="blocCaisse"> (son contenu sert tant
+// que rien n'est configuré) et
 // appelle ConnecteurCaisse.init(sbClient, commercantId). La refonte peut
 // déplacer ou restyler le bloc sans toucher à cette logique.
 //
@@ -129,9 +130,8 @@
         var res = r[0];
         disponibles = r[1];
         if (res.error || (!disponibles.sumup && !disponibles.email && !(res.data || []).length)) {
-          // Migration pas encore exécutée, ou rien de configuré : on
-          // n'affiche rien plutôt qu'une erreur ou un bouton inutile.
-          bloc.innerHTML = '';
+          // Rien de configuré : on laisse le contenu prévu par la page
+          // (« Bientôt disponible ») plutôt qu'une erreur ou un bouton inutile.
           return;
         }
         rendre(res.data || [], disponibles);

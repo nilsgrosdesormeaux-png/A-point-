@@ -4,7 +4,7 @@ Décisions validées (30 oct. 2026) :
 - **Cible : boulangeries indépendantes uniquement.** Tout le vocabulaire, les exemples, les écrans et la page de vente parlent boulangerie : fournées, baguettes, viennoiseries, pâtisseries, snacking du midi. Plus aucune mention de restaurant, plat du jour, burger, menu.
 - **Branchement direct sur la caisse = la fonction phare** : zéro saisie manuelle. C'est ce qui différencie À Point (voir § 4 bis).
 - **Planning + espace employé : masqués** (retirés de la navigation, fichiers conservés).
-- **Design : moderne et tech.**
+- **Design : « Fournil », chaleureux et appétissant** (30 oct. 2026, remplace « moderne et tech » jugé trop noir et futuriste) : fond crème, titres et chiffres en serif douce, croûte dorée pour l'action ; clair par défaut, sombre brun en option. Détail dans `DESIGN.md`.
 - **Affluence : API gratuites d'abord**, BestTime plus tard si les pilotes le demandent. Pas de scraping Google Maps (contraire aux CGU, fragile).
 
 ## 1. Navigation (avant 7 onglets + 2 liens → après 5)
@@ -20,10 +20,10 @@ Décisions validées (30 oct. 2026) :
 Paramètres, Aide et Achats & commandes passent dans le menu du compte.
 Planning (`personnel.html`) et Espace employé (`espace-employe.html`) : retirés de `nav.js`, fichiers gardés.
 
-## 2. Design « moderne et tech »
+## 2. Design « Fournil »
 
-- Fond neutre clair, mode sombre, une seule couleur d'accent vive.
-- Police sans serif unique (ex. Inter), chiffres tabulaires.
+- Fond crème farine, texte brun, une seule couleur d'action : croûte dorée. Mode clair par défaut, mode sombre brun (jamais noir) en option.
+- Titres et grands chiffres en serif douce (Fraunces), texte en sans serif lisible (Inter), chiffres tabulaires.
 - Un grand chiffre par produit, moins de texte, explications repliées.
 - Composants : carte, chiffre clé, pastille, bouton, tableau. Un seul `style.css` à jetons (`--couleur-*`, `--espace-*`).
 - Mobile d'abord : le boulanger consulte sur téléphone à 5 h du matin.

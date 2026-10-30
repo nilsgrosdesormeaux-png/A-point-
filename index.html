@@ -3,12 +3,306 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="refresh" content="0; url=connexion.html">
-  <title>À Point</title>
+  <title>À Point - Combien produire demain, produit par produit</title>
+  <meta name="description" content="À Point calcule, pour chaque produit de ta boulangerie, la quantité à produire pour le prochain jour d'ouverture, à partir de tes ventes, de la météo, des jours fériés et des vacances scolaires.">
   <link rel="icon" href="logo.svg">
-  <script>window.location.replace('connexion.html');</script>
+  <link rel="canonical" href="https://apointapp.fr/">
+  <meta property="og:title" content="À Point - Combien produire demain, produit par produit">
+  <meta property="og:description" content="La quantité à produire pour chaque produit de ta boulangerie, calculée sur tes propres ventes.">
+  <meta property="og:url" content="https://apointapp.fr/">
+  <meta property="og:type" content="website">
+  <link rel="stylesheet" href="style.css?v=20261030">
+  <style>
+    /* Page de vente : styles propres à cette page, sur les jetons de style.css (voir DESIGN.md). */
+    .vente { --largeur-vente: 1120px; }
+    .vente-entete {
+      position: sticky; top: 0; z-index: 40;
+      display: flex; align-items: center; gap: var(--espace-5);
+      height: 60px;
+      padding: 0 max(var(--espace-4), calc((100% - var(--largeur-vente)) / 2 + var(--espace-4)));
+      background: color-mix(in srgb, var(--couleur-fond) 90%, transparent);
+      -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--couleur-bordure);
+    }
+    .vente-liens { display: flex; gap: var(--espace-5); margin-left: auto; font-size: var(--texte-sm); }
+    .vente-liens a { color: var(--couleur-texte-2); }
+    .vente-entete a { white-space: nowrap; }
+    .vente-entete .bouton-principal { width: auto; }
+    .vente-liens a:hover { color: var(--couleur-texte); }
+    .vente-entete .bouton-principal { margin: 0; min-height: 38px; padding: 6px 16px; font-size: var(--texte-sm); }
+    @media (max-width: 720px) {
+      .vente-liens { display: none; }
+      .vente-entete .lien-connexion { margin-left: auto; font-size: var(--texte-sm); color: var(--couleur-texte-2); }
+    }
+    @media (min-width: 721px) { .vente-entete .lien-connexion { display: none; } }
+
+    .bloc { max-width: var(--largeur-vente); margin: 0 auto; padding: var(--espace-8) var(--espace-4); }
+    @media (min-width: 900px) { .bloc { padding: var(--espace-9) var(--espace-5); } }
+    .bloc + .bloc { border-top: 1px solid var(--couleur-bordure); }
+    .bloc h2 { font-size: clamp(28px, 4vw, 40px); font-weight: 700; letter-spacing: -0.03em; margin: 0 0 var(--espace-4); max-width: 20ch; }
+    .bloc-intro { color: var(--couleur-texte-2); font-size: var(--texte-lg); line-height: 1.45; max-width: 52ch; margin: 0; }
+
+    /* Promesse + capture */
+    .heros { display: grid; gap: var(--espace-7); align-items: center; padding-top: var(--espace-7); }
+    @media (min-width: 900px) { .heros { grid-template-columns: 1.05fr 0.95fr; padding-top: var(--espace-8); } }
+    .heros-pilote {
+      display: inline-flex; align-items: center; gap: var(--espace-2);
+      margin: 0 0 var(--espace-5); padding: 4px 12px 4px 6px;
+      font-size: var(--texte-sm); color: var(--couleur-texte-2);
+      background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-rond);
+    }
+    .heros-pilote b { padding: 2px 8px; font-size: var(--texte-xs); font-weight: 600; color: var(--couleur-sur-accent); background: var(--couleur-accent); border-radius: var(--rayon-rond); }
+    .heros h1 { font-size: var(--texte-3xl); font-weight: 600; line-height: 1.02; letter-spacing: -0.025em; margin: 0 0 var(--espace-5); max-width: 13ch; }
+    .heros-texte { font-size: var(--texte-lg); line-height: 1.45; color: var(--couleur-texte-2); max-width: 46ch; margin: 0 0 var(--espace-6); }
+    .heros-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espace-4); }
+    .heros-actions .bouton-principal { margin: 0; min-height: 52px; padding: 12px 28px; font-size: var(--texte-md); }
+    .heros-note { margin: var(--espace-4) 0 0; font-size: var(--texte-sm); color: var(--couleur-texte-3); }
+
+    .capture {
+      position: relative;
+      max-width: 400px; width: 100%; justify-self: center;
+      padding: var(--espace-5) var(--espace-4) var(--espace-4);
+      background: var(--couleur-fond);
+      border: 1px solid var(--couleur-bordure-forte);
+      border-radius: 32px;
+      box-shadow: var(--ombre);
+    }
+    .capture-legende { position: absolute; top: -12px; right: var(--espace-5); margin: 0; padding: 2px 10px; font-size: var(--texte-xs); color: var(--couleur-texte-3); background: var(--couleur-fond); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-rond); }
+    .capture-date { margin: 0; font-size: var(--texte-xs); color: var(--couleur-texte-3); }
+    .capture-titre { margin: 2px 0 var(--espace-4); font-size: var(--texte-lg); font-weight: 700; letter-spacing: -0.02em; }
+    .capture-jours { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: var(--espace-4); }
+    .capture-jours span { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0; font-size: 11px; color: var(--couleur-texte-2); background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-sm); }
+    .capture-jours span::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--couleur-bordure-forte); }
+    .capture-jours .actif { border-color: var(--couleur-texte); color: var(--couleur-texte); font-weight: 600; }
+    .capture-jours .charge::after { background: var(--couleur-accent); }
+    .capture-jours .ferme { opacity: 0.5; }
+    .capture-jours .ferme::after { background: transparent; border: 1px solid var(--couleur-texte-3); }
+    .capture-ligne { display: flex; align-items: center; justify-content: space-between; gap: var(--espace-3); padding: var(--espace-3) var(--espace-4); background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md); }
+    .capture-ligne + .capture-ligne { margin-top: 6px; }
+    .capture-ligne span:first-child { font-weight: 500; }
+    .capture-chiffre { text-align: right; line-height: 1; }
+    .capture-chiffre strong { display: block; font-size: 34px; font-weight: 700; letter-spacing: -0.04em; }
+    .capture-chiffre small { font-size: 11px; color: var(--couleur-texte-3); }
+    .capture-bouton { display: flex; justify-content: center; margin-top: var(--espace-4); padding: 12px; font-weight: 600; font-size: var(--texte-sm); color: var(--couleur-sur-accent); background: var(--couleur-accent); border-radius: var(--rayon-rond); }
+
+    /* Comment ça marche : une vraie séquence, d'où la numérotation */
+    .etapes { list-style: none; margin: var(--espace-7) 0 0; padding: 0; display: grid; gap: var(--espace-6); counter-reset: etape; }
+    @media (min-width: 900px) { .etapes { grid-template-columns: repeat(3, 1fr); gap: var(--espace-5); } }
+    .etapes li { counter-increment: etape; padding-top: var(--espace-4); border-top: 2px solid var(--couleur-texte); }
+    .etapes li::before { content: counter(etape); display: block; margin-bottom: var(--espace-3); font-size: var(--texte-sm); font-weight: 600; color: var(--couleur-accent-texte); }
+    .etapes h3 { margin: 0 0 var(--espace-2); font-size: var(--texte-lg); }
+    .etapes p { margin: 0; color: var(--couleur-texte-2); max-width: 40ch; }
+    .etapes .bientot { display: block; margin-top: var(--espace-3); font-size: var(--texte-sm); color: var(--couleur-texte-3); }
+
+    /* Signaux pris en compte */
+    .signaux { display: flex; flex-wrap: wrap; gap: var(--espace-2); margin: var(--espace-5) 0 0; padding: 0; list-style: none; }
+    .signaux li { padding: 6px 14px; font-size: var(--texte-sm); background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-rond); }
+
+    /* Bilan en euros */
+    .duo { display: grid; gap: var(--espace-6); align-items: start; }
+    @media (min-width: 900px) { .duo { grid-template-columns: 1fr 1fr; gap: var(--espace-8); } }
+    .liste-bilan { margin: 0; padding: 0; list-style: none; }
+    .liste-bilan li { display: grid; gap: 2px; padding: var(--espace-4) 0; border-bottom: 1px solid var(--couleur-bordure); }
+    .liste-bilan li:first-child { padding-top: 0; }
+    .liste-bilan strong { font-size: var(--texte-md); }
+    .liste-bilan span { color: var(--couleur-texte-2); font-size: var(--texte-sm); }
+
+    /* Prix */
+    .prix-carte {
+      max-width: 520px; margin-top: var(--espace-6);
+      padding: var(--espace-6) var(--espace-5);
+      background: var(--couleur-inverse); color: var(--couleur-sur-inverse);
+      border-radius: var(--rayon-lg);
+    }
+    .prix-carte h3 { margin: 0; color: var(--couleur-sur-inverse); font-size: var(--texte-md); font-weight: 500; }
+    .prix-montant { margin: var(--espace-2) 0 var(--espace-1); font-size: clamp(48px, 9vw, 72px); font-weight: 700; letter-spacing: -0.05em; line-height: 1; color: var(--couleur-accent); }
+    .prix-sous { margin: 0 0 var(--espace-5); }
+    .prix-ensuite { margin: 0 0 var(--espace-5); padding-top: var(--espace-4); border-top: 1px solid color-mix(in srgb, var(--couleur-sur-inverse) 25%, transparent); font-size: var(--texte-sm); }
+    .prix-carte .bouton-principal { margin: 0; width: 100%; min-height: 52px; }
+
+    .faq { max-width: 760px; margin-top: var(--espace-5); }
+
+    .final { text-align: left; }
+    .final .bouton-principal { margin: var(--espace-5) 0 0; min-height: 52px; padding: 12px 28px; }
+
+    .vente-pied { max-width: var(--largeur-vente); margin: 0 auto; padding: var(--espace-6) var(--espace-4) var(--espace-7); display: flex; flex-wrap: wrap; gap: var(--espace-4) var(--espace-5); align-items: center; font-size: var(--texte-sm); color: var(--couleur-texte-3); border-top: 1px solid var(--couleur-bordure); }
+    .vente-pied a { color: var(--couleur-texte-2); }
+    .vente-pied .logo { margin-right: auto; }
+    @media (max-width: 720px) { .heros-texte, .bloc-intro { font-size: var(--texte-md); } }
+    /* Fournil : la maquette posée sur un fond de croûte dorée */
+    .capture-scene {
+      justify-self: stretch;
+      display: flex; justify-content: center;
+      padding: var(--espace-7) var(--espace-4);
+      border-radius: var(--rayon-lg);
+      background:
+        radial-gradient(120% 90% at 20% 10%, color-mix(in srgb, var(--couleur-dore) 55%, transparent), transparent 60%),
+        radial-gradient(100% 80% at 90% 100%, color-mix(in srgb, var(--couleur-accent) 35%, transparent), transparent 65%),
+        var(--couleur-accent-doux);
+    }
+    .capture { background: var(--couleur-fond); }
+    .capture-titre, .bloc h2, .prix-montant { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; }
+    .capture-titre { font-weight: 600; letter-spacing: -0.01em; }
+    .capture-chiffre strong { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-weight: 600; letter-spacing: -0.02em; }
+    .capture-jours .actif { border-color: var(--couleur-accent); color: var(--couleur-accent-texte); }
+    .capture-jours .charge::after { background: var(--couleur-dore); }
+    .bloc h2 { font-weight: 600; letter-spacing: -0.015em; }
+    .heros-pilote b { color: var(--couleur-texte); background: var(--couleur-dore); }
+    .prix-montant { color: var(--couleur-dore); font-weight: 600; letter-spacing: -0.03em; }
+    .etapes li { border-top-color: var(--couleur-dore); }
+  </style>
 </head>
-<body>
-  <p>Redirection vers <a href="connexion.html">À Point</a>…</p>
+<body class="vente">
+  <a class="lien-evitement" href="#contenu">Aller au contenu</a>
+  <header class="vente-entete">
+    <a href="index.html" class="logo" aria-label="À Point, accueil">
+      <svg class="logo-marque" viewBox="0 0 100 100" width="24" height="24" aria-hidden="true">
+        <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <circle cx="50" cy="56" r="8" fill="currentColor"/>
+      </svg>
+      <span class="logo-texte">À Point</span>
+    </a>
+    <nav class="vente-liens" aria-label="Sections de la page">
+      <a href="#fonctionnement">Comment ça marche</a>
+      <a href="#prix">Prix</a>
+      <a href="#questions">Questions</a>
+      <a href="connexion.html">Se connecter</a>
+    </nav>
+    <a href="connexion.html" class="lien-connexion">Se connecter</a>
+    <a href="connexion.html?inscription" class="bouton-principal">Essayer</a>
+  </header>
+
+  <main id="contenu">
+    <section class="bloc heros" aria-labelledby="titrePromesse">
+      <div>
+        <p class="heros-pilote"><b>Pilote</b> Gratuit pour les boulangeries indépendantes</p>
+        <h1 id="titrePromesse">Sache combien cuire demain.</h1>
+        <p class="heros-texte">À Point lit tes ventes passées et te donne, pour chaque produit, la quantité à produire pour ton prochain jour d'ouverture. La météo, les jours fériés et les vacances scolaires sont pris en compte.</p>
+        <div class="heros-actions">
+          <a href="connexion.html?inscription" class="bouton-principal">Créer mon compte</a>
+          <a href="#fonctionnement" class="lien-discret">Voir comment ça marche</a>
+        </div>
+        <p class="heros-note">Sur téléphone comme sur ordinateur, sans rien installer.</p>
+      </div>
+
+      <div class="capture-scene">
+      <figure class="capture" aria-label="Exemple de l'écran Demain, avec des données fictives" style="margin:0;">
+        <p class="capture-legende">Exemple, données fictives</p>
+        <p class="capture-date">Vendredi 30 octobre</p>
+        <p class="capture-titre">À produire pour samedi 31 octobre</p>
+        <div class="capture-jours" aria-hidden="true">
+          <span class="actif charge">Sam.</span><span class="charge">Dim.</span><span class="ferme">Lun.</span><span>Mar.</span><span>Mer.</span><span>Jeu.</span><span>Ven.</span>
+        </div>
+        <div class="capture-ligne"><span>Baguette tradition</span><span class="capture-chiffre"><strong>237</strong><small>194 – 281</small></span></div>
+        <div class="capture-ligne"><span>Croissant</span><span class="capture-chiffre"><strong>157</strong><small>145 – 170</small></span></div>
+        <div class="capture-ligne"><span>Pain au chocolat</span><span class="capture-chiffre"><strong>128</strong><small>112 – 141</small></span></div>
+        <div class="capture-ligne"><span>Flan pâtissier</span><span class="capture-chiffre"><strong>29</strong><small>24 – 33</small></span></div>
+        <span class="capture-bouton" aria-hidden="true">Préparer la commande de ce jour</span>
+      </figure>
+      </div>
+    </section>
+
+    <section class="bloc" id="fonctionnement" aria-labelledby="titreFonctionnement">
+      <h2 id="titreFonctionnement">Comment ça marche</h2>
+      <p class="bloc-intro">Trois étapes, la première une seule fois.</p>
+      <ol class="etapes">
+        <li>
+          <h3>Tes ventes entrent</h3>
+          <p>Importe l'export de ta caisse ou un tableur (CSV, Excel). Ensuite, saisis la veille produit par produit, avec des boutons + et −.</p>
+          <span class="bientot">Bientôt : branchement direct à la caisse, pour ne plus rien saisir.</span>
+        </li>
+        <li>
+          <h3>À Point calcule</h3>
+          <p>Pour chaque produit, il part de tes ventes du même jour de la semaine, donne plus de poids aux plus récentes et écarte les journées exceptionnelles.</p>
+        </li>
+        <li>
+          <h3>Tu produis</h3>
+          <p>Chaque produit a sa quantité et une fourchette, jamais un chiffre présenté comme certain. La commande fournisseurs se prépare depuis le même écran, en PDF.</p>
+        </li>
+      </ol>
+      <ul class="signaux" aria-label="Ce qui est pris en compte">
+        <li>Jour de la semaine</li>
+        <li>Météo de ta ville</li>
+        <li>Jours fériés</li>
+        <li>Vacances scolaires de ta zone</li>
+        <li>Tes jours de fermeture</li>
+      </ul>
+    </section>
+
+    <section class="bloc duo" aria-labelledby="titreBilan">
+      <div>
+        <h2 id="titreBilan">Tu vois ce que ça rapporte, en euros</h2>
+        <p class="bloc-intro">L'onglet Bilan rejoue les jours passés : ce que la prévision aurait fait produire, comparé à une production à l'instinct.</p>
+      </div>
+      <ul class="liste-bilan">
+        <li><strong>Économies sur la matière première</strong><span>Calculées en euros dès que tes fiches techniques ont le prix des ingrédients.</span></li>
+        <li><strong>Invendus évités</strong><span>En nombre de pièces, sur 7 jours, 30 jours ou depuis le début.</span></li>
+        <li><strong>Précision des prévisions</strong><span>Mesurée sur tes propres ventes, et comparée à une simple moyenne.</span></li>
+        <li><strong>Jours records et produits phares</strong><span>Ton jour le plus chargé du mois et de l'année, et le classement de tes produits.</span></li>
+      </ul>
+    </section>
+
+    <section class="bloc" id="prix" aria-labelledby="titrePrix">
+      <h2 id="titrePrix">Un prix simple</h2>
+      <p class="bloc-intro">Gratuit pendant le pilote, puis un abonnement mensuel.</p>
+      <div class="prix-carte">
+        <h3>Pendant la phase pilote</h3>
+        <p class="prix-montant">0 €</p>
+        <p class="prix-sous">Pour les boulangeries indépendantes qui rejoignent le pilote.</p>
+        <p class="prix-ensuite">Après le pilote, l'abonnement est prévu entre 29 et 39 € par mois, avec le premier mois offert.</p>
+        <a href="connexion.html?inscription" class="bouton-principal">Rejoindre le pilote</a>
+      </div>
+    </section>
+
+    <section class="bloc" id="questions" aria-labelledby="titreQuestions">
+      <h2 id="titreQuestions">Questions</h2>
+      <div class="faq">
+        <details class="faq-item">
+          <summary>De combien d'historique ai-je besoin ?</summary>
+          <p>La prévision s'appuie sur tes ventes passées : plus l'historique est long, plus elle s'affine. L'écran Demain affiche le nombre de jours d'historique pris en compte, et le Bilan mesure la précision dès que c'est possible.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Je n'ai pas d'export de caisse. Comment je fais ?</summary>
+          <p>Tu peux tout saisir à la main : chaque jour, la page Ventes liste tes produits avec des boutons + et −. Tu peux aussi revenir sur les 7 derniers jours.</p>
+        </details>
+        <details class="faq-item">
+          <summary>À Point se branche-t-il sur ma caisse ?</summary>
+          <p>Pas encore. Le branchement direct est en préparation (SumUp, Bimedia, Lightspeed, Zettle, Square, Hiboutik) pour que tes ventes arrivent seules chaque nuit. En attendant, l'import de fichier et la saisie de la veille fonctionnent.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Et si demain sort de l'ordinaire ?</summary>
+          <p>Un marché, une fête, des travaux devant la boutique : sur l'écran du jour, un bouton ajuste toutes les quantités vers plus ou moins de monde.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Faut-il remplir les fiches techniques ?</summary>
+          <p>Non, c'est facultatif. Sans fiche, tu as les quantités à produire. Avec les ingrédients et leurs prix, À Point calcule aussi la matière première à commander et tes économies en euros.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Ça marche sur téléphone ?</summary>
+          <p>Oui. À Point est un site web pensé d'abord pour le téléphone : les quantités de demain s'affichent en grand, à lire au fournil.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="bloc final" aria-labelledby="titreFinal">
+      <h2 id="titreFinal">Prépare ta prochaine fournée avec tes propres chiffres.</h2>
+      <p class="bloc-intro">Crée ton compte, ajoute tes produits et tes ventes, et regarde ce qu'À Point propose pour demain.</p>
+      <a href="connexion.html?inscription" class="bouton-principal">Créer mon compte</a>
+    </section>
+  </main>
+
+  <footer class="vente-pied">
+    <a href="index.html" class="logo">
+      <svg class="logo-marque" viewBox="0 0 100 100" width="20" height="20" aria-hidden="true">
+        <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <circle cx="50" cy="56" r="8" fill="currentColor"/>
+      </svg>
+      <span class="logo-texte">À Point</span>
+    </a>
+    <a href="connexion.html">Se connecter</a>
+    <a href="cgu.html">Conditions générales d'utilisation</a>
+  </footer>
 </body>
 </html>

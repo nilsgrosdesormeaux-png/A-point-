@@ -1,3339 +1,1187 @@
 /* =========================================================
-   À Point — feuille de style commune à toutes les pages
+   À Point — feuille de style commune (refonte oct. 2026)
+   Direction et rôles des jetons : voir DESIGN.md.
+   Les pages n'utilisent que des noms de jetons, jamais de valeurs brutes.
+   Planning et Espace employé (masqués) gardent style-planning.css.
    ========================================================= */
 
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,500..600,100&family=Inter:wght@400;500;600&display=swap');
 
+/* Direction « Fournil » (DESIGN.md). Le mode clair est le défaut, même si le
+   système est en sombre ; le mode sombre (brun, jamais noir) ne s'active
+   que par <html data-theme="dark">. */
 :root {
-  --ink: #211d17;
-  /* Direction "Artisanale Premium" (validée sept. 2026) : l'ancien --accent
-     était en réalité un quasi-noir (#23211c), utilisé pour tous les
-     boutons/pastilles actives du site ("blocs noirs"). Remplacé par une
-     vraie couleur d'accent (terre cuite), avec ses propres variantes plus
-     foncée (survol) et plus claire (fonds discrets). --fond et --surface
-     s'éclaircissent pour que les cartes blanches se détachent du fond crème
-     au lieu de s'y fondre. */
-  --accent: #c28059;
-  --accent-fonce: #9b6647;
-  --accent-clair: #f6e8dd;
-  --fond: #faf8ef;
-  --surface: #ffffff;
-  --bordure: #eae1d1;
-  --texte: #211d17;
-  --texte-attenue: #77695a;
-  --texte-tres-attenue: #ac9f8c;
-  --succes-fond: #e7efe4;
-  --succes-texte: #2f8f52;
-  --erreur-fond: #fbeae7;
-  --erreur-texte: #d1483a;
-  --info-fond: #f1ece0;
-  --info-texte: #58503f;
-  --rayon: 10px;
-  --rayon-lg: 16px;
-  --ombre: 0 1px 2px rgba(33, 29, 23, 0.05), 0 4px 14px rgba(33, 29, 23, 0.06);
-  --police: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  color-scheme: light;
+  --couleur-fond: #FBF5EA;
+  --couleur-surface: #FFFDF8;
+  --couleur-surface-2: #F3E8D6;
+  --couleur-bordure: #EADBC4;
+  --couleur-bordure-forte: #D6C2A5;
+  --couleur-texte: #2B1D13;
+  --couleur-texte-2: #6B5544;
+  --couleur-texte-3: #76614F;
+  --couleur-accent: #9E4C0C;
+  --couleur-accent-fort: #843F09;
+  --couleur-accent-texte: #9E4C0C;
+  --couleur-accent-doux: #F7E4C8;
+  --couleur-sur-accent: #FFFDF8;
+  --couleur-dore: #E2A23B;
+  --couleur-succes: #3F7A2E;
+  --couleur-succes-doux: #E6F0DC;
+  --couleur-alerte: #94600A;
+  --couleur-alerte-doux: #FDF2D8;
+  --couleur-erreur: #A8321E;
+  --couleur-erreur-doux: #FBE6E0;
+  --couleur-inverse: #3A281B;
+  --couleur-sur-inverse: #F4E9D8;
+
+  --police: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
   --police-titre: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --texte-xs: 12px;
+  --texte-sm: 14px;
+  --texte-md: 16px;
+  --texte-lg: 20px;
+  --texte-xl: 30px;
+  --texte-2xl: 44px;
+  --texte-3xl: clamp(42px, 7vw, 72px);
 
-  /* Carte sombre (tableau de bord) */
-  --sombre-fond: #16140f;
-  --sombre-surface: #201d17;
-  --sombre-bordure: #322d23;
-  --sombre-texte: #f7f3ea;
-  --sombre-texte-attenue: #b3a996;
-  --sombre-hausse: #4caf6d;
-  --sombre-baisse: #e2584a;
+  --espace-1: 4px;
+  --espace-2: 8px;
+  --espace-3: 12px;
+  --espace-4: 16px;
+  --espace-5: 24px;
+  --espace-6: 32px;
+  --espace-7: 48px;
+  --espace-8: 64px;
+  --espace-9: 96px;
+
+  --rayon-sm: 10px;
+  --rayon-md: 16px;
+  --rayon-lg: 24px;
+  --rayon-rond: 999px;
+  --ombre: 0 1px 2px rgba(80, 50, 20, 0.05), 0 10px 28px rgba(80, 50, 20, 0.10);
+  --ombre-carte: 0 1px 2px rgba(80, 50, 20, 0.05);
+  --largeur-app: 960px;
+  --hauteur-onglets: 64px;
+
+  /* Alias des anciens noms (styles locaux encore présents dans certaines pages). */
+  --accent: var(--couleur-accent-texte);
+  --accent-fonce: var(--couleur-accent-fort);
+  --accent-clair: var(--couleur-accent-doux);
+  --fond: var(--couleur-fond);
+  --surface: var(--couleur-surface);
+  --bordure: var(--couleur-bordure);
+  --texte: var(--couleur-texte);
+  --texte-attenue: var(--couleur-texte-2);
+  --texte-tres-attenue: var(--couleur-texte-3);
+  --succes-fond: var(--couleur-succes-doux);
+  --succes-texte: var(--couleur-succes);
+  --erreur-fond: var(--couleur-erreur-doux);
+  --erreur-texte: var(--couleur-erreur);
+  --info-fond: var(--couleur-surface-2);
+  --info-texte: var(--couleur-texte-2);
+  --rayon: var(--rayon-sm);
 }
 
-* {
-  box-sizing: border-box;
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --couleur-fond: #1F1712;
+  --couleur-surface: #2A2019;
+  --couleur-surface-2: #33271E;
+  --couleur-bordure: #43342A;
+  --couleur-bordure-forte: #5A4738;
+  --couleur-texte: #F4E9D8;
+  --couleur-texte-2: #CDB9A1;
+  --couleur-texte-3: #AE9A84;
+  --couleur-accent: #E89A4B;
+  --couleur-accent-fort: #F0A65A;
+  --couleur-accent-texte: #F0A65A;
+  --couleur-accent-doux: #3D2A18;
+  --couleur-sur-accent: #1F1712;
+  --couleur-dore: #E8B65A;
+  --couleur-succes: #8FCB72;
+  --couleur-succes-doux: #22301A;
+  --couleur-alerte: #E8B65A;
+  --couleur-alerte-doux: #3A2C14;
+  --couleur-erreur: #F08E7A;
+  --couleur-erreur-doux: #3A1E17;
+  --couleur-inverse: #3A2A1E;
+  --couleur-sur-inverse: #F4E9D8;
+  --ombre: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
 }
 
-html, body {
-  margin: 0;
-  padding: 0;
-}
+/* ---------- Base ---------- */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
 
 body {
+  margin: 0;
   font-family: var(--police);
-  background-color: var(--fond);
-  color: var(--texte);
+  font-size: var(--texte-md);
   line-height: 1.5;
+  color: var(--couleur-texte);
+  background: var(--couleur-fond);
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'tnum' 1;
+  font-variant-numeric: tabular-nums;
 }
+
+h1, h2, h3 { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; line-height: 1.15; letter-spacing: -0.01em; color: var(--couleur-texte); }
+h1 { font-size: var(--texte-xl); font-weight: 600; margin: 0 0 var(--espace-2); }
+h2 { font-size: var(--texte-lg); font-weight: 600; margin: var(--espace-6) 0 var(--espace-3); }
+h3 { font-size: var(--texte-md); font-weight: 600; margin: var(--espace-5) 0 var(--espace-2); }
+p { margin: 0 0 var(--espace-3); }
+
+a { color: var(--couleur-accent-texte); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+:focus-visible { outline: 2px solid var(--couleur-accent); outline-offset: 2px; border-radius: 4px; }
+
+img, svg { max-width: 100%; }
+
+.lien-evitement {
+  position: absolute; left: var(--espace-3); top: -100px; z-index: 100;
+  background: var(--couleur-surface); padding: var(--espace-2) var(--espace-3);
+  border-radius: var(--rayon-sm); border: 1px solid var(--couleur-bordure);
+}
+.lien-evitement:focus { top: var(--espace-3); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ---------- Conteneurs ---------- */
 
 .conteneur {
-  max-width: 480px;
-  margin: 0 auto;
-  padding: 32px 20px 60px;
-}
-
-/* 1040px : largeur de la maquette validée pour Accueil / Prévisions /
-   Commandes (le nav-globale à 4 liens + les grilles à 2-3 colonnes ont
-   besoin de cette largeur pour tenir sur une ligne en desktop, voir
-   .nav-globale). */
-.conteneur--large {
-  max-width: 1040px;
-}
-
-.conteneur--moyen {
+  width: 100%;
   max-width: 560px;
+  margin: 0 auto;
+  padding: var(--espace-5) var(--espace-4) var(--espace-8);
 }
+.conteneur--moyen { max-width: 720px; }
+.conteneur--large { max-width: var(--largeur-app); }
 
-/* ---------- En-tête / logo / navigation ---------- */
+/* ---------- En-tête et navigation (nav.js) ---------- */
 
 .entete-site {
+  position: sticky;
+  top: 0;
+  z-index: 40;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: nowrap;
-  gap: 18px 28px;
-  margin-bottom: 28px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--bordure);
-}
-
-/* Planning (personnel.html) : le Gantt est la vue immédiate de la page,
-   donc l'en-tête n'est plus imbriqué dans .conteneur — il a besoin de son
-   propre alignement/padding horizontal pour respecter la même marge que
-   le reste de l'immersion pleine largeur (voir .planning-plein-ecran). */
-.entete-site--pleine-largeur {
-  max-width: none;
-  margin-left: 0;
-  margin-right: 0;
-  padding-left: clamp(16px, 3vw, 40px);
-  padding-right: clamp(16px, 3vw, 40px);
-  padding-top: 20px;
-}
-
-.statut-connexion-planning {
-  padding: 0 clamp(16px, 3vw, 40px);
+  gap: var(--espace-4);
+  height: 56px;
+  padding: 0 max(var(--espace-4), calc((100% - var(--largeur-app)) / 2 + var(--espace-4)));
+  background: color-mix(in srgb, var(--couleur-fond) 88%, transparent);
+  -webkit-backdrop-filter: saturate(1.4) blur(12px);
+  backdrop-filter: saturate(1.4) blur(12px);
+  border-bottom: 1px solid var(--couleur-bordure);
 }
 
 .logo {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--espace-2);
+  color: var(--couleur-texte);
+  font-weight: 700;
+  font-size: var(--texte-md);
+  letter-spacing: -0.02em;
   text-decoration: none;
-  color: var(--ink);
   flex-shrink: 0;
 }
+.logo:hover { text-decoration: none; }
+.logo-marque { color: var(--couleur-accent); }
+.logo-centre { justify-content: center; display: flex; margin-bottom: var(--espace-5); }
 
-.logo-marque {
-  display: block;
-  flex-shrink: 0;
-}
-
-/* #navPrincipale : nav peuplée dynamiquement par nav.js sur les pages
-   connectées (classe .nav-globale ajoutée par nav.js). .nav-principale :
-   nav statique restante sur cgu.html (page publique, sans nav.js) — garde
-   l'ancien style simple, cette page n'a pas la nouvelle structure à 3
-   niveaux. */
-.nav-principale {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 18px;
-}
-
-/* ---------- Nav globale (refonte sept. 2026, maquette validée) ----------
-   Accueil / Prévisions / Planning : toujours visibles (.nav-lien-g).
-   Mes produits / Commandes / Imports : visibles en desktop, repliés dans
-   le ☰ sous 720px (.nav-lien-g--repli).
-   Nav secondaire (Paramètres / Aide) : bloc à part, toujours visible en
-   desktop, repliée elle aussi dans le ☰ sous 720px.
-   ☰ : bouton + panneau, visibles uniquement sous 720px.
-   .nav-globale / .nav-secondaire / .btn-hamburger sont des SIBLINGS de
-   .logo dans .entete-site (nav.js les ajoute ainsi, jamais imbriqués) :
-   .nav-globale prend toute la place restante (flex:1, défilement
-   horizontal en dernier recours) pour que tout tienne sur une seule ligne
-   en desktop, quelle que soit la largeur. */
-.nav-globale {
+.nav-onglets {
   display: flex;
   align-items: center;
-  gap: 26px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  flex: 1 1 auto;
-  min-width: 0;
+  gap: var(--espace-1);
+  flex: 1;
 }
 
-.nav-globale::-webkit-scrollbar {
-  display: none;
-}
-
-/* Bug corrigé (sept. 2026) : le défilement horizontal de secours n'avait
-   aucun indice visuel — entre ~800 et 1040px de large, "Statistiques"
-   pouvait être coupé net en bord de nav sans que rien ne signale qu'il
-   suffit de faire défiler pour le voir. Dégradé de fondu ajouté côté
-   droit, uniquement quand nav.js détecte un vrai débordement (classe
-   .nav-globale--defilable, voir nav.js). */
-.nav-globale--defilable {
-  mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
-  -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
-}
-
-.nav-lien-g {
-  font-size: 13.5px;
+.nav-onglet {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  height: 36px;
+  padding: 0 var(--espace-3);
+  border-radius: var(--rayon-rond);
+  color: var(--couleur-texte-2);
+  font-size: var(--texte-sm);
   font-weight: 500;
-  color: var(--texte-attenue);
   text-decoration: none;
   white-space: nowrap;
-  padding: 4px 0;
-  border-bottom: 2px solid transparent;
 }
+.nav-onglet:hover { color: var(--couleur-texte); background: var(--couleur-surface-2); text-decoration: none; }
+.nav-onglet.actif { color: var(--couleur-texte); background: var(--couleur-surface-2); font-weight: 600; }
+.nav-onglet.actif .nav-icone { color: var(--couleur-accent-texte); }
+.nav-icone { width: 18px; height: 18px; flex-shrink: 0; }
 
-.nav-lien-g:hover {
-  color: var(--texte);
+.compte { position: relative; margin-left: auto; }
+.btn-compte {
+  width: 36px; height: 36px; margin: 0; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--rayon-rond);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  border: 1px solid var(--couleur-bordure);
 }
+.btn-compte:hover { background: var(--couleur-surface-2); }
+.btn-compte svg { width: 18px; height: 18px; }
 
-.nav-lien-g.actif {
-  color: var(--accent);
-  font-weight: 600;
-  border-bottom-color: var(--accent);
-}
-
-.nav-secondaire {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-shrink: 0;
-}
-
-.nav-lien-s {
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--texte-tres-attenue);
-  text-decoration: none;
-}
-
-.nav-lien-s:hover {
-  color: var(--texte-attenue);
-}
-
-.nav-lien-s.actif {
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.btn-hamburger {
+.menu-compte {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--espace-2));
+  min-width: 220px;
+  padding: var(--espace-2);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-md);
+  box-shadow: var(--ombre);
   display: none;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  margin: 0;
-  border: 1px solid var(--bordure);
-  border-radius: var(--rayon);
-  background: var(--surface);
-  color: var(--ink);
-  font-size: 16px;
-  cursor: pointer;
-  flex-shrink: 0;
 }
-
-/* .panneau-hamburger : sibling du <header class="entete-site"> lui-même
-   (nav.js l'insère juste après), pas un dropdown accroché au bouton —
-   pleine largeur, sous la barre, comme dans la maquette validée. */
-.panneau-hamburger {
-  display: none;
-  flex-direction: column;
-  gap: 2px;
-  padding: 6px 0 18px;
+.menu-compte.ouvert { display: block; }
+.menu-compte a {
+  display: block;
+  padding: var(--espace-2) var(--espace-3);
+  border-radius: var(--rayon-sm);
+  color: var(--couleur-texte);
+  font-size: var(--texte-sm);
 }
-
-.panneau-hamburger--ouvert {
-  display: flex;
-}
-
-.nav-lien-h {
-  padding: 11px 4px;
-  font-size: 14.5px;
-  font-weight: 500;
-  color: var(--texte);
-  text-decoration: none;
-  border-bottom: 1px solid var(--bordure);
-}
-
-.nav-lien-h:last-child {
-  border-bottom: none;
-}
-
-.nav-lien-h:hover {
-  color: var(--accent);
-}
-
-.nav-lien-h.actif {
-  color: var(--accent);
-  font-weight: 600;
-}
-
-/* Au-delà de 720px : jamais de burger, jamais de deuxième ligne, quelle que
-   soit la largeur (.nav-globale défile horizontalement en dernier recours
-   plutôt que de casser la ligne). Filet de sécurité si le panneau était
-   resté ouvert avant un agrandissement de fenêtre. */
-@media (min-width: 721px) {
-  .panneau-hamburger {
-    display: none !important;
-  }
-}
+.menu-compte a:hover, .menu-compte a.actif { background: var(--couleur-surface-2); text-decoration: none; }
+.menu-compte hr { border: 0; border-top: 1px solid var(--couleur-bordure); margin: var(--espace-2) 0; }
 
 @media (max-width: 720px) {
-  .entete-site {
-    flex-wrap: wrap;
+  body.avec-onglets { padding-bottom: calc(var(--hauteur-onglets) + env(safe-area-inset-bottom)); }
+  .nav-onglets {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 50;
+    gap: 0;
+    height: calc(var(--hauteur-onglets) + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--couleur-surface);
+    border-top: 1px solid var(--couleur-bordure);
   }
-
-  .nav-secondaire,
-  .nav-lien-g--repli {
-    display: none;
+  .nav-onglet {
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    height: 100%;
+    padding: 0;
+    border-radius: 0;
+    font-size: 11px;
   }
-
-  .btn-hamburger {
-    display: inline-flex;
-    order: 2;
-    margin-left: auto;
-  }
-
-  .logo {
-    order: 1;
-  }
-
-  /* La nav rapide passe systématiquement sur sa propre ligne, sous la
-     ligne logo/burger : jamais sur la même ligne que le burger, jamais
-     responsable de le pousser en dessous (bug retour utilisateur, sept.
-     2026, corrigé en alignant la structure sur la maquette validée). */
-  .nav-globale {
-    order: 3;
-    flex-basis: 100%;
-    margin-top: 2px;
-  }
+  .nav-onglet:hover, .nav-onglet.actif { background: transparent; }
+  .nav-onglet.actif { color: var(--couleur-accent-texte); }
+  .nav-icone { width: 22px; height: 22px; }
 }
 
-/* ---------- Typographie générale ---------- */
+/* ---------- Typographie utilitaire ---------- */
 
-h1 {
-  font-family: var(--police-titre);
-  font-size: 28px;
+.eyebrow {
+  margin: 0 0 var(--espace-1);
+  font-size: var(--texte-sm);
+  font-weight: 500;
+  color: var(--couleur-texte-3);
+}
+.sous-titre { color: var(--couleur-texte-2); font-size: var(--texte-md); margin: 0 0 var(--espace-5); max-width: 62ch; }
+.section-titre {
+  margin: var(--espace-6) 0 var(--espace-3);
+  font-size: var(--texte-md);
   font-weight: 600;
   letter-spacing: -0.01em;
-  margin: 0 0 6px;
+  color: var(--couleur-texte);
 }
+.texte-aide { font-size: var(--texte-sm); color: var(--couleur-texte-2); }
+.texte-aide--discret { color: var(--couleur-texte-3); }
 
-h2 {
-  font-size: 15px;
-  font-weight: 600;
-  margin: 24px 0 10px;
+.entete-page {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--espace-5);
 }
+.entete-page h1 { margin: 0; }
 
-p {
-  margin: 0 0 10px;
-}
-
-.sous-titre {
-  color: var(--texte-attenue);
-  font-size: 14px;
-  margin: 0 0 24px;
-}
-
-.section-titre {
-  font-size: 12px;
-  color: var(--texte-attenue);
-  margin: 28px 0 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 600;
-}
-
-.texte-aide {
-  font-size: 13px;
-  color: var(--texte-attenue);
-}
+#statutConnexion:empty { display: none; }
 
 /* ---------- Formulaires ---------- */
 
 label {
   display: block;
-  margin-top: 16px;
-  margin-bottom: 6px;
-  font-weight: 600;
-  font-size: 13px;
+  margin: var(--espace-4) 0 var(--espace-2);
+  font-weight: 500;
+  font-size: var(--texte-sm);
+  color: var(--couleur-texte);
 }
 
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="number"],
-textarea,
-select {
+input[type="text"], input[type="email"], input[type="password"], input[type="number"],
+input[type="tel"], input[type="date"], input[type="search"], input[type="url"], textarea, select {
   width: 100%;
+  min-height: 44px;
   padding: 10px 12px;
-  font-family: var(--police);
-  font-size: 14px;
-  color: var(--texte);
-  background: var(--surface);
-  border: 1px solid var(--bordure);
-  border-radius: var(--rayon);
-  box-sizing: border-box;
+  font: inherit;
+  font-size: var(--texte-md);
+  color: var(--couleur-texte);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure-forte);
+  border-radius: var(--rayon-sm);
 }
-
-textarea {
-  resize: vertical;
-}
-
-input:focus,
-textarea:focus,
-select:focus {
+textarea { resize: vertical; }
+input:focus, textarea:focus, select:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-clair);
+  border-color: var(--couleur-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--couleur-accent) 25%, transparent);
 }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--couleur-accent); width: 18px; height: 18px; }
 
-input[type="file"] {
-  font-size: 13px;
-  color: var(--texte-attenue);
-  padding: 0;
-  border: none;
-}
-
-input[type="file"]::file-selector-button,
-input[type="file"]::-webkit-file-upload-button {
-  padding: 10px 18px;
-  margin-right: 14px;
-  font-family: var(--police);
-  font-size: 14px;
+input[type="file"] { font: inherit; font-size: var(--texte-sm); color: var(--couleur-texte-2); max-width: 100%; }
+input[type="file"]::file-selector-button {
+  margin-right: var(--espace-3);
+  padding: 10px 16px;
+  font: inherit;
   font-weight: 600;
-  background-color: var(--accent);
-  color: white;
-  border: none;
-  border-radius: var(--rayon);
+  color: var(--couleur-texte);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure-forte);
+  border-radius: var(--rayon-rond);
   cursor: pointer;
-  transition: background-color 0.15s ease;
 }
 
-input[type="file"]::file-selector-button:hover,
-input[type="file"]::-webkit-file-upload-button:hover {
-  background-color: var(--accent-fonce);
-}
-
-button {
-  margin-top: 22px;
-  padding: 11px 20px;
-  font-family: var(--police);
-  font-size: 14px;
-  font-weight: 600;
-  background-color: var(--accent);
-  color: white;
-  border: none;
-  border-radius: var(--rayon);
-  cursor: pointer;
+/* Bouton par défaut = bouton principal (convention historique des pages). */
+button, .bouton-principal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-2);
   width: 100%;
-  transition: background-color 0.15s ease;
-}
-
-button:hover {
-  background-color: var(--accent-fonce);
-}
-
-button:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-/* ---------- Cartes / grilles (tableau de bord) ---------- */
-
-.grille {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
-}
-
-.carte {
-  background: var(--surface);
-  border: 1px solid var(--bordure);
-  border-radius: var(--rayon-lg);
-  padding: 16px;
-  box-shadow: var(--ombre);
-}
-
-.carte .nom {
-  font-size: 13px;
-  color: var(--texte-attenue);
-  margin: 0 0 6px;
-}
-
-.carte .valeur {
-  font-family: var(--police-titre);
-  font-size: 28px;
+  min-height: 44px;
+  margin-top: var(--espace-5);
+  padding: 10px 20px;
+  font: inherit;
+  font-size: var(--texte-md);
   font-weight: 600;
-  margin: 0;
-}
-
-.carte .detail {
-  font-size: 12px;
-  color: var(--texte-tres-attenue);
-  margin: 4px 0 0;
-}
-
-.carte-vide {
-  background: var(--surface);
-  border: 1px dashed var(--bordure);
-  border-radius: var(--rayon-lg);
-  padding: 22px;
-  text-align: center;
-  color: var(--texte-attenue);
-  font-size: 14px;
-}
-
-.carte-vide a {
-  color: var(--accent);
-  font-weight: 600;
+  color: var(--couleur-sur-accent);
+  background: var(--couleur-accent);
+  border: 1px solid transparent;
+  border-radius: var(--rayon-rond);
+  cursor: pointer;
   text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+button:hover, .bouton-principal:hover { background: var(--couleur-accent-fort); text-decoration: none; }
+button:disabled { opacity: 0.45; cursor: default; }
+@media (min-width: 721px) {
+  button, .bouton-principal { width: auto; }
 }
 
-/* ---------- Cadre de page (Mes produits / Mes ventes / Importer) ---------- */
-
-.carte-page {
-  background: var(--surface);
-  border: 1px solid var(--bordure);
-  border-radius: var(--rayon-lg);
-  box-shadow: var(--ombre);
-  padding: 26px 28px;
-}
-
-.entete-page {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.entete-page h1 {
-  margin: 0;
-}
-
-.eyebrow {
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--texte-tres-attenue);
-  margin: 0 0 4px;
-  font-weight: 600;
-}
-
-.badge-page {
-  background: var(--info-fond);
-  color: var(--info-texte);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 999px;
-  white-space: nowrap;
-}
-
-.ligne-form {
-  display: flex;
-  gap: 10px;
-}
-
-.ligne-form input {
-  margin: 0;
-  flex: 1;
-}
-
-.ligne-form button {
-  margin: 0;
+.bouton-secondaire, button.bouton-secondaire, .btn-gerer-postes, .bouton-pill-secondaire {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-2);
+  min-height: 40px;
   width: auto;
-  padding: 11px 22px;
-  white-space: nowrap;
+  margin: 0;
+  padding: 8px 16px;
+  font-size: var(--texte-sm);
+  font-weight: 600;
+  color: var(--couleur-texte);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure-forte);
+  border-radius: var(--rayon-rond);
+  text-decoration: none;
+  cursor: pointer;
 }
-
-.lien-retour {
-  display: block;
-  margin-top: 32px;
-  font-size: 13px;
-  color: var(--texte-attenue);
+.bouton-secondaire:hover, .btn-gerer-postes:hover, .bouton-pill-secondaire:hover {
+  background: var(--couleur-surface-2);
   text-decoration: none;
 }
 
-.lien-retour:hover {
-  color: var(--texte);
+.lien-discret, .btn-lien-discret, button.lien-discret, .lien-passer {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  color: var(--couleur-texte-2);
+  font-size: var(--texte-sm);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
 }
+.lien-discret, .btn-lien-discret { padding: 4px 0; }
+.lien-discret:hover, .btn-lien-discret:hover, .lien-passer:hover { background: none; color: var(--couleur-texte); }
+
+.lien-retour { display: inline-block; margin-top: var(--espace-5); font-size: var(--texte-sm); color: var(--couleur-texte-2); }
+
+.ligne-form { display: flex; gap: var(--espace-3); flex-wrap: wrap; }
+.ligne-form > * { flex: 1 1 200px; }
+.ligne-form > button { flex: 0 0 auto; margin-top: 0; }
+
+.case-consentement, .case-jour {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+  margin: var(--espace-2) 0;
+  font-size: var(--texte-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+.case-consentement input, .case-jour input { width: 18px; margin: 0; flex-shrink: 0; }
+.grille-jours { display: flex; flex-wrap: wrap; gap: var(--espace-2) var(--espace-5); margin: var(--espace-2) 0; }
 
 /* ---------- Messages ---------- */
 
-#message, .message {
-  margin-top: 15px;
-  padding: 11px 14px;
-  border-radius: var(--rayon);
-  font-size: 14px;
+#message, #messageSaisie, .message {
   display: none;
+  margin-top: var(--espace-4);
+  padding: var(--espace-3) var(--espace-4);
+  border-radius: var(--rayon-sm);
+  font-size: var(--texte-sm);
 }
+.succes { background: var(--couleur-succes-doux); color: var(--couleur-succes); }
+.erreur { background: var(--couleur-erreur-doux); color: var(--couleur-erreur); }
+.info { background: var(--couleur-surface-2); color: var(--couleur-texte-2); }
 
-.succes { background-color: var(--succes-fond); color: var(--succes-texte); }
-.erreur { background-color: var(--erreur-fond); color: var(--erreur-texte); }
-.info { background-color: var(--info-fond); color: var(--info-texte); }
+/* ---------- Cartes ---------- */
 
-/* ---------- Zone d'import / upload ---------- */
+.carte, .carte-page, .carte-claire {
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-md);
+  padding: var(--espace-4);
+}
+@media (min-width: 721px) {
+  .carte, .carte-page, .carte-claire { padding: var(--espace-5); }
+}
+.carte + .carte, .carte-page + .carte-page, .section-resultats + .section-resultats { margin-top: var(--espace-4); }
 
-.zone-upload {
-  border: 2px dashed var(--bordure);
-  border-radius: var(--rayon-lg);
-  padding: 28px;
+.carte-vide, .carte-vide-claire {
+  padding: var(--espace-5);
   text-align: center;
-  margin-top: 20px;
-  background: var(--surface);
+  color: var(--couleur-texte-2);
+  font-size: var(--texte-sm);
+  background: var(--couleur-surface-2);
+  border-radius: var(--rayon-md);
 }
 
-.zone-mapping {
-  margin-top: 20px;
-  padding: 16px;
-  background-color: var(--surface);
-  border: 1px solid var(--bordure);
-  border-radius: var(--rayon-lg);
-  display: none;
+.pied-page { margin-top: var(--espace-7); text-align: center; font-size: var(--texte-xs); color: var(--couleur-texte-3); }
+.pied-page a { color: var(--couleur-texte-3); }
+
+/* ---------- Chiffres clés ---------- */
+
+.grille-kpi {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--espace-3);
 }
-
-.zone-mapping label {
-  margin-top: 12px;
+.carte-kpi {
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-md);
+  padding: var(--espace-4);
 }
+.carte-kpi-titre { margin: 0 0 var(--espace-2); font-size: var(--texte-sm); color: var(--couleur-texte-2); font-weight: 500; }
+.carte-kpi-valeur { margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; }
+.carte-kpi-valeur--hausse { color: var(--couleur-succes); }
+.carte-kpi-valeur--neutre { color: var(--couleur-texte); }
+.carte-kpi-valeur--attention { color: var(--couleur-alerte); }
+.carte-kpi-detail { margin: var(--espace-2) 0 0; font-size: var(--texte-sm); color: var(--couleur-texte-3); }
+.carte-kpi--heros { grid-column: 1 / -1; background: var(--couleur-inverse); border-color: var(--couleur-inverse); }
+.carte-kpi--heros .carte-kpi-titre, .carte-kpi--heros .carte-kpi-detail { color: var(--couleur-sur-inverse); }
+.carte-kpi--heros .carte-kpi-valeur { font-size: clamp(44px, 10vw, 72px); color: var(--couleur-accent); }
 
-/* ---------- Tableaux ---------- */
-
-table {
-  width: 100%;
-  margin-top: 14px;
-  font-size: 13px;
-  border-collapse: collapse;
+.pill-tendance, .badge-page, .claire-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-1);
+  padding: 4px 10px;
+  font-size: var(--texte-xs);
+  font-weight: 500;
+  color: var(--couleur-texte-2);
+  background: var(--couleur-surface-2);
+  border-radius: var(--rayon-rond);
+  white-space: nowrap;
 }
+.pill-tendance--charge { background: var(--couleur-accent-doux); color: var(--couleur-accent-texte); }
+.pill-tendance--calme { background: var(--couleur-surface-2); color: var(--couleur-texte-2); }
 
-th, td {
-  border: 1px solid var(--bordure);
-  padding: 7px 8px;
-  text-align: left;
-}
-
-th {
-  background: var(--fond);
-  font-weight: 600;
-}
-
-/* ---------- Onglets (page de connexion) ---------- */
-
-.onglets {
+/* Sélecteur de période (Bilan) */
+.section-resultats { margin-top: var(--espace-6); }
+.entete-resultats {
   display: flex;
-  border-bottom: 1px solid var(--bordure);
-  margin-bottom: 20px;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
+  margin-bottom: var(--espace-4);
 }
+.titre-resultats { margin: 0; font-size: var(--texte-lg); }
+.selecteur-periode {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: var(--couleur-surface-2);
+  border-radius: var(--rayon-rond);
+  max-width: 100%;
+  overflow-x: auto;
+}
+.periode-bouton {
+  width: auto;
+  min-height: 32px;
+  margin: 0;
+  padding: 4px 12px;
+  font-size: var(--texte-sm);
+  font-weight: 500;
+  color: var(--couleur-texte-2);
+  background: transparent;
+  border-radius: var(--rayon-rond);
+  white-space: nowrap;
+}
+.periode-bouton:hover { background: transparent; color: var(--couleur-texte); }
+.periode-bouton.actif { background: var(--couleur-surface); color: var(--couleur-texte); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
 
-.onglet {
-  flex: 1;
-  text-align: center;
-  padding: 10px;
-  cursor: pointer;
-  color: var(--texte-tres-attenue);
+/* Classement produits (Bilan) */
+.ligne-classement {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  grid-template-areas: "rang nom valeur" "rang piste piste";
+  gap: 4px var(--espace-3);
+  align-items: center;
+  padding: var(--espace-3) 0;
+  border-bottom: 1px solid var(--couleur-bordure);
+}
+.ligne-classement:last-child { border-bottom: 0; }
+.classement-rang { grid-area: rang; color: var(--couleur-texte-3); font-size: var(--texte-sm); }
+.classement-nom { grid-area: nom; font-weight: 500; }
+.classement-valeur { grid-area: valeur; font-weight: 600; }
+.classement-piste { grid-area: piste; height: 6px; background: var(--couleur-surface-2); border-radius: var(--rayon-rond); overflow: hidden; }
+.classement-remplissage { height: 100%; background: var(--couleur-accent); border-radius: var(--rayon-rond); }
+
+/* Graphique en colonnes (Bilan) */
+.graphique-colonnes {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--espace-2);
+  height: 200px;
+  overflow-x: auto;
+  padding-bottom: var(--espace-1);
+}
+.colonne-affluence {
+  flex: 1 0 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  gap: 4px;
+}
+.colonne-valeur { font-size: 11px; color: var(--couleur-texte-3); }
+.colonne-barre { width: 100%; max-width: 40px; background: var(--couleur-accent); border-radius: 4px 4px 0 0; min-height: 2px; }
+.colonne-etiquette { font-size: 11px; color: var(--couleur-texte-3); white-space: nowrap; }
+
+/* ---------- Demain / Semaine (previsions.html) ---------- */
+
+.carte-claire--entete { padding: 0; border: 0; background: transparent; }
+.claire-entete {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--espace-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--espace-5);
+}
+.claire-date { margin: 0 0 var(--espace-1); font-size: var(--texte-sm); color: var(--couleur-texte-3); }
+.claire-titre { margin: 0; font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: var(--texte-xl); font-weight: 600; letter-spacing: -0.01em; line-height: 1.15; }
+.claire-titre--petit { font-family: var(--police); }
+.claire-titre--petit { font-size: var(--texte-md); font-weight: 600; margin-bottom: var(--espace-2); }
+.entete-droite-previsions { display: flex; flex-direction: column; align-items: flex-end; gap: var(--espace-2); }
+
+.info-bulle { position: relative; display: inline-block; font-size: var(--texte-sm); color: var(--couleur-texte-3); cursor: help; vertical-align: middle; }
+.info-bulle-texte {
+  display: none;
+  position: absolute;
+  top: 130%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 240px;
+  padding: var(--espace-3);
+  font-size: var(--texte-xs);
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: var(--couleur-texte-2);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-sm);
+  box-shadow: var(--ombre);
+  z-index: 10;
+}
+.info-bulle:hover .info-bulle-texte, .info-bulle:focus .info-bulle-texte, .info-bulle:focus-within .info-bulle-texte { display: block; }
+
+.badge-meteo, .meteo-moments-jour {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+  font-size: var(--texte-sm);
+  color: var(--couleur-texte-2);
+}
+.badge-meteo-texte { display: flex; gap: var(--espace-1); }
+.badge-meteo-temperature { font-weight: 600; color: var(--couleur-texte); }
+.meteo-moment { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: var(--couleur-surface-2); border-radius: var(--rayon-rond); font-size: var(--texte-xs); }
+.meteo-moment-libelle { color: var(--couleur-texte-3); }
+.meteo-moment-temperature { font-weight: 600; color: var(--couleur-texte); }
+
+/* Bande des 7 jours */
+.semaine-strip {
+  display: flex;
+  gap: var(--espace-2);
+  margin: 0 0 var(--espace-5);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.semaine-strip::-webkit-scrollbar { display: none; }
+.chip-jour {
+  position: relative;
+  flex: 1 0 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  padding: var(--espace-3) var(--espace-2);
+  color: var(--couleur-texte);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-md);
+  font-weight: 500;
+}
+.chip-jour:hover { background: var(--couleur-surface-2); }
+.chip-jour.actif { border-color: var(--couleur-texte); box-shadow: inset 0 0 0 1px var(--couleur-texte); background: var(--couleur-surface); }
+.chip-jour-nom { font-size: var(--texte-sm); font-weight: 600; }
+.chip-jour-date { font-size: var(--texte-xs); color: var(--couleur-texte-3); }
+.chip-jour-point { width: 8px; height: 8px; border-radius: 50%; background: var(--couleur-bordure-forte); margin-top: 4px; }
+.chip-jour--charge .chip-jour-point { background: var(--couleur-accent); }
+.chip-jour--calme .chip-jour-point { background: var(--couleur-texte-3); }
+.chip-jour--ferie .chip-jour-point, .chip-jour--vacances .chip-jour-point { background: var(--couleur-alerte); }
+.chip-jour--ferme { opacity: 0.55; }
+.chip-jour--ferme .chip-jour-point { background: transparent; border: 1px solid var(--couleur-texte-3); }
+
+/* Détail du jour */
+.bloc-jour-detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-2) var(--espace-3);
+  margin: var(--espace-4) 0;
+}
+.bloc-jour-detail:empty { display: none; }
+.badge-jour {
+  display: inline-flex;
+  padding: 4px 10px;
+  font-size: var(--texte-xs);
   font-weight: 600;
-  font-size: 14px;
-  border-bottom: 2px solid transparent;
+  border-radius: var(--rayon-rond);
+  background: var(--couleur-surface-2);
+  color: var(--couleur-texte-2);
 }
-
-.onglet.actif {
-  color: var(--accent);
-  border-bottom: 2px solid var(--accent);
+.badge-jour--charge { background: var(--couleur-accent-doux); color: var(--couleur-accent-texte); }
+.badge-jour--ferie, .badge-jour--vacances { background: var(--couleur-alerte-doux); color: var(--couleur-alerte); }
+.detail-jour-texte, .detail-meteo { margin: 0; font-size: var(--texte-sm); color: var(--couleur-texte-2); }
+.actions-jour { display: flex; gap: var(--espace-2); flex-wrap: wrap; width: 100%; }
+.btn-mini {
+  width: auto;
+  min-height: 36px;
+  margin: 0;
+  padding: 6px 14px;
+  font-size: var(--texte-sm);
+  font-weight: 500;
+  color: var(--couleur-texte);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure-forte);
+  border-radius: var(--rayon-rond);
 }
+.btn-mini:hover { background: var(--couleur-surface-2); }
+.btn-mini.actif { background: var(--couleur-texte); color: var(--couleur-fond); border-color: var(--couleur-texte); }
 
-/* ---------- Questions fréquentes (bienvenue.html, aide.html) ---------- */
-
-.faq-item {
-  border: 1px solid var(--bordure);
-  border-radius: var(--rayon);
-  padding: 2px 16px;
-  margin-bottom: 10px;
-  background: var(--surface);
+/* Filtres catégories */
+.filtres-categories { display: flex; gap: var(--espace-2); flex-wrap: wrap; margin-bottom: var(--espace-4); }
+.pill-categorie {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-1);
+  width: auto;
+  min-height: 36px;
+  margin: 0;
+  padding: 6px 14px;
+  font-size: var(--texte-sm);
+  font-weight: 500;
+  color: var(--couleur-texte-2);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-rond);
 }
-.faq-item summary {
-  cursor: pointer;
+.pill-categorie:hover { background: var(--couleur-surface-2); }
+.pill-categorie.actif { background: var(--couleur-texte); color: var(--couleur-fond); border-color: var(--couleur-texte); }
+.pill-categorie-supprimer { margin-left: 4px; opacity: 0.6; cursor: pointer; }
+.btn-ajouter-categorie { width: auto; min-height: 36px; margin: 0; padding: 6px 14px; font-size: var(--texte-sm); background: transparent; color: var(--couleur-texte-2); border: 1px dashed var(--couleur-bordure-forte); }
+.btn-ajouter-categorie:hover { background: var(--couleur-surface-2); }
+
+/* Liste de production : un grand chiffre par produit */
+.liste-production {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--espace-2);
+}
+@media (min-width: 560px) { .liste-production { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 900px) { .liste-production { grid-template-columns: 1fr 1fr 1fr; } }
+.liste-production > .carte-vide-claire { grid-column: 1 / -1; }
+.ligne-prod-jour {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--espace-1) var(--espace-3);
+  padding: var(--espace-4);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-md);
+}
+.ligne-prod-jour-nom { font-weight: 500; font-size: var(--texte-md); line-height: 1.3; }
+.ligne-prod-jour-droite { display: flex; flex-direction: column; align-items: flex-end; }
+.ligne-prod-jour-quantite {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--espace-2);
+  font-size: var(--texte-2xl);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+.ligne-prod-jour-fourchette { margin-top: var(--espace-1); font-size: var(--texte-xs); color: var(--couleur-texte-3); }
+.select-categorie-produit { grid-column: 1 / -1; min-height: 32px; padding: 4px 8px; font-size: var(--texte-xs); color: var(--couleur-texte-2); width: auto; justify-self: start; }
+
+.delta { font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0; padding: 2px 6px; border-radius: var(--rayon-rond); background: var(--couleur-surface-2); color: var(--couleur-texte-2); }
+.delta-hausse { background: var(--couleur-accent-doux); color: var(--couleur-accent-texte); }
+.delta-baisse { background: var(--couleur-surface-2); color: var(--couleur-texte-2); }
+
+.bloc-pourquoi {
+  margin-top: var(--espace-4);
+  padding: var(--espace-3) var(--espace-4);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-md);
+  font-size: var(--texte-sm);
+}
+.bloc-pourquoi summary { cursor: pointer; font-weight: 500; color: var(--couleur-texte-2); }
+.liste-pourquoi { margin: var(--espace-3) 0 0; padding-left: var(--espace-5); color: var(--couleur-texte-2); }
+.liste-pourquoi li { margin-bottom: var(--espace-1); }
+
+.bloc-pont-commandes { margin-top: var(--espace-5); }
+.bloc-pont-commandes:empty { display: none; }
+.btn-cta-commandes {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 12px 24px;
   font-weight: 600;
-  padding: 13px 0;
-  color: var(--texte);
-  list-style: none;
+  color: var(--couleur-sur-accent);
+  background: var(--couleur-accent);
+  border-radius: var(--rayon-rond);
+  text-decoration: none;
 }
-.faq-item summary::-webkit-details-marker { display: none; }
-.faq-item summary::after { content: "+"; float: right; color: var(--texte-tres-attenue); font-weight: 400; }
-.faq-item[open] summary::after { content: "−"; }
-.faq-item p { margin: 0 0 14px; color: var(--texte-attenue); font-size: 14px; }
+.btn-cta-commandes:hover { background: var(--couleur-accent-fort); text-decoration: none; }
+@media (min-width: 721px) { .btn-cta-commandes { display: inline-flex; } }
 
-/* ---------- Ligne produit (page ventes) ---------- */
+.bloc-fiabilite-rattache {
+  margin-top: var(--espace-6);
+  padding-top: var(--espace-4);
+  border-top: 1px solid var(--couleur-bordure);
+}
+.ligne-fiabilite { display: flex; align-items: baseline; gap: var(--espace-3); flex-wrap: wrap; }
+.ligne-fiabilite .valeur { margin: 0; font-size: var(--texte-lg); font-weight: 700; }
+.ligne-fiabilite .detail { margin: 0; font-size: var(--texte-sm); color: var(--couleur-texte-3); }
+
+/* Vue Semaine : la bande des 7 jours devient la vue principale */
+.vue-semaine .semaine-strip { display: grid !important; grid-template-columns: repeat(7, minmax(0, 1fr)); overflow: visible; }
+.vue-semaine .chip-jour { padding: var(--espace-4) var(--espace-1); }
+@media (max-width: 560px) {
+  .vue-semaine .semaine-strip { grid-template-columns: 1fr; }
+  .vue-semaine .chip-jour { flex-direction: row; justify-content: space-between; padding: var(--espace-3) var(--espace-4); }
+  .vue-semaine .chip-jour-date { margin-right: auto; margin-left: var(--espace-2); }
+  .vue-semaine .chip-jour-point { margin-top: 0; }
+}
+.vue-demain .semaine-strip { display: none !important; }
+.vue-semaine .bloc-fiabilite-rattache { display: none; }
+
+/* Top produits (repris pour d'autres écrans) */
+.grille-top-produits { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--espace-3); }
+.produit-top { display: block; padding: var(--espace-4); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md); background: var(--couleur-surface); color: var(--couleur-texte); }
+.produit-top:hover { text-decoration: none; border-color: var(--couleur-bordure-forte); }
+.produit-top-rang { margin: 0; font-size: var(--texte-xs); color: var(--couleur-texte-3); }
+.produit-top-nom { margin: var(--espace-1) 0; font-weight: 500; }
+.produit-top-quantite { margin: 0; font-size: var(--texte-2xl); font-weight: 700; letter-spacing: -0.04em; }
+.produit-top-fourchette { margin: 0; font-size: var(--texte-xs); color: var(--couleur-texte-3); }
+
+/* ---------- Ventes (saisie + import) ---------- */
 
 .ligne-produit {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-top: 12px;
-  padding: 10px 12px;
-  background: var(--surface);
-  border: 1px solid var(--bordure);
-  border-radius: var(--rayon);
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-md);
+}
+.ligne-produit + .ligne-produit { margin-top: var(--espace-2); }
+.ligne-produit label { margin: 0; font-weight: 500; font-size: var(--texte-md); }
+.ligne-produit input { width: 96px; }
+
+.stepper { display: flex; align-items: center; gap: var(--espace-2); }
+.stepper-bouton {
+  width: 40px; height: 40px; min-height: 40px; margin: 0; padding: 0;
+  font-size: 20px; font-weight: 500;
+  color: var(--couleur-texte);
+  background: var(--couleur-surface-2);
+  border: 0;
+  border-radius: var(--rayon-rond);
+  flex-shrink: 0;
+}
+.stepper-bouton:hover { background: var(--couleur-bordure); }
+.ligne-produit .stepper-valeur { width: 64px; text-align: center; font-weight: 600; -moz-appearance: textfield; }
+.stepper-valeur::-webkit-outer-spin-button, .stepper-valeur::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.nav-jour-ventes { display: flex; align-items: center; justify-content: center; gap: var(--espace-4); margin: var(--espace-2) 0 var(--espace-4); }
+.libelle-jour { margin: 0; text-align: center; font-size: var(--texte-lg); font-weight: 600; min-width: 140px; }
+.date-complete { margin: 2px 0 0; text-align: center; font-size: var(--texte-xs); color: var(--couleur-texte-3); }
+.bouton-nav-jour {
+  width: 40px; height: 40px; min-height: 40px; margin: 0; padding: 0;
+  color: var(--couleur-texte);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-rond);
+}
+.bouton-nav-jour:hover { background: var(--couleur-surface-2); }
+.bouton-nav-jour:disabled:hover { background: var(--couleur-surface); }
+
+.etat-synchro {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  margin-bottom: var(--espace-4);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-md);
+  font-size: var(--texte-sm);
+}
+.etat-synchro-point { width: 10px; height: 10px; border-radius: 50%; background: var(--couleur-bordure-forte); flex-shrink: 0; }
+.etat-synchro--ok .etat-synchro-point { background: var(--couleur-succes); }
+.etat-synchro-texte { flex: 1; margin: 0; color: var(--couleur-texte-2); }
+.etat-synchro-texte strong { color: var(--couleur-texte); font-weight: 600; }
+
+.onglets { display: flex; gap: var(--espace-1); border-bottom: 1px solid var(--couleur-bordure); margin-bottom: var(--espace-5); overflow-x: auto; }
+.onglet {
+  padding: var(--espace-3) var(--espace-3);
+  font-size: var(--texte-sm);
+  font-weight: 500;
+  color: var(--couleur-texte-2);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.onglet:hover { color: var(--couleur-texte); }
+.onglet.actif { color: var(--couleur-texte); border-bottom-color: var(--couleur-accent); font-weight: 600; }
+
+.zone-upload {
+  margin-top: var(--espace-4);
+  padding: var(--espace-5);
+  text-align: center;
+  background: var(--couleur-surface);
+  border: 1.5px dashed var(--couleur-bordure-forte);
+  border-radius: var(--rayon-md);
+}
+.zone-mapping {
+  display: none;
+  margin-top: var(--espace-4);
+  padding: var(--espace-4);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-md);
 }
 
-.ligne-produit label {
-  margin: 0;
-  font-weight: 600;
-  font-size: 14px;
-}
+table { width: 100%; margin-top: var(--espace-3); font-size: var(--texte-sm); border-collapse: collapse; }
+th, td { padding: var(--espace-2) var(--espace-3); text-align: left; border-bottom: 1px solid var(--couleur-bordure); }
+th { font-size: var(--texte-xs); font-weight: 600; color: var(--couleur-texte-3); background: transparent; }
+.zone-scroll { overflow-x: auto; max-width: 100%; }
 
-.ligne-produit input {
-  width: 90px;
-  margin-top: 0;
-}
-
-/* ---------- Liste produits ---------- */
+/* ---------- Produits ---------- */
 
 ul.liste-produits {
-  margin: 16px 0 0;
+  margin: var(--espace-4) 0 0;
   padding: 0;
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--espace-2);
 }
-
 ul.liste-produits li {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  background: var(--fond);
-  border: 1px solid var(--bordure);
-  border-radius: var(--rayon);
-  font-size: 14px;
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-md);
   font-weight: 500;
 }
-
-ul.liste-produits li::before {
-  content: '';
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--succes-texte);
-  flex-shrink: 0;
+ul.liste-produits li:hover { border-color: var(--couleur-bordure-forte); }
+ul.liste-produits li.ligne-produit--fiche-ouverte { border-color: var(--couleur-texte); }
+.ligne-produit--glissee { opacity: 0.4; }
+.ligne-produit-vide { grid-column: 1 / -1; justify-content: center; color: var(--couleur-texte-3); font-size: var(--texte-sm); border-style: dashed !important; }
+.nom-produit { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: var(--espace-2); cursor: pointer; }
+.ligne-produit-chevron { font-size: 11px; color: var(--couleur-texte-3); transition: transform 0.15s ease; }
+.ligne-produit--fiche-ouverte .ligne-produit-chevron { transform: rotate(180deg); }
+.actions-produit { display: flex; gap: var(--espace-1); flex-shrink: 0; }
+.icone-action {
+  width: 32px; height: 32px; min-height: 32px; margin: 0; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  color: var(--couleur-texte-3);
+  background: transparent;
+  border: 0;
+  border-radius: var(--rayon-sm);
 }
+.icone-action:hover { background: var(--couleur-surface-2); color: var(--couleur-texte); }
+.icone-action--supprimer:hover { background: var(--couleur-erreur-doux); color: var(--couleur-erreur); }
 
-ul.liste-produits li {
-  transition: border-color 0.15s ease;
-}
-
-ul.liste-produits li:hover {
-  border-color: var(--texte-tres-attenue);
-}
-
-/* Variante plus aérée (retour pilote : lignes "trop proches" sur
-   personnel.html) — isolée pour ne pas changer produits.html qui garde le
-   même style compact avec la même classe de base .liste-produits. */
-ul.liste-produits--espacee {
-  gap: 14px;
-}
-
-ul.liste-produits--espacee li {
-  padding: 16px 16px;
-}
-
-/* ---------- Fiche technique (ingrédients d'un produit) ---------- */
-
-/* Retour pilote, 23 sept. 2026 (point 5) : la fiche technique se déplie
-   directement sous le produit cliqué (voir afficherFicheTechnique dans
-   produits.html), plutôt qu'un panneau séparé tout en bas de page.
-   grid-column: 1/-1 lui fait prendre toute la largeur de la grille de
-   produits, quel que soit le nombre de colonnes affichées. */
 #ficheTechnique {
   display: block;
   grid-column: 1 / -1;
+  padding: var(--espace-4);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-texte);
+  border-radius: var(--rayon-md);
   cursor: default;
-  background: var(--surface);
-  border: 1.5px solid var(--ink);
-  border-radius: var(--rayon-lg);
-  padding: 18px 20px;
-  animation: apparitionFicheTechnique 0.16s ease;
 }
-
-#ficheTechnique::before { display: none; }
-
-@keyframes apparitionFicheTechnique {
-  from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.ligne-produit--fiche-ouverte .ligne-produit-chevron {
-  transform: rotate(180deg);
-  color: var(--texte);
-}
-
-/* Bandeau facultatif proposé à la création d'un produit (point 5) : jamais
-   bloquant, une suggestion avec un accès direct ou un moyen de l'ignorer. */
-.bandeau-suggestion-fiche {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-top: 14px;
-  padding: 12px 16px;
-  background: var(--info-fond);
-  color: var(--info-texte);
-  border-radius: var(--rayon);
-  font-size: 13.5px;
-  animation: apparitionFicheTechnique 0.16s ease;
-}
-
-.bandeau-suggestion-fiche-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.lien-suggestion {
-  background: none;
-  border: none;
-  font: inherit;
-  font-weight: 700;
-  color: var(--info-texte);
-  text-decoration: underline;
-  cursor: pointer;
-  padding: 0;
-  white-space: nowrap;
-}
-
 .ligne-ingredient {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 8px 12px;
-  background: var(--fond);
-  border: 1px solid var(--bordure);
-  border-radius: var(--rayon);
-  margin-top: 6px;
-  font-size: 13px;
+  gap: var(--espace-3);
+  margin-top: var(--espace-2);
+  padding: var(--espace-2) var(--espace-3);
+  font-size: var(--texte-sm);
+  background: var(--couleur-surface-2);
+  border-radius: var(--rayon-sm);
 }
-
 button.lien-supprimer {
-  margin: 0;
-  padding: 2px 9px;
-  width: auto;
+  width: auto; min-height: 28px; margin: 0; padding: 2px 8px;
+  color: var(--couleur-erreur);
   background: transparent;
-  color: var(--erreur-texte);
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1.4;
-  border-radius: 6px;
+  font-size: var(--texte-md);
 }
+button.lien-supprimer:hover { background: var(--couleur-erreur-doux); }
 
-button.lien-supprimer:hover {
-  background: var(--erreur-fond);
-}
-
-/* ---------- Marque sur la page de connexion ---------- */
-
-.logo-centre {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: var(--ink);
-  margin-bottom: 22px;
-}
-
-/* ---------- Tableau de bord — carte sombre ---------- */
-
-.tableau-sombre {
-  background: var(--sombre-fond);
-  color: var(--sombre-texte);
-  border-radius: 20px;
-  padding: 26px 24px 28px;
-  box-shadow: var(--ombre);
-}
-
-.sombre-entete {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 18px;
-}
-
-.sombre-date {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--sombre-texte-attenue);
-  margin: 0 0 4px;
-}
-
-.sombre-titre {
-  font-family: var(--police-titre);
-  font-size: 26px;
-  font-weight: 600;
-  color: var(--sombre-texte);
-  margin: 0;
-}
-
-.sombre-badge {
-  font-size: 11px;
-  color: var(--sombre-texte-attenue);
-  background: var(--sombre-surface);
-  border: 1px solid var(--sombre-bordure);
-  border-radius: 999px;
-  padding: 6px 12px;
-  white-space: nowrap;
-}
-
-.sombre-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--sombre-texte-attenue);
-  font-weight: 600;
-  margin: 22px 0 10px;
-}
-
-.grille-sombre {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 12px;
-}
-
-.carte-sombre {
-  background: var(--sombre-surface);
-  border: 1px solid var(--sombre-bordure);
-  border-radius: 14px;
-  padding: 15px;
-}
-
-.carte-sombre .nom {
-  font-size: 12px;
-  color: var(--sombre-texte-attenue);
-  margin: 0 0 6px;
-}
-
-.carte-sombre .valeur {
-  font-family: var(--police);
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--sombre-texte);
-  margin: 0;
-}
-
-.carte-sombre .detail {
-  font-size: 11px;
-  color: var(--sombre-texte-attenue);
-  margin: 5px 0 0;
-}
-
-.carte-sombre .fourchette {
-  font-size: 12px;
-  color: var(--sombre-texte-attenue);
-  margin: 3px 0 0;
-}
-
-.carte-sombre .detail-meteo {
-  font-size: 11px;
-  color: var(--sombre-texte-attenue);
-  margin: 4px 0 0;
-}
-
-.carte-sombre--lien {
-  display: block;
-  text-decoration: none;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
-}
-
-.carte-sombre--lien:hover {
-  border-color: var(--sombre-texte-attenue);
-  background: var(--sombre-fond);
-}
-
-.carte-sombre--lien .valeur {
-  color: var(--sombre-hausse);
-}
-
-.delta {
-  font-size: 12px;
-  font-weight: 600;
-  margin: 5px 0 0;
-}
-
-.delta-hausse { color: var(--sombre-hausse); }
-.delta-baisse { color: var(--sombre-baisse); }
-.delta-stable { color: var(--sombre-texte-attenue); }
-
-.carte-vide-sombre {
-  background: var(--sombre-surface);
-  border: 1px dashed var(--sombre-bordure);
-  border-radius: 14px;
-  padding: 22px;
-  text-align: center;
-  color: var(--sombre-texte-attenue);
-  font-size: 14px;
-  grid-column: 1 / -1;
-}
-
-.carte-vide-sombre a {
-  color: var(--sombre-texte);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.carte-sombre.actif .valeur {
-  color: var(--sombre-hausse);
-}
-
-/* ---------- Carte sombre proéminente (page Commandes : économies /
-   invendus évités mis en avant, en haut de page) ---------- */
-
-.carte-sombre--proeminente {
-  padding: 20px;
-}
-
-.carte-sombre--proeminente .nom {
-  font-size: 13px;
-}
-
-.carte-sombre--proeminente .valeur {
-  font-size: 34px;
-}
-
-.carte-sombre--proeminente .detail {
-  font-size: 12px;
-}
-
-/* Lien "Voir le détail →" sur les cartes économies/invendus du tableau de
-   bord, vers la page Commandes qui détaille le calcul sur une période. */
-.lien-detail-carte {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--sombre-hausse);
-  text-decoration: none;
-  margin-top: 8px;
-}
-
-.lien-detail-carte:hover {
-  text-decoration: underline;
-}
-
-@media (max-width: 560px) {
-  .carte-sombre--proeminente .valeur {
-    font-size: 28px;
-  }
-}
-
-/* ---------- Accueil (refonte sept. 2026) : 2 cartes d'action + 3 KPI,
-   jamais de liste de produits ici (voir previsions.html). ---------- */
-
-.pill-tendance {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 8px 14px;
-  border-radius: 999px;
-  white-space: nowrap;
-  margin-top: 4px;
-}
-
-.pill-tendance--charge {
-  background: rgba(226, 88, 74, 0.12);
-  color: #c14a3a;
-}
-
-.pill-tendance--calme {
-  background: rgba(76, 175, 109, 0.14);
-  color: #2f8f52;
-}
-
-.pill-tendance--neutre {
-  background: var(--fond);
-  color: var(--texte-attenue);
-  border: 1px solid var(--bordure);
-}
-
-.actions-prioritaires {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
-  margin: 28px 0 34px;
-}
-
-.action-carte {
+.bandeau-suggestion-fiche {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  background: var(--surface);
-  border: 1px solid var(--bordure);
-  border-radius: var(--rayon-lg);
-  box-shadow: 0 4px 12px rgba(33, 29, 23, 0.05);
-  padding: 22px 24px;
-  text-decoration: none;
-  color: var(--texte);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-}
-
-.action-carte:hover {
-  border-color: var(--texte-tres-attenue);
-  box-shadow: 0 10px 24px rgba(33, 29, 23, 0.1);
-  transform: translateY(-3px);
-}
-
-.action-carte-texte {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.action-carte-titre {
-  font-family: var(--police-titre);
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--texte);
-}
-
-.action-carte-detail {
-  font-size: 12.5px;
-  color: var(--texte-attenue);
-}
-
-.action-carte-fleche {
-  font-size: 22px;
-  color: var(--texte-tres-attenue);
-  flex-shrink: 0;
-}
-
-.section-bilan h2 {
-  font-family: var(--police-titre);
-  font-size: 15px;
-  font-weight: 600;
-  margin: 0 0 14px;
-}
-
-/* ---------- Vos résultats (widget ROI unique de l'Accueil) ---------- */
-
-.section-resultats {
-  margin: 28px 0 34px;
-}
-
-.entete-resultats {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 18px;
-}
-
-.titre-resultats {
-  font-family: var(--police-titre);
-  font-size: 22px;
-  font-weight: 600;
-  margin: 2px 0 0;
-  color: var(--texte);
-}
-
-.selecteur-periode {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.periode-bouton {
-  width: auto;
-  margin: 0;
-  padding: 7px 14px;
-  font-size: 12.5px;
-  font-weight: 600;
-  background: var(--fond);
-  color: var(--texte-attenue);
-  border: 1px solid var(--bordure);
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-}
-
-.periode-bouton:hover {
-  border-color: var(--texte-tres-attenue);
-  color: var(--texte);
-}
-
-.periode-bouton.actif {
-  background: var(--accent-fonce);
-  color: #fff;
-  border-color: var(--accent-fonce);
-}
-
-.grille-kpi {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-}
-
-@media (max-width: 620px) {
-  .grille-kpi--resultats {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* ---------- Top 3 produits (Accueil) : grille asymétrique, le #1 mis
-   en valeur en pleine largeur, #2/#3 compacts côte à côte ---------- */
-
-.section-top-produits {
-  margin: 0 0 34px;
-}
-
-.entete-top-produits {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  margin-bottom: 14px;
-}
-
-.entete-top-produits h2 {
-  font-family: var(--police-titre);
-  font-size: 15px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.texte-aide--discret {
-  font-size: 12px;
-  color: var(--texte-tres-attenue);
-}
-
-.grille-top-produits {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-areas: "principal principal" "second tiers";
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.produit-top {
-  display: block;
-  background: var(--surface);
-  border: 1px solid var(--bordure);
-  border-radius: var(--rayon-lg);
-  box-shadow: 0 4px 12px rgba(33, 29, 23, 0.05);
-  padding: 16px 18px;
-  text-decoration: none;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.produit-top:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 24px rgba(33, 29, 23, 0.1);
-}
-
-.produit-top--principal {
-  grid-area: principal;
-  padding: 22px 24px;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.produit-top:not(.produit-top--principal):nth-of-type(2) { grid-area: second; }
-.produit-top:not(.produit-top--principal):nth-of-type(3) { grid-area: tiers; }
-
-.produit-top-rang {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--texte-tres-attenue);
-  margin: 0 0 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.produit-top--principal .produit-top-rang {
-  order: -1;
-  width: 100%;
-  margin: 0;
-}
-
-.produit-top-nom {
-  font-family: var(--police-titre);
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--texte);
-  margin: 0;
-}
-
-.produit-top--principal .produit-top-nom {
-  font-size: 20px;
-}
-
-.produit-top-quantite {
-  font-family: var(--police);
-  font-size: 23px;
-  font-weight: 700;
-  color: var(--texte);
-  margin: 4px 0 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.produit-top--principal .produit-top-quantite {
-  font-size: 32px;
-  margin: 0;
-}
-
-.produit-top-fourchette {
-  font-size: 11.5px;
-  color: var(--texte-tres-attenue);
-  margin: 4px 0 0;
-}
-
-@media (max-width: 560px) {
-  .grille-top-produits {
-    grid-template-columns: 1fr 1fr;
-  }
-  .produit-top--principal {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-  .produit-top--principal .produit-top-quantite {
-    font-size: 27px;
-  }
-}
-
-.lien-voir-catalogue {
-  display: inline-block;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--texte-attenue);
-  text-decoration: none;
-  padding: 6px 0;
-}
-
-.lien-voir-catalogue:hover {
-  color: var(--texte);
-}
-
-.carte-kpi {
-  background: var(--surface);
-  border: 1px solid var(--bordure);
-  border-radius: var(--rayon-lg);
-  box-shadow: var(--ombre);
-  padding: 16px 18px;
-}
-
-.carte-kpi-titre {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--texte-attenue);
-  margin: 0 0 6px;
-}
-
-.carte-kpi-valeur {
-  font-family: var(--police);
-  font-size: 26px;
-  font-weight: 700;
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-
-.carte-kpi-valeur--hausse {
-  color: #2f8f52;
-}
-
-.carte-kpi-valeur--neutre {
-  color: var(--ink);
-}
-
-/* Bug corrigé (audit sept. 2026) : "Précision de l'outil" s'affichait
-   toujours en vert (--hausse), même pour un score faible — contraire à
-   l'honnêteté statistique du produit. */
-.carte-kpi-valeur--attention {
-  color: var(--erreur-texte);
-}
-
-.carte-kpi-detail {
-  font-size: 11.5px;
-  color: var(--texte-tres-attenue);
-  margin: 5px 0 0;
-}
-
-@media (max-width: 620px) {
-  .actions-prioritaires,
-  .grille-kpi {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ---------- Prévisions (refonte sept. 2026, v2 claire) ----------
-   Remplace l'ancien habillage sombre "tableau-sombre" hérité du tableau de
-   bord et de semaine.html : sur une page aussi dense (production +
-   ingrédients + semaine + fiabilité), de gros aplats noirs empilés
-   étouffent la lecture. On repasse sur des cartes claires, ombre douce,
-   bordure discrète — cohérent avec le reste du site (voir .carte-page). */
-
-.carte-claire {
-  background: var(--surface);
-  border: 1px solid var(--bordure);
-  border-radius: var(--rayon-lg);
-  box-shadow: var(--ombre);
-  padding: 22px 20px;
-}
-
-.claire-entete {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 4px;
-}
-
-.claire-date {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--texte-tres-attenue);
-  font-weight: 600;
-  margin: 0 0 4px;
-}
-
-.claire-titre {
-  font-family: var(--police-titre);
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--texte);
-  margin: 0;
-}
-
-.claire-titre--petit {
-  font-size: 14px;
-  font-family: var(--police);
-  font-weight: 600;
-  color: var(--texte-attenue);
-  margin-bottom: 10px;
-}
-
-.claire-badge {
-  font-size: 11px;
-  color: var(--texte-attenue);
-  background: var(--fond);
-  border: 1px solid var(--bordure);
-  border-radius: 999px;
-  padding: 6px 12px;
-  white-space: nowrap;
-}
-
-.section-titre-clair {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--texte-tres-attenue);
-  font-weight: 600;
-  margin: 22px 0 10px;
-}
-
-/* ---------- Bandeau des 7 prochains jours : chips compactes avec un point
-   de couleur pour l'affluence, jamais de texte répété. Défile
-   horizontalement plutôt que de forcer 7 cartes sur une grille. ---------- */
-
-.semaine-strip {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding: 4px 2px 12px;
-  margin-bottom: 4px;
-}
-
-.chip-jour {
-  width: auto;
-  margin: 0;
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 9px 14px;
-  background: var(--fond);
-  border: 1px solid var(--bordure);
-  border-radius: 14px;
-  cursor: pointer;
-  font-family: var(--police);
-}
-
-.chip-jour-nom {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--texte);
-}
-
-.chip-jour-date {
-  font-size: 10.5px;
-  color: var(--texte-attenue);
-}
-
-.chip-jour-point {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--texte-tres-attenue);
-  margin-top: 2px;
-}
-
-.chip-jour--charge .chip-jour-point { background: #d1483a; }
-.chip-jour--calme .chip-jour-point { background: #2f8f52; }
-.chip-jour--ferie .chip-jour-point { background: #c99a3a; }
-.chip-jour--vacances .chip-jour-point { background: #5a9ebf; }
-.chip-jour--ferme .chip-jour-point { background: var(--texte-tres-attenue); }
-
-.chip-jour--ferme {
-  opacity: 0.55;
-}
-
-.chip-jour.actif {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
-.chip-jour.actif .chip-jour-nom,
-.chip-jour.actif .chip-jour-date {
-  color: var(--surface);
-}
-
-/* ---------- Détail du jour sélectionné (affluence + signalement) ---------- */
-
-.bloc-jour-detail {
-  margin: 4px 0 4px;
-}
-
-.detail-jour-texte {
-  font-size: 13px;
-  color: var(--texte-attenue);
-  margin: 6px 0 0;
-}
-
-.detail-meteo {
-  font-size: 12.5px;
-  color: var(--texte-attenue);
-  margin: 4px 0 0;
-}
-
-.actions-jour {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.entete-droite-previsions {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-}
-
-.badge-meteo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px 6px 10px;
-  background: var(--fond);
-  border: 1px solid var(--bordure);
-  border-radius: 999px;
-}
-
-.badge-meteo-icone {
-  font-size: 26px;
-  line-height: 1;
-}
-
-.badge-meteo-texte {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.2;
-}
-
-.badge-meteo-temperature {
-  font-family: var(--police);
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--texte);
-}
-
-.badge-meteo-libelle {
-  font-size: 11.5px;
-  color: var(--texte-attenue);
-  white-space: nowrap;
-}
-
-/* Détail matin/midi/soir sous le badge météo principal (retour utilisateur,
-   sept. 2026 : la météo peut changer dans la journée, la synthèse seule ne
-   suffit pas) — purement informatif, le calcul continue d'utiliser la
-   synthèse du jour (temperature_2m_max) via badge-meteo ci-dessus. */
-.meteo-moments-jour {
-  display: flex;
-  gap: 10px;
-}
-
-.meteo-moment {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 4px 8px;
-  background: var(--fond);
-  border: 1px solid var(--bordure);
-  border-radius: 10px;
-  min-width: 48px;
-}
-
-.meteo-moment-libelle {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--texte-tres-attenue);
-  font-weight: 600;
-}
-
-.meteo-moment-icone {
-  font-size: 16px;
-  line-height: 1.3;
-}
-
-.meteo-moment-temperature {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--texte);
-}
-
-/* ---------- "Pourquoi cette prévision ?" : liste factuelle des éléments
-   pris en compte, jamais un pourcentage ou une pondération inventée. Repliée
-   par défaut (<details>) pour ne pas alourdir la carte principale. ---------- */
-
-.bloc-pourquoi {
-  margin: 10px 0 4px;
-  font-size: 13px;
-}
-
-.bloc-pourquoi summary {
-  cursor: pointer;
-  color: var(--texte-attenue);
-  font-weight: 600;
-  font-size: 12.5px;
-}
-
-.bloc-pourquoi summary:hover {
-  color: var(--texte);
-}
-
-.liste-pourquoi {
-  margin: 8px 0 0;
-  padding-left: 18px;
-  color: var(--texte-attenue);
-}
-
-.liste-pourquoi li {
-  margin-bottom: 4px;
-}
-
-/* ---------- Filtres catégories + liste de production compacte ---------- */
-
-.filtres-categories {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 4px 0 20px;
-}
-
-.pill-categorie {
-  width: auto;
-  margin: 0;
-  font-size: 12.5px;
-  font-weight: 500;
-  padding: 6px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--bordure);
-  background: var(--fond);
-  color: var(--texte-attenue);
-  cursor: pointer;
-}
-
-.pill-categorie:hover {
-  border-color: var(--texte-attenue);
-}
-
-.pill-categorie.actif {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--surface);
-}
-
-.pill-categorie-supprimer {
-  display: inline-block;
-  margin-left: 6px;
-  color: inherit;
-  opacity: 0.55;
-  font-weight: 700;
-}
-
-.pill-categorie-supprimer:hover {
-  opacity: 1;
-}
-
-.info-bulle {
-  display: inline-block;
-  position: relative;
-  font-size: 12px;
-  color: var(--texte-tres-attenue);
-  border: 1px solid var(--bordure);
-  border-radius: 50%;
-  width: 16px;
-  height: 16px;
-  line-height: 15px;
-  text-align: center;
-  cursor: help;
-  margin-left: 4px;
-  text-transform: none;
-  letter-spacing: normal;
-}
-
-.info-bulle:hover .info-bulle-texte,
-.info-bulle:focus .info-bulle-texte,
-.info-bulle:focus-within .info-bulle-texte {
-  /* :focus-within couvre aussi le cas où l'infobulle a tabindex="0" (elle
-     reçoit alors elle-même le focus) : sans cette règle, un utilisateur au
-     clavier pouvait tabuler jusqu'à l'icône ⓘ mais l'explication ne
-     s'affichait jamais (bug corrigé). */
-  display: block;
-}
-
-.info-bulle-texte {
-  display: none;
-  position: absolute;
-  bottom: 130%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 220px;
-  background: var(--surface);
-  border: 1px solid var(--bordure);
-  border-radius: var(--rayon);
-  padding: 10px 12px;
-  font-size: 11.5px;
-  font-weight: 400;
-  text-transform: none;
-  letter-spacing: normal;
-  color: var(--texte-attenue);
-  box-shadow: var(--ombre);
-  z-index: 10;
-}
-
-.btn-ajouter-categorie {
-  width: auto;
-  margin-top: 0;
-  padding: 5px 12px;
-  background: transparent;
-  border: 1px dashed var(--texte-tres-attenue);
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--texte-attenue);
-  cursor: pointer;
-}
-
-.btn-ajouter-categorie:hover { background: var(--fond); border-color: var(--texte); color: var(--texte); }
-
-.liste-production {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--bordure);
-  border-radius: 14px;
-  overflow: hidden;
-  margin-bottom: 20px;
-}
-
-.ligne-prod-jour {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  background: var(--surface);
-  padding: 13px 16px;
-}
-
-.select-categorie-produit {
-  width: auto;
-  margin: 0;
-  padding: 4px 8px;
-  font-size: 11.5px;
-  font-weight: 500;
-  color: var(--texte-attenue);
-  background: var(--fond);
-  border: 1px solid var(--bordure);
-  border-radius: 999px;
-  flex-shrink: 0;
-}
-
-.ligne-prod-jour + .ligne-prod-jour {
-  border-top: 1px solid var(--bordure);
-}
-
-.ligne-prod-jour-nom {
-  font-size: 13.5px;
-  color: var(--texte);
-  font-weight: 500;
-}
-
-.ligne-prod-jour-droite {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-/* Bug corrigé (audit sept. 2026) : la fourchette n'était jamais affichée
-   sur cette liste (seulement le chiffre point), contrairement au principe
-   produit "toujours une fourchette". Même traitement que
-   .produit-top-fourchette (tableau-de-bord.html). */
-.ligne-prod-jour-fourchette {
-  font-size: 11.5px;
-  color: var(--texte-tres-attenue);
-}
-
-.ligne-prod-jour-quantite {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--police);
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--texte);
-  white-space: nowrap;
-}
-
-.carte-vide-claire {
-  background: var(--fond);
-  border: 1px dashed var(--bordure);
-  border-radius: 14px;
-  padding: 22px;
-  text-align: center;
-  color: var(--texte-attenue);
-  font-size: 14px;
-}
-
-.carte-vide-claire a {
-  color: var(--texte);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.bloc-pont-commandes {
-  margin-top: 20px;
-  display: flex;
-  justify-content: center;
-}
-
-.btn-cta-commandes {
-  display: block;
-  max-width: 400px;
-  margin: 32px auto;
-  padding: 15px 22px;
-  font-size: 14.5px;
-  font-weight: 600;
-  color: white;
-  background-color: var(--accent);
-  border-radius: 50px;
-  text-decoration: none;
-  text-align: center;
-  box-shadow: 0 4px 14px rgba(33, 29, 23, 0.14);
-  transition: background-color 0.15s ease, transform 0.1s ease;
-}
-
-.btn-cta-commandes:hover {
-  background-color: var(--accent-fonce);
-}
-
-.btn-cta-commandes:active {
-  transform: scale(0.98);
-}
-
-.ligne-fiabilite {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.ligne-fiabilite .valeur {
-  font-family: var(--police);
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--texte);
-  margin: 0;
-}
-
-.ligne-fiabilite .detail {
-  font-size: 12.5px;
-  color: var(--texte-attenue);
-  margin: 0;
-}
-
-.ligne-fiabilite.actif .valeur {
-  color: #2f8f52;
-}
-
-/* Rattache visuellement "Fiabilité des prévisions" à la carte principale
-   (direction "Artisanale Premium") : vit maintenant DANS la même carte que
-   la production du jour, séparée par un simple filet plutôt que sa propre
-   carte flottante plus bas sur la page. */
-.bloc-fiabilite-rattache {
-  margin-top: 26px;
-  padding-top: 20px;
-  border-top: 1px solid var(--bordure);
-}
-
-/* ---------- Signal d'affluence du jour sélectionné (Prévisions) ---------- */
-
-.badge-jour {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 999px;
-}
-
-.badge-jour--charge {
-  background: rgba(209, 72, 58, 0.1);
-  color: #b23f30;
-}
-
-.badge-jour--calme {
-  background: rgba(47, 143, 82, 0.1);
-  color: #2f8f52;
-}
-
-.badge-jour--normal {
-  background: var(--fond);
-  color: var(--texte-attenue);
-  border: 1px solid var(--bordure);
-}
-
-.badge-jour--ferie {
-  background: rgba(201, 154, 58, 0.14);
-  color: #a67a2a;
-}
-
-.badge-jour--vacances {
-  background: rgba(90, 158, 191, 0.14);
-  color: #3f7f9e;
-}
-
-.badge-jour--ferme {
-  background: transparent;
-  border: 1px dashed var(--bordure);
-  color: var(--texte-attenue);
-}
-
-/* ---------- Modal disponibilités (page Personnel) ---------- */
-
-.fond-modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(5, 5, 4, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  z-index: 100;
-}
-
-/* Les modales du Planning nominatif (maquette) sont masquées via l'attribut
-   [hidden], pas via style="display:none" comme les anciennes modales de
-   cette page — sans cette règle, .fond-modal { display:flex } l'emporterait
-   sur le display:none par défaut du navigateur pour [hidden]. */
-.fond-modal[hidden] { display: none; }
-
-.contenu-modal {
-  background: var(--fond);
-  border: 1px solid var(--bordure);
-  border-radius: var(--rayon-lg);
-  padding: 22px 20px;
-  max-width: 360px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.modal-jours {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.modal-jour-ligne {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.modal-jour-ligne label {
-  margin: 0;
-  color: var(--texte);
-  font-size: 14px;
-}
-
-.modal-jour-ligne input {
-  width: 70px;
-  padding: 6px 8px;
-  border: 1px solid var(--bordure);
-  border-radius: 6px;
-  font-size: 14px;
-  text-align: right;
-}
-
-.bouton-secondaire {
-  background: transparent;
-  border: 1px solid var(--bordure);
-  color: var(--texte);
-}
-
-.contenu-modal .ligne-form button {
-  flex: 1;
-}
-
-.contenu-modal--large { max-width: 480px; }
-
-/* ---------- Formulaires de modale (planning nominatif, maquette validée) ---------- */
-
-.champ-modal { margin-bottom: 12px; }
-
-.champ-modal label {
-  display: block;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--texte-attenue);
-  margin-bottom: 4px;
-}
-
-.champ-modal select,
-.champ-modal input[type="text"],
-.champ-modal input[type="number"],
-.champ-modal input[type="email"] {
-  width: 100%;
-  padding: 9px 10px;
-  border: 1px solid var(--bordure);
-  border-radius: var(--rayon);
-  font-size: 14px;
-  font-family: inherit;
-  background: var(--surface);
-  color: var(--texte);
-}
-
-.champ-modal input:focus,
-.champ-modal select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-
-.champ-modal--case label {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 13.5px;
-  font-weight: 500;
-  color: var(--texte);
-  cursor: pointer;
-}
-
-.champ-modal--case input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--ink);
-}
-
-/* Statut de compte employé (invitation) : un badge + un lien d'action,
-   jamais deux boutons séparés qui feraient double emploi avec
-   "Enregistrer" en bas de la modale. */
-.champ-statut-compte {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.badge-statut-compte {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11.5px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 999px;
-}
-
-.badge-statut-compte--non-invite {
-  background: var(--fond);
-  color: var(--texte-tres-attenue);
-}
-
-.badge-statut-compte--invite {
-  background: #f3e6c8;
-  color: #8a6a1f;
-}
-
-.badge-statut-compte--actif {
-  background: rgba(76, 175, 109, 0.16);
-  color: #2f8f52;
-}
-
-.champs-pause {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--fond);
-  border-radius: var(--rayon);
-  padding: 10px;
-}
-
-.champs-pause label {
-  margin-bottom: 0;
-  flex-shrink: 0;
-}
-
-.champs-pause select { width: auto; flex: 1; min-width: 0; }
-
-.actions-modal {
-  display: flex;
-  gap: 10px;
-  margin-top: 18px;
-}
-
-.actions-modal button {
-  flex: 1;
-  padding: 10px;
-  border-radius: var(--rayon);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-}
-
-.actions-modal--simple { justify-content: flex-end; }
-
-.btn-modal-enregistrer { background: var(--ink); color: #fff; }
-.btn-modal-enregistrer:hover { background: var(--accent-fonce); }
-
-.btn-modal-supprimer { background: transparent; border: 1px solid var(--bordure) !important; color: #c14a3a; }
-.btn-modal-supprimer:hover { border-color: #c14a3a !important; }
-
-.btn-lien-discret {
-  margin-left: auto;
-  background: none;
-  border: none;
-  font-size: 12px;
-  color: var(--texte-tres-attenue);
-  text-decoration: underline;
-  cursor: pointer;
-  padding: 0;
-}
-
-/* Bug corrigé (audit sept. 2026) : le survol passait systématiquement au
-   rouge (couleur d'action destructive), y compris pour "Inviter" et
-   "Marquer absent(e)" qui n'effacent rien. Rouge réservé au modificateur
-   --destructif (ex. "Supprimer le secteur"), neutre partout ailleurs. */
-.btn-lien-discret:hover { color: var(--texte); }
-
-.btn-lien-discret--destructif:hover { color: #c14a3a; }
-
-/* Classe partagée par import.html (déjà présente en local) et
-   commandes.html (bug corrigé sept. 2026 : classe utilisée mais jamais
-   définie, le bouton retombait sur le style <button> par défaut — gros
-   bouton noir plein au lieu d'un lien discret). */
-.lien-discret {
-  font-size: 13px;
-  color: var(--texte-attenue);
-  text-decoration: underline;
-  cursor: pointer;
-  background: none;
-  border: none;
-  padding: 0;
-  margin-top: 10px;
-  display: inline-block;
-  font-family: inherit;
-}
-
-.lien-discret:hover { color: var(--texte); }
-
-.btn-absent-jour-modal {
-  display: block;
-  margin: 4px 0 14px;
-  font-size: 12.5px;
-}
-
-/* ---------- Modale "Gérer les postes" : hiérarchie Secteur > Poste ---------- */
-
-.bloc-secteur-postes {
-  padding: 12px 0;
-  border-bottom: 1px solid var(--bordure);
-}
-
-.bloc-secteur-postes:last-of-type { border-bottom: none; }
-
-.entete-bloc-secteur {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.entete-bloc-secteur strong { font-size: 14px; }
-
-.pastille-couleur-inline {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  border: 1px solid rgba(0,0,0,0.15);
-}
-
-.liste-postes-secteur {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding-left: 22px;
-}
-
-.etiquette-poste-config {
-  padding: 4px 10px;
-  background: var(--fond);
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.etiquette-poste-config:hover { background: var(--bordure); }
-
-.etiquette-poste-config--generique {
-  opacity: 0.65;
-  cursor: default;
-}
-
-.etiquette-poste-config--generique:hover { background: var(--fond); }
-
-.btn-ajouter-poste-config {
-  padding: 4px 10px;
-  background: transparent;
-  border: 1px dashed var(--texte-tres-attenue);
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--texte-attenue);
-  cursor: pointer;
-}
-
-.btn-ajouter-poste-config:hover { border-color: var(--texte); color: var(--texte); }
-
-/* ---------- Mes produits : blocs de catégorie (glisser-déposer) ---------- */
+  gap: var(--espace-3);
+  margin-top: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  font-size: var(--texte-sm);
+  background: var(--couleur-accent-doux);
+  color: var(--couleur-texte);
+  border-radius: var(--rayon-md);
+}
+.bandeau-suggestion-fiche-actions { display: flex; align-items: center; gap: var(--espace-3); }
+.lien-suggestion { width: auto; min-height: 0; margin: 0; padding: 0; background: none; color: var(--couleur-accent-texte); font-size: var(--texte-sm); font-weight: 600; text-decoration: underline; }
+.lien-suggestion:hover { background: none; }
 
 .bloc-categorie-produits {
-  margin-top: 18px;
-  padding: 16px;
-  border: 1px dashed var(--bordure);
-  border-radius: var(--rayon);
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  margin-top: var(--espace-4);
+  padding: var(--espace-4);
+  border: 1px dashed var(--couleur-bordure-forte);
+  border-radius: var(--rayon-md);
 }
+.bloc-categorie-produits--survole { border-color: var(--couleur-accent); background: var(--couleur-accent-doux); }
+.entete-bloc-categorie-produits { margin: 0 0 var(--espace-2); font-size: var(--texte-sm); font-weight: 600; color: var(--couleur-texte-2); }
+.bloc-categorie-produits ul.liste-produits li { cursor: grab; }
 
-.bloc-categorie-produits--survole {
-  border-color: var(--accent);
-  background: var(--accent-clair);
-}
+/* ---------- Paramètres : connecter ma caisse ---------- */
 
-.entete-bloc-categorie-produits {
-  margin: 0 0 10px;
-  font-size: 13.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  color: var(--texte-attenue);
-}
-
-.bloc-categorie-produits ul.liste-produits li {
-  cursor: grab;
-}
-
-/* Retour pilote sept. 2026 : cartes "étriquées", vision trop petite même
-   sur ordinateur — grille agrandie, scopée à cette page uniquement
-   (.grille-produits-vendus) pour ne pas changer .liste-produits ailleurs. */
-.grille-produits-vendus ul.liste-produits {
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 14px;
-}
-
-.grille-produits-vendus ul.liste-produits li {
-  padding: 18px 20px;
-  font-size: 16px;
-  border-radius: var(--rayon-lg);
-}
-
-.grille-produits-vendus ul.liste-produits li::before {
-  width: 10px;
-  height: 10px;
-}
-
-.grille-produits-vendus .icone-action {
-  width: 32px;
-  height: 32px;
-  font-size: 15px;
-}
-
-.ligne-produit--glissee {
-  opacity: 0.4;
-}
-
-.ligne-produit-vide {
-  grid-column: 1 / -1;
-  color: var(--texte-tres-attenue);
-  font-size: 13px;
-  font-style: italic;
-  border-style: dashed;
-  justify-content: center;
-}
-
-.ligne-produit-vide::before { display: none; }
-
-/* ---------- Planning : immersion pleine largeur ----------
-   Le Gantt sort volontairement du .conteneur--moyen (560px) : c'est
-   l'unique écran de travail réel de la page, il a besoin de toute la
-   largeur disponible pour rester lisible avec beaucoup de monde/d'heures. */
-
-.planning-plein-ecran {
-  width: 100%;
-  padding: 22px clamp(16px, 3vw, 40px) 48px;
-}
-
-/* ---------- Planning : sélecteur de jour unique + contrôles ---------- */
-
-.controles-planning {
-  margin-bottom: 16px;
-}
-
-.controles-planning-ligne1 {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.selecteur-jour-unique {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.selecteur-jour-unique-libelle {
-  font-family: var(--police-titre);
-  font-size: 16px;
-  font-weight: 600;
-  min-width: 80px;
-  text-align: center;
-}
-
-.badge-meteo-gantt {
+.bloc-caisse { position: relative; }
+.badge-bientot {
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: 6px;
-  padding: 4px 10px 4px 8px;
-  background: var(--fond);
-  border: 1px solid var(--bordure);
-  border-radius: 999px;
-}
-
-.selecteur-jour-unique-meteo {
-  font-size: 19px;
-  line-height: 1;
-}
-
-.badge-meteo-gantt-texte {
-  font-size: 12.5px;
+  padding: 2px 8px;
+  font-size: var(--texte-xs);
   font-weight: 600;
-  color: var(--texte-attenue);
-  white-space: nowrap;
-}
-
-.jour-fleche {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface);
-  color: var(--ink);
-  border: 1px solid var(--bordure);
-  border-radius: 999px;
-  font-size: 16px;
-  line-height: 1;
-}
-
-.jour-fleche:hover { background: var(--fond); }
-
-.btn-reinitialiser {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  width: auto;
-  margin-top: 0;
-  background: transparent;
-  border: none;
-  color: var(--texte-tres-attenue);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 4px 2px;
-}
-
-.btn-reinitialiser:hover { color: var(--texte-attenue); }
-
-/* Collée directement au-dessus du Gantt, discrète (retour utilisateur,
-   sept. 2026 : trop isolée, séparée par un grand espace vide). */
-.barre-reinitialiser {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 4px;
-}
-
-.total-effectif-jour {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--texte);
-  background: var(--surface);
-  border: 1px solid var(--bordure);
-  border-radius: 999px;
-  padding: 7px 14px;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Conseil de renfort : remplace l'ancien bloc noir "Recommandation de
-   renfort — 7 prochains jours". Un seul jour (celui affiché dans le
-   Gantt), en pastille discrète à côté du Total Effectif — pas une liste
-   à part qu'il faut aller consulter ailleurs. */
-.conseil-renfort {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--texte-attenue);
-  background: var(--accent-clair);
-  border-radius: 999px;
-  padding: 7px 14px;
-  white-space: nowrap;
-}
-
-/* ---------- Planning : légende des secteurs (éditable) ---------- */
-
-/* .ligne-legende-postes : sibling de #legendePostes (pills, gérées par
-   rendreLegende()) et de "Gérer les postes" — regroupés sur la même ligne
-   plutôt que "Gérer les postes" isolé plus bas (retour utilisateur, sept.
-   2026 : mal placé, grand espace vide au-dessus). #legendePostes garde son
-   propre rendu JS, jamais touché par ce wrapper. */
-.ligne-legende-postes {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.legende-postes {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-
-/* Redesign du 23 sept. 2026 (retour Nils : "moches, dégueulasses") : pastilles
-   plus respirées, retour visuel net au survol/actif, cercle de couleur propre
-   plutôt que le rendu brut d'un <input type="color">. Le clic reste posé sur
-   toute la pastille (span), jamais seulement sur le texte, voir rendreLegende()
-   dans personnel.html. */
-.pastille-poste {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px 8px 8px;
-  background: var(--surface);
-  border: 1.5px solid var(--bordure);
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--texte-attenue);
-  cursor: pointer;
-  box-shadow: 0 1px 2px rgba(33, 29, 23, 0.04);
-  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease, color 0.15s ease;
-}
-
-.pastille-poste:hover {
-  border-color: var(--texte-tres-attenue);
-  box-shadow: 0 3px 10px rgba(33, 29, 23, 0.08);
-}
-
-.pastille-poste:active {
-  transform: scale(0.97);
-}
-
-.pastille-poste--active {
-  background: var(--accent-clair);
-  border-color: var(--ink);
-  color: var(--texte);
-  box-shadow: 0 2px 8px rgba(33, 29, 23, 0.1);
-}
-
-.pastille-poste--active .pastille-poste-nom {
-  font-weight: 700;
-}
-
-.pastille-poste--tous {
-  padding-left: 14px;
-}
-
-.pastille-poste-couleur {
-  width: 17px;
-  height: 17px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  flex-shrink: 0;
-  -webkit-appearance: none;
-  appearance: none;
-  box-shadow: 0 0 0 1.5px rgba(33, 29, 23, 0.14), inset 0 0 0 2px rgba(255, 255, 255, 0.55);
-  transition: transform 0.12s ease;
-}
-
-.pastille-poste-couleur:hover { transform: scale(1.15); }
-
-.pastille-poste-nom {
-  background: none;
-  border: none;
-  font: inherit;
-  font-weight: inherit;
-  color: inherit;
-  cursor: pointer;
-  padding: 0;
-}
-
-.btn-ajouter-poste {
-  padding: 6px 13px;
-  background: transparent;
-  border: 1px dashed var(--texte-tres-attenue);
-  border-radius: 999px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--texte-attenue);
-  cursor: pointer;
-}
-
-.btn-ajouter-poste:hover { border-color: var(--texte); color: var(--texte); }
-
-.btn-gerer-postes {
-  width: auto;
-  margin-top: 0;
-  padding: 6px 13px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--texte-attenue);
-  cursor: pointer;
-}
-
-.btn-gerer-postes:hover { background: var(--fond); color: var(--texte); }
-
-/* ---------- Planning : le Gantt nominatif (maquette validée) ---------- */
-
-.gantt-scroll {
-  overflow-x: auto;
-  overflow-y: auto;
-  /* Scalabilité grandes équipes (15-20 personnes) : le conteneur grandit
-     avec la liste mais se plafonne pour garder le Gantt du jour visible
-     sans avaler toute la page ; l'en-tête des heures reste sticky au
-     scroll vertical grâce à .gantt-coin/.gantt-heure-entete (top: 0). */
-  max-height: 70vh;
-  border: 1px solid var(--bordure);
-  border-radius: var(--rayon-lg);
-  box-shadow: var(--ombre);
-  background: var(--surface);
-  margin-bottom: 4px;
-}
-
-.gantt-grille {
-  display: grid;
-  /* 1 colonne fixe (noms) + 1 colonne par heure, largeur posée en JS via
-     --gantt-heures et --gantt-px-heure pour rester calculée, jamais fixe
-     en dur dans le CSS. */
-  grid-template-columns: 168px repeat(var(--gantt-heures), var(--gantt-px-heure));
-  width: max-content;
-  min-width: 100%;
-}
-
-.gantt-coin,
-.gantt-heure-entete {
-  position: sticky;
-  top: 0;
-  background: var(--fond);
-  border-bottom: 1px solid var(--bordure);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--texte-tres-attenue);
-  text-align: center;
-  padding: 8px 4px;
-  z-index: 2;
-}
-
-.gantt-coin {
-  position: sticky;
-  left: 0;
-  top: 0;
-  z-index: 3;
-  text-align: left;
-  padding-left: 14px;
-}
-
-.gantt-nom-cell {
-  position: sticky;
-  left: 0;
-  z-index: 1;
-  background: var(--surface);
-  border-bottom: 1px solid var(--bordure);
-  border-right: 1px solid var(--bordure);
-  padding: 10px 8px 10px 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-}
-
-.gantt-nom-cell:hover { background: var(--fond); }
-
-.gantt-nom-texte {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  cursor: pointer;
-  min-width: 0;
-}
-
-.gantt-nom {
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.badge-typecontrat {
-  display: inline-block;
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  padding: 1px 5px;
-  border-radius: 999px;
+  color: var(--couleur-accent-texte);
+  background: var(--couleur-accent-doux);
+  border-radius: var(--rayon-rond);
   vertical-align: middle;
-  margin-left: 3px;
 }
-
-.badge-typecontrat--extra {
-  background: #f3e6c8;
-  color: #8a6a1f;
-}
-
-.badge-typecontrat--saisonnier {
-  background: #dbe9f7;
-  color: #2c5d85;
-}
-
-.gantt-nom-detail {
-  font-size: 11px;
-  color: var(--texte-attenue);
-}
-
-.gantt-nom-detail--alerte {
-  color: var(--sombre-baisse, #e2584a);
-  font-weight: 600;
-}
-
-.gantt-piste {
-  position: relative;
-  border-bottom: 1px solid var(--bordure);
-  grid-column: 2 / -1;
-  height: 52px;
-  cursor: pointer;
-}
-
-.gantt-piste:hover { background: color-mix(in srgb, var(--fond) 60%, transparent); }
-
-.gantt-piste--vide {
-  background-image: repeating-linear-gradient(
-    135deg,
-    transparent,
-    transparent 7px,
-    rgba(119, 105, 90, 0.05) 7px,
-    rgba(119, 105, 90, 0.05) 14px
-  );
-}
-
-.gantt-piste--vide:hover {
-  background-color: color-mix(in srgb, var(--fond) 60%, transparent);
-}
-
-.gantt-piste-filigrane {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--texte-tres-attenue);
-  opacity: 0.55;
-  pointer-events: none;
-  white-space: nowrap;
-}
-
-.gantt-piste-filigrane--alerte {
-  color: var(--sombre-baisse, #e2584a);
-  opacity: 0.6;
-}
-
-.gantt-piste-heure {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  border-right: 1px dashed var(--bordure);
-}
-
-.gantt-bloc {
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  border-radius: 8px;
-  color: #fff;
-  font-size: 11.5px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-  overflow: hidden;
-  white-space: nowrap;
-  cursor: pointer;
-  border: 1px solid rgba(0,0,0,0.12);
-  min-width: 18px;
-  /* Retour utilisateur (24 sept.) : texte dédoublé/fantôme par-dessus le
-     bloc (deux libellés superposés, illisibles) sur certains rendus.
-     Vérifié : le code ne crée jamais deux libellés pour un même créneau (y
-     compris avec deux créneaux qui se chevauchent en base — un seul bloc,
-     bien net, s'affiche par-dessus l'autre). Tout pointe vers un bug de
-     composition du navigateur, connu sur les blocs position:absolute avec
-     border-radius + overflow:hidden qui ne sont pas promus sur leur propre
-     calque GPU. Cette règle force ce calque, sans changer l'apparence.
-  */
-  transform: translateZ(0);
-  backface-visibility: hidden;
-}
-
-.gantt-bloc:hover { filter: brightness(1.08); }
-
-.gantt-bloc-texte {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-  position: relative;
-  z-index: 1;
-}
-
-.gantt-bloc-pause {
-  position: absolute;
-  top: -1px;
-  bottom: -1px;
-  z-index: 0;
-  opacity: 0.85;
-  /* Hachurage sombre/clair sur fond transparent (au lieu de --surface/--bordure,
-     deux tons clairs qui se distinguaient à peine des couleurs de secteur les
-     plus pâles) : reste lisible quel que soit le secteur (vert, bleu, doré,
-     violet), retour utilisateur du 24 sept. 2026 ("pas beau", pause peu
-     visible). */
-  background: repeating-linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.55),
-    rgba(255, 255, 255, 0.55) 4px,
-    rgba(0, 0, 0, 0.22) 4px,
-    rgba(0, 0, 0, 0.22) 8px
-  );
-  border-left: 1px solid rgba(0,0,0,0.32);
-  border-right: 1px solid rgba(0,0,0,0.32);
-  pointer-events: none;
-}
-
-.gantt-ligne-ajout {
-  grid-column: 1;
-  position: sticky;
-  left: 0;
-  background: var(--fond);
-  padding: 8px;
-}
-
-.btn-ajouter-membre {
-  width: 100%;
-  padding: 8px;
-  background: transparent;
-  border: 1px dashed var(--texte-tres-attenue);
-  border-radius: var(--rayon);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--texte-attenue);
-  cursor: pointer;
-}
-
-.btn-ajouter-membre:hover { border-color: var(--texte); color: var(--texte); }
-
-/* ---------- Couverture par heure (planning personnel) ---------- */
-
-.couverture-creneaux {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 90px;
-  padding: 10px 8px 0;
-  margin: 4px 0 6px;
-  background: var(--sombre-surface);
-  border: 1px solid var(--sombre-bordure);
-  border-radius: 14px;
-  overflow-x: auto;
-}
-
-.couverture-colonne {
-  flex: 1 0 22px;
-  min-width: 22px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  height: 100%;
-}
-
-.couverture-valeur {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--sombre-texte-attenue);
-  margin-bottom: 2px;
-}
-
-.couverture-barre {
-  width: 100%;
-  max-width: 16px;
-  background: var(--sombre-hausse);
-  border-radius: 3px 3px 0 0;
-  min-height: 2px;
-}
-
-.couverture-barre--vide {
-  background: var(--sombre-bordure);
-}
-
-.couverture-label {
-  font-size: 9px;
-  color: var(--sombre-texte-attenue);
-  margin-top: 4px;
-  white-space: nowrap;
-}
-
-/* ---------- Actions produit (éditer / supprimer) ---------- */
-
-.nom-produit {
-  flex: 1;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-/* Petit chevron sur le nom du produit, retour pilote 23 sept. 2026 (point 5) :
-   signale que la fiche technique est dépliable directement au clic, et
-   pivote quand elle est ouverte (voir .ligne-produit--fiche-ouverte). */
-.ligne-produit-chevron {
-  font-size: 11px;
-  color: var(--texte-tres-attenue);
-  transition: transform 0.15s ease, color 0.15s ease;
-  flex-shrink: 0;
-}
-
-ul.liste-produits li.ligne-produit--fiche-ouverte {
-  border-color: var(--ink);
-  box-shadow: 0 2px 8px rgba(33, 29, 23, 0.1);
-}
-
-.ligne-produit--fiche-ouverte .ligne-produit-chevron {
-  transform: rotate(180deg);
-  color: var(--texte);
-}
-
-.actions-produit {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.icone-action {
-  margin: 0;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  color: var(--texte-tres-attenue);
-  border: none;
-  border-radius: 6px;
-  font-size: 12px;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.icone-action:hover {
-  background: var(--fond);
-  color: var(--texte);
-}
-
-/* Croix rouge discrète plutôt qu'une icône poubelle "lourde" (retour
-   pilote) : visible mais pas agressive par défaut, pleinement rouge au
-   survol seulement, même esprit que .lien-supprimer sur les ingrédients. */
-.icone-action--supprimer {
-  color: var(--erreur-texte);
-  opacity: 0.5;
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.icone-action--supprimer:hover {
-  opacity: 1;
-  background: var(--erreur-fond);
-  color: var(--erreur-texte);
-}
-
-/* ---------- Stepper (saisie manuelle des ventes) ---------- */
-
-.stepper {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.stepper-bouton {
-  margin: 0;
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  font-weight: 600;
-  background: var(--surface);
-  color: var(--texte);
-  border: 1px solid var(--bordure);
-  border-radius: 999px;
-  flex-shrink: 0;
-}
-
-.stepper-bouton:hover {
-  background: var(--accent-clair);
-}
-
-.ligne-produit .stepper-valeur {
-  width: 56px;
-  margin: 0;
-  text-align: center;
-  -moz-appearance: textfield;
-}
-
-.stepper-valeur::-webkit-outer-spin-button,
-.stepper-valeur::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-/* ---------- Page Paramètres ---------- */
-
-.grille-jours {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 18px;
-  margin: 6px 0 4px;
-}
-
-.case-jour {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  font-size: 14px;
+.grille-caisses { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--espace-2); margin: var(--espace-4) 0 0; padding: 0; list-style: none; }
+.grille-caisses li {
+  padding: var(--espace-3);
+  font-size: var(--texte-sm);
   font-weight: 500;
-  cursor: pointer;
-}
-
-.case-jour input {
-  width: auto;
-  margin: 0;
-}
-
-/* ---------- Signalement d'événement (page Prévisions) ---------- */
-
-.btn-mini {
-  margin: 0;
-  width: auto;
-  padding: 7px 13px;
-  font-size: 11.5px;
-  font-weight: 600;
-  background: var(--fond);
-  color: var(--texte-attenue);
-  border: 1px solid var(--bordure);
-  border-radius: 999px;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
-}
-
-.btn-mini:hover {
-  background: var(--accent-clair);
-  border-color: var(--texte-attenue);
-  color: var(--texte);
-}
-
-.btn-mini:active {
-  transform: scale(0.97);
-}
-
-.btn-mini--retirer {
-  color: #b23f30;
-  border-color: #e7c4bd;
-  background: #fbeae7;
-}
-
-.btn-mini--retirer:hover {
-  background: #f6d9d3;
-  border-color: #b23f30;
-  color: #b23f30;
-}
-
-.btn-mini.actif {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: white;
-}
-
-.btn-mini.actif:hover {
-  background: var(--accent-fonce);
-  border-color: var(--accent-fonce);
-  color: white;
-}
-
-/* ---------- Pied de page (lien CGU) ---------- */
-
-.pied-page {
-  margin-top: 28px;
   text-align: center;
-  font-size: 12px;
-  color: var(--texte-tres-attenue);
+  color: var(--couleur-texte-2);
+  background: var(--couleur-surface-2);
+  border-radius: var(--rayon-sm);
 }
 
-.pied-page a {
-  color: inherit;
-  text-decoration: underline;
+/* ---------- FAQ ---------- */
+
+.faq-item {
+  border-bottom: 1px solid var(--couleur-bordure);
+  padding: 0;
 }
-
-.pied-page a:hover {
-  color: var(--texte-attenue);
-}
-
-/* ---------- Case à cocher générique (consentement, options) ---------- */
-
-.case-consentement {
+.faq-item summary {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin: 18px 0 0;
-  font-size: 13px;
-  color: var(--texte-attenue);
-  cursor: pointer;
-}
-
-.case-consentement input {
-  width: auto;
-  margin: 2px 0 0;
-  flex-shrink: 0;
-}
-
-.case-consentement a {
-  color: var(--texte);
+  justify-content: space-between;
+  gap: var(--espace-3);
+  padding: var(--espace-4) 0;
   font-weight: 600;
+  cursor: pointer;
+  list-style: none;
 }
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after { content: "+"; color: var(--couleur-texte-3); font-weight: 400; font-size: var(--texte-lg); line-height: 1; }
+.faq-item[open] summary::after { content: "−"; }
+.faq-item p { margin: 0 0 var(--espace-4); color: var(--couleur-texte-2); max-width: 65ch; }
 
-/* ---------- Format téléphone ---------- */
-/* Le site n'avait jusqu'ici jamais été pensé pour un écran étroit (pas de
-   media query du tout) : un commerçant qui consulte son tableau de bord
-   depuis son téléphone entre deux clients aurait dû zoomer pour tout lire.
-   Les règles ci-dessous resserrent l'espace, empilent ce qui était côte à
-   côte, et gardent tout lisible sans jamais faire déborder la page. */
+/* ---------- Divers (Commandes, Aide, Bienvenue) ---------- */
+
+.actions-prioritaires { display: grid; gap: var(--espace-3); grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-bottom: var(--espace-5); }
+.action-carte {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--espace-3);
+  padding: var(--espace-4);
+  color: var(--couleur-texte);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-md);
+}
+.action-carte:hover { text-decoration: none; border-color: var(--couleur-bordure-forte); }
+.action-carte-texte { display: flex; flex-direction: column; gap: 2px; }
+.action-carte-titre { font-weight: 600; }
+.action-carte-detail { font-size: var(--texte-sm); color: var(--couleur-texte-2); }
+.action-carte-fleche { color: var(--couleur-texte-3); }
+
+.zone-impression { display: none; }
+.vue-demain .seulement-semaine { display: none; }
+.vue-demain .select-categorie-produit { display: none; }
+@media (max-width: 720px) {
+  /* backdrop-filter crée un bloc conteneur : la barre d'onglets fixe se collerait à l'en-tête. */
+  .entete-site { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--couleur-fond); }
+  .entete-droite-previsions { align-items: flex-start; }
+}
+.carte-claire--entete { display: flex; flex-direction: column; }
+.vue-semaine .semaine-strip { order: -1; margin-bottom: var(--espace-6); }
+.chip-jour-libelle { display: none; font-size: var(--texte-xs); color: var(--couleur-texte-2); }
+.vue-semaine .chip-jour-libelle { display: block; text-align: center; }
 @media (max-width: 560px) {
-  .conteneur {
-    padding: 20px 16px 44px;
-  }
+  .vue-semaine .chip-jour-libelle { order: 3; text-align: right; }
+  .vue-semaine .chip-jour-point { order: 4; }
+}
+.grille-kpi--resultats { grid-template-columns: 1fr; }
+@media (min-width: 560px) { .grille-kpi--resultats { grid-template-columns: 1fr 1fr; } }
+.grille-kpi--quatre { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
 
-  h1 {
-    font-size: 23px;
-  }
+/* ---------- Direction « Fournil » : chiffres en serif, cartes chaudes ---------- */
+.ligne-prod-jour-quantite, .produit-top-quantite, .carte-kpi-valeur, .ligne-fiabilite .valeur, .libelle-jour {
+  font-family: var(--police-titre);
+  font-variation-settings: 'SOFT' 100;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.ligne-prod-jour-quantite .delta { font-family: var(--police); }
+.ligne-prod-jour, .carte-kpi, .carte, .carte-page, .chip-jour, ul.liste-produits li, .ligne-produit, .etat-synchro { box-shadow: var(--ombre-carte); }
+.carte-kpi--heros .carte-kpi-valeur { color: var(--couleur-dore); }
+.classement-remplissage, .colonne-barre { background: var(--couleur-dore); }
+.chip-jour--charge .chip-jour-point { background: var(--couleur-dore); }
+.chip-jour.actif { border-color: var(--couleur-accent); box-shadow: inset 0 0 0 1px var(--couleur-accent); }
+.pill-categorie.actif, .btn-mini.actif { background: var(--couleur-accent); color: var(--couleur-sur-accent); border-color: var(--couleur-accent); }
+.entete-site { background: color-mix(in srgb, var(--couleur-fond) 92%, transparent); }
+.logo-texte { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-weight: 600; font-size: 19px; letter-spacing: -0.01em; }
 
-  .carte-page {
-    padding: 18px 16px;
-  }
+/* ---------- Fournil, finitions ---------- */
 
-  .entete-site {
-    gap: 8px 14px;
-    margin-bottom: 20px;
-    padding-bottom: 12px;
-  }
-
-  .nav-globale,
-  .nav-principale {
-    gap: 4px 12px;
-    width: 100%;
-  }
-
-  .nav-lien-g {
-    font-size: 12.5px;
-  }
-
-  /* Une ligne "champ + bouton" (ajouter un produit, changer d'email...)
-     reste côte à côte sur grand écran, mais devient trop étroite pour
-     rester lisible en dessous de ce seuil : on l'empile à la place. */
-  .ligne-form {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .ligne-form button {
-    width: 100%;
-    /* Sur grand écran, .ligne-form button force "white-space: nowrap" pour
-       garder un bouton court (ex: "Ajouter") compact à côté de son champ.
-       Empilé en colonne ici, un bouton au texte plus long (ex: "Générer une
-       proposition automatique (7 prochains jours)" sur la page Personnel)
-       débordait au lieu de passer à la ligne : on autorise le retour à la
-       ligne dès que le bouton prend toute la largeur. */
-    white-space: normal;
-  }
-
-  .grille,
-  .grille-sombre {
-    grid-template-columns: 1fr;
-  }
-
-  .tableau-sombre {
-    padding: 20px 16px 22px;
-  }
-
-  .sombre-titre {
-    font-size: 22px;
-  }
-
-  ul.liste-produits {
-    grid-template-columns: 1fr;
-  }
-
-  table {
-    font-size: 12px;
-  }
-
-  th, td {
-    padding: 6px 7px;
-  }
-
-  .planning-plein-ecran {
-    padding: 16px 12px 36px;
-  }
-
-  .controles-planning-ligne1 {
-    gap: 8px;
-  }
+/* Grain de farine très léger sur le fond crème (SVG inline, aucun fichier). */
+body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .3 0 0 0 0 .15 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");
 }
 
-/* ---------- Statistiques : jours records (grille de 4), classement produits
-   (barres horizontales), affluence (colonnes verticales) ---------- */
+/* En-tête de Demain / Semaine : un bandeau doré, comme la croûte qui sort du four. */
+.claire-entete {
+  padding: var(--espace-5);
+  border-radius: var(--rayon-lg);
+  background:
+    radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--couleur-dore) 45%, transparent), transparent 60%),
+    radial-gradient(90% 110% at 100% 100%, color-mix(in srgb, var(--couleur-accent) 18%, transparent), transparent 60%),
+    var(--couleur-accent-doux);
+  border: 1px solid color-mix(in srgb, var(--couleur-dore) 40%, var(--couleur-bordure));
+}
+.claire-entete .claire-date { color: var(--couleur-texte-2); }
+.claire-entete .meteo-moment, .claire-entete .claire-badge { background: color-mix(in srgb, var(--couleur-surface) 70%, transparent); }
+.vue-semaine .claire-entete { margin-top: 0; }
 
-.grille-kpi--quatre {
-  grid-template-columns: repeat(4, 1fr);
+/* Cartes produit : un filet doré qui signale le produit, la quantité reste le héros. */
+.ligne-prod-jour { position: relative; overflow: hidden; }
+.ligne-prod-jour::before {
+  content: ''; position: absolute; left: 0; top: var(--espace-4); bottom: var(--espace-4);
+  width: 3px; border-radius: 0 3px 3px 0; background: var(--couleur-dore);
 }
 
-@media (max-width: 860px) and (min-width: 621px) {
-  .grille-kpi--quatre {
-    grid-template-columns: repeat(2, 1fr);
-  }
+/* Onglets : pastille dorée derrière l'onglet actif. */
+.nav-onglet.actif { background: var(--couleur-accent-doux); color: var(--couleur-accent-texte); }
+.nav-onglet.actif .nav-icone { color: var(--couleur-accent-texte); }
+@media (max-width: 720px) {
+  .nav-onglets { box-shadow: 0 -6px 20px rgba(80, 50, 20, 0.06); }
+  .nav-onglet .nav-icone { width: 44px; height: 28px; padding: 3px 11px; border-radius: var(--rayon-rond); }
+  .nav-onglet.actif { background: transparent; }
+  .nav-onglet.actif .nav-icone { background: var(--couleur-accent-doux); }
 }
 
-.ligne-classement {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 0;
+/* Titres de page : serif plus généreuse. */
+.entete-page h1 { font-size: clamp(30px, 6vw, 38px); }
+
+/* Boutons : légère profondeur, comme une croûte. */
+button:not(.periode-bouton):not(.chip-jour):not(.pill-categorie):not(.btn-mini):not(.stepper-bouton):not(.bouton-nav-jour):not(.icone-action):not(.lien-discret):not(.lien-suggestion):not(.lien-supprimer):not(.btn-compte):not(.bouton-secondaire):not(.btn-ajouter-categorie),
+.bouton-principal, .btn-cta-commandes {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 2px 6px color-mix(in srgb, var(--couleur-accent) 30%, transparent);
 }
-
-.classement-rang {
-  width: 26px;
-  flex-shrink: 0;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--texte-tres-attenue);
+@media (max-width: 400px) {
+  .stepper { gap: 6px; }
+  .stepper-bouton { width: 36px; height: 36px; min-height: 36px; }
+  .ligne-produit .stepper-valeur { width: 54px; padding: 8px 4px; }
+  .ligne-produit { padding: var(--espace-3); }
 }
-
-.classement-nom {
-  width: 150px;
-  flex-shrink: 0;
-  font-size: 13.5px;
-  color: var(--texte);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.classement-piste {
-  flex: 1;
-  height: 18px;
-  background: var(--accent-clair);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.classement-remplissage {
-  height: 100%;
-  background: var(--accent);
-  border-radius: 999px;
-  min-width: 4px;
-  transition: width 0.2s ease;
-}
-
-.classement-valeur {
-  width: 44px;
-  flex-shrink: 0;
-  text-align: right;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--texte);
-  font-variant-numeric: tabular-nums;
-}
-
-.graphique-colonnes {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  height: 180px;
-  padding-top: 22px;
-}
-
-.colonne-affluence {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-}
-
-.colonne-valeur {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--texte-attenue);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.colonne-barre {
-  width: 100%;
-  max-width: 28px;
-  background: var(--accent);
-  border-radius: 6px 6px 0 0;
-  /* Pas de min-height : une période à 0 vente ne doit montrer aucune barre
-     (jamais un soupçon d'activité inventé). Le minimum de 4% n'est appliqué
-     que côté JS, et seulement pour une valeur réellement positive. */
-}
-
-.colonne-etiquette {
-  font-size: 10.5px;
-  color: var(--texte-tres-attenue);
-  white-space: nowrap;
-}
-
-/* Rappel explicite (l'ordre dans le fichier ferait sinon gagner
-   .grille-kpi--quatre, placée après la règle mobile générique de
-   .grille-kpi plus haut) : sous 620px, ces 4 cartes s'empilent comme
-   n'importe quelle autre grille-kpi. */
-@media (max-width: 620px) {
-  .grille-kpi--quatre {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 560px) {
-  /* Bug corrigé (audit sept. 2026) : 88px coupait presque tous les noms de
-     produits réels ("Baguette trad…", "Pain au choc…") — illisible pour
-     identifier le produit d'un coup d'œil. Élargi au détriment de la barre
-     (purement décorative), qui reste lisible avec moins de largeur. */
-  .classement-nom {
-    width: 132px;
-    font-size: 12.5px;
-  }
-
-  .classement-rang {
-    width: 20px;
-  }
-
-  .classement-valeur {
-    width: 34px;
-    font-size: 12px;
-  }
-
-  /* 12 colonnes ne tiennent pas sur un écran de téléphone sans que les
-     étiquettes se chevauchent (déjà vu avec le tableau brut de l'import,
-     point 10 du lot pilote) : même remède, défilement horizontal plutôt
-     que des colonnes écrasées. */
-  .graphique-colonnes {
-    gap: 10px;
-    overflow-x: auto;
-    justify-content: flex-start;
-    padding-bottom: 4px;
-  }
-
-  .colonne-affluence {
-    flex: 0 0 40px;
-  }
-
-  .colonne-valeur,
-  .colonne-etiquette {
-    font-size: 9.5px;
-  }
+[id] { scroll-margin-top: 80px; }
+.onglets { scrollbar-width: none; }
+.onglets::-webkit-scrollbar { display: none; }
+/* Sur téléphone, la page n'est plus une carte dans la carte : le contenu respire. */
+@media (max-width: 720px) {
+  .carte-page { background: transparent; border: 0; box-shadow: none; padding: 0; }
+  .carte-page + .carte-page, section.carte-page { margin-top: var(--espace-6) !important; }
 }

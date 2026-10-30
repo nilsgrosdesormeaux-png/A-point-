@@ -4,29 +4,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>À Point - Prévision de production et de personnel pour restaurants et boulangeries</title>
+  <title>À Point - Connexion</title>
   <meta name="description" content="À Point prévoit ton activité de la semaine à venir à partir de tes propres ventes, pour savoir quoi produire ou commander et si tu auras besoin de renfort, sans jamais rien deviner à ta place.">
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261030">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { display: flex; align-items: center; min-height: 100vh; }
     .conteneur { margin: auto; width: 100%; padding-top: 0; padding-bottom: 40px; }
     h1 { text-align: center; }
     .sous-titre { text-align: center; margin-bottom: 26px; }
+    #btnAction { width: 100%; }
   </style>
 </head>
 <body>
-  <div class="conteneur" style="max-width: 380px;">
-    <div class="logo-centre">
+  <div class="conteneur" role="main" style="max-width: 380px;">
+    <a class="logo-centre" href="index.html" aria-label="À Point, présentation">
       <svg class="logo-marque" viewBox="0 0 100 100" width="56" height="56" aria-hidden="true">
         <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
         <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
         <circle cx="50" cy="56" r="8" fill="currentColor"/>
       </svg>
-    </div>
+    </a>
     <h1>À Point</h1>
-    <p class="sous-titre texte-aide">La bonne quantité, chaque jour</p>
+    <p class="sous-titre texte-aide">La bonne fournée, chaque matin</p>
 
     <div class="onglets" role="tablist">
       <div class="onglet actif" id="ongletConnexion" role="tab" tabindex="0" aria-selected="true">Se connecter</div>
@@ -53,7 +54,7 @@
     <div id="message"></div>
 
     <p class="texte-aide" style="text-align: center; margin-top: 18px;">
-      Nouveau ici ? <a href="bienvenue.html">Découvre comment ça marche avant de commencer →</a>
+      Nouveau ici ? <a href="index.html">Découvre comment ça marche</a>
     </p>
 
     <p class="pied-page"><a href="cgu.html">Conditions générales d'utilisation</a></p>
@@ -80,7 +81,7 @@
       // toujours atterrir sur son propre espace, jamais celui du commercant.
       function redirigerSelonRole(utilisateur) {
         var estEmploye = ((utilisateur || {}).user_metadata || {}).role === 'employe';
-        window.location.href = estEmploye ? 'espace-employe.html' : 'tableau-de-bord.html';
+        window.location.href = estEmploye ? 'espace-employe.html' : 'previsions.html';
       }
 
       sbClient.auth.getSession().then(function (result) {

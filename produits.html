@@ -7,12 +7,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>À Point - Produits vendus</title>
+  <title>À Point - Produits</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261030">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="moteur-prevision.js?v=20260922"></script>
-  <script src="nav.js"></script>
+  <script src="nav.js?v=20261030"></script>
   <style>
     /* Ventes du jour : même style de navigation par jour que ventes.html
        et espace-employe.html. Retour utilisateur, 23 sept. 2026 : "je ne
@@ -25,7 +25,7 @@
     .bouton-nav-jour {
       width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--bordure);
       background: var(--surface); color: var(--texte); font-size: 14px; cursor: pointer; flex-shrink: 0;
-      box-shadow: 0 1px 2px rgba(33, 29, 23, 0.06);
+      box-shadow: var(--ombre-carte);
       transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
     }
     .bouton-nav-jour:hover { background: var(--accent-clair); border-color: var(--texte-tres-attenue); }
@@ -35,30 +35,33 @@
   </style>
 </head>
 <body>
-  <header class="entete-site entete-site--pleine-largeur">
-    <a href="tableau-de-bord.html" class="logo">
-      <svg class="logo-marque" viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
+  <a class="lien-evitement" href="#contenu">Aller au contenu</a>
+  <header class="entete-site">
+    <a href="previsions.html" class="logo" aria-label="À Point, accueil">
+      <svg class="logo-marque" viewBox="0 0 100 100" width="24" height="24" aria-hidden="true">
         <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
         <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
         <circle cx="50" cy="56" r="8" fill="currentColor"/>
       </svg>
+      <span class="logo-texte">À Point</span>
     </a>
     <nav id="navPrincipale"></nav>
   </header>
 
-  <div class="conteneur conteneur--large">
+  <div id="contenu" role="main" class="conteneur conteneur--large">
     <div class="carte-page">
       <div class="entete-page">
         <div>
-          <p class="eyebrow">Gestion</p>
-          <h1>Produits vendus</h1>
+          <h1>Produits</h1>
         </div>
         <div class="badge-page" id="badgeProduits" style="display:none;"></div>
       </div>
       <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
 
       <div id="zoneFormulaire" style="display:none;">
-        <div id="zoneVentesJour" style="margin-top:18px;">
+        <!-- Saisie des ventes déplacée sur l'onglet Ventes (refonte oct. 2026) :
+             bloc masqué ici, script conservé pour ne rien casser. -->
+        <div id="zoneVentesJour" style="display:none;">
           <p class="section-titre" style="margin:0;">Ventes du jour</p>
           <div class="nav-jour-ventes">
             <button type="button" id="btnJourPrecedentVentes" class="bouton-nav-jour" aria-label="Jour précédent">←</button>
@@ -73,7 +76,7 @@
           <div id="messageVentes"></div>
         </div>
 
-        <p class="section-titre" style="margin-top:26px;">Ajouter un produit</p>
+        <p class="section-titre" style="margin-top:0;">Ajouter un produit</p>
         <div class="ligne-form">
           <input type="text" id="nomProduit" placeholder="Exemple : Baguette tradition" aria-label="Nom du produit">
           <button id="btnAjouter">Ajouter</button>
@@ -93,10 +96,10 @@
         </div>
 
         <div class="entete-page" style="margin-top:22px; margin-bottom:0;">
-          <p class="section-titre" style="margin:0;">Produits vendus actuels</p>
-          <a href="import.html" class="btn-gerer-postes">📋 Importer une carte/menu</a>
+          <h2 style="margin:0;">Ma gamme</h2>
+          <a href="ventes.html?mode=fiches#importer" class="btn-gerer-postes">Importer des fiches techniques</a>
         </div>
-        <p class="texte-aide" style="margin-top:6px;">Clique sur un produit pour lui définir une fiche technique. Range-le dans une catégorie par glisser-déposer, si tu en as créé — les catégories se créent et se gèrent depuis <a href="previsions.html">Prévisions</a>, c'est entièrement facultatif.</p>
+        <p class="texte-aide" style="margin-top:6px;">Touche un produit pour ouvrir sa fiche technique (facultative). Les catégories se créent depuis l’onglet <a href="previsions.html">Demain</a> ; range ensuite tes produits par glisser-déposer.</p>
         <div id="listeProduitsParCategorie" class="grille-produits-vendus"></div>
         <ul id="listeProduits" class="liste-produits" style="display:none;"></ul>
 
@@ -126,7 +129,7 @@
           <div class="ligne-form" style="margin-top:10px; flex-wrap:wrap; align-items:flex-end;">
             <div style="flex:2; min-width:160px;">
               <label for="nomIngredient" style="margin-top:0;">Ingrédient</label>
-              <input type="text" id="nomIngredient" list="ingredientsConnus" placeholder="Ex : pain à burger">
+              <input type="text" id="nomIngredient" list="ingredientsConnus" placeholder="Ex : farine T65">
               <datalist id="ingredientsConnus"></datalist>
             </div>
             <div style="flex:1; min-width:100px;">
