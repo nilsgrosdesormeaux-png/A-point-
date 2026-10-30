@@ -420,7 +420,7 @@
         var hierManquant = ctx.joursFermeture.indexOf(hier.getDay()) === -1 && !ctx.ventes.some(function (v) { return v.date_vente === isoHier; });
         ctx.sb.from('connexions_caisse').select('fournisseur, statut, derniere_synchro').eq('commercant_id', ctx.commercantId).then(function (r) {
           var caisseActive = (r.data || []).some(function (cx) {
-            return cx.statut === 'active' && (cx.fournisseur === 'sumup' || !!cx.derniere_synchro);
+            return cx.statut === 'active' && (cx.fournisseur !== 'export_email' || !!cx.derniere_synchro);
           });
           // Tant qu'aucune caisse n'est branchée : un lien vers le bon parcours.
           document.getElementById('lienBrancherCaisse').hidden = caisseActive;
@@ -450,7 +450,7 @@
         }
 
         if (ctx.ventes.length === 0) {
-          listeEl.innerHTML = '<div class="carte-vide-claire">Pas encore de ventes : branche ta caisse ou ajoute la journée d\'hier depuis <a href="parametres.html#donnees">Paramètres &gt; Mes données</a>.</div>';
+          listeEl.innerHTML = '<div class="carte-vide-claire">Pas encore de ventes : <a href="parametres.html#caisse">branche ta caisse</a> (tes 12 derniers mois arrivent d\'un coup) ou ajoute la journée d\'hier depuis <a href="parametres.html#donnees">Paramètres &gt; Mes données</a>.</div>';
           return;
         }
         actionsEl.hidden = false;

@@ -1,12 +1,24 @@
-// Bloc « Connecter ma caisse » de Paramètres (REFONTE.md § 4 bis).
-// Autonome : la page fournit un <div id="blocCaisse"> (son contenu sert tant
-// que rien n'est configuré) et
-// appelle ConnecteurCaisse.init(sbClient, commercantId). La refonte peut
-// déplacer ou restyler le bloc sans toucher à cette logique.
+// Bloc « Ma caisse » de Paramètres (REFONTE.md § 4 bis, AMELIORATIONS.md).
+// Autonome : la page fournit un <div id="blocCaisse"> et appelle
+// ConnecteurCaisse.init(sbClient, commercantId, caisseCompte). Le parcours
+// suit la caisse déclarée (inscription ou Paramètres) :
+//  - SumUp, Zettle, Square : bouton « Brancher » (OAuth) ;
+//  - Hiboutik : le commerçant colle ses accès API ;
+//  - toute autre caisse : import guidé de l'historique (fichier d'export,
+//    même gros) puis envoi automatique de l'export chaque jour par e-mail.
+// Après branchement : progression de l'import des 12 mois d'historique.
 //
-// Lit l'état dans connexions_caisse (RLS : le commerçant ne voit que ses
-// lignes) et passe par l'Edge Function connecter-caisse pour tout le reste.
+// Lit l'état dans connexions_caisse (RLS) ; tout le reste passe par l'Edge
+// Function connecter-caisse ou la fonction SQL importer_historique_ventes.
+// Lecture des fichiers : LectureExport (lecture-export.js), Excel via
+// SheetJS chargé seulement si besoin. Convention du site : IIFE, ES5.
 (function () {
+  var LIBELLES = { sumup: 'SumUp', zettle: 'Zettle', square: 'Square', hiboutik: 'Hiboutik' };
+  var OAUTH = ['sumup', 'zettle', 'square'];
+  var URL_SHEETJS = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+  var LIGNES_PAR_ENVOI = 4000;
+  var MOIS_HISTORIQUE = 12;
+
   function echapper(texte) {
     var div = document.createElement('div');
     div.textContent = texte === null || texte === undefined ? '' : String(texte);
@@ -14,23 +26,107 @@
   }
 
   function formaterDateHeure(iso) {
-    if (!iso) return 'jamais';
     var d = new Date(iso);
     return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   }
 
-  function etatSynchro(cx) {
-    if (cx.statut === 'erreur') {
-      return '<span class="erreur" style="display:inline-block; padding:2px 8px; border-radius:6px;">Dernière synchro en échec</span> ' + echapper(cx.derniere_erreur);
-    }
-    if (!cx.derniere_synchro) return 'Première synchro cette nuit.';
-    return 'Dernière synchro : ' + formaterDateHeure(cx.derniere_synchro)
-      + (cx.nb_lignes_derniere_synchro !== null ? ' (' + cx.nb_lignes_derniere_synchro + ' ventes produit importées)' : '') + '.';
+  function jourParis(d) {
+    return new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
   }
 
-  function init(sbClient, commercantId) {
+  function joursEntre(a, b) {
+    return Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / 86400000);
+  }
+
+  function styleSecondaire() {
+    return 'background-color: var(--surface); color: var(--texte); border: 1px solid var(--bordure);';
+  }
+
+  // « Import de ton historique : 4 mois sur 12… » tant que les 12 mois ne
+  // sont pas arrivés, puis l'état de la dernière synchro.
+  function etatConnexion(cx) {
+    var hier = jourParis(new Date(Date.now() - 86400000));
+    if (cx.statut === 'erreur') {
+      return '<span class="erreur" style="display:inline-block; padding:2px 8px; border-radius:6px;">À vérifier</span> ' + echapper(cx.derniere_erreur);
+    }
+    if (cx.debut_historique && (!cx.derniere_date_synchronisee || cx.derniere_date_synchronisee < hier)) {
+      var total = Math.max(1, joursEntre(cx.debut_historique, hier) + 1);
+      var faits = cx.derniere_date_synchronisee ? joursEntre(cx.debut_historique, cx.derniere_date_synchronisee) + 1 : 0;
+      var mois = Math.min(MOIS_HISTORIQUE, Math.floor(faits / total * MOIS_HISTORIQUE));
+      return 'Import de ton historique : <strong>' + mois + ' mois sur ' + MOIS_HISTORIQUE + '</strong>… Ça continue tout seul, même page fermée.';
+    }
+    if (!cx.derniere_synchro) return 'Branchée. Les ventes arrivent dans quelques minutes.';
+    return 'À jour. Dernière synchro le ' + formaterDateHeure(cx.derniere_synchro) + '.';
+  }
+
+  function chargerSheetJS() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    return new Promise(function (ok, ko) {
+      var s = document.createElement('script');
+      s.src = URL_SHEETJS;
+      s.onload = function () { ok(window.XLSX); };
+      s.onerror = function () { ko(new Error('Lecture Excel indisponible : enregistre le fichier en CSV et réessaie.')); };
+      document.head.appendChild(s);
+    });
+  }
+
+  // CSV en UTF-8 ou, à défaut, en Windows-1252 (exports de caisse français).
+  function lireTexte(fichier) {
+    function lire(encodage) {
+      return new Promise(function (ok, ko) {
+        var r = new FileReader();
+        r.onload = function () { ok(r.result); };
+        r.onerror = function () { ko(new Error('Fichier illisible')); };
+        r.readAsText(fichier, encodage);
+      });
+    }
+    return lire('utf-8').then(function (texte) {
+      return texte.indexOf('�') === -1 ? texte : lire('windows-1252');
+    });
+  }
+
+  function lireFichier(fichier) {
+    var hier = null; // pas de jour par défaut : un historique a besoin de sa colonne date
+    if (/\.xlsx?$/i.test(fichier.name)) {
+      return chargerSheetJS().then(function (XLSX) {
+        return fichier.arrayBuffer().then(function (tampon) {
+          var classeur = XLSX.read(tampon, { type: 'array' });
+          var tableau = XLSX.utils.sheet_to_json(classeur.Sheets[classeur.SheetNames[0]], { header: 1, raw: true });
+          return window.LectureExport.lignesDepuisTableau(tableau, hier);
+        });
+      });
+    }
+    return lireTexte(fichier).then(function (texte) { return window.LectureExport.lignesDepuisExport(texte, hier); });
+  }
+
+  // Paquets d'un mois (un même jour n'est jamais coupé en deux), redécoupés
+  // si un mois dépasse la taille maximale d'un envoi.
+  function paquetsParMois(lignes) {
+    var parMois = {};
+    lignes.forEach(function (l) {
+      var mois = l.date_vente.slice(0, 7);
+      (parMois[mois] = parMois[mois] || []).push(l);
+    });
+    var paquets = [];
+    Object.keys(parMois).sort().forEach(function (mois) {
+      var ls = parMois[mois].sort(function (a, b) { return a.date_vente < b.date_vente ? -1 : 1; });
+      var courant = [];
+      ls.forEach(function (l, i) {
+        var nouveauJour = i > 0 && l.date_vente !== ls[i - 1].date_vente;
+        if (courant.length >= LIGNES_PAR_ENVOI && nouveauJour) { paquets.push({ mois: mois, lignes: courant }); courant = []; }
+        courant.push(l);
+      });
+      if (courant.length) paquets.push({ mois: mois, lignes: courant });
+    });
+    return paquets;
+  }
+
+  function init(sbClient, commercantId, caisseCompte) {
     var bloc = document.getElementById('blocCaisse');
     if (!bloc) return;
+    var disponibles = null;
+    var caisseChoisie = caisseCompte || null;
+    var choixSurLaPage = false;
 
     function appeler(corps) {
       return sbClient.functions.invoke('connecter-caisse', { body: corps }).then(function (res) {
@@ -48,104 +144,204 @@
 
     function message(texte, estErreur) {
       var el = document.getElementById('messageCaisse');
+      if (!el) return;
       el.className = estErreur ? 'erreur' : 'succes';
       el.style.cssText = 'padding:8px 10px; border-radius:6px; margin:8px 0 0;';
       el.textContent = texte;
     }
 
-    function rendre(connexions, disponibles) {
-      var sumup = connexions.filter(function (c) { return c.fournisseur === 'sumup'; })[0];
-      var email = connexions.filter(function (c) { return c.fournisseur === 'export_email'; })[0];
-      var html = '<p class="section-titre">Ma caisse</p>';
+    function boutonBrancher(nom, principal) {
+      return '<button type="button" class="btnBrancher" data-caisse="' + nom + '"' + (principal ? '' : ' style="' + styleSecondaire() + '"') + '>Brancher ma caisse ' + LIBELLES[nom] + '</button>';
+    }
 
-      if (sumup) {
-        html += '<p><strong>Caisse SumUp connectée</strong>' + (sumup.compte_caisse ? ' (compte ' + echapper(sumup.compte_caisse) + ')' : '') + '. Tes ventes arrivent seules chaque nuit.</p>'
-          + '<p class="texte-aide">' + etatSynchro(sumup) + '</p>'
-          + '<div class="ligne-form">'
-          + '<button type="button" id="btnSynchroCaisse">Synchroniser maintenant</button>'
-          + '<button type="button" id="btnDeconnecterCaisse" style="background-color: var(--surface); color: var(--texte); border: 1px solid var(--bordure);">Déconnecter</button>'
-          + '</div>';
-      } else if (disponibles.sumup) {
-        html += '<p class="texte-aide">Branche ta caisse : tes ventes arrivent seules chaque nuit, tu n\'as plus rien à saisir.</p>'
-          + '<button type="button" id="btnConnecterSumup">Connecter ma caisse SumUp</button>';
-      } else {
-        html += '<p class="texte-aide">Bientôt : branche ta caisse SumUp et tes ventes arriveront seules chaque nuit.</p>';
-      }
+    function formulaireHiboutik() {
+      return '<p class="texte-aide">Active l\'API dans ton compte Hiboutik (leur aide explique comment, rubrique « activer l\'API »), puis colle ici ta clé API, le nom de ton compte (ce qui est avant « .hiboutik.com ») et ton e-mail Hiboutik.</p>'
+        + '<label for="hibCompte">Nom du compte Hiboutik</label><input type="text" id="hibCompte" placeholder="maboulangerie" autocomplete="off">'
+        + '<label for="hibUtilisateur">E-mail Hiboutik</label><input type="email" id="hibUtilisateur" placeholder="toi@exemple.fr" autocomplete="off">'
+        + '<label for="hibCle">Clé API</label><input type="password" id="hibCle" autocomplete="off">'
+        + '<button type="button" id="btnBrancherHiboutik">Brancher ma caisse Hiboutik</button>';
+    }
 
+    function sectionFichier(titre) {
+      return '<p class="section-titre" style="margin-top:18px;">' + titre + '</p>'
+        + '<p class="texte-aide">Dans ta caisse, exporte les <strong>ventes par article et par jour</strong> des 12 derniers mois (CSV ou Excel), puis dépose le fichier ici. Il faut au moins une colonne date, une colonne article et une colonne quantité. Les jours déjà présents sont remplacés, jamais doublés.</p>'
+        + '<input type="file" id="fichierHistorique" accept=".csv,.txt,.xlsx,.xls">'
+        + '<p class="texte-aide" id="progressionFichier" aria-live="polite"></p>';
+    }
+
+    function sectionEmail(email) {
       if (email) {
-        html += '<p class="texte-aide" style="margin-top:14px;">Ton adresse d\'import : programme l\'envoi automatique de l\'export des ventes (CSV) de ta caisse vers cette adresse.</p>'
+        return '<p class="section-titre" style="margin-top:18px;">Chaque jour, automatiquement</p>'
+          + '<p class="texte-aide">Programme dans ta caisse l\'envoi quotidien de l\'export des ventes vers ton adresse d\'import :</p>'
           + '<p><strong>' + echapper(email.adresse_import) + '</strong></p>'
-          + '<p class="texte-aide">' + (email.derniere_synchro ? etatSynchro(email) : 'Aucun export reçu pour l\'instant.') + '</p>';
-      } else if (disponibles.email) {
-        html += '<p class="texte-aide" style="margin-top:14px;">Autre caisse ? Si elle sait envoyer son export des ventes par e-mail, programme l\'envoi automatique de ton export des ventes (CSV) vers ton adresse d\'import personnelle.</p>'
-          + '<button type="button" id="btnAdresseImport" style="background-color: var(--surface); color: var(--texte); border: 1px solid var(--bordure);">Obtenir mon adresse d\'import</button>';
+          + '<p class="texte-aide">' + (email.derniere_synchro ? etatConnexion(email) : 'Aucun export reçu pour l\'instant.') + '</p>';
       }
+      if (!disponibles.email) return '';
+      return '<p class="section-titre" style="margin-top:18px;">Chaque jour, automatiquement</p>'
+        + '<p class="texte-aide">Si ta caisse sait envoyer son export des ventes par e-mail, programme cet envoi chaque jour : tes ventes arriveront seules.</p>'
+        + '<button type="button" id="btnAdresseImport" style="' + styleSecondaire() + '">Obtenir mon adresse d\'import</button>';
+    }
+
+    function rendre(connexions) {
+      var branchees = connexions.filter(function (c) { return c.fournisseur !== 'export_email'; });
+      var email = connexions.filter(function (c) { return c.fournisseur === 'export_email'; })[0];
+      var html = '<h2 class="section-titre" id="titreCaisse">Ma caisse</h2>';
+
+      if (branchees.length) {
+        branchees.forEach(function (cx) {
+          html += '<p><strong>Caisse ' + echapper(LIBELLES[cx.fournisseur] || cx.fournisseur) + ' branchée.</strong> Tes ventes arrivent seules chaque nuit.</p>'
+            + '<p class="texte-aide">' + etatConnexion(cx) + '</p>'
+            + '<div class="ligne-form">'
+            + '<button type="button" id="btnSynchroCaisse">Synchroniser maintenant</button>'
+            + '<button type="button" class="btnDeconnecter" data-caisse="' + cx.fournisseur + '" style="' + styleSecondaire() + '">Déconnecter</button>'
+            + '</div>';
+        });
+      } else {
+        var choix = (caisseChoisie || '').indexOf('autre') === 0 ? 'autre' : caisseChoisie;
+        html += '<p class="texte-aide">Branche ta caisse : tes 12 derniers mois de ventes arrivent d\'un coup, puis chaque nuit les ventes de la veille. Tu n\'as plus rien à saisir.</p>';
+        if (OAUTH.indexOf(choix) !== -1) {
+          html += disponibles[choix]
+            ? boutonBrancher(choix, true)
+            : '<p class="texte-aide">Le branchement ' + LIBELLES[choix] + ' ouvre très bientôt. En attendant, importe ton historique ci-dessous : tes prévisions seront justes dès demain.</p>';
+        } else if (choix === 'hiboutik') {
+          html += formulaireHiboutik();
+        } else if (!choix) {
+          html += '<p class="texte-aide">Indique ta caisse plus haut dans « Mon commerce » pour voir le bon parcours. Déjà branchables :</p>';
+          OAUTH.forEach(function (nom) { if (disponibles[nom]) html += boutonBrancher(nom, false) + ' '; });
+          html += '<button type="button" class="btnHiboutik" style="' + styleSecondaire() + '">J\'ai Hiboutik</button>';
+        }
+        var titre = (OAUTH.indexOf(choix) !== -1 && disponibles[choix]) || choix === 'hiboutik'
+          ? 'Ou bien : importer un fichier'
+          : 'Étape 1 : importer ton historique';
+        html += sectionFichier(titre);
+      }
+      if (!branchees.length) html += sectionEmail(email);
       html += '<div id="messageCaisse" aria-live="polite"></div>';
       bloc.innerHTML = html;
+      brancherEvenements();
+    }
 
-      brancher('btnConnecterSumup', function (btn) {
-        return appeler({ action: 'demarrer', fournisseur: 'sumup' }).then(function (data) {
-          window.location.href = data.url;
-          return new Promise(function () {}); // la page part chez SumUp
-        });
-      });
-      brancher('btnSynchroCaisse', function () {
-        return appeler({ action: 'synchroniser' }).then(function (r) {
-          return charger().then(function () {
-            if (r.ok && !r.complet) message(r.lignes + ' ventes produit importées. La suite arrive cette nuit.', false);
-            else if (r.ok) message(r.lignes ? r.lignes + ' ventes produit importées.' : 'Déjà à jour : les ventes jusqu\'à hier sont importées.', false);
-            else message('La synchro a échoué : ' + r.erreur, true);
+    function brancherEvenements() {
+      Array.prototype.forEach.call(bloc.querySelectorAll('.btnBrancher'), function (btn) {
+        surClic(btn, function () {
+          return appeler({ action: 'demarrer', fournisseur: btn.getAttribute('data-caisse') }).then(function (data) {
+            window.location.href = data.url;
+            return new Promise(function () {}); // la page part chez la caisse
           });
         });
       });
-      brancher('btnDeconnecterCaisse', function () {
-        if (!window.confirm('Déconnecter ta caisse ? Les ventes déjà importées restent, mais plus rien n\'arrivera automatiquement.')) return Promise.resolve();
-        return appeler({ action: 'deconnecter', fournisseur: 'sumup' }).then(charger);
+      Array.prototype.forEach.call(bloc.querySelectorAll('.btnHiboutik'), function (btn) {
+        btn.addEventListener('click', function () { caisseChoisie = 'hiboutik'; choixSurLaPage = true; charger(); });
       });
-      brancher('btnAdresseImport', function () {
-        return appeler({ action: 'activer_import_email' }).then(charger);
+      var btnHib = document.getElementById('btnBrancherHiboutik');
+      if (btnHib) surClic(btnHib, function () {
+        return appeler({
+          action: 'connecter_cle', fournisseur: 'hiboutik',
+          compte: document.getElementById('hibCompte').value,
+          utilisateur: document.getElementById('hibUtilisateur').value,
+          cle: document.getElementById('hibCle').value
+        }).then(function () { return charger(); }).then(function () {
+          message('Caisse branchée ! Ton historique arrive dans les prochaines minutes.', false);
+        });
       });
+      var btnSync = document.getElementById('btnSynchroCaisse');
+      if (btnSync) surClic(btnSync, function () {
+        return appeler({ action: 'synchroniser' }).then(function (r) {
+          return charger().then(function () {
+            if (!r.ok) message('La synchro a échoué : ' + r.erreur, true);
+            else if (!r.complet) message(r.lignes + ' ventes produit importées. La suite continue toute seule.', false);
+            else message(r.lignes ? r.lignes + ' ventes produit importées.' : 'Déjà à jour : les ventes jusqu\'à hier sont là.', false);
+          });
+        });
+      });
+      Array.prototype.forEach.call(bloc.querySelectorAll('.btnDeconnecter'), function (btn) {
+        surClic(btn, function () {
+          if (!window.confirm('Déconnecter ta caisse ? Les ventes déjà importées restent, mais plus rien n\'arrivera automatiquement.')) return Promise.resolve();
+          return appeler({ action: 'deconnecter', fournisseur: btn.getAttribute('data-caisse') }).then(charger);
+        });
+      });
+      var btnAdresse = document.getElementById('btnAdresseImport');
+      if (btnAdresse) surClic(btnAdresse, function () { return appeler({ action: 'activer_import_email' }).then(charger); });
+      var entree = document.getElementById('fichierHistorique');
+      if (entree) entree.addEventListener('change', function () { if (entree.files[0]) importerFichier(entree); });
     }
 
-    function brancher(id, action) {
-      var btn = document.getElementById(id);
-      if (!btn) return;
+    function importerFichier(entree) {
+      var progression = document.getElementById('progressionFichier');
+      entree.disabled = true;
+      progression.textContent = 'Lecture du fichier…';
+      lireFichier(entree.files[0]).then(function (lu) {
+        if (lu.erreur) throw new Error(lu.erreur);
+        if (!lu.lignes.length) throw new Error('Aucune vente trouvée dans ce fichier.');
+        var paquets = paquetsParMois(lu.lignes);
+        var nbMois = paquets.reduce(function (n, p, i) { return n + (i === 0 || p.mois !== paquets[i - 1].mois ? 1 : 0); }, 0);
+        var moisFait = 0;
+        var total = 0;
+        var suite = Promise.resolve();
+        paquets.forEach(function (p, i) {
+          suite = suite.then(function () {
+            if (i === 0 || p.mois !== paquets[i - 1].mois) moisFait++;
+            progression.textContent = 'Import de ton historique : mois ' + moisFait + ' sur ' + nbMois + '…';
+            return sbClient.rpc('importer_historique_ventes', { p_lignes: p.lignes }).then(function (res) {
+              if (res.error) throw new Error(res.error.message);
+              total += res.data || 0;
+            });
+          });
+        });
+        return suite.then(function () {
+          var jours = lu.lignes.map(function (l) { return l.date_vente; }).sort();
+          progression.textContent = '';
+          message('Historique importé : ' + nbMois + ' mois (du ' + new Date(jours[0]).toLocaleDateString('fr-FR') + ' au '
+            + new Date(jours[jours.length - 1]).toLocaleDateString('fr-FR') + '), ' + total + ' ventes produit. Tes prévisions en tiennent compte dès maintenant.', false);
+        });
+      }).catch(function (e) {
+        progression.textContent = '';
+        message(e && e.message ? e.message : 'Import impossible, réessaie.', true);
+      }).then(function () { entree.disabled = false; entree.value = ''; });
+    }
+
+    function surClic(btn, action) {
       btn.addEventListener('click', function () {
         btn.disabled = true;
-        action(btn).catch(function (e) {
+        action().catch(function (e) {
           message(e && e.message ? e.message : 'Une erreur est survenue, réessaie.', true);
         }).then(function () { btn.disabled = false; });
       });
     }
 
-    // Quelles connexions sont configurées côté serveur (app SumUp, adresse
-    // de réception des e-mails) : demandé une seule fois par page.
-    var disponibles = null;
-
     function charger() {
       var etat = disponibles
         ? Promise.resolve(disponibles)
-        : appeler({ action: 'etat' }).catch(function () { return { sumup: false, email: false }; });
-      return Promise.all([sbClient.from('connexions_caisse').select('*').eq('commercant_id', commercantId), etat]).then(function (r) {
-        var res = r[0];
-        disponibles = r[1];
-        if (res.error || (!disponibles.sumup && !disponibles.email && !(res.data || []).length)) {
-          // Rien de configuré : on laisse le contenu prévu par la page
-          // (« Bientôt disponible ») plutôt qu'une erreur ou un bouton inutile.
-          return;
-        }
-        rendre(res.data || [], disponibles);
+        : appeler({ action: 'etat' }).catch(function () { return {}; });
+      var requetes = [sbClient.from('connexions_caisse').select('*').eq('commercant_id', commercantId), etat];
+      if (!choixSurLaPage) requetes.push(sbClient.from('parametres_commercant').select('caisse').eq('commercant_id', commercantId));
+      return Promise.all(requetes).then(function (r) {
+        disponibles = r[1] || {};
+        if (r[2] && r[2].data && r[2].data[0]) caisseChoisie = r[2].data[0].caisse || caisseChoisie;
+        // Table absente (migration pas encore passée) : on garde le contenu
+        // prévu par la page plutôt qu'une erreur.
+        if (r[0].error) return;
+        rendre(r[0].data || []);
+        // Historique en cours d'import : l'avancement se met à jour seul.
+        var enCours = (r[0].data || []).some(function (c) { return c.fournisseur !== 'export_email' && etatConnexion(c).indexOf('Import de ton historique') === 0; });
+        clearTimeout(minuteur);
+        if (enCours) minuteur = setTimeout(charger, 30000);
       });
     }
+    var minuteur = null;
+
+    // La caisse choisie dans « Mon commerce » change le parcours tout de suite.
+    var select = document.getElementById('selectCaisse');
+    if (select) select.addEventListener('change', function () { caisseChoisie = select.value; choixSurLaPage = true; charger(); });
 
     charger().then(function () {
       var retour = new URLSearchParams(window.location.search).get('caisse');
       if (!retour || !document.getElementById('messageCaisse')) return;
-      window.history.replaceState(null, '', window.location.pathname + '#blocCaisse');
-      if (retour === 'connectee') message('Caisse connectée ! Tes ventes des 14 derniers jours arrivent dans quelques minutes, puis chaque nuit.', false);
-      else if (retour === 'refusee') message('Connexion annulée depuis SumUp.', true);
-      else message('La connexion à SumUp a échoué. Réessaie dans un instant.', true);
-      if (retour === 'connectee') appeler({ action: 'synchroniser' }).then(charger).catch(function () {});
+      window.history.replaceState(null, '', window.location.pathname + '#caisse');
+      if (retour === 'connectee') {
+        message('Caisse branchée ! Tes 12 derniers mois de ventes arrivent : suis la progression ci-dessus.', false);
+      } else if (retour === 'refusee') message('Branchement annulé depuis ta caisse.', true);
+      else message('Le branchement a échoué. Réessaie dans un instant.', true);
     });
   }
 

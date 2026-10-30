@@ -7,8 +7,8 @@
 | Fichier | Rôle |
 |---|---|
 | `migration-connecteurs-caisse.sql` | Tables `connexions_caisse`, `connexions_caisse_secrets`, `etats_oauth_caisse`, colonne `ventes.source`, fonctions `normaliser_nom_produit` et `enregistrer_ventes_caisse`, tâche pg_cron (commentée) |
-| `connecter-caisse` | OAuth SumUp (départ + retour), synchro immédiate, déconnexion, adresse d'import e-mail, branchement par clé API |
-| `synchro-caisse` | Synchro nocturne de toutes les caisses connectées, appelée par pg_cron |
+| `connecter-caisse` | OAuth SumUp, Zettle, Square (départ + retour), clé API Hiboutik, synchro immédiate, déconnexion, adresse d'import e-mail |
+| `synchro-caisse` | Synchro en continu (pg_cron chaque minute) : 12 mois d'historique au branchement, puis la veille chaque nuit |
 | `import-export-caisse` | Repli : reçoit l'export CSV envoyé par e-mail (webhook Postmark Inbound) |
 | `_shared/caisse/` | Code commun : normalisation, dates de Paris, client SumUp, chiffrement des jetons, lecture CSV, synchro |
 | `connecteur-caisse.js` + `#blocCaisse` | Bloc « Ma caisse » de Paramètres |
@@ -81,3 +81,10 @@ curl -X POST "https://eqvbksxfwlgbcxgqljqn.supabase.co/functions/v1/import-expor
 - Un appel API par ticket : environ 300 à 600 appels par boulangerie et par nuit ; la synchro s'étale sur plusieurs passages pg_cron si besoin.
 - Seuls les paiements réussis sont comptés ; un remboursement après coup n'est pas déduit.
 - Le CSV est le seul format d'export lu (pas d'Excel `.xlsx`).
+
+## v2 (1er novembre 2026) : Zettle, Square, Hiboutik, historique 12 mois
+
+- `migration-connecteurs-caisse-v2.sql` appliquée ; tâche pg_cron `synchro-caisse` chaque minute (remplace la tâche de nuit).
+- Ouvrir le bouton d'une caisse OAuth = créer son app développeur, URI de redirection `https://eqvbksxfwlgbcxgqljqn.supabase.co/functions/v1/connecter-caisse`, puis ajouter dans Supabase > Edge Functions > Secrets : `ZETTLE_CLIENT_ID` / `ZETTLE_CLIENT_SECRET` (developer.zettle.com) ou `SQUARE_CLIENT_ID` / `SQUARE_CLIENT_SECRET` (developer.squareup.com). Aucun redéploiement nécessaire.
+- Hiboutik : rien à configurer, le commerçant colle ses accès.
+- Import de fichier (toute caisse) : fonction SQL `importer_historique_ventes`, appelée depuis Paramètres.
