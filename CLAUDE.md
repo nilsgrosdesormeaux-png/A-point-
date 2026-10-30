@@ -11,7 +11,3 @@
 6. Pas de surveillance par minuterie : on agit sur message ou notification.
 7. Comptes rendus : 5 lignes maximum, sans jargon, sans recopier le travail. Messages entre agents : la consigne, pas le contexte déjà connu.
 8. Revues et tests : seulement ce qui a changé depuis le dernier passage (`git diff`), sauf demande explicite.
-
-# Gemini
-
-9. Recherche web, prospection, lecture de gros documents : écrire la mission dans `docs/pour-gemini.md` plutôt que la faire soi-même. Lire ses résultats dans `docs/retours-gemini/`. Gemini ne touche jamais au code.
