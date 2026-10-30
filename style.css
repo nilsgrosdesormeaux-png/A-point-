@@ -1289,7 +1289,7 @@ body.ecran-fournil .bouton-quitter-fournil { display: flex; position: fixed; rig
 .affluence { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--espace-2); margin: 0; padding: 0; list-style: none; }
 .affluence-jour { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: var(--espace-3) var(--espace-1); text-align: center; background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md); box-shadow: var(--ombre-carte); }
 .affluence-barre { display: flex; align-items: flex-end; width: 18px; height: 72px; background: var(--couleur-surface-2); border-radius: var(--rayon-rond); overflow: hidden; }
-.affluence-barre span { display: block; width: 100%; background: var(--couleur-bordure-forte); border-radius: var(--rayon-rond); }
+.affluence-barre span { display: block; width: 100%; height: var(--part, 0%); background: var(--couleur-bordure-forte); border-radius: var(--rayon-rond); }
 .affluence-jour--charge .affluence-barre span { background: var(--couleur-dore); }
 .affluence-jour--ferme { opacity: 0.6; }
 .affluence-nom { font-weight: 600; font-size: var(--texte-sm); }
@@ -1300,11 +1300,10 @@ body.ecran-fournil .bouton-quitter-fournil { display: flex; position: fixed; rig
   .affluence-jour { display: grid; grid-template-columns: 64px 1fr auto; grid-template-areas: "nom barre total" "nom raison raison"; align-items: center; text-align: left; padding: var(--espace-2) var(--espace-3); column-gap: var(--espace-3); }
   .affluence-nom { grid-area: nom; }
   .affluence-barre { grid-area: barre; width: 100%; height: 10px; align-items: stretch; }
-  .affluence-barre span { height: 100% !important; }
+  .affluence-barre span { height: 100%; width: var(--part, 0%); }
   .affluence-total { grid-area: total; }
   .affluence-raison { grid-area: raison; }
 }
-.affluence-jour .affluence-barre span[style] { transition: height .2s ease; }
 @media (max-width: 640px) {
   .affluence-jour .affluence-barre { position: relative; }
 }
@@ -1325,3 +1324,11 @@ body.ecran-fournil .bouton-quitter-fournil { display: flex; position: fixed; rig
 .bloc-categorie-produits { border: 0; padding: 0; }
 .entete-bloc-categorie-produits { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: var(--texte-lg); color: var(--couleur-texte); }
 .ligne-retour-donnees { margin: 0 0 var(--espace-3); font-size: var(--texte-sm); }
+@media (max-width: 720px) {
+  .entete-site { background: var(--couleur-fond); }
+}
+.ligne-commande-quantite small { display: block; font-family: var(--police); font-size: var(--texte-xs); font-weight: 400; color: var(--couleur-texte-3); }
+@media (min-width: 900px) {
+  #listeFournisseurs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--espace-4); align-items: start; }
+  .fournisseur + .fournisseur { margin-top: 0; }
+}

@@ -116,6 +116,9 @@
     return Object.keys(parCle).map(function (k) {
       var x = parCle[k];
       return { cle: x.cle, icone: x.icone, libelle: x.libelle, ratio: x.poids > 0 ? x.somme / x.poids : null };
+    }).filter(function (r) {
+      // Un effet appris de moins de 3 % n'est pas une raison : on le tait.
+      return r.ratio === null || Math.abs(r.ratio - 1) >= 0.03;
     }).sort(function (a, b) {
       return Math.abs((b.ratio || 1) - 1) - Math.abs((a.ratio || 1) - 1);
     });

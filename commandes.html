@@ -156,7 +156,7 @@
             var uniteStock = x.b.unite === 'pièce' ? 'pièces' : x.b.unite;
             return '<li class="ligne-commande' + (reste === 0 ? ' ligne-commande--couverte' : '') + '">' +
               '<span class="ligne-commande-nom">' + echapper(x.b.nom) + '<span class="texte-aide--discret">' + echapper(x.b.produits.slice(0, 3).join(', ')) + (x.b.produits.length > 3 ? '…' : '') + '</span></span>' +
-              '<span class="ligne-commande-quantite">' + (reste === 0 ? 'En stock' : texte) + '</span>' +
+              '<span class="ligne-commande-quantite">' + (reste === 0 ? 'En stock' : echapper(texte).replace(/ \((≈[^)]*)\)/, '<small>$1</small>')) + '</span>' +
               '<label class="ligne-commande-stock">Il me reste <input type="number" min="0" step="any" inputmode="decimal" data-cle="' + echapper(x.cle) + '" value="' + (stock || '') + '" placeholder="0"> ' + uniteStock + '</label>' +
               '</li>';
           }).join('');

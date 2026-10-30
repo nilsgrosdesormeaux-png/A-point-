@@ -101,7 +101,7 @@
           } else raison = 'Jour habituel';
           var classe = c.ferme ? ' affluence-jour--ferme' : (c.ratio !== null && c.ratio >= 1.08 ? ' affluence-jour--charge' : '');
           return '<li class="affluence-jour' + classe + '">' +
-            '<span class="affluence-barre" aria-hidden="true"><span style="height:' + (c.ferme ? 0 : Math.max(6, c.total / max * 100)) + '%"></span></span>' +
+            '<span class="affluence-barre" aria-hidden="true"><span style="--part:' + (c.ferme ? 0 : Math.max(6, c.total / max * 100)) + '%"></span></span>' +
             '<span class="affluence-nom">' + nomJour + ' ' + c.date.getDate() + '</span>' +
             '<span class="affluence-total">' + (c.ferme ? '–' : c.total + ' pièces') + '</span>' +
             '<span class="affluence-raison">' + raison + '</span></li>';

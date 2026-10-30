@@ -118,7 +118,7 @@
         items.push('<li>📈 ' + echapper(p.r.texteBase.replace(/^[^B]*Basé/, 'Basé')) + '</li>');
         items.push('<li>🛟 Marge de sécurité de ' + Math.round((MP.MARGE_PRODUCTION - 1) * 100) + ' % pour ne pas manquer</li>');
         var ecart = MP.calculerEcartUnites(ctx.parProduit[p.nom]);
-        if (ecart) items.push('<li>🎯 D\'habitude, la prévision tombe à ±' + ecart.ecart + ' près</li>');
+        if (ecart) items.push('<li>🎯 D\'habitude, la prévision tombe à ±' + ecart.ecart + ' pièce' + (ecart.ecart > 1 ? 's' : '') + ' près</li>');
         return items.join('');
       }
 

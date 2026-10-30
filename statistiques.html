@@ -552,10 +552,10 @@
         var ecart = principal ? MP.calculerEcartUnites(ctx.parProduit[principal]) : null;
         if (!ecart) return;
         document.getElementById('kpiFiabiliteValeur').textContent = '±' + ecart.ecart;
-        var texte = principal.toLowerCase() + ' d\'écart habituel entre la prévision et la vente.';
+        var texte = 'Pièces d\'écart habituel entre la prévision et la vente, sur ' + principal.toLowerCase() + '.';
         var fiab = MP.calculerFiabilite(ctx.ventes), naive = MP.calculerFiabiliteNaive(ctx.ventes);
         if (MP.comparaisonUtile(fiab, naive)) texte += ' ' + (fiab.valeur - naive.valeur) + ' points plus juste qu\'une simple moyenne.';
-        document.getElementById('kpiFiabiliteDetail').textContent = texte.charAt(0).toUpperCase() + texte.slice(1);
+        document.getElementById('kpiFiabiliteDetail').textContent = texte;
       }
 
       // Tendance : invendus évités par semaine, sur les 8 dernières semaines.
