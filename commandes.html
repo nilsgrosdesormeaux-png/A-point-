@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Commande</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261031g">
+  <link rel="stylesheet" href="style.css?v=20261031h">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <script src="moteur-prevision.js?v=20261031g"></script>
-  <script src="boulangerie.js?v=20261031g"></script>
-  <script src="contexte.js?v=20261031g"></script>
+  <script src="moteur-prevision.js?v=20261031h"></script>
+  <script src="boulangerie.js?v=20261031h"></script>
+  <script src="contexte.js?v=20261031h"></script>
   <script src="nav.js?v=20261031"></script>
 </head>
 <body>
@@ -78,39 +78,70 @@
 
       // Production prévue (somme sur la période) → besoins par ingrédient :
       // fiche technique du boulanger si elle existe, sinon recette type.
-      function calculerBesoins(jours) {
-        var production = {};
-        jours.forEach(function (d) {
-          // Historique insuffisant : pas de chiffre, donc rien à commander.
-          C.prevoirJour(ctx, d).forEach(function (p) { if (!p.r.insuffisant) production[p.nom] = (production[p.nom] || 0) + p.r.quantite; });
-        });
-        var idParNom = {};
-        ctx.produits.forEach(function (p) { idParNom[MP.formatNomAffichage(p.nom)] = String(p.id); });
-        var fiches = {};
-        ctx.ingredients.forEach(function (l) { (fiches[String(l.produit_id)] = fiches[String(l.produit_id)] || []).push(l); });
+      // Production prévue d'un jour (produits cuits, historique suffisant),
+      // mémorisée : chaque fournisseur couvre ses propres jours.
+      var cacheProduction = {};
+      function productionDuJour(d) {
+        var iso = MP.versISO(d);
+        if (!cacheProduction[iso]) {
+          cacheProduction[iso] = {};
+          C.prevoirJour(ctx, d).forEach(function (p) { if (!p.r.insuffisant) cacheProduction[iso][p.nom] = p.r.quantite; });
+        }
+        return cacheProduction[iso];
+      }
 
+      // Recettes : seule une fiche vue et validée par le boulanger sert à la
+      // commande (lot 3). Sans fiche, la recette type est proposée à valider.
+      function fichesParProduit() {
+        var idParNom = {};
+        ctx.produits.forEach(function (p) { idParNom[MP.cleProduit(p.nom)] = p; });
+        var lignesParId = {};
+        ctx.ingredients.forEach(function (l) { (lignesParId[String(l.produit_id)] = lignesParId[String(l.produit_id)] || []).push(l); });
+        var resultat = {};
+        Object.keys(ctx.parProduit).filter(B.estCuit).forEach(function (nom) {
+          var produit = idParNom[MP.cleProduit(nom)];
+          var fiche = produit ? lignesParId[String(produit.id)] : null;
+          resultat[nom] = { produit: produit || null, fiche: fiche && fiche.length ? fiche : null, type: B.recetteType(nom) };
+        });
+        return resultat;
+      }
+
+      // Jours couverts par la commande d'un fournisseur : de sa prochaine
+      // livraison jusqu'à la suivante (exclue). Sans jours renseignés : défaut proposé.
+      function joursPourFournisseur(infos, nDefaut) {
+        var jours = infos && infos.jours && infos.jours.length ? infos.jours : null;
+        if (!jours) return { jours: joursCouverts(nDefaut), parDefaut: true };
+        var d1 = null, d2 = null;
+        for (var i = 1; i <= 14 && !d2; i++) {
+          var d = MP.ajouterJours(new Date(), i);
+          if (jours.indexOf(d.getDay()) === -1) continue;
+          if (!d1) d1 = d; else d2 = d;
+        }
+        var liste = [];
+        for (var x = new Date(d1); x < d2; x = MP.ajouterJours(x, 1)) {
+          if (ctx.joursFermeture.indexOf(x.getDay()) === -1) liste.push(new Date(x));
+        }
+        return { jours: liste.length ? liste : [d1], livraison: d1, suivante: d2, parDefaut: false };
+      }
+
+      function besoinsPour(jours, fiches, cleFournisseur) {
         var besoins = {};
-        var sansRecette = [], recettesTypes = [];
-        Object.keys(production).forEach(function (nom) {
-          var q = production[nom];
-          var fiche = fiches[idParNom[nom]];
-          var lignes;
-          if (fiche && fiche.length) {
-            lignes = fiche.map(function (l) { var b = B.versUniteBase(Number(l.quantite) || 0, l.unite); return [l.nom_ingredient, b.quantite, b.unite]; });
-          } else {
-            var type = B.recetteType(nom);
-            if (!type) { sansRecette.push(nom); return; }
-            recettesTypes.push(nom);
-            lignes = type.ingredients;
-          }
-          lignes.forEach(function (l) {
-            var cle = B.normaliser(l[0]) + '|' + l[2];
-            if (!besoins[cle]) besoins[cle] = { nom: l[0], unite: l[2], quantite: 0, produits: [] };
-            besoins[cle].quantite += l[1] * q;
-            if (besoins[cle].produits.indexOf(nom) === -1) besoins[cle].produits.push(nom);
+        jours.forEach(function (d) {
+          var prod = productionDuJour(d);
+          Object.keys(prod).forEach(function (nom) {
+            var f = fiches[nom];
+            if (!f || !f.fiche) return;
+            f.fiche.forEach(function (l) {
+              if (B.fournisseurPour(l.nom_ingredient).cle !== cleFournisseur) return;
+              var base = B.versUniteBase(Number(l.quantite) || 0, l.unite);
+              var cle = B.cleIngredient(l.nom_ingredient) + '|' + base.unite;
+              if (!besoins[cle]) besoins[cle] = { nom: MP.capitaliser(String(l.nom_ingredient).trim()), unite: base.unite, quantite: 0, produits: [] };
+              besoins[cle].quantite += base.quantite * prod[nom];
+              if (besoins[cle].produits.indexOf(nom) === -1) besoins[cle].produits.push(nom);
+            });
           });
         });
-        return { besoins: besoins, sansRecette: sansRecette, recettesTypes: recettesTypes };
+        return besoins;
       }
 
       function prochaineLivraison(jours) {
@@ -122,59 +153,91 @@
         return null;
       }
 
+      // Quantité à commander, en unité d'achat, et son explication.
+      function ligneACommander(b, stock) {
+        var reste = Math.max(0, b.quantite - stock);
+        var u = B.uniteAchat(b.nom, b.unite);
+        var besoinTxt = B.formaterQuantite(b.quantite, b.unite, b.nom).replace(/ \(≈[^)]*\)/, '');
+        var stockTxt = stock > 0 ? ' − ' + B.formaterQuantite(stock, b.unite, b.nom).replace(/ \(≈[^)]*\)/, '') + ' en stock' : '';
+        var achat, achatTexte;
+        if (reste === 0) { achat = 'En stock'; achatTexte = null; }
+        else if (u) {
+          var n = Math.ceil(reste / u.taille - 1e-9);
+          achat = n + ' ' + (n > 1 ? u.pluriel : u.libelle) + (u.detail ? ' ' + u.detail : '');
+          achatTexte = achat;
+        } else { achat = B.formaterQuantite(reste, b.unite, b.nom).replace(/ \(≈[^)]*\)/, ''); achatTexte = achat; }
+        return { reste: reste, achat: achat, achatTexte: achatTexte, explication: besoinTxt + stockTxt };
+      }
+
+      function libelleRecette(lignes) {
+        return lignes.map(function (l) {
+          var q = Number(l[1]), u = l[2];
+          var txt = u === 'kg' && q < 1 ? Math.round(q * 1000) + ' g' : (u === 'L' && q < 1 ? Math.round(q * 1000) + ' mL' : String(q).replace('.', ',') + ' ' + u);
+          return echapper(l[0]) + ' ' + txt;
+        }).join(', ');
+      }
+
       function afficher() {
-        var n = parseInt(selectJours.value, 10);
-        var jours = joursCouverts(n);
-        document.getElementById('textePeriode').textContent = 'du ' + MP.formatDateLongue(jours[0]).toLowerCase() + ' au ' + MP.formatDateLongue(jours[jours.length - 1]).toLowerCase();
-        var res = calculerBesoins(jours);
+        cacheProduction = {};
+        var nDefaut = parseInt(selectJours.value, 10);
+        var joursDefaut = joursCouverts(nDefaut);
+        document.getElementById('textePeriode').textContent = 'du ' + MP.formatDateLongue(joursDefaut[0]).toLowerCase() + ' au ' + MP.formatDateLongue(joursDefaut[joursDefaut.length - 1]).toLowerCase() + ' (fournisseurs sans jours de livraison)';
+        var fiches = fichesParProduit();
         var stocks = lireLocal('apoint-stock:' + ctx.commercantId, {});
 
+        // Recettes à voir et valider une fois (aucune recette appliquée en silence).
+        var aValider = Object.keys(fiches).filter(function (n) { return !fiches[n].fiche; });
         var note = document.getElementById('noteRecettes');
-        var morceaux = [];
-        if (res.recettesTypes.length) morceaux.push('Recette type utilisée pour ' + res.recettesTypes.length + ' produit' + (res.recettesTypes.length > 1 ? 's' : '') + ' : ajuste-la si ta recette diffère, dans <a href="produits.html">Paramètres &gt; Mes données &gt; Produits</a>.');
-        if (res.sansRecette.length) morceaux.push('Sans recette connue : ' + res.sansRecette.map(echapper).join(', ') + '.');
-        note.innerHTML = morceaux.join(' ');
-        note.hidden = morceaux.length === 0;
-
-        var parFournisseur = {};
-        Object.keys(res.besoins).forEach(function (cle) {
-          var b = res.besoins[cle];
-          var f = B.fournisseurPour(b.nom);
-          (parFournisseur[f.cle] = parFournisseur[f.cle] || []).push({ cle: cle, b: b });
-        });
+        note.innerHTML = aValider.length ? '<strong>' + aValider.length + ' recette' + (aValider.length > 1 ? 's' : '') + ' à valider</strong> : tant qu\'elle n\'est pas validée, un produit ne compte pas dans la commande.' +
+          '<ul class="recettes-a-valider">' + aValider.map(function (n) {
+            var f = fiches[n];
+            return '<li><span><strong>' + echapper(n) + '</strong>' + (f.type ? ' : ' + libelleRecette(f.type.ingredients) + ' <span class="texte-aide--discret">(recette type, par pièce)</span>' : ' : pas de recette type connue') + '</span>' +
+              '<span class="recettes-actions">' + (f.type && f.produit ? '<button type="button" class="bouton-secondaire" data-valider="' + echapper(n) + '">C\'est ma recette</button>' : '') +
+              '<a href="produits.html">' + (f.type ? 'Modifier' : 'Ajouter sa recette') + '</a></span></li>';
+          }).join('') + '</ul>' : '';
+        note.hidden = aValider.length === 0;
 
         derniereCommande = {};
-        listeEl.innerHTML = B.FOURNISSEURS.filter(function (f) { return parFournisseur[f.cle]; }).map(function (f) {
+        var sections = B.FOURNISSEURS.map(function (f) {
           var infos = fournisseursInfos[f.cle] || {};
-          var livraison = prochaineLivraison(infos.jours);
-          var lignes = parFournisseur[f.cle].sort(function (a, b) { return a.b.nom.localeCompare(b.b.nom, 'fr'); });
+          var horizon = joursPourFournisseur(infos, nDefaut);
+          var besoins = besoinsPour(horizon.jours, fiches, f.cle);
+          var cles = Object.keys(besoins).sort(function (a, b) { return besoins[a].nom.localeCompare(besoins[b].nom, 'fr'); });
+          if (!cles.length) return '';
+          var jusqua = MP.formatDateLongue(horizon.jours[horizon.jours.length - 1]).toLowerCase();
           derniereCommande[f.cle] = [];
-          var html = lignes.map(function (x) {
-            var stock = Number(stocks[x.cle]) || 0;
-            var reste = Math.max(0, x.b.quantite - stock);
-            var texte = B.formaterQuantite(reste, x.b.unite, x.b.nom);
-            if (reste > 0) derniereCommande[f.cle].push({ nom: x.b.nom, texte: texte });
-            var uniteStock = x.b.unite === 'pièce' ? 'pièces' : x.b.unite;
-            return '<li class="ligne-commande' + (reste === 0 ? ' ligne-commande--couverte' : '') + '">' +
-              '<span class="ligne-commande-nom">' + echapper(x.b.nom) + '<span class="texte-aide--discret">' + echapper(x.b.produits.slice(0, 3).join(', ')) + (x.b.produits.length > 3 ? '…' : '') + '</span></span>' +
-              '<span class="ligne-commande-quantite">' + (reste === 0 ? 'En stock' : echapper(texte).replace(/ \((≈[^)]*)\)/, '<small>$1</small>')) + '</span>' +
-              '<label class="ligne-commande-stock">Il me reste <input type="number" min="0" step="any" inputmode="decimal" data-cle="' + echapper(x.cle) + '" value="' + (stock || '') + '" placeholder="0"> ' + uniteStock + '</label>' +
+          var html = cles.map(function (cle) {
+            var b = besoins[cle];
+            var stock = Number(stocks[cle]) || 0;
+            var l = ligneACommander(b, stock);
+            if (l.achatTexte) derniereCommande[f.cle].push({ nom: b.nom, texte: l.achatTexte });
+            // Stock dans l'unité de l'ingrédient : petites quantités en grammes.
+            var enGrammes = b.unite === 'kg' && b.quantite < 2;
+            var uniteStock = enGrammes ? 'g' : (b.unite === 'pièce' ? 'pièces' : b.unite);
+            var valeurStock = stock ? (enGrammes ? Math.round(stock * 1000) : stock) : '';
+            return '<li class="ligne-commande' + (l.reste === 0 ? ' ligne-commande--couverte' : '') + '">' +
+              '<span class="ligne-commande-nom">' + echapper(b.nom) + '<span class="texte-aide--discret">' + l.explication + ' jusqu\'au ' + jusqua + '</span>' +
+                '<span class="texte-aide--discret">Pour ' + echapper(b.produits.slice(0, 3).join(', ')) + (b.produits.length > 3 ? '…' : '') + '</span></span>' +
+              '<span class="ligne-commande-quantite">' + echapper(l.achat) + '</span>' +
+              '<label class="ligne-commande-stock">Il me reste <input type="number" min="0" step="any" inputmode="decimal" data-cle="' + echapper(cle) + '" data-grammes="' + (enGrammes ? '1' : '') + '" value="' + valeurStock + '" placeholder="0"> ' + uniteStock + '</label>' +
               '</li>';
           }).join('');
           var joursCases = [1, 2, 3, 4, 5, 6, 0].map(function (j) {
             var coche = infos.jours && infos.jours.indexOf(j) !== -1;
             return '<label class="case-jour"><input type="checkbox" data-jour="' + j + '"' + (coche ? ' checked' : '') + '> ' + JOURS_SEMAINE[j] + '</label>';
           }).join('');
+          var entete = horizon.parDefaut
+            ? 'Jours de livraison à renseigner : ' + horizon.jours.length + ' jour' + (horizon.jours.length > 1 ? 's' : '') + ' proposé' + (horizon.jours.length > 1 ? 's' : '') + ' par défaut'
+            : 'Livraison ' + MP.formatDateLongue(horizon.livraison).toLowerCase() + ', couvre jusqu\'au ' + jusqua;
           return '<section class="fournisseur" data-fournisseur="' + f.cle + '" aria-labelledby="f-' + f.cle + '">' +
-            '<div class="fournisseur-entete"><h2 id="f-' + f.cle + '">' + f.nom + '</h2>' +
-            '<span class="texte-aide">' + (livraison ? 'Prochaine livraison : ' + MP.formatDateLongue(livraison).toLowerCase() : 'Jours de livraison à renseigner') + '</span></div>' +
+            '<div class="fournisseur-entete"><h2 id="f-' + f.cle + '">' + f.nom + '</h2><span class="texte-aide">' + entete + '</span></div>' +
             '<ul class="liste-commande">' + html + '</ul>' +
             '<div class="fournisseur-envoi">' +
               '<button type="button" class="bouton-secondaire" data-envoi="pdf">PDF</button>' +
               '<button type="button" class="bouton-secondaire" data-envoi="email">E-mail</button>' +
               '<button type="button" class="bouton-secondaire" data-envoi="whatsapp">WhatsApp</button>' +
             '</div>' +
-            '<details class="fournisseur-reglages"><summary>Coordonnées et jours de livraison</summary>' +
+            '<details class="fournisseur-reglages"' + (horizon.parDefaut ? ' open' : '') + '><summary>Coordonnées et jours de livraison</summary>' +
               '<div class="ligne-form">' +
                 '<div><label for="email-' + f.cle + '">E-mail</label><input type="email" id="email-' + f.cle + '" data-champ="email" value="' + echapper(infos.email || '') + '" placeholder="commandes@exemple.fr"></div>' +
                 '<div><label for="tel-' + f.cle + '">Téléphone (WhatsApp)</label><input type="tel" id="tel-' + f.cle + '" data-champ="telephone" value="' + echapper(infos.telephone || '') + '" placeholder="06 12 34 56 78"></div>' +
@@ -183,11 +246,10 @@
               '<button type="button" class="bouton-secondaire" data-action="enregistrer">Enregistrer</button> <span class="texte-aide" role="status"></span>' +
             '</details>' +
             '</section>';
-        }).join('') || '<div class="carte-vide-claire">Aucune matière première à prévoir pour cette période.</div>';
+        }).join('');
+        listeEl.innerHTML = sections || '<div class="carte-vide-claire">Rien à commander : valide d\'abord les recettes de tes produits ci-dessus.</div>';
       }
 
-      // Les polices de base du PDF ne connaissent ni « Œ », ni « ≈ », ni les
-      // espaces fines insécables des nombres français : on les remplace.
       function textePdf(t) {
         return String(t).replace(/Œ/g, 'OE').replace(/œ/g, 'oe').replace(/≈\s*/g, 'environ ')
           .replace(/[\u202f\u00a0]/g, ' ').replace(/[–—]/g, '-').replace(/…/g, '...');
@@ -248,12 +310,31 @@
         var cle = e.target.getAttribute('data-cle');
         if (!cle) return;
         var stocks = lireLocal('apoint-stock:' + ctx.commercantId, {});
-        stocks[cle] = Number(e.target.value) || 0;
+        var v = Number(e.target.value) || 0;
+        stocks[cle] = e.target.getAttribute('data-grammes') ? v / 1000 : v;
         ecrireLocal('apoint-stock:' + ctx.commercantId, stocks);
         afficher();
       });
 
       selectJours.addEventListener('change', afficher);
+
+      // « C'est ma recette » : la recette type devient la fiche du produit.
+      document.getElementById('noteRecettes').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-valider]');
+        if (!b) return;
+        var nom = b.getAttribute('data-valider');
+        var f = fichesParProduit()[nom];
+        if (!f || !f.type || !f.produit) return;
+        b.disabled = true;
+        var lignes = f.type.ingredients.map(function (l) {
+          return { commercant_id: ctx.commercantId, produit_id: f.produit.id, nom_ingredient: l[0], quantite: l[1], unite: l[2] };
+        });
+        ctx.sb.from('ingredients_produit').insert(lignes).select().then(function (r) {
+          if (r && r.error) { b.disabled = false; b.textContent = 'Réessayer'; return; }
+          ctx.ingredients = ctx.ingredients.concat(r && r.data && r.data.length ? r.data : lignes);
+          afficher();
+        }, function () { b.disabled = false; });
+      });
 
       C.charger().then(function (c) {
         ctx = c;

@@ -112,8 +112,10 @@
   }
 
   // Prévision de tous les produits pour un jour : [{ nom, rayon, r }].
+  // Seuls les produits qui sortent du four (lot 3) : ni boissons, ni menus,
+  // burgers, salades ou desserts du traiteur.
   function prevoirJour(ctx, date) {
-    return Object.keys(ctx.parProduit).map(function (nom) {
+    return Object.keys(ctx.parProduit).filter(B.estCuit).map(function (nom) {
       var r = MP.calculerRecommandation(ctx.parProduit[nom], date, ctx.zoneVacances, ctx.evenements, ctx.meteoPassee, ctx.meteoPrevue, ctx.signauxExternes);
       return { nom: nom, rayon: B.deduireRayon(nom), r: r };
     });

@@ -7,11 +7,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Bilan</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261031g">
+  <link rel="stylesheet" href="style.css?v=20261031h">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261031g"></script>
-  <script src="boulangerie.js?v=20261031g"></script>
-  <script src="contexte.js?v=20261031g"></script>
+  <script src="moteur-prevision.js?v=20261031h"></script>
+  <script src="boulangerie.js?v=20261031h"></script>
+  <script src="contexte.js?v=20261031h"></script>
   <script src="nav.js?v=20261030"></script>
 </head>
 <body>
@@ -65,7 +65,7 @@
             <p class="carte-kpi-detail" id="kpiAvantDetail"></p>
           </div>
           <div class="carte-kpi">
-            <p class="carte-kpi-titre">Sauvé <span class="etiquette-mesure etiquette-mesure--estime" id="etiquetteSauve">estimé</span></p>
+            <p class="carte-kpi-titre">Moins d'invendus qu'avant <span class="etiquette-mesure etiquette-mesure--estime" id="etiquetteSauve">estimé</span></p>
             <p class="carte-kpi-valeur carte-kpi-valeur--neutre" id="kpiReelEuros">–</p>
             <p class="carte-kpi-detail" id="kpiReelEurosDetail">Apparaît dès que ta fournée est cochée et tes ventes du jour connues.</p>
           </div>
@@ -75,7 +75,18 @@
             <p class="carte-kpi-detail" id="kpiFiabiliteDetail">Pas encore assez d'historique.</p>
           </div>
         </div>
-        <section class="simulation" aria-labelledby="titreSimulation">
+        <div class="destination-reste">
+          <label for="destinationReste">Ton reste du soir part :</label>
+          <select id="destinationReste">
+            <option value="">Choisir</option>
+            <option value="jete">À la poubelle</option>
+            <option value="don">En don (associations)</option>
+            <option value="tgtg">Too Good To Go</option>
+            <option value="chapelure">En chapelure ou pain perdu</option>
+          </select>
+          <span class="texte-aide" id="messageDestination" role="status"></span>
+        </div>
+        <section class="simulation" aria-labelledby="titreSimulation" hidden>
           <h3 class="tendance-titre" id="titreSimulation">Estimation (simulation)</h3>
           <p class="texte-aide" id="texteSimulation">Pas encore assez d'historique.</p>
           <p class="texte-aide texte-aide--discret">Ce que la prévision aurait évité par rapport à une production faite de mémoire (moyenne simple des mêmes jours). C'est un calcul, pas une mesure : seuls les invendus réels ci-dessus sont mesurés.</p>
@@ -570,10 +581,47 @@
         document.getElementById('etiquetteSauve').textContent = ref.nature === 'mesuré' ? 'mesuré' : 'estimé';
         document.getElementById('etiquetteSauve').className = 'etiquette-mesure' + (ref.nature === 'mesuré' ? '' : ' etiquette-mesure--estime');
         var sauvees = Math.max(0, Math.round((ref.taux - taux) * cuit));
-        var prixMoyen = cuit > 0 && avecPrix > 0 ? prixMoyenPondere() : null;
+        // Correctif lot 2 : une pièce non jetée vaut son coût de revient
+        // (matière d'après tes prix d'ingrédients, sinon ≈ 30 % du prix de
+        // vente, estimé), jamais son prix de vente.
+        var cout = coutMoyenPondere();
         sauveEl.textContent = sauvees.toLocaleString('fr-FR') + ' pièce' + (sauvees > 1 ? 's' : '');
-        sauveDetail.textContent = (sauvees === 0 ? 'Pas encore moins d\'invendus qu\'avant.' : 'Environ ' + sauvees + ' pièces de moins qu\'avant' + (prixMoyen ? ', soit ≈ ' + euros(sauvees * prixMoyen) : '') + '.') +
-          (prixMoyen ? '' : ' Les euros apparaîtront avec tes prix de vente.');
+        var texteEuros = '';
+        if (sauvees > 0 && cout) {
+          var estime = ref.nature !== 'mesuré' || cout.estime;
+          texteEuros = ', soit ≈ ' + euros(sauvees * cout.valeur) + ' de matière économisée (' + (estime ? 'estimé' : 'mesuré') + (cout.estime ? ', coût de revient ≈ 30 % du prix de vente' : ', d\'après tes prix d\'ingrédients') + ')';
+        }
+        sauveDetail.textContent = (sauvees === 0 ? 'Pas encore moins d\'invendus qu\'avant.' : 'Environ ' + sauvees + ' pièces de moins qu\'avant' + texteEuros + '.') +
+          (sauvees > 0 && !cout ? ' Les euros apparaîtront avec tes prix de vente ou d\'ingrédients.' : '') +
+          ' Ventes récupérées : apparaîtront quand ta caisse donnera l\'heure des ventes.';
+      }
+
+      // Coût de revient d'une pièce, par produit : fiche technique entièrement
+      // chiffrée (mesuré), sinon 30 % du prix de vente (estimé), sinon inconnu.
+      function coutParNom() {
+        var prix = prixParNom();
+        var lignesParId = {};
+        (ctx.ingredients || []).forEach(function (l) { (lignesParId[String(l.produit_id)] = lignesParId[String(l.produit_id)] || []).push(l); });
+        var couts = {};
+        ctx.produits.forEach(function (p) {
+          var nom = MP.formatNomAffichage(p.nom);
+          var fiche = lignesParId[String(p.id)];
+          if (fiche && fiche.length && fiche.every(function (l) { return l.cout_unitaire != null; })) {
+            couts[nom] = { valeur: fiche.reduce(function (s, l) { return s + Number(l.quantite) * Number(l.cout_unitaire); }, 0), estime: false };
+          } else if (prix[nom]) {
+            couts[nom] = { valeur: prix[nom] * 0.30, estime: true };
+          }
+        });
+        return couts;
+      }
+
+      function coutMoyenPondere() {
+        var couts = coutParNom(), somme = 0, poids = 0, estime = false;
+        fournees.forEach(function (f) {
+          var c = couts[MP.formatNomAffichage(f.nom_produit)];
+          if (c) { somme += c.valeur * f.quantite_cuite; poids += f.quantite_cuite; if (c.estime) estime = true; }
+        });
+        return poids > 0 ? { valeur: somme / poids, estime: estime } : null;
       }
 
       function pourcent(t) { return (Math.round(t * 1000) / 10).toLocaleString('fr-FR') + ' %'; }
@@ -637,7 +685,7 @@
       }
 
       function afficherFiabilite() {
-        var principal = Object.keys(ctx.parProduit).sort(function (a, b) {
+        var principal = Object.keys(ctx.parProduit).filter(B.estCuit).sort(function (a, b) {
           return ctx.parProduit[b].reduce(function (s, v) { return s + v.quantite; }, 0) - ctx.parProduit[a].reduce(function (s, v) { return s + v.quantite; }, 0);
         })[0];
         var ecart = principal ? MP.calculerEcartUnites(ctx.parProduit[principal]) : null;
@@ -671,6 +719,18 @@
         }).join('');
       }
 
+      // Destination du reste (jeté, donné, TGTG, chapelure) : gardée dans les
+      // réglages quand la colonne existe, sinon sur l'appareil.
+      var selectDestination = document.getElementById('destinationReste');
+      selectDestination.addEventListener('change', function () {
+        var v = selectDestination.value || null;
+        try { localStorage.setItem('apoint-destination:' + (ctx && ctx.commercantId), v || ''); } catch (e) {}
+        if (!ctx) return;
+        ctx.sb.from('parametres_commercant').upsert({ commercant_id: ctx.commercantId, destination_invendus: v }).then(function (r) {
+          document.getElementById('messageDestination').textContent = r && r.error ? 'Gardé sur cet appareil.' : 'Enregistré.';
+        }, function () {});
+      });
+
       var boutons = document.querySelectorAll('#selecteurPeriode .periode-bouton');
       boutons.forEach(function (bouton) {
         bouton.addEventListener('click', function () {
@@ -693,6 +753,9 @@
         }, function () { fournees = []; });
       }).then(function () {
         if (!ctx || ctx.ventes.length === 0) return;
+        var destination = (ctx.parametres && ctx.parametres.destination_invendus) || '';
+        try { destination = destination || localStorage.getItem('apoint-destination:' + ctx.commercantId) || ''; } catch (e) {}
+        selectDestination.value = destination;
         var dernieres = C.dernieresVentes(ctx);
         if (dernieres && dernieres.perimees) {
           var d = new Date(dernieres.date + 'T00:00:00');

@@ -17,13 +17,17 @@
   }
 
   // ---------- Rayons ----------
-  var RAYONS = ['Pains', 'Viennoiseries', 'Pâtisseries', 'Snacking', 'Boissons', 'Autres'];
+  var RAYONS = ['Pains', 'Viennoiseries', 'Pâtisseries', 'Snacking', 'Boissons', 'Autres', 'Hors fournée'];
+  // Rayons qui ne sortent pas du four : exclus de la Fournée, de la Semaine et de la Commande.
+  var RAYONS_NON_CUITS = ['Boissons', 'Hors fournée'];
+  function estCuit(nomProduit) { return RAYONS_NON_CUITS.indexOf(deduireRayon(nomProduit)) === -1; }
 
   // L'ordre compte : « pain au chocolat » est une viennoiserie avant d'être un pain,
   // « chocolat chaud » une boisson avant d'être une viennoiserie.
   var REGLES_RAYON = [
+    ['Hors fournée', ['menu', 'formule', 'burger', 'tiramisu', 'salade', 'plat du jour', 'glace', 'yaourt']],
     ['Boissons', ['chocolat chaud', 'cappuccino', 'expresso', 'espresso', 'latte', 'smoothie', 'boisson']],
-    ['Snacking', ['sandwich', 'jambon', 'panini', 'quiche', 'pizza', 'croque', 'wrap', 'salade', 'formule', 'club', 'bagel', 'friand', 'feuillete', 'pan bagnat', 'tartine']],
+    ['Snacking', ['sandwich', 'jambon', 'panini', 'quiche', 'pizza', 'croque', 'wrap', 'club', 'bagel', 'friand', 'feuillete', 'pan bagnat', 'tartine']],
     ['Viennoiseries', ['croissant', 'pain au chocolat', 'pains au chocolat', 'chocolatine', 'pain aux raisins', 'brioche', 'chausson', 'viennois', 'suisse', 'kouign', 'oranais', 'abricotine', 'torsade', 'pain au lait']],
     ['Pâtisseries', ['eclair', 'flan', 'tarte', 'tartelette', 'mille feuille', 'millefeuille', 'religieuse', 'paris brest', 'macaron', 'entremet', 'galette des rois', 'galette', 'buche', 'chou', 'chouquette', 'cookie', 'muffin', 'financier', 'madeleine', 'cannele', 'fraisier', 'opera', 'gateau', 'beignet', 'crepe', 'brownie', 'meringue', 'baba']],
     // « Éclair au café » est une pâtisserie : les boissons simples passent après.
@@ -48,6 +52,8 @@
     { mots: ['croissant'], poids: 0.06, ingredients: [['Farine T45', 0.026, 'kg'], ['Beurre de tourage', 0.013, 'kg'], ['Sucre', 0.003, 'kg'], ['Lait', 0.007, 'L'], ['Levure fraîche', 0.001, 'kg'], ['Œufs', 0.05, 'pièce']] },
     { mots: ['brioche', 'pain au lait'], poids: 0.06, ingredients: [['Farine T45', 0.025, 'kg'], ['Beurre', 0.012, 'kg'], ['Œufs', 0.3, 'pièce'], ['Sucre', 0.004, 'kg'], ['Levure fraîche', 0.001, 'kg']] },
     { mots: ['chausson'], poids: 0.1, ingredients: [['Farine T45', 0.03, 'kg'], ['Beurre de tourage', 0.02, 'kg'], ['Compote de pommes', 0.04, 'kg']] },
+    { mots: ['galette bretonne', 'galette de sarrasin', 'galette sarrasin', 'sarrasin', 'ble noir'], poids: 0.06, ingredients: [['Farine de sarrasin', 0.045, 'kg'], ['Sel', 0.001, 'kg'], ['Œufs', 0.1, 'pièce']] },
+    { mots: ['crepe'], poids: 0.06, ingredients: [['Farine T45', 0.02, 'kg'], ['Lait', 0.05, 'L'], ['Œufs', 0.2, 'pièce'], ['Sucre', 0.004, 'kg'], ['Beurre', 0.003, 'kg']] },
     { mots: ['galette des rois', 'galette frangipane', 'frangipane'], poids: 0.6, ingredients: [['Farine T45', 0.12, 'kg'], ['Beurre de tourage', 0.12, 'kg'], ['Poudre d\'amande', 0.1, 'kg'], ['Sucre', 0.08, 'kg'], ['Œufs', 2, 'pièce']] },
     { mots: ['eclair'], poids: 0.08, ingredients: [['Farine T45', 0.006, 'kg'], ['Beurre', 0.005, 'kg'], ['Œufs', 0.3, 'pièce'], ['Lait', 0.05, 'L'], ['Sucre', 0.01, 'kg'], ['Chocolat de couverture', 0.008, 'kg']] },
     { mots: ['flan'], poids: 0.15, ingredients: [['Lait', 0.12, 'L'], ['Sucre', 0.02, 'kg'], ['Œufs', 0.3, 'pièce'], ['Farine T45', 0.012, 'kg'], ['Beurre', 0.006, 'kg']] },
@@ -130,8 +136,37 @@
     return pieces + (nom.indexOf('oeuf') !== -1 ? ' œufs' : ' pièce' + (pieces > 1 ? 's' : ''));
   }
 
+  // Clé d'ingrédient : les farines se regroupent par référence (T45, T65,
+  // tradition, seigle, sarrasin…), quel que soit le libellé saisi.
+  function cleIngredient(nom) {
+    var n = normaliser(nom);
+    if (n.indexOf('farine') !== -1 || n.indexOf('ble noir') !== -1) {
+      var ref = /\bt ?(\d{2,3})\b/.exec(n);
+      if (ref) return 'farine t' + ref[1];
+      var types = ['tradition', 'seigle', 'sarrasin', 'complete', 'epeautre', 'mais', 'riz'];
+      for (var i = 0; i < types.length; i++) if (n.indexOf(types[i]) !== -1) return 'farine ' + types[i];
+      if (n.indexOf('ble noir') !== -1) return 'farine sarrasin';
+    }
+    return n.replace(/s\b/g, '');
+  }
+
+  // Unité d'achat : ce qu'on commande vraiment au fournisseur.
+  function uniteAchat(nomIngredient, unite) {
+    var n = normaliser(nomIngredient);
+    if (unite === 'kg' && n.indexOf('farine') !== -1) return { taille: 25, libelle: 'sac', pluriel: 'sacs', detail: 'de 25 kg' };
+    if (unite === 'kg' && n.indexOf('beurre') !== -1) return { taille: 1, libelle: 'plaque', pluriel: 'plaques', detail: "d'1 kg" };
+    if (unite === 'kg' && n.indexOf('levure') !== -1) return { taille: 0.5, libelle: 'pain', pluriel: 'pains', detail: 'de 500 g' };
+    if (unite === 'pièce' && n.indexOf('oeuf') !== -1) return { taille: 30, libelle: 'plaque', pluriel: 'plaques', detail: 'de 30' };
+    if (unite === 'L' && n.indexOf('lait') !== -1) return { taille: 1, libelle: 'litre', pluriel: 'litres', detail: '' };
+    return null;
+  }
+
   window.Boulangerie = {
     RAYONS: RAYONS,
+    RAYONS_NON_CUITS: RAYONS_NON_CUITS,
+    estCuit: estCuit,
+    cleIngredient: cleIngredient,
+    uniteAchat: uniteAchat,
     deduireRayon: deduireRayon,
     recetteType: recetteType,
     poidsTypique: poidsTypique,

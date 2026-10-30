@@ -171,7 +171,7 @@ test('un dimanche férié ne prend pas la moyenne de tous les jours', () => {
 });
 
 test('recette : correspondance exacte d\'abord', () => {
-  assert.equal(B.recetteType('Galette bretonne'), null);
+  assert.notEqual(B.recetteType('Galette bretonne').poids, 0.6); // pas la galette des rois
   assert.equal(B.recetteType('Galette des rois').poids, 0.6);
   assert.equal(B.deduireRayon('Café'), 'Boissons');
 });
@@ -191,4 +191,14 @@ test('référence avant : nationale estimée, réponses, observation mesurée', 
   assert.equal(obs.nature, 'mesuré'); assert.ok(Math.abs(obs.taux - 0.11) < 1e-9);
   const enCours = MP.referenceAvant({ observation_debut: '2026-10-25' }, fournees, ventes, '2026-10-30');
   assert.equal(enCours.enCours, true); assert.equal(enCours.jour, 6);
+});
+
+test('lot 3 : non cuits, sarrasin, farines fusionnées', () => {
+  for (const n of ['Café', 'Menu du jour', 'Burger maison', 'Tiramisu', 'Salade césar']) assert.equal(B.estCuit(n), false, n);
+  assert.equal(B.estCuit('Baguette tradition'), true);
+  assert.equal(B.recetteType('Galette bretonne').ingredients[0][0], 'Farine de sarrasin');
+  assert.equal(B.recetteType('Galette bretonne').ingredients[0][1], 0.045);
+  assert.equal(B.cleIngredient('Farine T65'), B.cleIngredient('farine de blé t 65'));
+  assert.equal(B.cleIngredient('Farine de tradition'), 'farine tradition');
+  assert.equal(B.uniteAchat('Farine T65', 'kg').taille, 25);
 });

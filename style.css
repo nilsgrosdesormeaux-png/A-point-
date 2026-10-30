@@ -1378,3 +1378,11 @@ body.ecran-fournil .ligne-fournee-cuit .valeur-cuite { width: 96px; min-height: 
 .bandeau-observation { margin: 0 0 var(--espace-3); padding: var(--espace-3) var(--espace-4); font-size: var(--texte-sm); background: var(--couleur-alerte-doux); color: var(--couleur-texte); border-radius: var(--rayon-sm); }
 .avant-inscription { margin-top: var(--espace-4); font-size: var(--texte-sm); }
 .avant-inscription summary { cursor: pointer; color: var(--couleur-texte-2); }
+.destination-reste { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espace-2); margin-top: var(--espace-4); font-size: var(--texte-sm); }
+.destination-reste label { margin: 0; }
+.destination-reste select { width: auto; }
+.recettes-a-valider { list-style: none; margin: var(--espace-3) 0 0; padding: 0; }
+.recettes-a-valider li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--espace-2); padding: var(--espace-2) 0; border-top: 1px solid var(--couleur-bordure); }
+.recettes-actions { display: flex; align-items: center; gap: var(--espace-3); }
+.effet-affluence { width: 100%; margin: var(--espace-1) 0 0; }
+.ligne-commande-nom .texte-aide--discret + .texte-aide--discret { margin-top: 1px; }

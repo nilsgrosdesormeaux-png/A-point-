@@ -6,3 +6,5 @@ alter table parametres_commercant add column if not exists observation_debut dat
 alter table parametres_commercant add column if not exists reference_avant jsonb;
 -- « Épuisé avant la fermeture » (rupture), facultatif, sur la Fournée.
 alter table fournees add column if not exists epuise boolean not null default false;
+-- Destination du reste du soir (jeté, don, tgtg, chapelure), choisie dans le Bilan.
+alter table parametres_commercant add column if not exists destination_invendus text;
