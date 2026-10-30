@@ -165,22 +165,48 @@
     return null;
   }
 
-  // Fournées horaires (lot 4) : trois tranches par défaut, réparties selon le
-  // rayon (viennoiseries surtout à l'ouverture, snacking pour midi).
-  // Modifiables par produit dans la Fournée.
-  var TRANCHES = [
-    { heure: '5 h', libelle: 'Ouverture' },
-    { heure: '8 h', libelle: 'Coup de feu' },
-    { heure: '11 h', libelle: 'Midi' }
-  ];
-  var REPARTITION_PAR_RAYON = {
-    'Pains': [40, 35, 25],
-    'Viennoiseries': [60, 30, 10],
-    'Pâtisseries': [20, 40, 40],
-    'Snacking': [0, 30, 70]
+  // Fournées horaires : c'est le boulanger qui choisit ses heures (1 à 5
+  // tournées, selon son ouverture, ses fours, sa pousse contrôlée). Modèle
+  // proposé, entièrement modifiable dans Paramètres.
+  var MODELE_FOURNEES = {
+    ouverture: '07:00',
+    tranches: [
+      { nom: 'Avant l\'ouverture', heure: '05:30' },
+      { nom: 'Mi-matinée', heure: '09:00' },
+      { nom: 'Midi', heure: '11:30' },
+      { nom: 'Réassort après-midi', heure: '15:30' }
+    ]
   };
-  function repartitionParDefaut(rayon) {
-    return (REPARTITION_PAR_RAYON[rayon] || [40, 35, 25]).slice();
+  function minutes(hhmm) { var m = /^(\d{1,2}):(\d{2})/.exec(hhmm || ''); return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : null; }
+  function formaterHeure(hhmm) {
+    var m = minutes(hhmm);
+    if (m === null) return hhmm || '';
+    return Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + ('0' + m % 60).slice(-2) : '');
+  }
+  // Part par défaut de chaque tournée selon le rayon (jamais déduite des
+  // ventes) : viennoiseries avant l'ouverture, snacking autour de midi,
+  // pains surtout le matin, le reste à parts égales.
+  function repartitionParDefaut(rayon, tranches, ouverture) {
+    var n = tranches.length;
+    if (!n) return [];
+    var egal = tranches.map(function () { return 100 / n; });
+    var avantOuverture = tranches.map(function (t) { return minutes(t.heure) !== null && minutes(t.heure) <= (minutes(ouverture) || 420); });
+    if (rayon === 'Viennoiseries') {
+      var i = avantOuverture.indexOf(true);
+      return tranches.map(function (t, j) { return j === (i === -1 ? 0 : i) ? 100 : 0; });
+    }
+    if (rayon === 'Snacking') {
+      var midi = tranches.map(function (t) { var m = minutes(t.heure); return m !== null && m >= 600 && m <= 810; });
+      if (midi.indexOf(true) === -1) {
+        var proche = 0;
+        tranches.forEach(function (t, j) { if (Math.abs((minutes(t.heure) || 0) - 690) < Math.abs((minutes(tranches[proche].heure) || 0) - 690)) proche = j; });
+        midi = tranches.map(function (t, j) { return j === proche; });
+      }
+      var k = midi.filter(Boolean).length;
+      return midi.map(function (x) { return x ? 100 / k : 0; });
+    }
+    if (rayon === 'Pains' && n > 1) return tranches.map(function (t, j) { return j === 0 ? 40 : 60 / (n - 1); });
+    return egal;
   }
   // Découpe un total en pièces entières selon des parts (plus forts restes) :
   // la somme des tranches est toujours égale au total.
@@ -223,7 +249,8 @@
     INGREDIENTS_COURANTS: INGREDIENTS_COURANTS,
     versionsRecetteType: versionsRecetteType,
     coutLigne: coutLigne,
-    TRANCHES: TRANCHES,
+    MODELE_FOURNEES: MODELE_FOURNEES,
+    formaterHeure: formaterHeure,
     repartitionParDefaut: repartitionParDefaut,
     repartir: repartir,
     RAYONS: RAYONS,

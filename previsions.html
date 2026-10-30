@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Fournée</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101f">
+  <link rel="stylesheet" href="style.css?v=20261101h">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261101f"></script>
-  <script src="boulangerie.js?v=20261101f"></script>
-  <script src="contexte.js?v=20261101f"></script>
+  <script src="moteur-prevision.js?v=20261101g"></script>
+  <script src="boulangerie.js?v=20261101g"></script>
+  <script src="contexte.js?v=20261101g"></script>
   <script src="nav.js?v=20261031"></script>
 </head>
 <body>
@@ -81,7 +81,7 @@
       <span class="fournee-barre" aria-hidden="true"><span id="barreProgression"></span></span>
     </div>
 
-    <p class="texte-aide note-tranches" id="noteTranches" hidden>Sous chaque total, le nombre de pièces à enfourner à chaque tournée : « 5 h → 94 » veut dire 94 pièces pour 5 h. <span id="noteTranchesDefaut">Répartition par défaut selon le rayon, réglable produit par produit dans « Pourquoi ? ».</span></p>
+    <p class="texte-aide note-tranches" id="noteTranches" hidden><strong>Tes fournées</strong> : sous chaque total, les pièces à enfourner à chaque fournée (<span id="exempleTranche"></span>). <span id="noteHeuresModele"><a href="parametres.html#fournees">Règle tes heures de fournée</a> : celles-ci sont un modèle. </span><span id="noteTranchesDefaut">Parts par défaut selon le rayon, réglables produit par produit dans « Pourquoi ? ».</span></p>
     <details class="note-non-cuits" id="noteNonCuits" hidden><summary id="resumeNonCuits"></summary><ul id="listeNonCuits"></ul></details>
     <div id="listeRayons"></div>
 
@@ -124,21 +124,35 @@
       var epuises = {}; // « épuisé avant la fermeture » (rupture), facultatif
       var colonneEpuise = true;
       var enBase = true;
-      // Répartition par tranche horaire choisie par produit ({ nom: [40, 35, 25] }),
-      // gardée dans le compte (user_metadata), sinon celle du rayon.
+      // Tes fournées : heures et noms choisis par le boulanger (Paramètres,
+      // compte : fournees), sinon le modèle proposé. Part de chaque tournée
+      // réglable par produit (compte : tranches), sinon le défaut du rayon.
       var tranchesPerso = {};
+      var configFournees = B.MODELE_FOURNEES;
+      var configPerso = false;
+      function tournees() { return configFournees.tranches; }
       function partsTranches(p) {
-        return tranchesPerso[p.nom] || B.repartitionParDefaut(p.rayon);
+        var perso = tranchesPerso[p.nom];
+        if (perso && perso.length === tournees().length) return perso;
+        return B.repartitionParDefaut(p.rayon, tournees(), configFournees.ouverture).map(Math.round);
       }
       function texteTranches(p, q) {
         var n = B.repartir(q, partsTranches(p));
-        return B.TRANCHES.map(function (t, i) { return n[i] ? t.heure + ' → <strong>' + n[i] + '</strong>' : ''; }).filter(Boolean).join(' · ');
+        return tournees().map(function (t, i) { return n[i] ? '<span class="tranche">' + B.formaterHeure(t.heure) + ' → <strong>' + n[i] + '</strong></span>' : ''; }).filter(Boolean).join(' · ');
       }
       function formulaireTranches(p) {
         var parts = partsTranches(p);
-        return '<li class="tranches-reglage">🕔 Répartition : ' + B.TRANCHES.map(function (t, i) {
-          return '<label>' + t.heure + ' <input type="number" class="valeur-tranche" data-i="' + i + '" min="0" max="100" inputmode="numeric" value="' + parts[i] + '" aria-label="Part de ' + t.libelle.toLowerCase() + ' (' + t.heure + ') en % : ' + echapper(p.nom) + '"> %</label>';
+        return '<li class="tranches-reglage">🕔 Part de chaque fournée : ' + tournees().map(function (t, i) {
+          return '<label>' + echapper(t.nom) + ' (' + B.formaterHeure(t.heure) + ') <input type="number" class="valeur-tranche" data-i="' + i + '" min="0" max="100" inputmode="numeric" value="' + parts[i] + '" aria-label="Part de la fournée ' + echapper(t.nom) + ' en % : ' + echapper(p.nom) + '"> %</label>';
         }).join(' ') + '</li>';
+      }
+      // Épuisé avant la fermeture : proposer (jamais imposer) plus de pièces
+      // dans la fournée qui suit la dernière où ce produit est cuit.
+      function suggestionEpuise(p) {
+        var parts = partsTranches(p), derniere = 0;
+        parts.forEach(function (x, i) { if (x > 0) derniere = i; });
+        var cible = Math.min(derniere + 1, parts.length - 1);
+        return { cible: cible, texte: 'Épuisé : mettre plus de pièces en « ' + tournees()[cible].nom + ' » (' + B.formaterHeure(tournees()[cible].heure) + ') ?' };
       }
       function ligneFournee(nom, quantite) {
         var l = { commercant_id: ctx.commercantId, date_fournee: MP.versISO(jourCible), nom_produit: nom, quantite_cuite: quantite, maj: new Date().toISOString() };
@@ -300,7 +314,8 @@
                 '<button type="button" class="stepper-bouton" data-pas="-1" aria-label="Une pièce cuite de moins : ' + echapper(p.nom) + '">−</button>' +
                 '<input type="number" class="stepper-valeur valeur-cuite" min="0" inputmode="numeric" value="' + (fait ? cuit : (masque ? '' : q)) + '" placeholder="0" aria-label="Quantité cuite : ' + echapper(p.nom) + '">' +
                 '<button type="button" class="stepper-bouton" data-pas="1" aria-label="Une pièce cuite de plus : ' + echapper(p.nom) + '">+</button>' +
-                (colonneEpuise ? '<label class="case-epuise"><input type="checkbox" class="valeur-epuise"' + (epuises[p.nom] ? ' checked' : '') + '> Épuisé avant la fermeture</label>' : '') +
+                (colonneEpuise ? '<label class="case-epuise"><input type="checkbox" class="valeur-epuise"' + (epuises[p.nom] ? ' checked' : '') + '> Épuisé avant la fermeture</label>' +
+                  '<p class="suggestion-epuise"' + (epuises[p.nom] && tournees().length > 1 ? '' : ' hidden') + '><span>' + echapper(suggestionEpuise(p).texte) + '</span> <button type="button" class="btn-mini" data-plus-tard>+10 points</button></p>' : '') +
               '</div>' +
               '<details class="ligne-fournee-pourquoi"><summary>Pourquoi ?</summary><ul>' + lignesPourquoi(p) + (masque ? '' : formulaireTranches(p)) + '</ul></details>' +
               '</li>';
@@ -313,7 +328,10 @@
         afficherNonCuits();
         var chiffres = previsions.filter(function (p) { return !p.r.insuffisant; });
         document.getElementById('noteTranches').hidden = chiffres.length === 0;
-        document.getElementById('noteTranchesDefaut').hidden = chiffres.every(function (p) { return tranchesPerso[p.nom]; });
+        document.getElementById('noteTranchesDefaut').hidden = chiffres.every(function (p) { return tranchesPerso[p.nom] && tranchesPerso[p.nom].length === tournees().length; });
+        document.getElementById('noteHeuresModele').hidden = configPerso;
+        var h0 = B.formaterHeure(tournees()[0].heure);
+        document.getElementById('exempleTranche').textContent = '« ' + h0 + ' → 94 » = 94 pièces à enfourner à ' + h0;
         afficherFiabilite(previsions);
 
         document.getElementById('blocCommande').innerHTML = '<a class="btn-cta-commandes" href="commandes.html?jour=' + MP.versISO(jourCible) + '">Voir la commande de matières premières</a>';
@@ -385,12 +403,25 @@
           majProgression();
         } else if (e.target.classList.contains('valeur-epuise')) {
           epuises[nom] = e.target.checked;
+          ligne.querySelector('.suggestion-epuise').hidden = !e.target.checked || tournees().length < 2;
           enregistrerCuite(nom, Math.max(0, parseInt(champ.value, 10) || 0));
         } else if (e.target === champ && ligne.querySelector('.case-enfourne').checked) {
           enregistrerCuite(nom, Math.max(0, parseInt(champ.value, 10) || 0));
         }
       });
       listeEl.addEventListener('click', function (e) {
+        var plus = e.target.closest('[data-plus-tard]');
+        if (plus) {
+          // +10 points sur la fournée proposée, pris à parts égales aux autres.
+          var ligneP = plus.closest('.ligne-fournee'), nomP = ligneP.getAttribute('data-nom');
+          var prod = { nom: nomP, rayon: B.deduireRayon(nomP) };
+          var parts = partsTranches(prod).slice(), cible = suggestionEpuise(prod).cible, autres = parts.length - 1;
+          parts = parts.map(function (x, i) { return i === cible ? Math.min(100, x + 10) : Math.max(0, x - 10 / autres); }).map(Math.round);
+          tranchesPerso[nomP] = parts;
+          ctx.sb.auth.updateUser({ data: { tranches: tranchesPerso } }).then(function () {}, function () {});
+          afficher();
+          return;
+        }
         var pas = e.target.closest('[data-pas]');
         if (!pas) return;
         var champ = pas.parentNode.querySelector('.valeur-cuite');
@@ -451,20 +482,20 @@
           n.forEach(function (x, i) { if (x && cumul + x <= cuites[p.nom]) { cumul += x; faits[i + '|' + p.nom] = true; } });
         });
         var total = 0, nbFaits = 0;
-        var tranches = B.TRANCHES.map(function (t, i) {
+        var tranches = tournees().map(function (t, i) {
           var lignes = previsions.map(function (p) {
             return { nom: p.nom, n: B.repartir(Math.ceil(p.r.quantite), partsTranches(p))[i] };
           }).filter(function (l) { return l.n > 0; }).sort(function (a, b) { return b.n - a.n; });
           if (!lignes.length) return '';
           var somme = lignes.reduce(function (s, l) { return s + l.n; }, 0);
-          return '<section class="fournil-tranche"><h2>' + t.heure + ' <span>' + t.libelle + ', ' + somme + ' pièces</span></h2><ul>' + lignes.map(function (l) {
+          return '<section class="fournil-tranche"><h2>' + B.formaterHeure(t.heure) + ' <span>' + echapper(t.nom) + ', ' + somme + ' pièces</span></h2><ul>' + lignes.map(function (l) {
             var cle = i + '|' + l.nom, fait = !!faits[cle];
             total += l.n; if (fait) nbFaits += l.n;
             return '<li class="fournil-ligne' + (fait ? ' fournil-ligne--faite' : '') + '"><label><input type="checkbox" data-fournil="' + echapper(cle) + '" data-n="' + l.n + '"' + (fait ? ' checked' : '') + '>' +
               '<span class="fournil-nom">' + echapper(l.nom) + '</span><span class="fournil-nombre">' + l.n + '</span></label></li>';
           }).join('') + '</ul></section>';
         }).join('');
-        vueFournil.innerHTML = '<header class="fournil-entete"><div><p class="fournil-titre">Fournée ' + (MP.versISO(jourCible) === MP.versISO(new Date()) ? 'd\'aujourd\'hui' : 'de ' + MP.formatDateLongue(jourCible).toLowerCase()) + '</p>' +
+        vueFournil.innerHTML = '<header class="fournil-entete"><div><p class="fournil-titre">Tes fournées ' + (MP.versISO(jourCible) === MP.versISO(new Date()) ? 'd\'aujourd\'hui' : 'de ' + MP.formatDateLongue(jourCible).toLowerCase()) + '</p>' +
           '<p class="fournil-progression" id="fournilProgression">' + texteProgressionFournil(nbFaits, total) + '</p></div>' +
           '<button type="button" class="fournil-quitter" data-quitter>Quitter</button></header>' +
           '<div class="fournil-tranches">' + (tranches || '<p class="fournil-vide">Rien à enfourner pour l\'instant.</p>') + '</div>';
@@ -656,7 +687,9 @@
 
       C.charger().then(function (c) {
         ctx = c;
-        tranchesPerso = (ctx.session.user.user_metadata && ctx.session.user.user_metadata.tranches) || {};
+        var meta = ctx.session.user.user_metadata || {};
+        tranchesPerso = meta.tranches || {};
+        if (meta.fournees && meta.fournees.tranches && meta.fournees.tranches.length) { configFournees = meta.fournees; configPerso = true; }
         statutDiv.textContent = (ctx.parametres && ctx.parametres.nom_restaurant) || '';
         document.getElementById('bandeauReglages').hidden = !!(ctx.parametres && ctx.parametres.code_postal);
         // Avant midi, un jour d'ouverture, la fournée est celle du jour (on

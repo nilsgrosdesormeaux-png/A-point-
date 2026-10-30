@@ -6,9 +6,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Paramètres</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101f">
+  <link rel="stylesheet" href="style.css?v=20261101h">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="nav.js?v=20261031"></script>
+  <script src="boulangerie.js?v=20261101g"></script>
   <script src="caisse-utilisee.js?v=20261101e"></script>
   <script src="supabase/functions/_shared/caisse/lecture-export.js?v=20261101"></script>
   <script src="connecteur-caisse.js?v=20261101"></script>
@@ -84,6 +85,15 @@
         <!-- Plan v2 : Ventes et Produits quittent la navigation. Ils restent ici,
              en secours, pour qui n'a pas encore de caisse branchée. -->
         <!-- Lot 2 point 9 : référence « avant À Point » pour mesurer honnêtement le gaspillage. -->
+        <section id="fournees" aria-labelledby="titreFournees">
+          <h2 class="section-titre" id="titreFournees">Tes fournées</h2>
+          <p class="texte-aide">Tes heures à toi : elles dépendent de ton ouverture, de tes fours, de ta pousse. De 1 à 5 fournées, renomme-les comme tu veux. La Fournée et le mode fournil les reprennent.</p>
+          <div class="ligne-form"><div><label for="heureOuverture">Ouverture de la boutique</label><input type="time" id="heureOuverture" step="300"></div></div>
+          <ol class="liste-tournees" id="listeTournees"></ol>
+          <button type="button" class="lien-discret" id="btnAjouterTournee">+ Ajouter une fournée</button>
+          <div><button type="button" class="bouton-secondaire" id="btnFournees">Enregistrer mes fournées</button> <span class="texte-aide" id="messageFournees" role="status"></span></div>
+        </section>
+
         <section id="avant" aria-labelledby="titreAvant">
           <h2 class="section-titre" id="titreAvant">Avant À Point</h2>
           <p class="texte-aide">Pour savoir ce que l'appli te fait gagner, il faut ton point de départ. Rien à saisir chaque jour : on compare la farine que tu as achetée sur une période à celle réellement vendue (tes ventes × tes recettes). L'écart, c'est ta surproduction d'avant. Sans ces chiffres, on prend la moyenne nationale (environ 10 %), signalée comme estimation.</p>
@@ -215,6 +225,7 @@
           grilleJoursFermetureEl.appendChild(label);
         });
 
+        afficherTournees((session.user.user_metadata && session.user.user_metadata.fournees) || window.Boulangerie.MODELE_FOURNEES);
         var caisseCompte = session.user.user_metadata && session.user.user_metadata.caisse;
         window.CaisseUtilisee.brancher('selectCaisse', 'autreCaisse', caisseCompte || null);
         sbClient.from('parametres_commercant').select('*').eq('commercant_id', commercantId).then(function (res) {
@@ -247,6 +258,55 @@
       }
 
       var referenceAvantActuelle = {};
+
+      // Tes fournées : 1 à 5, nom et heure libres, gardées dans le compte.
+      var listeTourneesEl = document.getElementById('listeTournees');
+      function ligneTournee(t) {
+        return '<li class="tournee"><input type="text" class="tournee-nom" maxlength="40" value="' + String(t.nom || '').replace(/"/g, '&quot;') + '" aria-label="Nom de la fournée" placeholder="Nom de la fournée">' +
+          '<input type="time" class="tournee-heure" step="300" value="' + (t.heure || '') + '" aria-label="Heure de la fournée">' +
+          '<button type="button" class="tournee-retirer" data-retirer-tournee aria-label="Supprimer cette fournée">×</button></li>';
+      }
+      function majBoutonsTournees() {
+        var n = listeTourneesEl.children.length;
+        document.getElementById('btnAjouterTournee').hidden = n >= 5;
+        listeTourneesEl.querySelectorAll('[data-retirer-tournee]').forEach(function (b) { b.hidden = n <= 1; });
+      }
+      function afficherTournees(config) {
+        document.getElementById('heureOuverture').value = config.ouverture || '07:00';
+        listeTourneesEl.innerHTML = config.tranches.map(ligneTournee).join('');
+        majBoutonsTournees();
+      }
+      document.getElementById('btnAjouterTournee').addEventListener('click', function () {
+        listeTourneesEl.insertAdjacentHTML('beforeend', ligneTournee({ nom: '', heure: '' }));
+        listeTourneesEl.lastElementChild.querySelector('.tournee-nom').focus();
+        majBoutonsTournees();
+      });
+      listeTourneesEl.addEventListener('click', function (e) {
+        if (!e.target.closest('[data-retirer-tournee]')) return;
+        e.target.closest('.tournee').remove();
+        majBoutonsTournees();
+      });
+      document.getElementById('btnFournees').addEventListener('click', function () {
+        var msg = document.getElementById('messageFournees');
+        var tranches = Array.prototype.map.call(listeTourneesEl.children, function (li) {
+          return { nom: li.querySelector('.tournee-nom').value.trim(), heure: li.querySelector('.tournee-heure').value };
+        });
+        if (tranches.some(function (t) { return !t.nom || !t.heure; })) { msg.textContent = 'Donne un nom et une heure à chaque fournée.'; return; }
+        tranches.sort(function (a, b) { return a.heure < b.heure ? -1 : 1; });
+        var config = { ouverture: document.getElementById('heureOuverture').value || '07:00', tranches: tranches };
+        msg.textContent = 'Enregistrement…';
+        // Le nombre de fournées change : les parts réglées par produit ne
+        // correspondent plus, elles repartent du défaut.
+        var donnees = { fournees: config };
+        sbClient.auth.getSession().then(function (r) {
+          var ancien = r.data.session && r.data.session.user.user_metadata && r.data.session.user.user_metadata.fournees;
+          if (!ancien || !ancien.tranches || ancien.tranches.length !== tranches.length) donnees.tranches = {};
+          return sbClient.auth.updateUser({ data: donnees });
+        }).then(function (r) {
+          msg.textContent = r && r.error ? 'Impossible d\'enregistrer, vérifie ta connexion.' : 'Enregistré : la Fournée suit tes ' + tranches.length + ' fournée' + (tranches.length > 1 ? 's' : '') + '.';
+          afficherTournees(config);
+        }, function () { msg.textContent = 'Impossible d\'enregistrer, vérifie ta connexion.'; });
+      });
 
       // Colonnes du lot 2 : enregistrées à part, pour ne jamais bloquer le
       // reste des réglages si la migration n'est pas encore passée.

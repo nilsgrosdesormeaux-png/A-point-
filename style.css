@@ -1476,3 +1476,12 @@ body.ecran-fournil > :not(.vue-fournil):not(script) { display: none !important; 
 .note-non-cuits summary { cursor: pointer; }
 .note-non-cuits ul { list-style: none; margin: var(--espace-2) 0 0; padding: 0; }
 .note-non-cuits li label { display: flex; align-items: center; gap: var(--espace-2); margin: 0; padding: 4px 0; font-weight: 400; }
+.suggestion-epuise { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: var(--espace-2); margin: var(--espace-2) 0 0; font-size: var(--texte-xs); font-weight: 400; }
+.suggestion-epuise[hidden] { display: none; }
+.ligne-fournee-cuit { flex-wrap: wrap; }
+.liste-tournees { list-style: none; margin: var(--espace-3) 0 var(--espace-2); padding: 0; }
+.tournee { display: grid; grid-template-columns: 1fr 120px 40px; gap: var(--espace-2); align-items: center; padding: var(--espace-2) 0; }
+.tournee input { margin: 0; }
+.tournee-retirer { width: 40px; height: 40px; min-height: 40px; margin: 0; padding: 0; font-size: 20px; color: var(--couleur-texte-3); background: none; border: 0; box-shadow: none !important; }
+#fournees > div:last-child { margin-top: var(--espace-3); }
+.ligne-fournee-tranches .tranche { white-space: nowrap; }
