@@ -638,7 +638,7 @@
           var n = v.source === 'manuel' ? 'saisi' : v.source === 'reste' ? 'estime' : v.source === 'demo' ? 'test' : 'auto';
           sources[n] = (sources[n] || 0) + 1;
         });
-        var libSources = { auto: 'remontées par ta caisse', saisi: 'saisies à la main', estime: 'déduites le soir (cuit − reste)', test: 'données de test du compte démo' };
+        var libSources = { auto: 'venues de ta caisse (branchement, e-mail ou fichier)', saisi: 'saisies ou importées à la main', estime: 'déduites le soir (cuit − reste)', test: 'données de test du compte démo' };
         var ventesTxt = Object.keys(sources).map(function (n) { return etiquette(n) + ' ' + sources[n] + ' ligne' + (sources[n] > 1 ? 's' : '') + ' ' + libSources[n]; }).join(' ; ') || 'aucune';
         var refNature = ref.nature === 'estimé' ? 'estime' : 'saisi';
         var nbCoutsSaisis = lignes.filter(function (l) { return l.cout && !l.cout.estime; }).length, nbCoutsEstimes = lignes.filter(function (l) { return l.cout && l.cout.estime; }).length;
