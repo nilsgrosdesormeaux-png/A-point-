@@ -1,29 +1,18 @@
-
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>À Point - Achats & commandes</title>
+  <title>À Point - Commande</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261030">
+  <link rel="stylesheet" href="style.css?v=20261031">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <script src="moteur-prevision.js?v=20260922"></script>
-  <style>
-    .grille-jours-commande { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 4px 16px; margin: 14px 0; }
-    .raccourci-semaine { margin: 4px 0 12px; }
-    .selecteur-couverture { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 6px; }
-    .selecteur-couverture select { width: auto; margin: 0; padding: 7px 10px; font-size: 13px; }
-    .selecteur-couverture-aide { font-size: 12px; color: var(--texte-attenue); width: 100%; margin: 0; }
-    .apercu-habitude summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
-    .apercu-habitude[open] summary { margin-bottom: 6px; }
-    .apercu-habitude-famille { font-size: 12px; color: var(--texte-tres-attenue); text-transform: uppercase; letter-spacing: 0.03em; margin: 14px 0 2px; }
-    .apercu-habitude-famille:first-of-type { margin-top: 4px; }
-  </style>
-  <script src="nav.js?v=20261030"></script>
+  <script src="moteur-prevision.js?v=20261031"></script>
+  <script src="boulangerie.js?v=20261031"></script>
+  <script src="contexte.js?v=20261031"></script>
+  <script src="nav.js?v=20261031"></script>
 </head>
 <body>
   <a class="lien-evitement" href="#contenu">Aller au contenu</a>
@@ -38,519 +27,251 @@
     </a>
     <nav id="navPrincipale"></nav>
   </header>
+
   <div id="contenu" role="main" class="conteneur conteneur--large">
-
-    <p id="statutCommande" class="texte-aide">Vérification de la connexion...</p>
-
-    <!-- Sélection de jours + génération PDF -->
-    <div class="carte-page" id="carteGenererCommande" style="display:none;">
-      <div class="entete-page">
-        <div>
-          <p class="eyebrow">Achats & commandes</p>
-          <h1 id="titreGenererCommande">Générer ma commande</h1>
-        </div>
+    <div class="entete-page">
+      <div>
+        <h1>Commande</h1>
+        <p class="texte-aide" style="margin:0;">Les matières premières dont ta fournée aura besoin, par fournisseur.</p>
       </div>
-      <p class="texte-aide">Pour importer tes ventes, tes fiches techniques ou tes prix, direction l’onglet <a href="ventes.html#importer">Ventes</a>.</p>
-      <p class="texte-aide" id="bandeauContexteJour" style="display:none;"></p>
-
-      <div class="selecteur-couverture">
-        <label for="selectCouverture">Cette commande couvre :</label>
-        <select id="selectCouverture"></select>
-        <p class="selecteur-couverture-aide">Les quantités ci-dessous et le PDF s'ajustent à cette durée précise.</p>
-      </div>
-
-      <details class="apercu-habitude" id="apercuHabitude" open>
-        <summary>Aperçu des articles à commander (habitude sur cette période)</summary>
-        <p class="texte-aide" id="texteApercuHabitude" style="margin-top:0;">Chargement...</p>
-        <div id="tableauApercuHabitude" class="zone-scroll"></div>
-      </details>
-
-      <p class="texte-aide">Ajuste si besoin les jours cochés (par défaut, ceux de la période choisie ci-dessus). Chaque jour compte pour sa propre quantité prévue, pas une moyenne : un jour chargé ou un jour férié coché en plus ajuste la commande en conséquence.</p>
-
-      <button type="button" id="btnToutCocher" class="lien-discret raccourci-semaine">Tout cocher (toute la semaine)</button>
-
-      <div class="grille-jours-commande" id="grilleJoursCommande"></div>
-
-      <button type="button" id="btnGenererPdf">Générer le PDF</button>
-      <div id="messageCommande"></div>
     </div>
+    <p id="statutConnexion" class="texte-aide">Chargement…</p>
 
-    <p class="pied-page"><a href="cgu.html">Conditions générales d'utilisation</a></p>
+    <div id="zoneCommande" hidden>
+      <div class="commande-periode">
+        <label for="selectJours">Couvrir</label>
+        <select id="selectJours"></select>
+        <span class="texte-aide" id="textePeriode"></span>
+      </div>
+      <p class="texte-aide" id="noteRecettes" hidden></p>
+      <div id="listeFournisseurs"></div>
+    </div>
   </div>
 
   <script>
     (function () {
-      var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
-      var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
-      var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-      // ================================================================
-      // Bloc 1 — Moteur de prévision (fonctions partagées, voir
-      // moteur-prevision.js).
-      // ================================================================
-
       var MP = window.MoteurPrevision;
-      var nomsJours = MP.nomsJours;
-      var capitaliser = MP.capitaliser;
-      var formatNomAffichage = MP.formatNomAffichage;
-      var versISO = MP.versISO;
-      var zoneVacancesPourCodePostal = MP.zoneVacancesPourCodePostal;
-      var prochainsJoursOuverts = MP.prochainsJoursOuverts;
-      var calculerRecommandation = MP.calculerRecommandation;
-      var calculerConsommationIngredients = MP.calculerConsommationIngredients;
-      var calculerPrevisionSemaine = MP.calculerPrevisionSemaine;
+      var B = window.Boulangerie;
+      var C = window.ContexteBoulangerie;
+      var JOURS_SEMAINE = ['Dim.', 'Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.'];
 
-      // ================================================================
-      // Bloc 2 — Chargement des données nécessaires à la génération de
-      // commande. Le bandeau "économies / invendus évités" qui vivait ici
-      // a été retiré (sept. 2026, étape 6 cahier des charges V2) : déjà
-      // affiché sur l'Accueil (tableau-de-bord.html), redondant ici.
-      // ================================================================
+      var statutDiv = document.getElementById('statutConnexion');
+      var listeEl = document.getElementById('listeFournisseurs');
+      var selectJours = document.getElementById('selectJours');
+      var ctx = null;
+      var premierJour = null;
+      var fournisseursInfos = {}; // { cle: { email, telephone, jours: [1,4] } }
+      var derniereCommande = {};  // { cleFournisseur: [{ nom, texte }] } pour l'envoi
 
-      function chargerDonneesCommande() {
-        var statutDiv = document.getElementById('statutCommande');
-        var carteEl = document.getElementById('carteGenererCommande');
-        sbClient.auth.getSession().then(function (result) {
-          var session = result.data.session;
-          if (!session) {
-            // Bug corrigé (audit sept. 2026) : la page ne montrait
-            // jusqu'ici aucun message ni aucun lien de connexion, elle
-            // restait simplement vide.
-            statutDiv.innerHTML = "Tu n'es pas connecté. <a href='connexion.html'>Va sur la page de connexion →</a>";
-            return;
+      function echapper(t) {
+        return String(t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+      }
+      function lireLocal(cle, defaut) { try { return JSON.parse(localStorage.getItem(cle)) || defaut; } catch (e) { return defaut; } }
+      function ecrireLocal(cle, val) { try { localStorage.setItem(cle, JSON.stringify(val)); } catch (e) {} }
+
+      // Jours couverts : les N prochains jours d'ouverture à partir du premier.
+      function joursCouverts(n) {
+        var jours = [premierJour];
+        while (jours.length < n) jours.push(MP.prochainJourOuvert(jours[jours.length - 1], ctx.joursFermeture));
+        return jours;
+      }
+
+      // Production prévue (somme sur la période) → besoins par ingrédient :
+      // fiche technique du boulanger si elle existe, sinon recette type.
+      function calculerBesoins(jours) {
+        var production = {};
+        jours.forEach(function (d) {
+          C.prevoirJour(ctx, d).forEach(function (p) { production[p.nom] = (production[p.nom] || 0) + p.r.quantite; });
+        });
+        var idParNom = {};
+        ctx.produits.forEach(function (p) { idParNom[MP.formatNomAffichage(p.nom)] = String(p.id); });
+        var fiches = {};
+        ctx.ingredients.forEach(function (l) { (fiches[String(l.produit_id)] = fiches[String(l.produit_id)] || []).push(l); });
+
+        var besoins = {};
+        var sansRecette = [], recettesTypes = [];
+        Object.keys(production).forEach(function (nom) {
+          var q = production[nom];
+          var fiche = fiches[idParNom[nom]];
+          var lignes;
+          if (fiche && fiche.length) {
+            lignes = fiche.map(function (l) { var b = B.versUniteBase(Number(l.quantite) || 0, l.unite); return [l.nom_ingredient, b.quantite, b.unite]; });
+          } else {
+            var type = B.recetteType(nom);
+            if (!type) { sansRecette.push(nom); return; }
+            recettesTypes.push(nom);
+            lignes = type.ingredients;
           }
-          var commercantId = session.user.id;
-
-          Promise.all([
-            sbClient.from('ventes').select('*').eq('commercant_id', commercantId),
-            sbClient.from('produits').select('*').eq('commercant_id', commercantId),
-            sbClient.from('ingredients_produit').select('*').eq('commercant_id', commercantId),
-            sbClient.from('parametres_commercant').select('*').eq('commercant_id', commercantId),
-            sbClient.from('evenements_commercant').select('*').eq('commercant_id', commercantId)
-          ]).then(function (resultats) {
-            var ventes = resultats[0].data || [];
-            var produits = resultats[1].data || [];
-            var ingredientsLignes = resultats[2].data || [];
-            var parametres = (resultats[3].data && resultats[3].data[0]) || null;
-            var zoneVacances = parametres ? zoneVacancesPourCodePostal(parametres.code_postal) : null;
-            var evenements = {};
-            (resultats[4].data || []).forEach(function (e) { evenements[e.date_evenement] = e.direction; });
-
-            var donneesGlobales = {
-              ventes: ventes,
-              produits: produits,
-              ingredientsLignes: ingredientsLignes,
-              zoneVacances: zoneVacances,
-              evenements: evenements,
-              joursFermeture: (parametres && parametres.jours_fermeture) || []
-            };
-
-            statutDiv.style.display = 'none';
-            carteEl.style.display = 'block';
-            initialiserGenerationCommande(donneesGlobales);
-          }).catch(function () {
-            // Bug corrigé (audit sept. 2026) : sans ce filet, un échec
-            // réseau ici laissait la page bloquée indéfiniment sur
-            // "Vérification de la connexion...".
-            statutDiv.textContent = "Impossible de charger tes données pour l'instant. Vérifie ta connexion et réessaie.";
+          lignes.forEach(function (l) {
+            var cle = B.normaliser(l[0]) + '|' + l[2];
+            if (!besoins[cle]) besoins[cle] = { nom: l[0], unite: l[2], quantite: 0, produits: [] };
+            besoins[cle].quantite += l[1] * q;
+            if (besoins[cle].produits.indexOf(nom) === -1) besoins[cle].produits.push(nom);
           });
         });
+        return { besoins: besoins, sansRecette: sansRecette, recettesTypes: recettesTypes };
       }
 
-      chargerDonneesCommande();
-
-      // ================================================================
-      // Bloc 3 — Sélection de jours + génération PDF
-      // ================================================================
-
-      // ---------- Cadencier : famille déduite du nom de l'ingrédient par
-      // mots-clés simples, purement pour le regroupement d'affichage. Aucune
-      // colonne "famille" n'existe en base (voir migration-ingredients.sql) :
-      // on ne stocke rien, on ne fait qu'étiqueter à l'affichage, donc un
-      // ingrédient mal deviné n'a aucune conséquence sur les données. Liste
-      // volontairement courte et sans jargon (pas de "B.O.F"/"AOP"). ---------- */
-      var MOTS_CLES_FAMILLES = [
-        { famille: 'Viandes & Poissons', motsCles: ['poulet', 'boeuf', 'bœuf', 'porc', 'viande', 'poisson', 'saumon', 'jambon', 'volaille', 'steak', 'dinde', 'agneau', 'thon', 'charcuterie'] },
-        { famille: 'Laitages & Œufs', motsCles: ['lait', 'beurre', 'crème', 'creme', 'fromage', 'oeuf', 'œuf', 'yaourt'] },
-        { famille: 'Fruits & Légumes frais', motsCles: ['tomate', 'salade', 'oignon', 'pomme', 'carotte', 'legume', 'légume', 'fruit', 'citron', 'ail', 'poivron', 'courgette', 'champignon'] },
-        { famille: 'Boissons', motsCles: ['eau', 'café', 'cafe', 'thé', 'the', 'jus', 'vin', 'bière', 'biere', 'soda'] },
-        { famille: 'Emballages & Entretien', motsCles: ['sac', 'boite', 'boîte', 'emballage', 'gobelet', 'serviette', 'vaisselle', 'nettoyant'] }
-      ];
-      var FAMILLE_PAR_DEFAUT = 'Épicerie & Produits secs';
-
-      function normaliserTexte(texte) {
-        return (texte === null || texte === undefined ? '' : texte.toString())
-          .toLowerCase()
-          .normalize('NFD').replace(/[̀-ͯ]/g, '')
-          .replace(/[^a-z0-9]/g, '');
-      }
-
-      function familleDeduite(nomIngredient) {
-        var norm = normaliserTexte(nomIngredient || '');
-        for (var i = 0; i < MOTS_CLES_FAMILLES.length; i++) {
-          var groupe = MOTS_CLES_FAMILLES[i];
-          for (var j = 0; j < groupe.motsCles.length; j++) {
-            if (norm.indexOf(normaliserTexte(groupe.motsCles[j])) !== -1) return groupe.famille;
-          }
+      function prochaineLivraison(jours) {
+        if (!jours || !jours.length) return null;
+        for (var i = 1; i <= 7; i++) {
+          var d = MP.ajouterJours(new Date(), i);
+          if (jours.indexOf(d.getDay()) !== -1) return d;
         }
-        return FAMILLE_PAR_DEFAUT;
+        return null;
       }
 
-      // ---------- Contexte transmis depuis semaine.html (bouton "🛒 Préparer
-      // la commande" sur une carte jour) : ?jour=AAAA-MM-JJ&affluence=charge.
-      // Purement indicatif ici (bandeau + valeur par défaut du sélecteur de
-      // couverture) — jamais requis pour utiliser la page normalement. ---------- */
-      function lireContexteDepuisUrl() {
-        var params = new URLSearchParams(window.location.search);
-        var jourISO = params.get('jour');
-        var affluence = params.get('affluence');
-        // Bug corrigé (audit sept. 2026) : un ?jour= mal formé (lien
-        // modifié à la main, obsolète) produisait une Date invalide plus
-        // loin, ce qui plantait silencieusement toute l'initialisation de
-        // la page (grille de jours, bouton PDF jamais branchés).
-        if (!jourISO || !/^\d{4}-\d{2}-\d{2}$/.test(jourISO)) return null;
-        return { jourISO: jourISO, affluence: affluence };
-      }
+      function afficher() {
+        var n = parseInt(selectJours.value, 10);
+        var jours = joursCouverts(n);
+        document.getElementById('textePeriode').textContent = 'du ' + MP.formatDateLongue(jours[0]).toLowerCase() + ' au ' + MP.formatDateLongue(jours[jours.length - 1]).toLowerCase();
+        var res = calculerBesoins(jours);
+        var stocks = lireLocal('apoint-stock:' + ctx.commercantId, {});
 
-      var LIBELLES_AFFLUENCE_CONTEXTE = {
-        charge: '📈 jour chargé',
-        calme: '📉 jour calme',
-        ferie: '⚠️ jour férié',
-        vacances: '🏖️ vacances scolaires',
-        'evenement-plus': '📅 événement signalé (plus de monde)',
-        'evenement-moins': '📅 événement signalé (moins de monde)'
-      };
+        var note = document.getElementById('noteRecettes');
+        var morceaux = [];
+        if (res.recettesTypes.length) morceaux.push('Recette type utilisée pour ' + res.recettesTypes.length + ' produit' + (res.recettesTypes.length > 1 ? 's' : '') + ' : ajuste-la si ta recette diffère, dans <a href="produits.html">Paramètres &gt; Mes données &gt; Produits</a>.');
+        if (res.sansRecette.length) morceaux.push('Sans recette connue : ' + res.sansRecette.map(echapper).join(', ') + '.');
+        note.innerHTML = morceaux.join(' ');
+        note.hidden = morceaux.length === 0;
 
-      function afficherBandeauContexte(contexte) {
-        if (!contexte) return;
-        var bandeau = document.getElementById('bandeauContexteJour');
-        var d = new Date(contexte.jourISO + 'T00:00:00');
-        var texteJour = capitaliser(nomsJours[d.getDay()]) + ' ' + d.getDate() + '/' + (d.getMonth() + 1);
-        var texteAffluence = LIBELLES_AFFLUENCE_CONTEXTE[contexte.affluence];
-        bandeau.textContent = 'Depuis Semaine — commande préparée pour ' + texteJour + (texteAffluence ? ' (' + texteAffluence + ')' : '') + '.';
-        bandeau.style.display = 'block';
-      }
-
-      function initialiserGenerationCommande(donnees) {
-        var joursFermeture = donnees.joursFermeture;
-        var MAX_JOURS_COUVERTURE = 14;
-        var joursAGenerer = prochainsJoursOuverts(MAX_JOURS_COUVERTURE, joursFermeture);
-        var grilleJoursEl = document.getElementById('grilleJoursCommande');
-        var selectCouverture = document.getElementById('selectCouverture');
-
-        var contexte = lireContexteDepuisUrl();
-        afficherBandeauContexte(contexte);
-
-        // Période par défaut : 3 jours, sauf si on arrive avec un contexte
-        // (le jour visé sur Semaine doit rester couvert par défaut).
-        var periodeCouverture = 3;
-        if (contexte) {
-          var indexJourContexte = -1;
-          for (var i = 0; i < joursAGenerer.length; i++) {
-            if (versISO(joursAGenerer[i]) === contexte.jourISO) { indexJourContexte = i; break; }
-          }
-          if (indexJourContexte !== -1) periodeCouverture = Math.max(3, indexJourContexte + 1);
-        }
-
-        selectCouverture.innerHTML = '';
-        for (var jourOption = 1; jourOption <= MAX_JOURS_COUVERTURE; jourOption++) {
-          var option = document.createElement('option');
-          option.value = String(jourOption);
-          option.textContent = jourOption + (jourOption > 1 ? ' jours' : ' jour');
-          if (jourOption === periodeCouverture) option.selected = true;
-          selectCouverture.appendChild(option);
-        }
-
-        // Affluence attendue par jour (tier : chargé/calme/férié/vacances/
-        // événement), pour que cocher plusieurs jours ait un sens visible :
-        // sans ce signal, deux cases se ressemblent alors que la quantité à
-        // commander peut réellement différer d'un jour à l'autre. Limité aux
-        // 7 prochains jours (portée de calculerPrevisionSemaine) — au-delà,
-        // pas de badge plutôt qu'un signal inventé.
-        var previsionParIso = {};
-        calculerPrevisionSemaine(donnees.ventes, donnees.zoneVacances, joursFermeture, donnees.evenements).forEach(function (j) {
-          previsionParIso[j.iso] = j.tier;
+        var parFournisseur = {};
+        Object.keys(res.besoins).forEach(function (cle) {
+          var b = res.besoins[cle];
+          var f = B.fournisseurPour(b.nom);
+          (parFournisseur[f.cle] = parFournisseur[f.cle] || []).push({ cle: cle, b: b });
         });
 
-        // Bug corrigé (audit sept. 2026) : joursAGenerer[0] est le PROCHAIN
-        // JOUR OUVERT, pas forcément demain (si le commerce est fermé
-        // demain, ça peut être J+2 ou plus) — "(demain)" était affiché à
-        // tort dans ce cas. On ne l'affiche que si c'est vraiment demain.
-        var demainISO = versISO(new Date(new Date().setDate(new Date().getDate() + 1)));
-
-        function rendreCasesJours() {
-          grilleJoursEl.innerHTML = '';
-          joursAGenerer.forEach(function (date, index) {
-            var label = document.createElement('label');
-            label.className = 'case-consentement';
-            var input = document.createElement('input');
-            input.type = 'checkbox';
-            input.className = 'case-jour-commande';
-            input.value = index;
-            // Coché par défaut si le jour tombe dans la période de
-            // couverture choisie ci-dessus — reste librement modifiable.
-            if (index < periodeCouverture) input.checked = true;
-            var span = document.createElement('span');
-            var tierJour = previsionParIso[versISO(date)];
-            var badgeAffluence = (tierJour && LIBELLES_AFFLUENCE_CONTEXTE[tierJour]) ? ' — ' + LIBELLES_AFFLUENCE_CONTEXTE[tierJour] : '';
-            var estDemain = versISO(date) === demainISO;
-            span.textContent = capitaliser(nomsJours[date.getDay()]) + ' ' + date.getDate() + '/' + (date.getMonth() + 1) + (estDemain ? ' (demain)' : '') + badgeAffluence;
-            label.appendChild(input);
-            label.appendChild(span);
-            grilleJoursEl.appendChild(label);
-          });
-        }
-
-        // ---------- Aperçu "Habitude" : consommation d'ingrédients prévue,
-        // agrégée sur les N prochains jours ouverts choisis, regroupée par
-        // famille déduite. Mission 2 du Cadencier : recalcul dynamique
-        // intégral dès que la période change, jamais une seule ligne. ---------- */
-        function rendreApercuHabitude() {
-          var texteEl = document.getElementById('texteApercuHabitude');
-          var tableauEl = document.getElementById('tableauApercuHabitude');
-          var joursCouverts = joursAGenerer.slice(0, periodeCouverture);
-
-          var ventes = donnees.ventes;
-          var produits = donnees.produits;
-          var ingredientsLignes = donnees.ingredientsLignes;
-          var zoneVacances = donnees.zoneVacances;
-          var evenements = donnees.evenements;
-
-          var parProduit = {};
-          ventes.forEach(function (vente) {
-            var nomNormalise = formatNomAffichage(vente.nom_produit);
-            if (!parProduit[nomNormalise]) parProduit[nomNormalise] = [];
-            parProduit[nomNormalise].push(vente);
-          });
-
-          // Bug corrigé (audit sept. 2026) : seul le chiffre point était
-          // agrégé, jamais la fourchette — contraire au principe "toujours
-          // une fourchette, jamais un chiffre présenté comme certain",
-          // particulièrement sensible ici où l'engagement (commande
-          // fournisseur) est le plus concret. On agrège aussi bas/haut, en
-          // retombant sur le chiffre point quand aucune fourchette n'est
-          // disponible (événement signalé, historique trop court) plutôt
-          // que d'inventer une marge.
-          var totauxParCle = {};
-          joursCouverts.forEach(function (jourCible) {
-            var recommandationsParNom = {};
-            var recommandationsBasParNom = {};
-            var recommandationsHautParNom = {};
-            Object.keys(parProduit).forEach(function (nomProduit) {
-              var r = calculerRecommandation(parProduit[nomProduit], jourCible, zoneVacances, evenements, {}, {});
-              recommandationsParNom[nomProduit] = r.quantite;
-              recommandationsBasParNom[nomProduit] = r.fourchette ? r.fourchette.bas : r.quantite;
-              recommandationsHautParNom[nomProduit] = r.fourchette ? r.fourchette.haut : r.quantite;
-            });
-            var ingredients = calculerConsommationIngredients(recommandationsParNom, produits, ingredientsLignes);
-            var ingredientsBas = calculerConsommationIngredients(recommandationsBasParNom, produits, ingredientsLignes);
-            var ingredientsHaut = calculerConsommationIngredients(recommandationsHautParNom, produits, ingredientsLignes);
-            var basParCle = {};
-            ingredientsBas.forEach(function (ing) { basParCle[ing.nom.trim().toLowerCase() + '|' + (ing.unite || '').trim().toLowerCase()] = ing.total; });
-            var hautParCle = {};
-            ingredientsHaut.forEach(function (ing) { hautParCle[ing.nom.trim().toLowerCase() + '|' + (ing.unite || '').trim().toLowerCase()] = ing.total; });
-            ingredients.forEach(function (ing) {
-              var cle = ing.nom.trim().toLowerCase() + '|' + (ing.unite || '').trim().toLowerCase();
-              if (!totauxParCle[cle]) totauxParCle[cle] = { nom: ing.nom, unite: ing.unite, total: 0, totalBas: 0, totalHaut: 0 };
-              totauxParCle[cle].total += ing.total;
-              totauxParCle[cle].totalBas += (basParCle[cle] !== undefined ? basParCle[cle] : ing.total);
-              totauxParCle[cle].totalHaut += (hautParCle[cle] !== undefined ? hautParCle[cle] : ing.total);
-            });
-          });
-
-          var lignes = Object.keys(totauxParCle).map(function (cle) { return totauxParCle[cle]; });
-
-          if (lignes.length === 0) {
-            texteEl.textContent = "Pas encore assez de données (ventes + fiches techniques) pour estimer une habitude sur cette période.";
-            tableauEl.innerHTML = '';
-            return;
-          }
-
-          texteEl.textContent = "Habitude = consommation moyenne prévue sur " + periodeCouverture + " jour" + (periodeCouverture > 1 ? 's' : '') + " (" + capitaliser(nomsJours[joursCouverts[0].getDay()]) + " → " + capitaliser(nomsJours[joursCouverts[joursCouverts.length - 1].getDay()]) + "), à ajuster librement avant l'envoi.";
-
-          var parFamille = {};
-          var ordreFamilles = [];
-          lignes.forEach(function (ligne) {
-            var famille = familleDeduite(ligne.nom);
-            if (!parFamille[famille]) { parFamille[famille] = []; ordreFamilles.push(famille); }
-            parFamille[famille].push(ligne);
-          });
-          ordreFamilles.sort();
-
-          var html = '<table><thead><tr><th>Article</th><th>Habitude (' + periodeCouverture + ' j)</th></tr></thead><tbody>';
-          ordreFamilles.forEach(function (famille) {
-            html += '<tr><td colspan="2" class="apercu-habitude-famille">' + famille + '</td></tr>';
-            parFamille[famille]
-              .sort(function (a, b) { return b.total - a.total; })
-              .forEach(function (ligne) {
-                var totalArrondi = Math.round(ligne.total * 10) / 10;
-                var basArrondi = Math.round(ligne.totalBas * 10) / 10;
-                var hautArrondi = Math.round(ligne.totalHaut * 10) / 10;
-                var texteQuantite = String(totalArrondi).replace('.', ',') + (ligne.unite ? ' ' + ligne.unite : '');
-                if (hautArrondi > basArrondi) {
-                  texteQuantite += ' <span class="texte-aide">(' + String(basArrondi).replace('.', ',') + ' – ' + String(hautArrondi).replace('.', ',') + ')</span>';
-                }
-                html += '<tr><td>' + ligne.nom + '</td><td>' + texteQuantite + '</td></tr>';
-              });
-          });
-          html += '</tbody></table>';
-          tableauEl.innerHTML = html;
-        }
-
-        selectCouverture.addEventListener('change', function () {
-          var valeur = parseInt(selectCouverture.value, 10);
-          if (isNaN(valeur) || valeur < 1) valeur = 1;
-          if (valeur > MAX_JOURS_COUVERTURE) valeur = MAX_JOURS_COUVERTURE;
-          periodeCouverture = valeur;
-          rendreCasesJours();
-          rendreApercuHabitude();
-        });
-
-        rendreCasesJours();
-        rendreApercuHabitude();
-
-        document.getElementById('btnToutCocher').addEventListener('click', function () {
-          // Bug corrigé (audit sept. 2026) : la grille affiche jusqu'à 14
-          // jours (MAX_JOURS_COUVERTURE), donc cocher "toutes les cases"
-          // couvrait en réalité deux semaines, pas une — risque réel de
-          // surcommande. On limite bien aux 7 premiers jours affichés.
-          document.querySelectorAll('.case-jour-commande').forEach(function (c) {
-            if (parseInt(c.value, 10) < 7) c.checked = true;
-          });
-        });
-
-        document.getElementById('btnGenererPdf').addEventListener('click', function () {
-          // Bug corrigé (audit sept. 2026) : sans filet, un échec de
-          // chargement de jsPDF (CDN indisponible, réseau coupé) rendait ce
-          // clic silencieusement inopérant, sans aucun message.
-          try {
-            genererPdfCommande(donnees, joursAGenerer);
-          } catch (erreur) {
-            var messageCommandeEl = document.getElementById('messageCommande');
-            messageCommandeEl.style.display = 'block';
-            messageCommandeEl.className = 'erreur';
-            messageCommandeEl.textContent = "Impossible de générer le PDF pour l'instant. Vérifie ta connexion et réessaie.";
-          }
-        });
+        derniereCommande = {};
+        listeEl.innerHTML = B.FOURNISSEURS.filter(function (f) { return parFournisseur[f.cle]; }).map(function (f) {
+          var infos = fournisseursInfos[f.cle] || {};
+          var livraison = prochaineLivraison(infos.jours);
+          var lignes = parFournisseur[f.cle].sort(function (a, b) { return a.b.nom.localeCompare(b.b.nom, 'fr'); });
+          derniereCommande[f.cle] = [];
+          var html = lignes.map(function (x) {
+            var stock = Number(stocks[x.cle]) || 0;
+            var reste = Math.max(0, x.b.quantite - stock);
+            var texte = B.formaterQuantite(reste, x.b.unite, x.b.nom);
+            if (reste > 0) derniereCommande[f.cle].push({ nom: x.b.nom, texte: texte });
+            var uniteStock = x.b.unite === 'pièce' ? 'pièces' : x.b.unite;
+            return '<li class="ligne-commande' + (reste === 0 ? ' ligne-commande--couverte' : '') + '">' +
+              '<span class="ligne-commande-nom">' + echapper(x.b.nom) + '<span class="texte-aide--discret">' + echapper(x.b.produits.slice(0, 3).join(', ')) + (x.b.produits.length > 3 ? '…' : '') + '</span></span>' +
+              '<span class="ligne-commande-quantite">' + (reste === 0 ? 'En stock' : texte) + '</span>' +
+              '<label class="ligne-commande-stock">Il me reste <input type="number" min="0" step="any" inputmode="decimal" data-cle="' + echapper(x.cle) + '" value="' + (stock || '') + '" placeholder="0"> ' + uniteStock + '</label>' +
+              '</li>';
+          }).join('');
+          var joursCases = [1, 2, 3, 4, 5, 6, 0].map(function (j) {
+            var coche = infos.jours && infos.jours.indexOf(j) !== -1;
+            return '<label class="case-jour"><input type="checkbox" data-jour="' + j + '"' + (coche ? ' checked' : '') + '> ' + JOURS_SEMAINE[j] + '</label>';
+          }).join('');
+          return '<section class="fournisseur" data-fournisseur="' + f.cle + '" aria-labelledby="f-' + f.cle + '">' +
+            '<div class="fournisseur-entete"><h2 id="f-' + f.cle + '">' + f.nom + '</h2>' +
+            '<span class="texte-aide">' + (livraison ? 'Prochaine livraison : ' + MP.formatDateLongue(livraison).toLowerCase() : 'Jours de livraison à renseigner') + '</span></div>' +
+            '<ul class="liste-commande">' + html + '</ul>' +
+            '<div class="fournisseur-envoi">' +
+              '<button type="button" class="bouton-secondaire" data-envoi="pdf">PDF</button>' +
+              '<button type="button" class="bouton-secondaire" data-envoi="email">E-mail</button>' +
+              '<button type="button" class="bouton-secondaire" data-envoi="whatsapp">WhatsApp</button>' +
+            '</div>' +
+            '<details class="fournisseur-reglages"><summary>Coordonnées et jours de livraison</summary>' +
+              '<div class="ligne-form">' +
+                '<div><label for="email-' + f.cle + '">E-mail</label><input type="email" id="email-' + f.cle + '" data-champ="email" value="' + echapper(infos.email || '') + '" placeholder="commandes@exemple.fr"></div>' +
+                '<div><label for="tel-' + f.cle + '">Téléphone (WhatsApp)</label><input type="tel" id="tel-' + f.cle + '" data-champ="telephone" value="' + echapper(infos.telephone || '') + '" placeholder="06 12 34 56 78"></div>' +
+              '</div>' +
+              '<fieldset class="fournisseur-jours"><legend>Jours de livraison</legend><div class="grille-jours">' + joursCases + '</div></fieldset>' +
+              '<button type="button" class="bouton-secondaire" data-action="enregistrer">Enregistrer</button> <span class="texte-aide" role="status"></span>' +
+            '</details>' +
+            '</section>';
+        }).join('') || '<div class="carte-vide-claire">Aucune matière première à prévoir pour cette période.</div>';
       }
 
-      function genererPdfCommande(donnees, joursAGenerer) {
-        var messageCommandeEl = document.getElementById('messageCommande');
-        messageCommandeEl.style.display = 'none';
+      function texteCommande(cle) {
+        var f = B.FOURNISSEURS.filter(function (x) { return x.cle === cle; })[0];
+        var nomCommerce = (ctx.parametres && ctx.parametres.nom_restaurant) || 'ma boulangerie';
+        var lignes = (derniereCommande[cle] || []).map(function (l) { return '- ' + l.nom + ' : ' + l.texte; });
+        return 'Bonjour,\n\nCommande de ' + nomCommerce + ' :\n' + lignes.join('\n') + '\n\nMerci !';
+      }
 
-        var cochees = document.querySelectorAll('.case-jour-commande:checked');
-        if (cochees.length === 0) {
-          messageCommandeEl.style.display = 'block';
-          messageCommandeEl.className = 'erreur';
-          messageCommandeEl.textContent = "Coche au moins un jour à couvrir.";
+      function envoyer(cle, mode) {
+        var infos = fournisseursInfos[cle] || {};
+        var texte = texteCommande(cle);
+        if (mode === 'email') {
+          window.location.href = 'mailto:' + encodeURIComponent(infos.email || '') + '?subject=' + encodeURIComponent('Commande ' + ((ctx.parametres && ctx.parametres.nom_restaurant) || '')) + '&body=' + encodeURIComponent(texte);
+        } else if (mode === 'whatsapp') {
+          var tel = (infos.telephone || '').replace(/[^0-9+]/g, '').replace(/^0/, '33').replace(/^\+/, '');
+          window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(texte), '_blank', 'noopener');
+        } else if (window.jspdf) {
+          var doc = new window.jspdf.jsPDF();
+          var f = B.FOURNISSEURS.filter(function (x) { return x.cle === cle; })[0];
+          doc.setFontSize(16);
+          doc.text('Commande ' + f.nom + ' - ' + ((ctx.parametres && ctx.parametres.nom_restaurant) || ''), 14, 18);
+          doc.setFontSize(10);
+          doc.text(document.getElementById('textePeriode').textContent, 14, 26);
+          doc.autoTable({ startY: 32, head: [['Article', 'Quantité']], body: (derniereCommande[cle] || []).map(function (l) { return [l.nom, l.texte]; }), headStyles: { fillColor: [158, 76, 12] } });
+          doc.save('commande-' + cle + '.pdf');
+        }
+      }
+
+      function enregistrerFournisseur(section) {
+        var cle = section.getAttribute('data-fournisseur');
+        var infos = {
+          email: section.querySelector('[data-champ="email"]').value.trim(),
+          telephone: section.querySelector('[data-champ="telephone"]').value.trim(),
+          jours: Array.prototype.map.call(section.querySelectorAll('[data-jour]:checked'), function (c) { return parseInt(c.getAttribute('data-jour'), 10); })
+        };
+        fournisseursInfos[cle] = infos;
+        ecrireLocal('apoint-fournisseurs:' + ctx.commercantId, fournisseursInfos);
+        var statut = section.querySelector('[role="status"]');
+        ctx.sb.from('parametres_commercant').update({ fournisseurs: fournisseursInfos }).eq('commercant_id', ctx.commercantId).then(function (r) {
+          statut.textContent = r && r.error ? 'Enregistré sur cet appareil.' : 'Enregistré.';
+          afficher();
+        }, function () { statut.textContent = 'Enregistré sur cet appareil.'; });
+      }
+
+      listeEl.addEventListener('click', function (e) {
+        var section = e.target.closest('.fournisseur');
+        if (!section) return;
+        var envoi = e.target.closest('[data-envoi]');
+        if (envoi) envoyer(section.getAttribute('data-fournisseur'), envoi.getAttribute('data-envoi'));
+        if (e.target.closest('[data-action="enregistrer"]')) enregistrerFournisseur(section);
+      });
+
+      listeEl.addEventListener('change', function (e) {
+        var cle = e.target.getAttribute('data-cle');
+        if (!cle) return;
+        var stocks = lireLocal('apoint-stock:' + ctx.commercantId, {});
+        stocks[cle] = Number(e.target.value) || 0;
+        ecrireLocal('apoint-stock:' + ctx.commercantId, stocks);
+        afficher();
+      });
+
+      selectJours.addEventListener('change', afficher);
+
+      C.charger().then(function (c) {
+        ctx = c;
+        statutDiv.textContent = '';
+        fournisseursInfos = (ctx.parametres && ctx.parametres.fournisseurs) || lireLocal('apoint-fournisseurs:' + ctx.commercantId, {});
+        var demande = /[?&]jour=(\d{4}-\d{2}-\d{2})/.exec(window.location.search);
+        premierJour = demande ? new Date(demande[1] + 'T00:00:00') : C.prochainJourOuvert(ctx);
+        var parametreJours = /[?&]jours=(\d)/.exec(window.location.search);
+        var joursDemandes = parametreJours ? Math.min(7, Math.max(1, parseInt(parametreJours[1], 10))) : 2;
+        for (var i = 1; i <= 7; i++) {
+          var o = document.createElement('option');
+          o.value = i;
+          o.textContent = i === 1 ? '1 jour' : i + ' jours';
+          if (i === joursDemandes) o.selected = true;
+          selectJours.appendChild(o);
+        }
+        if (ctx.ventes.length === 0) {
+          statutDiv.innerHTML = 'Pas encore de ventes : la commande se calculera dès que ta caisse ou tes premières ventes seront là.';
           return;
         }
-
-        var indicesChoisis = Array.prototype.map.call(cochees, function (c) { return parseInt(c.value, 10); });
-        var joursChoisis = indicesChoisis.map(function (i) { return joursAGenerer[i]; }).sort(function (a, b) { return a - b; });
-
-        var ventes = donnees.ventes;
-        var produits = donnees.produits;
-        var ingredientsLignes = donnees.ingredientsLignes;
-        var zoneVacances = donnees.zoneVacances;
-        var evenements = donnees.evenements;
-
-        var parProduit = {};
-        ventes.forEach(function (vente) {
-          var nomNormalise = formatNomAffichage(vente.nom_produit);
-          if (!parProduit[nomNormalise]) parProduit[nomNormalise] = [];
-          parProduit[nomNormalise].push(vente);
-        });
-
-        // Consommation d'ingrédients agrégée sur tous les jours cochés : on
-        // additionne les totaux de calculerConsommationIngredients pour
-        // chaque jour, la météo n'étant volontairement pas ré-appelée ici
-        // (déjà appelée pour le tableau de bord ; ce PDF reste utilisable même
-        // hors ligne côté météo, best-effort comme partout ailleurs).
-        // Bug corrigé (audit sept. 2026) : même agrégation de la fourchette
-        // que dans l'aperçu ci-dessus (voir rendreApercuHabitude) — le PDF
-        // envoyé au fournisseur ne doit pas présenter un chiffre unique
-        // comme certain.
-        var totauxParCle = {};
-        joursChoisis.forEach(function (jourCible) {
-          var recommandationsParNom = {};
-          var recommandationsBasParNom = {};
-          var recommandationsHautParNom = {};
-          Object.keys(parProduit).forEach(function (nomProduit) {
-            var r = calculerRecommandation(parProduit[nomProduit], jourCible, zoneVacances, evenements, {}, {});
-            recommandationsParNom[nomProduit] = r.quantite;
-            recommandationsBasParNom[nomProduit] = r.fourchette ? r.fourchette.bas : r.quantite;
-            recommandationsHautParNom[nomProduit] = r.fourchette ? r.fourchette.haut : r.quantite;
-          });
-          var ingredients = calculerConsommationIngredients(recommandationsParNom, produits, ingredientsLignes);
-          var ingredientsBas = calculerConsommationIngredients(recommandationsBasParNom, produits, ingredientsLignes);
-          var ingredientsHaut = calculerConsommationIngredients(recommandationsHautParNom, produits, ingredientsLignes);
-          var basParCle = {};
-          ingredientsBas.forEach(function (ing) { basParCle[ing.nom.trim().toLowerCase() + '|' + (ing.unite || '').trim().toLowerCase()] = ing.total; });
-          var hautParCle = {};
-          ingredientsHaut.forEach(function (ing) { hautParCle[ing.nom.trim().toLowerCase() + '|' + (ing.unite || '').trim().toLowerCase()] = ing.total; });
-          ingredients.forEach(function (ing) {
-            var cle = ing.nom.trim().toLowerCase() + '|' + (ing.unite || '').trim().toLowerCase();
-            if (!totauxParCle[cle]) totauxParCle[cle] = { nom: ing.nom, unite: ing.unite, total: 0, totalBas: 0, totalHaut: 0 };
-            totauxParCle[cle].total += ing.total;
-            totauxParCle[cle].totalBas += (basParCle[cle] !== undefined ? basParCle[cle] : ing.total);
-            totauxParCle[cle].totalHaut += (hautParCle[cle] !== undefined ? hautParCle[cle] : ing.total);
-          });
-        });
-
-        var lignesTableau = Object.keys(totauxParCle).map(function (cle) { return totauxParCle[cle]; })
-          .sort(function (a, b) { return b.total - a.total; });
-
-        if (lignesTableau.length === 0) {
-          messageCommandeEl.style.display = 'block';
-          messageCommandeEl.className = 'erreur';
-          messageCommandeEl.textContent = "Aucun article à commander pour ces jours (vérifie que tes produits ont une fiche technique dans Produits).";
-          return;
-        }
-
-        var doc = new window.jspdf.jsPDF();
-        doc.setFontSize(16);
-        doc.text('Commande — À Point', 14, 18);
-
-        doc.setFontSize(10);
-        var texteJours = 'Jours couverts : ' + joursChoisis.map(function (d) {
-          return capitaliser(nomsJours[d.getDay()]) + ' ' + d.getDate() + '/' + (d.getMonth() + 1);
-        }).join(', ');
-        var lignesTexteJours = doc.splitTextToSize(texteJours, 180);
-        doc.text(lignesTexteJours, 14, 26);
-
-        var yDepart = 26 + lignesTexteJours.length * 5 + 4;
-
-        doc.autoTable({
-          startY: yDepart,
-          head: [['Article', 'Quantité totale', 'Unité']],
-          body: lignesTableau.map(function (l) {
-            var totalArrondi = Math.round(l.total * 10) / 10;
-            var basArrondi = Math.round(l.totalBas * 10) / 10;
-            var hautArrondi = Math.round(l.totalHaut * 10) / 10;
-            // Bug corrigé : le nombre était passé brut à autoTable, qui
-            // l'affichait avec un point ("1.4") au lieu de la virgule
-            // française utilisée partout ailleurs sur le site.
-            var texteQuantite = String(totalArrondi).replace('.', ',');
-            if (hautArrondi > basArrondi) {
-              texteQuantite += ' (' + String(basArrondi).replace('.', ',') + ' - ' + String(hautArrondi).replace('.', ',') + ')';
-            }
-            return [l.nom, texteQuantite, l.unite || '-'];
-          }),
-          styles: { fontSize: 10 },
-          headStyles: { fillColor: [33, 29, 23] }
-        });
-
-        doc.setFontSize(8);
-        doc.text('Estimation indicative basée sur ton historique de ventes, jamais une garantie.', 14, doc.internal.pageSize.getHeight() - 10);
-
-        var nomFichier = 'commande-' + versISO(new Date()) + '.pdf';
-        doc.save(nomFichier);
-
-        messageCommandeEl.style.display = 'block';
-        messageCommandeEl.className = 'succes';
-        messageCommandeEl.textContent = 'PDF généré : ' + nomFichier;
-      }
+        document.getElementById('zoneCommande').hidden = false;
+        afficher();
+        C.enrichir(ctx).then(afficher);
+      }).catch(function (err) {
+        statutDiv.innerHTML = err && err.nonConnecte ? 'Non connecté. <a href="connexion.html">Se connecter</a>' : 'Impossible de charger tes données. Vérifie ta connexion et recharge la page.';
+      });
     })();
   </script>
 </body>

@@ -1,15 +1,16 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>À Point - Demain</title>
+  <title>À Point - Fournée</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261030">
+  <link rel="stylesheet" href="style.css?v=20261031">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20260922"></script>
-  <script src="nav.js?v=20261030"></script>
+  <script src="moteur-prevision.js?v=20261031"></script>
+  <script src="boulangerie.js?v=20261031"></script>
+  <script src="contexte.js?v=20261031"></script>
+  <script src="nav.js?v=20261031"></script>
 </head>
 <body>
   <a class="lien-evitement" href="#contenu">Aller au contenu</a>
@@ -24,735 +25,243 @@
     </a>
     <nav id="navPrincipale"></nav>
   </header>
+
   <div id="contenu" role="main" class="conteneur conteneur--large">
+    <p id="statutConnexion" class="texte-aide">Chargement…</p>
+    <p class="texte-aide" id="bandeauReglages" hidden><a href="parametres.html">Complète tes réglages</a> (code postal, jours de fermeture) pour affiner la fournée.</p>
 
-    <p id="statutConnexion" class="texte-aide">Chargement...</p>
-
-    <p class="texte-aide" id="bandeauReglages" style="display:none; margin-bottom:16px;"><a href="parametres.html">Complète tes réglages</a> (code postal, jours de fermeture) pour affiner les prévisions.</p>
-
-    <div class="entete-page seulement-semaine">
-      <div>
-        <h1>Les 7 prochains jours</h1>
-        <p class="texte-aide" style="margin:0;">Touche un jour pour voir son affluence prévue et sa production.</p>
-      </div>
-    </div>
-
-    <div class="carte-claire carte-claire--entete">
-      <div class="claire-entete">
+    <section class="claire-entete fournee-entete" aria-labelledby="titreFournee">
+      <div class="fournee-entete-haut">
         <div>
-          <p class="claire-date" id="sombreDate"></p>
-          <h1 class="claire-titre" id="sombreTitre">
-            <span id="sombreTitreTexte">Prévision</span>
-            <span class="info-bulle" tabindex="0">ⓘ<span class="info-bulle-texte">Calculée à partir de la moyenne pondérée de tes ventes passées pour ce jour de la semaine (les plus récentes comptent plus), en excluant les valeurs exceptionnelles. Jamais une certitude : une fourchette plutôt qu'un chiffre figé.</span></span>
-          </h1>
+          <p class="claire-date" id="dateAujourdhui"></p>
+          <h1 class="claire-titre" id="titreFournee">Ta fournée</h1>
         </div>
-        <div class="entete-droite-previsions">
-          <div class="badge-meteo" id="sombreMeteoAujourdhui" style="display:none;">
-            <span class="badge-meteo-icone" id="sombreMeteoIcone"></span>
-            <span class="badge-meteo-texte">
-              <span class="badge-meteo-temperature" id="sombreMeteoTemperature"></span>
-              <span class="badge-meteo-libelle" id="sombreMeteoLibelle"></span>
-            </span>
-          </div>
-          <div class="meteo-moments-jour" id="meteoMomentsJour" style="display:none;"></div>
-          <div class="claire-badge" id="sombreBadge">... jour(s) d'historique</div>
-        </div>
+        <button type="button" class="bouton-secondaire" id="btnEcranFournil" aria-pressed="false">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+          <span>Écran fournil</span>
+        </button>
       </div>
-
-      <div class="semaine-strip" id="semaineStrip" style="display:none;"></div>
-
-      <div class="filtres-categories" id="filtresCategories" style="display:none;"></div>
-
-      <div class="liste-production" id="listeProduction"></div>
-
-      <div class="bloc-jour-detail" id="blocJourDetail"></div>
-
-      <details class="bloc-pourquoi" id="blocPourquoi" style="display:none;">
-        <summary>Pourquoi cette prévision ?</summary>
-        <ul class="liste-pourquoi" id="listePourquoi"></ul>
-      </details>
-
-      <div class="bloc-pont-commandes" id="blocPontCommandes"></div>
-
-      <div class="bloc-fiabilite-rattache">
-        <p class="claire-titre claire-titre--petit">Fiabilité des prévisions</p>
-        <div class="ligne-fiabilite" id="carteFiabilite">
-          <p class="valeur">-</p>
-          <p class="detail">Pas encore assez d'historique</p>
-        </div>
+      <div class="meteo-moments-jour" id="meteoJour" hidden></div>
+      <ul class="raisons" id="raisonsJour" aria-label="Ce qui change la fournée"></ul>
+      <div class="actions-jour" id="actionsAffluence" hidden>
+        <button type="button" class="btn-mini" data-modificateur="plus" aria-pressed="false">+ Plus de monde</button>
+        <button type="button" class="btn-mini" data-modificateur="moins" aria-pressed="false">− Moins de monde</button>
       </div>
+    </section>
+
+    <div class="fournee-progression" id="progression" hidden>
+      <span id="texteProgression"></span>
+      <span class="fournee-barre" aria-hidden="true"><span id="barreProgression"></span></span>
     </div>
 
-    <p class="pied-page"><a href="cgu.html">Conditions générales d'utilisation</a></p>
+    <div id="listeRayons"></div>
+
+    <section class="fiabilite" id="blocFiabilite" hidden aria-label="Fiabilité">
+      <p id="texteFiabilite"></p>
+    </section>
+
+    <div class="bloc-pont-commandes" id="blocCommande"></div>
+
+    <button type="button" class="bouton-quitter-fournil" id="btnQuitterFournil">Quitter l'écran fournil</button>
   </div>
 
   <script>
     (function () {
-      var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
-      var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
-      var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-      // Demain et Semaine (nav.js) partagent cette page : ?vue=semaine met
-      // la bande des 7 jours au premier plan (voir .vue-semaine, style.css).
-      var vueSemaine = /[?&]vue=semaine/.test(window.location.search);
-      document.body.classList.add(vueSemaine ? 'vue-semaine' : 'vue-demain');
-      document.title = 'À Point - ' + (vueSemaine ? 'Semaine' : 'Demain');
-      if (vueSemaine) {
-        // Un seul titre de niveau 1 par vue : celui de la semaine.
-        document.getElementById('sombreTitre').setAttribute('role', 'heading');
-        document.getElementById('sombreTitre').setAttribute('aria-level', '2');
-      }
+      var MP = window.MoteurPrevision;
+      var B = window.Boulangerie;
+      var C = window.ContexteBoulangerie;
 
       var statutDiv = document.getElementById('statutConnexion');
-      var sombreDateEl = document.getElementById('sombreDate');
-      // sombreTitreEl cible le texte seul (pas le conteneur, qui porte
-      // aussi l'infobulle ⓘ juste à côté du titre) : un .textContent dessus
-      // ne doit jamais effacer l'infobulle.
-      var sombreTitreEl = document.getElementById('sombreTitreTexte');
-      var sombreBadgeEl = document.getElementById('sombreBadge');
-      var semaineStripEl = document.getElementById('semaineStrip');
-      var filtresCategoriesEl = document.getElementById('filtresCategories');
-      var listeProductionEl = document.getElementById('listeProduction');
-      var blocJourDetailEl = document.getElementById('blocJourDetail');
-      var sombreMeteoAujourdhuiEl = document.getElementById('sombreMeteoAujourdhui');
-      var sombreMeteoIconeEl = document.getElementById('sombreMeteoIcone');
-      var sombreMeteoTemperatureEl = document.getElementById('sombreMeteoTemperature');
-      var sombreMeteoLibelleEl = document.getElementById('sombreMeteoLibelle');
-      var meteoMomentsJourEl = document.getElementById('meteoMomentsJour');
-      var blocPourquoiEl = document.getElementById('blocPourquoi');
-      var listePourquoiEl = document.getElementById('listePourquoi');
-      var blocPontEl = document.getElementById('blocPontCommandes');
-      var carteFiabiliteEl = document.getElementById('carteFiabilite');
+      var titreEl = document.getElementById('titreFournee');
+      var meteoEl = document.getElementById('meteoJour');
+      var raisonsEl = document.getElementById('raisonsJour');
+      var listeEl = document.getElementById('listeRayons');
+      var actionsEl = document.getElementById('actionsAffluence');
+      var progressionEl = document.getElementById('progression');
+      var fiabiliteEl = document.getElementById('blocFiabilite');
 
-      // Un seul calendrier de 7 jours (calculerPrevisionSemaine) sert à la
-      // fois de sélecteur de jour ET de signal d'affluence — avant, ces deux
-      // rôles étaient portés par deux listes de jours différentes (jours
-      // ouverts seulement / 7 jours calendaires), source de confusion.
-      // indexJourActif : l'index (0 à 6) du jour sélectionné dans ce
-      // calendrier. categorieActive filtre la liste de production affichée
-      // (pas les ingrédients, calculés sur tout le catalogue).
-      var previsionSemaine = [];
-      var indexJourActif = 0;
-      // modificateurActif : 'plus'|'moins'|null — ajustement manuel local
-      // des quantités affichées (le gérant reprend la main sur l'IA),
-      // jamais persisté en base.
-      var modificateurActif = null;
-      var contexteAffichage = null;
-      var categorieActive = 'Tous';
-      var donneesGlobales = null;
-      // CATEGORIES : catégories créées par le commerçant (table
-      // categories_produit), rechargées à chaque chargerEtAfficher().
-      // produitParNom : résout un nom affiché vers le produit complet
-      // (id, categorie_id) pour pouvoir le ranger depuis cette page.
-      var CATEGORIES = [];
-      var produitParNom = {};
+      var ctx = null;
+      var jourCible = null;
+      var modificateur = null; // 'plus' | 'moins' | null : ajustement local, jamais enregistré
+      var cocheCle = null;
 
-      var MP = window.MoteurPrevision;
-      var nomsJours = MP.nomsJours;
-      var nomsJoursCourts = MP.nomsJoursCourts;
-      var nomsMoisCourts = MP.nomsMoisCourts;
-      var capitaliser = MP.capitaliser;
-      var formatDateLongue = MP.formatDateLongue;
-      var formatNomAffichage = MP.formatNomAffichage;
-      var versISO = MP.versISO;
-      var zoneVacancesPourCodePostal = MP.zoneVacancesPourCodePostal;
-      var recupererMeteoPassee = MP.recupererMeteoPassee;
-      var recupererMeteoPrevue = MP.recupererMeteoPrevue;
-      var estJourFerie = MP.estJourFerie;
-      var estEnVacances = MP.estEnVacances;
-      var calculerRecommandation = MP.calculerRecommandation;
-      var calculerFiabilite = MP.calculerFiabilite;
-      var calculerFiabiliteNaive = MP.calculerFiabiliteNaive;
-      var calculerPrevisionSemaine = MP.calculerPrevisionSemaine;
-      // sbClient est propre à cette page ; on l'injecte dans la version
-      // partagée d'obtenirCoordonnees plutôt que de dupliquer la fonction
-      // (voir moteur-prevision.js).
-      function obtenirCoordonnees(parametres, commercantId) {
-        return MP.obtenirCoordonnees(sbClient, parametres, commercantId);
+      document.getElementById('dateAujourdhui').textContent = "Aujourd'hui, " + MP.formatDateLongue(new Date()).toLowerCase();
+
+      function echapper(t) {
+        return String(t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
       }
 
-      // ---------- Catégorie strictement issue du rangement manuel du
-      // commerçant (page Produits vendus, glisser-déposer dans une catégorie
-      // qu'il a lui-même créée) : zéro invention algorithmique, aucune
-      // liste imposée — un pizzaiolo n'a pas les mêmes rayons qu'un
-      // boulanger ou un poissonnier. Un produit non rangé, ou dont la
-      // catégorie a été supprimée depuis, tombe sous "Non classé". ----------
-      var CATEGORIE_PAR_DEFAUT = 'Non classé';
-
-      // categorieParNom : rempli à chaque chargement à partir de
-      // produits.categorie_id, résolu vers le nom de la catégorie.
-      var categorieParNom = {};
-
-      function categorieDeduite(nomProduit) {
-        return categorieParNom[formatNomAffichage(nomProduit)] || CATEGORIE_PAR_DEFAUT;
+      // Cases « enfourné » gardées pour la journée, sur cet appareil.
+      function lireCoches() {
+        try { return JSON.parse(localStorage.getItem(cocheCle) || '{}'); } catch (e) { return {}; }
+      }
+      function ecrireCoches(c) {
+        try { localStorage.setItem(cocheCle, JSON.stringify(c)); } catch (e) {}
       }
 
-      // Libellés/détails d'affluence : un seul endroit pour le badge et le
-      // texte associés à chaque tier (repris tels quels de l'ancien
-      // semaine.html, juste centralisés).
-      var INFO_TIER = {
-        'ferme': { badge: 'Fermé', classe: 'ferme', detail: 'Jour de fermeture habituel.' },
-        'evenement-plus': { badge: 'Plus de monde (signalé)', classe: 'charge', detail: 'Événement signalé à la main : pense à prévoir du renfort.' },
-        'evenement-moins': { badge: 'Moins de monde (signalé)', classe: 'calme', detail: 'Événement signalé à la main.' },
-        'charge': { badge: 'Jour chargé', classe: 'charge', detail: 'Pense à prévoir du renfort.' },
-        'calme': { badge: 'Jour calme', classe: 'calme', detail: 'Bonne occasion pour une offre ou une promo.' },
-        'ferie': { badge: 'Jour férié', classe: 'ferie', detail: "L'activité peut être différente d'un jour normal." },
-        'vacances': { badge: 'Vacances scolaires', classe: 'vacances', detail: "L'activité peut être différente d'un jour normal." },
-        'normal': { badge: 'Normal', classe: 'normal', detail: null },
-        'insuffisant': { badge: 'Historique insuffisant', classe: 'normal', detail: null }
-      };
+      function texteDelta(p, quantite) {
+        var ref = p.r.dernierMemeJour;
+        if (!ref) return '';
+        var ecart = quantite - ref.quantite;
+        var jour = MP.nomsJours[new Date(ref.date_vente + 'T00:00:00').getDay()];
+        if (ecart === 0) return '<span class="delta-texte">= ' + jour + ' dernier</span>';
+        return '<span class="delta-texte delta-texte--' + (ecart > 0 ? 'hausse' : 'baisse') + '">' + (ecart > 0 ? '↑ +' : '↓ −') + Math.abs(ecart) + ' vs ' + jour + ' dernier</span>';
+      }
 
-      sombreDateEl.textContent = "Aujourd'hui " + formatDateLongue(new Date());
+      function lignesPourquoi(p) {
+        var items = (p.r.signaux || []).map(function (s) {
+          var effet = MP.libelleEffet(s.ratio);
+          return '<li>' + s.icone + ' ' + echapper(s.libelle) + ' : ' + (effet
+            ? '<strong>' + effet + '</strong> <span class="texte-aide--discret">(appris sur ' + s.nb + ' jour' + (s.nb > 1 ? 's' : '') + ')</span>'
+            : '<span class="texte-aide--discret">effet pas encore appris, quantité inchangée</span>') + '</li>';
+        });
+        items.push('<li>📈 ' + echapper(p.r.texteBase.replace(/^[^B]*Basé/, 'Basé')) + '</li>');
+        items.push('<li>🛟 Marge de sécurité de ' + Math.round((MP.MARGE_PRODUCTION - 1) * 100) + ' % pour ne pas manquer</li>');
+        var ecart = MP.calculerEcartUnites(ctx.parProduit[p.nom]);
+        if (ecart) items.push('<li>🎯 D\'habitude, la prévision tombe à ±' + ecart.ecart + ' près</li>');
+        return items.join('');
+      }
 
-      sbClient.auth.getSession().then(function (result) {
-        var session = result.data.session;
-        if (!session) {
-          statutDiv.innerHTML = 'Non connecté. <a href="connexion.html">Va sur la page de connexion →</a>';
-          return;
-        }
+      function afficherRaisons(previsions) {
+        var raisons = C.raisonsDuJour(previsions).slice(0, 3);
+        raisonsEl.innerHTML = raisons.map(function (r) {
+          var effet = MP.libelleEffet(r.ratio);
+          return '<li class="raison">' + r.icone + ' ' + echapper(r.libelle) + (effet ? ' <strong>' + effet + '</strong>' : '') + '</li>';
+        }).join('');
+        raisonsEl.hidden = raisons.length === 0;
+      }
 
-        statutDiv.textContent = session.user.email;
-        var commercantId = session.user.id;
-        var bandeauReglagesEl = document.getElementById('bandeauReglages');
+      function afficherMeteo() {
+        var m = ctx.meteoPrevue[MP.versISO(jourCible)];
+        if (!m || !m.moments || m.moments.length === 0) { meteoEl.hidden = true; return; }
+        meteoEl.innerHTML = m.moments.map(function (x) {
+          return '<span class="meteo-moment"><span class="meteo-moment-libelle">' + x.libelle + '</span> ' + x.icone +
+            ' <span class="meteo-moment-temperature">' + (x.temperature !== null ? x.temperature + '°' : '') + '</span></span>';
+        }).join('');
+        meteoEl.hidden = false;
+      }
 
-        function chargerEtAfficher() {
-          Promise.all([
-            sbClient.from('ventes').select('*').eq('commercant_id', commercantId),
-            sbClient.from('produits').select('*').eq('commercant_id', commercantId),
-            sbClient.from('parametres_commercant').select('*').eq('commercant_id', commercantId),
-            sbClient.from('evenements_commercant').select('*').eq('commercant_id', commercantId),
-            sbClient.from('categories_produit').select('*').eq('commercant_id', commercantId)
-          ]).catch(function () {
-            // Bug corrigé : sans ce filet, un seul appel réseau en échec
-            // (Supabase indisponible, RLS, coupure) laissait la page bloquée
-            // indéfiniment sur "Chargement...", sans aucun message.
-            statutDiv.innerHTML = "Impossible de charger tes données pour l'instant. Vérifie ta connexion et réessaie.";
-            return null;
-          }).then(function (resultats) {
-            if (!resultats) return;
-            var ventes = resultats[0].data || [];
-            var produits = resultats[1].data || [];
-            var parametres = (resultats[2].data && resultats[2].data[0]) || null;
-            var categoriesProduit = resultats[4].data || [];
-            var zoneVacances = parametres ? zoneVacancesPourCodePostal(parametres.code_postal) : null;
-            var joursFermeture = (parametres && parametres.jours_fermeture) || [];
-            // Signalements manuels ("plus de monde" / "moins de monde"), gérés
-            // depuis cette même page : une carte { date ISO -> direction } pour
-            // pouvoir retrouver directement si le jour cible d'aujourd'hui en a un.
-            var evenements = {};
-            (resultats[3].data || []).forEach(function (e) {
-              evenements[e.date_evenement] = e.direction;
-            });
-            if (parametres && parametres.nom_restaurant) {
-              statutDiv.textContent = parametres.nom_restaurant;
-            }
-            if (!parametres || !parametres.code_postal) {
-              bandeauReglagesEl.style.display = 'block';
-            }
+      function majProgression() {
+        var cases = listeEl.querySelectorAll('.case-enfourne');
+        var faites = listeEl.querySelectorAll('.case-enfourne:checked').length;
+        progressionEl.hidden = cases.length === 0;
+        document.getElementById('texteProgression').textContent = faites + ' sur ' + cases.length + ' enfourné' + (faites > 1 ? 's' : '');
+        document.getElementById('barreProgression').style.width = (cases.length ? faites / cases.length * 100 : 0) + '%';
+      }
 
-            var joursDistincts = {};
-            ventes.forEach(function (v) { joursDistincts[v.date_vente] = true; });
-            sombreBadgeEl.textContent = Object.keys(joursDistincts).length + " jour(s) d'historique";
+      function afficher() {
+        var previsions = C.prevoirJour(ctx, jourCible);
+        var facteur = modificateur === 'plus' ? 1.15 : (modificateur === 'moins' ? 0.85 : 1);
+        var coches = lireCoches();
+        afficherRaisons(previsions);
+        afficherMeteo();
 
-            donneesGlobales = { ventes: ventes, produits: produits, zoneVacances: zoneVacances, evenements: evenements };
-
-            // Catégorie strictement issue du rangement manuel du
-            // commerçant (glisser-déposer dans Produits vendus) : un produit
-            // sans catégorie_id, ou pointant vers une catégorie depuis
-            // supprimée, tombe sous "Non classé".
-            CATEGORIES = categoriesProduit;
-            var nomCategoriePourId = {};
-            categoriesProduit.forEach(function (c) { nomCategoriePourId[c.id] = c.nom; });
-            categorieParNom = {};
-            produitParNom = {};
-            produits.forEach(function (p) {
-              produitParNom[formatNomAffichage(p.nom)] = p;
-              var nomCat = p.categorie_id ? nomCategoriePourId[p.categorie_id] : null;
-              if (nomCat) categorieParNom[formatNomAffichage(p.nom)] = nomCat;
-            });
-
-            if (ventes.length === 0) {
-              sombreTitreEl.textContent = "Pas encore de données";
-              listeProductionEl.innerHTML = '<div class="carte-vide-claire">Aucune donnée pour l\'instant.<br><a href="ventes.html">Ajouter tes premières ventes →</a></div>';
-              return;
-            }
-
-            previsionSemaine = calculerPrevisionSemaine(ventes, zoneVacances, joursFermeture, evenements);
-            // Sélectionne par défaut le premier jour ouvert (jamais un jour
-            // fermé, qui n'a ni production ni commande à préparer).
-            indexJourActif = 0;
-            for (var i = 0; i < previsionSemaine.length; i++) {
-              if (previsionSemaine[i].tier !== 'ferme') { indexJourActif = i; break; }
-            }
-
-            afficherStripSemaine();
-            construireFiltresCategories(ventes);
-
-            // Météo automatique dès que le code postal est connu — best-effort :
-            // si la géolocalisation ou l'appel météo échoue, on affiche quand
-            // même les recommandations, simplement sans cet ajustement.
-            obtenirCoordonnees(parametres, commercantId).then(function (coords) {
-              if (!coords) return [{}, {}];
-              var datesTriees = ventes.map(function (v) { return v.date_vente; }).sort();
-              return Promise.all([
-                recupererMeteoPassee(coords.latitude, coords.longitude, datesTriees[0], versISO(new Date())),
-                recupererMeteoPrevue(coords.latitude, coords.longitude)
-              ]).catch(function () { return [{}, {}]; });
-            }).catch(function () { return [{}, {}]; }).then(function (meteos) {
-              contexteAffichage = { meteoPassee: meteos[0] || {}, meteoPrevue: meteos[1] || {} };
-              afficherMeteoJourActif();
-              afficherJourActif();
-            });
-
-            var fiabilite = calculerFiabilite(ventes);
-            var fiabiliteNaive = calculerFiabiliteNaive(ventes);
-            if (fiabilite && fiabilite.nbPoints >= 3) {
-              carteFiabiliteEl.classList.add('actif');
-              carteFiabiliteEl.querySelector('.valeur').textContent = fiabilite.valeur + '%';
-              var detailFiabilite = "Calculée sur " + fiabilite.nbPoints + " prévision(s) passée(s)";
-              if (fiabiliteNaive && fiabiliteNaive.nbPoints >= 3) {
-                detailFiabilite += " (contre " + fiabiliteNaive.valeur + "% avec une simple moyenne)";
-              }
-              carteFiabiliteEl.querySelector('.detail').textContent = detailFiabilite;
-            }
-          });
-        }
-
-        // ---------- Bandeau des 7 prochains jours : chaque chip montre le
-        // jour + un point de couleur reflétant l'affluence (charge/calme/
-        // fermé/etc.), sans répéter de texte. Cliquer un jour le sélectionne
-        // pour la production ET le détail d'affluence ci-dessous — un seul
-        // "🛒 Préparer la commande", jamais 7. ----------
-        function afficherStripSemaine() {
-          semaineStripEl.style.display = 'flex';
-          semaineStripEl.innerHTML = '';
-          previsionSemaine.forEach(function (j, index) {
-            var info = INFO_TIER[j.tier] || INFO_TIER.normal;
-            var chip = document.createElement('button');
-            chip.type = 'button';
-            chip.className = 'chip-jour chip-jour--' + info.classe + (index === indexJourActif ? ' actif' : '');
-            // Bug corrigé (audit sept. 2026) : l'affluence n'était portée
-            // que par la couleur du point (.chip-jour-point), invisible pour
-            // un lecteur d'écran ou un utilisateur daltonien.
-            chip.setAttribute('aria-label', capitaliser(nomsJoursCourts[j.date.getDay()]) + ' ' + j.date.getDate() + ' ' + nomsMoisCourts[j.date.getMonth()] + ' — ' + info.badge);
-            chip.innerHTML =
-              '<span class="chip-jour-nom">' + capitaliser(nomsJoursCourts[j.date.getDay()]) + '</span>' +
-              '<span class="chip-jour-date">' + j.date.getDate() + ' ' + nomsMoisCourts[j.date.getMonth()] + '</span>' +
-              '<span class="chip-jour-point" aria-hidden="true"></span>' +
-              '<span class="chip-jour-libelle">' + info.badge + '</span>';
-            chip.addEventListener('click', function () {
-              indexJourActif = index;
-              // Bug corrigé : le modificateur manuel ("+ Plus de monde" /
-              // "− Moins de monde") n'était jamais réinitialisé en changeant
-              // de jour dans le bandeau. Activé pour lundi puis en
-              // consultant mardi, l'ajustement ±15% (et le bouton "actif")
-              // se reportait silencieusement sur mardi, sans qu'aucun
-              // événement n'ait été signalé pour ce jour-là — risque réel de
-              // sur/sous-production sur un jour non concerné.
-              modificateurActif = null;
-              afficherStripSemaine();
-              afficherMeteoJourActif();
-              afficherJourActif();
-            });
-            semaineStripEl.appendChild(chip);
-          });
-        }
-
-        // ---------- Météo du jour sélectionné dans le bandeau (retour
-        // pilote sept. 2026 : affichait toujours la météo d'aujourd'hui,
-        // même en consultant un autre jour — incohérent avec le titre
-        // "Prévision pour [jour sélectionné]" juste à côté). Réelle, jamais
-        // devinée — température + pictogramme viennent du code météo (WMO)
-        // renvoyé par Open-Meteo. La valeur principale reste la synthèse du
-        // jour (temperature_2m_max) ; le détail matin/midi/soir ci-dessous
-        // (meteo.moments, quand Open-Meteo le fournit) montre que ça peut
-        // changer dans la journée, sans remplacer le calcul (toujours basé
-        // sur la synthèse jour, cf. categoriserMeteo). ----------
-        function afficherMeteoJourActif() {
-          if (!contexteAffichage || !contexteAffichage.meteoPrevue) { sombreMeteoAujourdhuiEl.style.display = 'none'; meteoMomentsJourEl.style.display = 'none'; return; }
-          var j = previsionSemaine[indexJourActif];
-          if (!j) { sombreMeteoAujourdhuiEl.style.display = 'none'; meteoMomentsJourEl.style.display = 'none'; return; }
-          var meteo = contexteAffichage.meteoPrevue[j.iso];
-          if (!meteo) { sombreMeteoAujourdhuiEl.style.display = 'none'; meteoMomentsJourEl.style.display = 'none'; return; }
-
-          // Retour utilisateur, sept. 2026 : afficher la synthèse du jour ET
-          // le détail matin/midi/soir en même temps manquait de cohérence
-          // (deux valeurs différentes côte à côte). Le détail matin/midi/soir
-          // devient l'affichage principal ; la synthèse ne sert plus que de
-          // repli quand Open-Meteo ne fournit pas le détail horaire.
-          if (meteo.moments && meteo.moments.length > 0) {
-            meteoMomentsJourEl.innerHTML = meteo.moments.map(function (m) {
-              return '<span class="meteo-moment"><span class="meteo-moment-libelle">' + m.libelle + '</span>' +
-                '<span class="meteo-moment-icone">' + m.icone + '</span>' +
-                '<span class="meteo-moment-temperature">' + (m.temperature !== null ? m.temperature + '°C' : '') + '</span></span>';
-            }).join('');
-            meteoMomentsJourEl.style.display = 'flex';
-            sombreMeteoAujourdhuiEl.style.display = 'none';
-          } else {
-            meteoMomentsJourEl.style.display = 'none';
-            sombreMeteoIconeEl.textContent = meteo.icone;
-            sombreMeteoTemperatureEl.textContent = meteo.temperature !== null ? meteo.temperature + '°C' : '';
-            sombreMeteoLibelleEl.textContent = meteo.libelle;
-            sombreMeteoAujourdhuiEl.style.display = 'flex';
-          }
-        }
-
-        // ---------- Détail du jour sélectionné : badge d'affluence, texte,
-        // météo, modificateur manuel d'affluence — un seul bloc, jamais
-        // répété 7 fois (voir ancien semaine.html, grille de 7 cartes quasi
-        // identiques). ----------
-        function afficherDetailJour() {
-          var j = previsionSemaine[indexJourActif];
-          if (!j) return;
-          var info = INFO_TIER[j.tier] || INFO_TIER.normal;
-          var detailTexte = info.detail || (j.tier === 'normal' ? 'Prévision basée sur l\'historique.' : '');
-
-          var meteoHTML = '';
-          if (j.tier !== 'ferme' && contexteAffichage && contexteAffichage.meteoPrevue) {
-            var meteoJour = contexteAffichage.meteoPrevue[j.iso];
-            // Retour utilisateur (24 sept.) : cette ligne répétait une synthèse
-            // météo du jour (ex. "Couvert, 31°C") différente du détail
-            // matin/midi/soir affiché juste au-dessus (meteo.moments, ex.
-            // soleil à 15/26/29°C) — deux prévisions météo visiblement
-            // incohérentes pour le même jour. Quand le détail est affiché, il
-            // fait déjà foi ; cette ligne ne réapparaît qu'en repli, comme le
-            // badge du haut (voir afficherMeteoJourActif).
-            if (meteoJour && !(meteoJour.moments && meteoJour.moments.length > 0)) {
-              meteoHTML = '<p class="detail-meteo">Météo prévue : ' + meteoJour.icone + ' ' + meteoJour.libelle +
-                (meteoJour.temperature !== null ? ', ' + meteoJour.temperature + '°C' : '') + '</p>';
-            }
-          }
-
-          // Modificateur manuel : le gérant reprend la main sur l'IA en cas
-          // d'imprévu (ajustement local et instantané des quantités
-          // affichées, jamais écrit en base — ce n'est pas le signalement
-          // d'événement, qui reste géré automatiquement par le calcul).
-          var actionsHTML = '';
-          if (j.tier !== 'ferme') {
-            actionsHTML =
-              '<button type="button" class="btn-mini' + (modificateurActif === 'plus' ? ' actif' : '') + '" data-modificateur="plus">+ Plus de monde</button>' +
-              '<button type="button" class="btn-mini' + (modificateurActif === 'moins' ? ' actif' : '') + '" data-modificateur="moins">− Moins de monde</button>';
-          }
-
-          blocJourDetailEl.innerHTML =
-            '<span class="badge-jour badge-jour--' + info.classe + '">' + info.badge + '</span>' +
-            (detailTexte ? '<p class="detail-jour-texte">' + detailTexte + '</p>' : '') +
-            meteoHTML +
-            (actionsHTML ? '<div class="actions-jour">' + actionsHTML + '</div>' : '');
-        }
-
-        function slugifierCategorie(nom) {
-          return nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || ('categorie-' + Date.now());
-        }
-
-        // Créer une catégorie à la volée, directement depuis Prévisions —
-        // aucune liste imposée, le commerçant choisit lui-même ses rayons
-        // (Poisson, Viande, ce qu'il veut). Recharge ensuite les pastilles
-        // et les sélecteurs par produit pour la rendre utilisable
-        // immédiatement, sans recharger toute la page.
-        function creerCategorieDepuisPrevisions() {
-          var nom = window.prompt('Nom de la nouvelle catégorie (ex : Poisson, Viande) ?');
-          if (!nom) return;
-          nom = nom.trim();
-          if (!nom) return;
-          var id = slugifierCategorie(nom);
-          if (CATEGORIES.some(function (c) { return c.id === id; })) {
-            window.alert('Une catégorie "' + nom + '" existe déjà.');
-            return;
-          }
-          var categorie = { id: id, commercant_id: commercantId, nom: nom, ordre: CATEGORIES.length };
-          CATEGORIES.push(categorie);
-          // Bug corrigé (audit sept. 2026) : sans filet d'erreur, un échec
-          // d'écriture (réseau, RLS) laissait la catégorie visible
-          // localement alors qu'elle n'existait pas en base — elle
-          // disparaissait silencieusement au prochain chargement. Deuxième
-          // argument de .then() plutôt que .catch() : les objets renvoyés
-          // par le client Supabase ne sont pas toujours de vraies Promise.
-          sbClient.from('categories_produit').insert(categorie).then(function () {}, function () {
-            window.alert('La catégorie "' + nom + '" n\'a pas pu être enregistrée. Vérifie ta connexion et réessaie.');
-          });
-          construireFiltresCategories(donneesGlobales ? donneesGlobales.ventes : []);
-          afficherJourActif();
-        }
-
-        // Supprime une catégorie créée par le commerçant : jamais "Tous" ni
-        // "Non classé", qui sont permanentes. Les produits qui y étaient
-        // rangés repassent en "Non classé" (ON DELETE SET NULL côté base).
-        function supprimerCategorieDepuisPrevisions(categorie) {
-          if (!window.confirm('Supprimer la catégorie "' + categorie.nom + '" ? Les produits qu\'elle contient repasseront en "Non classé".')) return;
-          CATEGORIES = CATEGORIES.filter(function (c) { return c.id !== categorie.id; });
-          if (donneesGlobales) {
-            donneesGlobales.produits.forEach(function (p) { if (p.categorie_id === categorie.id) p.categorie_id = null; });
-          }
-          Object.keys(categorieParNom).forEach(function (nom) {
-            if (categorieParNom[nom] === categorie.nom) delete categorieParNom[nom];
-          });
-          if (categorieActive === categorie.nom) categorieActive = 'Tous';
-          sbClient.from('categories_produit').delete().eq('commercant_id', commercantId).eq('id', categorie.id).then(function () {}, function () {
-            window.alert('La suppression de "' + categorie.nom + '" n\'a pas pu être enregistrée. Recharge la page pour vérifier son état réel.');
-          });
-          construireFiltresCategories(donneesGlobales ? donneesGlobales.ventes : []);
-          afficherJourActif();
-        }
-
-        function construireFiltresCategories(ventes) {
-          // Pastilles : "Tous" et "Non classé" toujours présentes (jamais
-          // supprimables), puis toute catégorie créée par le commerçant
-          // (avec une croix pour la supprimer), puis "+ Catégorie" en
-          // dernier sur la même ligne — jamais une catégorie devinée.
-          filtresCategoriesEl.style.display = 'flex';
-          filtresCategoriesEl.innerHTML = '';
-
-          var listeCategories = ['Tous', 'Non classé'].concat(
-            CATEGORIES.map(function (c) { return c.nom; }).sort()
-          );
-
-          listeCategories.forEach(function (cat) {
-            var categorieObjet = CATEGORIES.find(function (c) { return c.nom === cat; });
-            var bouton = document.createElement('button');
-            bouton.type = 'button';
-            bouton.className = 'pill-categorie' + (cat === categorieActive ? ' actif' : '');
-            bouton.textContent = cat;
-            bouton.addEventListener('click', function () {
-              categorieActive = cat;
-              filtresCategoriesEl.querySelectorAll('.pill-categorie').forEach(function (p) { p.classList.remove('actif'); });
-              bouton.classList.add('actif');
-              afficherJourActif();
-            });
-
-            // Croix de suppression : uniquement sur les catégories créées
-            // par le commerçant, jamais sur "Tous" ni "Non classé".
-            if (categorieObjet) {
-              // Bug corrigé (audit sept. 2026) : ce <span> n'était
-              // atteignable qu'à la souris (pas de tabindex/rôle/clavier).
-              // Reste un <span> (jamais un <button> imbriqué dans le
-              // <button> parent, invalide en HTML) mais devient un vrai
-              // contrôle clavier, comme les autres onglets custom du site.
-              var croix = document.createElement('span');
-              croix.className = 'pill-categorie-supprimer';
-              croix.textContent = '×';
-              croix.setAttribute('role', 'button');
-              croix.setAttribute('tabindex', '0');
-              croix.setAttribute('aria-label', 'Supprimer la catégorie ' + cat);
-              croix.addEventListener('click', function (e) {
-                e.stopPropagation();
-                supprimerCategorieDepuisPrevisions(categorieObjet);
-              });
-              croix.addEventListener('keydown', function (e) {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  supprimerCategorieDepuisPrevisions(categorieObjet);
-                }
-              });
-              bouton.appendChild(croix);
-            }
-
-            filtresCategoriesEl.appendChild(bouton);
-          });
-
-          var boutonAjouter = document.createElement('button');
-          boutonAjouter.type = 'button';
-          boutonAjouter.className = 'btn-ajouter-categorie';
-          boutonAjouter.textContent = '+ Catégorie';
-          boutonAjouter.addEventListener('click', creerCategorieDepuisPrevisions);
-          filtresCategoriesEl.appendChild(boutonAjouter);
-        }
-
-        // ---------- Zone "Pourquoi cette prévision ?" : liste factuelle des
-        // éléments réellement pris en compte pour le jour sélectionné —
-        // jamais de pondération inventée, juste ce que le calcul regarde
-        // vraiment (mêmes règles et le même ordre de priorité que
-        // calculerRecommandation dans moteur-prevision.js : un événement
-        // signalé prime sur férié/vacances, qui priment sur la météo). ----------
-        function construireZonePourquoi(j) {
-          var ventes = donneesGlobales.ventes, zoneVacances = donneesGlobales.zoneVacances, evenements = donneesGlobales.evenements;
-          var evenementJour = evenements ? evenements[j.iso] : undefined;
-          var feriee = !evenementJour && estJourFerie(j.date);
-          var vacances = !evenementJour && !feriee && estEnVacances(j.date, zoneVacances);
-          var meteoJour = (!evenementJour && !feriee && !vacances && contexteAffichage && contexteAffichage.meteoPrevue) ? contexteAffichage.meteoPrevue[j.iso] : null;
-
-          // Bug corrigé (audit sept. 2026) : new Date(v.date_vente) sans
-          // 'T00:00:00' parse la date ISO en UTC ; dans un fuseau à l'ouest
-          // de l'UTC (Antilles/Guyane), d.getDay() pouvait décaler le
-          // comptage d'un jour (convention du projet, voir moteur-prevision.js).
-          var ventesMemeJourSemaine = ventes.filter(function (v) {
-            var d = new Date(v.date_vente + 'T00:00:00');
-            return d.getDay() === j.date.getDay() && !estJourFerie(d) && !estEnVacances(d, zoneVacances);
-          });
-
-          var items = [];
-          items.push('Jour de la semaine : ' + capitaliser(j.nomJour));
-          items.push(ventesMemeJourSemaine.length > 0
-            ? 'Historique utilisé : ' + ventesMemeJourSemaine.length + ' ' + j.nomJour + '(s) passé(s) enregistré(s)'
-            : 'Historique utilisé : pas encore de ' + j.nomJour + ' enregistré, estimation sur l\'ensemble des ventes');
-          if (evenementJour === 'plus') items.push('Événement signalé : plus de monde attendu (estimation manuelle, pas calculée)');
-          else if (evenementJour === 'moins') items.push('Événement signalé : moins de monde attendu (estimation manuelle, pas calculée)');
-          else if (feriee) items.push('Jour férié : oui — l\'activité peut différer d\'un ' + j.nomJour + ' normal');
-          else if (vacances) items.push('Vacances scolaires : oui — l\'activité peut différer d\'un ' + j.nomJour + ' normal');
-          else if (meteoJour) {
-            // Même raison qu'afficherDetailJour ci-dessus : ne pas répéter ici
-            // une synthèse météo du jour qui peut différer du détail
-            // matin/midi/soir déjà affiché en haut de la carte.
-            var descriptionMeteo = (meteoJour.moments && meteoJour.moments.length > 0)
-              ? 'voir le détail matin/midi/soir ci-dessus'
-              : meteoJour.icone + ' ' + meteoJour.libelle + (meteoJour.temperature !== null ? ', ' + meteoJour.temperature + '°C' : '');
-            items.push('Météo prévue : ' + descriptionMeteo + ' (prise en compte seulement si assez d\'historique par temps similaire)');
-          }
-
-          listePourquoiEl.innerHTML = items.map(function (texte) { return '<li>' + texte + '</li>'; }).join('');
-          blocPourquoiEl.style.display = 'block';
-        }
-
-        // ---------- Production + ingrédients + pont vers Commandes, pour le
-        // jour actuellement sélectionné dans le bandeau. ----------
-        function afficherJourActif() {
-          if (!donneesGlobales || !contexteAffichage) return;
-          afficherDetailJour();
-
-          var j = previsionSemaine[indexJourActif];
-          if (!j) return;
-
-          if (j.tier === 'ferme') {
-            sombreTitreEl.textContent = capitaliser(j.nomJour) + ' ' + j.date.getDate() + ' ' + nomsMoisCourts[j.date.getMonth()] + ' — fermé';
-            listeProductionEl.innerHTML = '';
-            filtresCategoriesEl.style.display = 'none';
-            blocPourquoiEl.style.display = 'none';
-            blocPontEl.innerHTML = '';
-            return;
-          }
-
-          construireZonePourquoi(j);
-
-          if (filtresCategoriesEl.children.length > 0) filtresCategoriesEl.style.display = 'flex';
-          var dateTitre = formatDateLongue(j.date);
-          sombreTitreEl.textContent = "À produire pour " + dateTitre.charAt(0).toLowerCase() + dateTitre.slice(1);
-
-          var ventes = donneesGlobales.ventes, zoneVacances = donneesGlobales.zoneVacances, evenements = donneesGlobales.evenements;
-
-          // Regroupées par nom normalisé (voir formatNomAffichage) : deux
-          // ventes saisies sous des casses différentes pour le même produit
-          // fusionnent en une seule ligne au lieu de s'afficher en double.
-          var parProduit = {};
-          ventes.forEach(function (vente) {
-            var nomNormalise = formatNomAffichage(vente.nom_produit);
-            if (!parProduit[nomNormalise]) parProduit[nomNormalise] = [];
-            parProduit[nomNormalise].push(vente);
-          });
-
-          listeProductionEl.innerHTML = '';
-
-          Object.keys(parProduit).sort().forEach(function (nomProduit) {
-            var r = calculerRecommandation(parProduit[nomProduit], j.date, zoneVacances, evenements, contexteAffichage.meteoPassee, contexteAffichage.meteoPrevue);
-
-            if (categorieActive !== 'Tous' && categorieDeduite(nomProduit) !== categorieActive) return;
-
-            // Modificateur manuel : ajustement local instantané, appliqué
-            // uniquement à l'affichage (jamais au calcul ni à la base).
-            var facteurModificateur = modificateurActif === 'plus' ? 1.15 : (modificateurActif === 'moins' ? 0.85 : 1);
-            var quantiteAffichee = modificateurActif ? Math.ceil(r.quantite * facteurModificateur) : r.quantite;
-
-            // Bug corrigé (audit sept. 2026) : le delta était calculé à
-            // partir de r.quantite (avant ajustement manuel), et donc
-            // incohérent avec quantiteAffichee juste à côté dès qu'un
-            // modificateur +/-15% est actif. On le recalcule par rapport à
-            // la même référence (dernier jour réel comparable).
-            var deltaHTML = '';
-            if (r.delta !== null) {
-              var dernierJourReel = r.quantite - r.delta;
-              var deltaAffiche = quantiteAffichee - dernierJourReel;
-              if (deltaAffiche > 0) deltaHTML = '<span class="delta delta-hausse">+' + deltaAffiche + '</span>';
-              else if (deltaAffiche < 0) deltaHTML = '<span class="delta delta-baisse">' + deltaAffiche + '</span>';
-              else deltaHTML = '<span class="delta delta-stable">=</span>';
-            }
-
-            // Bug corrigé (audit sept. 2026) : la fourchette n'était jamais
-            // affichée ici (seulement le chiffre point), contrairement au
-            // principe produit "toujours une fourchette, jamais un chiffre
-            // présenté comme certain" — voir .produit-top-fourchette sur
-            // tableau-de-bord.html, repris ici à l'identique. Mise à
-            // l'échelle avec le modificateur manuel pour rester cohérente
-            // avec quantiteAffichee.
-            var fourchetteHTML = '';
-            if (r.fourchette) {
-              var basAffiche = modificateurActif ? Math.round(r.fourchette.bas * facteurModificateur) : r.fourchette.bas;
-              var hautAffiche = modificateurActif ? Math.round(r.fourchette.haut * facteurModificateur) : r.fourchette.haut;
-              fourchetteHTML = '<span class="ligne-prod-jour-fourchette">' + basAffiche + ' – ' + hautAffiche + '</span>';
-            }
-
-            var ligne = document.createElement('div');
-            ligne.className = 'ligne-prod-jour';
-            ligne.innerHTML =
-              '<span class="ligne-prod-jour-nom">' + nomProduit + '</span>' +
-              '<span class="ligne-prod-jour-droite">' +
-                '<span class="ligne-prod-jour-quantite">' + deltaHTML + quantiteAffichee + '</span>' +
-                fourchetteHTML +
-              '</span>';
-
-            // Rangement manuel dans une catégorie créée par le commerçant
-            // (ou "Non classé") : un simple sélecteur, jamais de
-            // déduction — le produit doit exister en base (créé sur la
-            // page Produits vendus) pour être rangeable ici.
-            var produit = produitParNom[nomProduit];
-            if (produit && CATEGORIES.length > 0) {
-              var selecteur = document.createElement('select');
-              selecteur.className = 'select-categorie-produit';
-              // Bug corrigé (audit sept. 2026) : sans label ni aria-label,
-              // un lecteur d'écran ne pouvait pas savoir à quel produit ce
-              // sélecteur se rapportait.
-              selecteur.setAttribute('aria-label', 'Catégorie de ' + nomProduit);
-              var optionNonClasse = document.createElement('option');
-              optionNonClasse.value = '';
-              optionNonClasse.textContent = 'Non classé';
-              selecteur.appendChild(optionNonClasse);
-              CATEGORIES.forEach(function (c) {
-                var option = document.createElement('option');
-                option.value = c.id;
-                option.textContent = c.nom;
-                if (produit.categorie_id === c.id) option.selected = true;
-                selecteur.appendChild(option);
-              });
-              selecteur.addEventListener('click', function (e) { e.stopPropagation(); });
-              selecteur.addEventListener('change', function () {
-                var nouveauId = selecteur.value || null;
-                produit.categorie_id = nouveauId;
-                sbClient.from('produits').update({ categorie_id: nouveauId }).eq('id', produit.id).then(function () {}, function () {
-                  window.alert('Le rangement de "' + nomProduit + '" n\'a pas pu être enregistré. Vérifie ta connexion et réessaie.');
-                });
-                categorieParNom[nomProduit] = nouveauId ? (CATEGORIES.find(function (c) { return c.id === nouveauId; }) || {}).nom : null;
-                construireFiltresCategories(donneesGlobales.ventes);
-                afficherJourActif();
-              });
-              ligne.appendChild(selecteur);
-            }
-
-            listeProductionEl.appendChild(ligne);
-          });
-
-          if (listeProductionEl.children.length === 0) {
-            listeProductionEl.innerHTML = '<div class="carte-vide-claire">Aucun produit dans cette catégorie pour ce jour.</div>';
-          }
-
-          // Pont vers Commandes : transmet le jour sélectionné + le signal
-          // d'affluence associé, purement indicatif côté Commandes, jamais
-          // requis. Un seul CTA, toujours pour le jour actif.
-          blocPontEl.innerHTML = '<a class="btn-cta-commandes" href="commandes.html?jour=' + j.iso + '&affluence=' + j.tier + '">Préparer la commande de ce jour</a>';
-        }
-
-        // Modificateur d'affluence : ajustement local et instantané des
-        // quantités affichées, jamais écrit en base. Un second clic sur le
-        // bouton déjà actif désactive le modificateur.
-        blocJourDetailEl.addEventListener('click', function (evenement) {
-          var bouton = evenement.target.closest('.btn-mini');
-          if (!bouton) return;
-          var modificateur = bouton.getAttribute('data-modificateur');
-          if (!modificateur) return;
-          modificateurActif = (modificateurActif === modificateur) ? null : modificateur;
-          afficherDetailJour();
-          afficherJourActif();
+        var parRayon = {};
+        previsions.forEach(function (p) {
+          if (!parRayon[p.rayon]) parRayon[p.rayon] = [];
+          parRayon[p.rayon].push(p);
         });
 
-        chargerEtAfficher();
+        listeEl.innerHTML = B.RAYONS.filter(function (rayon) { return parRayon[rayon]; }).map(function (rayon) {
+          var lignes = parRayon[rayon].sort(function (a, b) { return b.r.quantite - a.r.quantite; });
+          var total = 0;
+          var html = lignes.map(function (p) {
+            var q = Math.ceil(p.r.quantite * facteur);
+            total += q;
+            var id = 'enf-' + B.normaliser(p.nom).replace(/ /g, '-');
+            var four = p.r.fourchette ? '<span class="ligne-fournee-fourchette">' + Math.round(p.r.fourchette.bas * facteur) + ' à ' + Math.round(p.r.fourchette.haut * facteur) + '</span>' : '';
+            return '<li class="ligne-fournee' + (coches[p.nom] ? ' ligne-fournee--faite' : '') + '">' +
+              '<input type="checkbox" class="case-enfourne" id="' + id + '" data-nom="' + echapper(p.nom) + '"' + (coches[p.nom] ? ' checked' : '') + '>' +
+              '<label for="' + id + '" class="ligne-fournee-nom"><span>' + echapper(p.nom) + '</span>' + texteDelta(p, q) + '</label>' +
+              '<span class="ligne-fournee-chiffre"><span class="ligne-fournee-quantite">' + q + '</span>' + four + '</span>' +
+              '<details class="ligne-fournee-pourquoi"><summary>Pourquoi ?</summary><ul>' + lignesPourquoi(p) + '</ul></details>' +
+              '</li>';
+          }).join('');
+          return '<section class="rayon" aria-labelledby="rayon-' + B.normaliser(rayon) + '">' +
+            '<h2 class="rayon-titre" id="rayon-' + B.normaliser(rayon) + '">' + rayon + ' <span class="rayon-total">' + total + ' pièces</span></h2>' +
+            '<ul class="liste-fournee">' + html + '</ul></section>';
+        }).join('');
+        majProgression();
+        afficherFiabilite(previsions);
+
+        document.getElementById('blocCommande').innerHTML = '<a class="btn-cta-commandes" href="commandes.html?jour=' + MP.versISO(jourCible) + '">Voir la commande de matières premières</a>';
+      }
+
+      // « D'habitude, on tombe à ±4 baguettes près », sur le produit le plus
+      // vendu ; la comparaison avec la moyenne simple seulement si elle parle.
+      function afficherFiabilite(previsions) {
+        var principal = previsions.slice().sort(function (a, b) { return b.r.quantite - a.r.quantite; })[0];
+        var ecart = principal ? MP.calculerEcartUnites(ctx.parProduit[principal.nom]) : null;
+        if (!ecart) { fiabiliteEl.hidden = true; return; }
+        var texte = "D'habitude, la prévision tombe à <strong>±" + ecart.ecart + ' ' + echapper(principal.nom.toLowerCase()) + '</strong> près.';
+        var fiab = MP.calculerFiabilite(ctx.ventes);
+        var naive = MP.calculerFiabiliteNaive(ctx.ventes);
+        if (MP.comparaisonUtile(fiab, naive)) {
+          texte += ' C\'est ' + (fiab.valeur - naive.valeur) + ' points plus juste qu\'une simple moyenne.';
+        }
+        document.getElementById('texteFiabilite').innerHTML = texte;
+        fiabiliteEl.hidden = false;
+      }
+
+      listeEl.addEventListener('change', function (e) {
+        if (!e.target.classList.contains('case-enfourne')) return;
+        var coches = lireCoches();
+        coches[e.target.getAttribute('data-nom')] = e.target.checked;
+        ecrireCoches(coches);
+        e.target.closest('.ligne-fournee').classList.toggle('ligne-fournee--faite', e.target.checked);
+        majProgression();
+      });
+
+      actionsEl.addEventListener('click', function (e) {
+        var bouton = e.target.closest('.btn-mini');
+        if (!bouton) return;
+        var m = bouton.getAttribute('data-modificateur');
+        modificateur = modificateur === m ? null : m;
+        actionsEl.querySelectorAll('.btn-mini').forEach(function (b) {
+          var actif = b.getAttribute('data-modificateur') === modificateur;
+          b.classList.toggle('actif', actif);
+          b.setAttribute('aria-pressed', actif ? 'true' : 'false');
+        });
+        afficher();
+      });
+
+      // Écran fournil : plein écran, gros caractères, sans navigation.
+      function basculerEcranFournil(actif) {
+        document.body.classList.toggle('ecran-fournil', actif);
+        document.getElementById('btnEcranFournil').setAttribute('aria-pressed', actif ? 'true' : 'false');
+        try {
+          if (actif && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(function () {});
+          if (!actif && document.fullscreenElement) document.exitFullscreen().catch(function () {});
+        } catch (e) {}
+      }
+      document.getElementById('btnEcranFournil').addEventListener('click', function () { basculerEcranFournil(true); });
+      document.getElementById('btnQuitterFournil').addEventListener('click', function () { basculerEcranFournil(false); });
+      document.addEventListener('fullscreenchange', function () {
+        if (!document.fullscreenElement) basculerEcranFournil(false);
+      });
+
+      C.charger().then(function (c) {
+        ctx = c;
+        statutDiv.textContent = (ctx.parametres && ctx.parametres.nom_restaurant) || '';
+        document.getElementById('bandeauReglages').hidden = !!(ctx.parametres && ctx.parametres.code_postal);
+        jourCible = C.prochainJourOuvert(ctx);
+        cocheCle = 'apoint-fournee:' + ctx.commercantId + ':' + MP.versISO(jourCible);
+        var dateTitre = MP.formatDateLongue(jourCible);
+        titreEl.textContent = 'À enfourner pour ' + dateTitre.charAt(0).toLowerCase() + dateTitre.slice(1);
+
+        if (ctx.ventes.length === 0) {
+          listeEl.innerHTML = '<div class="carte-vide-claire">Pas encore de ventes : branche ta caisse ou ajoute la journée d\'hier depuis <a href="parametres.html#donnees">Paramètres &gt; Mes données</a>.</div>';
+          return;
+        }
+        actionsEl.hidden = false;
+        afficher();
+        C.enrichir(ctx).then(afficher);
+      }).catch(function (err) {
+        if (err && err.nonConnecte) {
+          statutDiv.innerHTML = 'Non connecté. <a href="connexion.html">Se connecter</a>';
+        } else {
+          statutDiv.textContent = "Impossible de charger tes données. Vérifie ta connexion et recharge la page.";
+        }
       });
     })();
   </script>

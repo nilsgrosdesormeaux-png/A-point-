@@ -1,17 +1,152 @@
-<!--
-  La vue semaine vit dans previsions.html?vue=semaine (onglet « Semaine »,
-  refonte oct. 2026). Gardée en redirection pour les anciens liens et favoris.
--->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0; url=previsions.html?vue=semaine">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Semaine</title>
   <link rel="icon" href="logo.svg">
-  <script>window.location.replace('previsions.html?vue=semaine');</script>
+  <link rel="stylesheet" href="style.css?v=20261031">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="moteur-prevision.js?v=20261031"></script>
+  <script src="boulangerie.js?v=20261031"></script>
+  <script src="contexte.js?v=20261031"></script>
+  <script src="nav.js?v=20261031"></script>
 </head>
 <body>
-  <p>Cette page a déménagé. <a href="previsions.html?vue=semaine">Continuer vers Semaine</a></p>
+  <a class="lien-evitement" href="#contenu">Aller au contenu</a>
+  <header class="entete-site">
+    <a href="previsions.html" class="logo" aria-label="À Point, accueil">
+      <svg class="logo-marque" viewBox="0 0 100 100" width="24" height="24" aria-hidden="true">
+        <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <circle cx="50" cy="56" r="8" fill="currentColor"/>
+      </svg>
+      <span class="logo-texte">À Point</span>
+    </a>
+    <nav id="navPrincipale"></nav>
+  </header>
+
+  <div id="contenu" role="main" class="conteneur conteneur--large">
+    <div class="entete-page">
+      <div>
+        <h1>Les 7 prochains jours</h1>
+        <p class="texte-aide" style="margin:0;">L'affluence attendue, ses raisons, et ce qu'il faudra produire.</p>
+      </div>
+    </div>
+    <p id="statutConnexion" class="texte-aide">Chargement…</p>
+
+    <section id="zoneSemaine" hidden aria-label="Semaine">
+      <ol class="affluence" id="affluence"></ol>
+
+      <h2>Production prévue</h2>
+      <div class="tableau-semaine-defilement" tabindex="0" role="region" aria-label="Production par produit et par jour">
+        <table class="tableau-semaine" id="tableauSemaine"></table>
+      </div>
+
+      <div class="bloc-pont-commandes">
+        <a class="btn-cta-commandes" href="commandes.html?jours=7">Préparer la commande de la semaine</a>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      var MP = window.MoteurPrevision;
+      var B = window.Boulangerie;
+      var C = window.ContexteBoulangerie;
+      var statutDiv = document.getElementById('statutConnexion');
+      var ctx = null;
+
+      function echapper(t) {
+        return String(t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+      }
+
+      // Volume « normal » d'un jour de semaine : moyenne pondérée des totaux
+      // des mêmes jours ordinaires passés, avec la même marge de production.
+      function volumeNormal(numeroJour) {
+        var totaux = {};
+        ctx.ventes.forEach(function (v) { totaux[v.date_vente] = (totaux[v.date_vente] || 0) + v.quantite; });
+        var base = Object.keys(totaux).sort().filter(function (iso) {
+          var d = new Date(iso + 'T00:00:00');
+          return d.getDay() === numeroJour && MP.estJourOrdinaire(d, ctx.zoneVacances);
+        }).map(function (iso) { return { date_vente: iso, quantite: totaux[iso] }; });
+        if (base.length === 0) return null;
+        return MP.moyennePonderee(MP.exclureValeursAberrantes(base).ventesFiltrees) * MP.MARGE_PRODUCTION;
+      }
+
+      function afficher() {
+        var jours = [];
+        for (var i = 1; i <= 7; i++) jours.push(MP.ajouterJours(new Date(), i));
+        var colonnes = jours.map(function (d) {
+          var ferme = ctx.joursFermeture.indexOf(d.getDay()) !== -1;
+          var prev = ferme ? [] : C.prevoirJour(ctx, d);
+          var total = prev.reduce(function (s, p) { return s + p.r.quantite; }, 0);
+          var normal = ferme ? null : volumeNormal(d.getDay());
+          var raisons = ferme ? [] : C.raisonsDuJour(prev);
+          return { date: d, ferme: ferme, prev: prev, total: total, ratio: normal ? total / normal : null, raisons: raisons };
+        });
+
+        // Affluence : une barre par jour, hauteur relative au jour le plus fort.
+        var max = Math.max.apply(null, colonnes.map(function (c) { return c.total; })) || 1;
+        document.getElementById('affluence').innerHTML = colonnes.map(function (c) {
+          var nomJour = MP.capitaliser(MP.nomsJoursCourts[c.date.getDay()]);
+          var raison;
+          if (c.ferme) raison = 'Fermé';
+          else if (c.raisons.length) {
+            var r = c.raisons[0];
+            var effet = MP.libelleEffet(r.ratio);
+            raison = r.icone + ' ' + echapper(r.libelle) + (effet ? ' ' + effet : '');
+          } else if (c.ratio !== null && Math.abs(c.ratio - 1) >= 0.08) {
+            raison = c.ratio > 1 ? 'Plus chargé que d\'habitude' : 'Plus calme que d\'habitude';
+          } else raison = 'Jour habituel';
+          var classe = c.ferme ? ' affluence-jour--ferme' : (c.ratio !== null && c.ratio >= 1.08 ? ' affluence-jour--charge' : '');
+          return '<li class="affluence-jour' + classe + '">' +
+            '<span class="affluence-barre" aria-hidden="true"><span style="height:' + (c.ferme ? 0 : Math.max(6, c.total / max * 100)) + '%"></span></span>' +
+            '<span class="affluence-nom">' + nomJour + ' ' + c.date.getDate() + '</span>' +
+            '<span class="affluence-total">' + (c.ferme ? '–' : c.total + ' pièces') + '</span>' +
+            '<span class="affluence-raison">' + raison + '</span></li>';
+        }).join('');
+
+        // Tableau produits × jours, groupé par rayon, avec totaux.
+        var noms = {};
+        colonnes.forEach(function (c) { c.prev.forEach(function (p) { noms[p.nom] = p.rayon; }); });
+        var ouverts = colonnes.filter(function (c) { return !c.ferme; });
+        var entete = '<thead><tr><th scope="col">Produit</th>' + ouverts.map(function (c) {
+          return '<th scope="col">' + MP.capitaliser(MP.nomsJoursCourts[c.date.getDay()]) + '<br><span class="texte-aide--discret">' + c.date.getDate() + '</span></th>';
+        }).join('') + '<th scope="col">Semaine</th></tr></thead>';
+        var corps = B.RAYONS.map(function (rayon) {
+          var produits = Object.keys(noms).filter(function (n) { return noms[n] === rayon; }).sort();
+          if (!produits.length) return '';
+          return '<tr class="tableau-semaine-rayon"><th scope="rowgroup" colspan="' + (ouverts.length + 2) + '">' + rayon + '</th></tr>' + produits.map(function (nom) {
+            var somme = 0;
+            var cellules = ouverts.map(function (c) {
+              var p = c.prev.filter(function (x) { return x.nom === nom; })[0];
+              var q = p ? p.r.quantite : 0;
+              somme += q;
+              return '<td>' + q + '</td>';
+            }).join('');
+            return '<tr><th scope="row">' + echapper(nom) + '</th>' + cellules + '<td class="tableau-semaine-total">' + somme + '</td></tr>';
+          }).join('');
+        }).join('');
+        var totalSemaine = ouverts.reduce(function (s, c) { return s + c.total; }, 0);
+        var pied = '<tfoot><tr><th scope="row">Total</th>' + ouverts.map(function (c) { return '<td>' + c.total + '</td>'; }).join('') + '<td class="tableau-semaine-total">' + totalSemaine + '</td></tr></tfoot>';
+        document.getElementById('tableauSemaine').innerHTML = entete + '<tbody>' + corps + '</tbody>' + pied;
+      }
+
+      C.charger().then(function (c) {
+        ctx = c;
+        statutDiv.textContent = '';
+        if (ctx.ventes.length === 0) {
+          statutDiv.innerHTML = 'Pas encore de ventes : la semaine se remplira dès que ta caisse ou tes premières ventes seront là.';
+          return;
+        }
+        document.getElementById('zoneSemaine').hidden = false;
+        afficher();
+        C.enrichir(ctx).then(afficher);
+      }).catch(function (err) {
+        statutDiv.innerHTML = err && err.nonConnecte ? 'Non connecté. <a href="connexion.html">Se connecter</a>' : 'Impossible de charger tes données. Vérifie ta connexion et recharge la page.';
+      });
+    })();
+  </script>
 </body>
 </html>

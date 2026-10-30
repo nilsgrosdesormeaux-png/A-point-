@@ -66,13 +66,24 @@
         <div id="caisse"><div id="blocCaisse">
         <section class="bloc-caisse" aria-labelledby="titreCaisse">
           <h2 class="section-titre" id="titreCaisse">Connecter ma caisse <span class="badge-bientot">Bientôt disponible</span></h2>
-          <p class="texte-aide">Tes ventes arriveront seules chaque nuit, sans rien saisir. En attendant, saisis la veille ou importe l'export de ta caisse depuis <a href="ventes.html#importer">Ventes</a>.</p>
+          <p class="texte-aide">Tes ventes arriveront seules chaque nuit, sans rien saisir. En attendant, saisis la veille ou importe l'export de ta caisse depuis <a href="#donnees">Mes données</a>.</p>
           <ul class="grille-caisses" aria-label="Caisses prévues">
             <li>SumUp</li><li>Bimedia</li><li>Lightspeed</li><li>Zettle</li><li>Square</li><li>Hiboutik</li>
           </ul>
           <p class="texte-aide" style="margin-top:var(--espace-3);">Ta caisse n'est pas dans la liste ? <a href="aide.html">Dis-le nous</a>, on la prendra en compte.</p>
         </section>
         </div></div>
+
+        <!-- Plan v2 : Ventes et Produits quittent la navigation. Ils restent ici,
+             en secours, pour qui n'a pas encore de caisse branchée. -->
+        <section id="donnees" aria-labelledby="titreDonnees">
+          <h2 class="section-titre" id="titreDonnees">Mes données</h2>
+          <p class="texte-aide">Quand ta caisse est branchée, tout arrive seul. Sinon, ou pour corriger :</p>
+          <div class="liens-donnees">
+            <a class="lien-donnees" href="ventes.html"><strong>Ventes</strong><span>Saisir une journée ou importer un fichier</span></a>
+            <a class="lien-donnees" href="produits.html"><strong>Produits et recettes</strong><span>Créés seuls depuis tes ventes ; ajuste une recette si besoin</span></a>
+          </div>
+        </section>
 
         <p class="section-titre">Compte</p>
         <p class="texte-aide" id="emailActuel"></p>

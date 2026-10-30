@@ -1185,3 +1185,143 @@ button:not(.periode-bouton):not(.chip-jour):not(.pill-categorie):not(.btn-mini):
   .carte-page { background: transparent; border: 0; box-shadow: none; padding: 0; }
   .carte-page + .carte-page, section.carte-page { margin-top: var(--espace-6) !important; }
 }
+
+/* ---------- Fournée (plan v2) ---------- */
+.fournee-entete { margin-bottom: var(--espace-5); }
+.fournee-entete-haut { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--espace-3); flex-wrap: wrap; width: 100%; }
+.fournee-entete .meteo-moments-jour { margin-top: var(--espace-3); flex-wrap: wrap; }
+.raisons { display: flex; flex-wrap: wrap; gap: var(--espace-2); margin: var(--espace-4) 0 0; padding: 0; list-style: none; width: 100%; }
+.raisons[hidden] { display: none; }
+.raison {
+  display: inline-flex; align-items: center; gap: var(--espace-1);
+  padding: 6px 12px; font-size: var(--texte-sm); font-weight: 500;
+  background: var(--couleur-surface); border: 1px solid color-mix(in srgb, var(--couleur-dore) 45%, var(--couleur-bordure));
+  border-radius: var(--rayon-rond);
+}
+.raison strong { color: var(--couleur-accent-texte); font-weight: 600; }
+.fournee-entete .actions-jour { margin-top: var(--espace-3); }
+
+.fournee-progression { display: flex; align-items: center; gap: var(--espace-3); margin: 0 0 var(--espace-4); font-size: var(--texte-sm); color: var(--couleur-texte-2); }
+.fournee-progression[hidden] { display: none; }
+.fournee-barre { flex: 1; height: 6px; background: var(--couleur-surface-2); border-radius: var(--rayon-rond); overflow: hidden; }
+.fournee-barre span { display: block; height: 100%; width: 0; background: var(--couleur-dore); transition: width .2s ease; }
+
+.rayon + .rayon { margin-top: var(--espace-6); }
+.rayon-titre { display: flex; align-items: baseline; justify-content: space-between; gap: var(--espace-3); margin: 0 0 var(--espace-3); font-size: var(--texte-lg); }
+.rayon-total { font-family: var(--police); font-size: var(--texte-sm); font-weight: 500; color: var(--couleur-texte-3); }
+.liste-fournee { list-style: none; margin: 0; padding: 0; background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md); box-shadow: var(--ombre-carte); }
+.ligne-fournee {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas: "case nom chiffre" "pourquoi pourquoi pourquoi";
+  align-items: center;
+  column-gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+}
+.ligne-fournee + .ligne-fournee { border-top: 1px solid var(--couleur-bordure); }
+.case-enfourne { grid-area: case; width: 24px; height: 24px; margin: 0; cursor: pointer; }
+.ligne-fournee-nom { grid-area: nom; display: flex; flex-direction: column; gap: 2px; margin: 0; font-size: var(--texte-md); font-weight: 500; cursor: pointer; }
+.delta-texte { font-size: var(--texte-xs); font-weight: 500; color: var(--couleur-texte-3); }
+.delta-texte--hausse { color: var(--couleur-accent-texte); }
+.ligne-fournee-chiffre { grid-area: chiffre; display: flex; flex-direction: column; align-items: flex-end; line-height: 1; }
+.ligne-fournee-quantite { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-weight: 600; font-size: 38px; letter-spacing: -0.02em; }
+.ligne-fournee-fourchette { margin-top: 4px; font-size: var(--texte-xs); color: var(--couleur-texte-3); }
+.ligne-fournee-pourquoi { grid-area: pourquoi; margin-top: var(--espace-1); font-size: var(--texte-sm); }
+.ligne-fournee-pourquoi summary { display: inline-block; cursor: pointer; color: var(--couleur-texte-3); font-size: var(--texte-xs); padding: 4px 0; }
+.ligne-fournee-pourquoi summary::-webkit-details-marker { display: none; }
+.ligne-fournee-pourquoi ul { margin: var(--espace-2) 0 var(--espace-1); padding: var(--espace-3) var(--espace-4); list-style: none; background: var(--couleur-surface-2); border-radius: var(--rayon-sm); color: var(--couleur-texte-2); }
+.ligne-fournee-pourquoi li + li { margin-top: 4px; }
+.ligne-fournee--faite .ligne-fournee-nom > span:first-child, .ligne-fournee--faite .ligne-fournee-quantite { color: var(--couleur-texte-3); text-decoration: line-through; text-decoration-thickness: 2px; }
+.fiabilite { margin-top: var(--espace-6); padding: var(--espace-4) var(--espace-5); border-radius: var(--rayon-md); background: var(--couleur-surface-2); font-size: var(--texte-md); }
+.fiabilite[hidden] { display: none; }
+.fiabilite p { margin: 0; }
+.bouton-quitter-fournil { display: none; }
+
+/* Écran fournil : lisible de loin, mains dans la farine. */
+body.ecran-fournil { padding-bottom: 0; background-image: none; }
+body.ecran-fournil .entete-site, body.ecran-fournil .nav-onglets, body.ecran-fournil #statutConnexion, body.ecran-fournil #btnEcranFournil,
+body.ecran-fournil .actions-jour, body.ecran-fournil .ligne-fournee-pourquoi, body.ecran-fournil .fiabilite, body.ecran-fournil .bloc-pont-commandes,
+body.ecran-fournil .lien-evitement, body.ecran-fournil .meteo-moments-jour { display: none !important; }
+body.ecran-fournil .conteneur { max-width: none; padding: var(--espace-4); }
+body.ecran-fournil .claire-titre { font-size: clamp(32px, 5vw, 56px); }
+body.ecran-fournil .ligne-fournee { padding: var(--espace-4) var(--espace-5); }
+body.ecran-fournil .ligne-fournee-nom { font-size: clamp(22px, 3vw, 34px); }
+body.ecran-fournil .ligne-fournee-quantite { font-size: clamp(52px, 8vw, 96px); }
+body.ecran-fournil .case-enfourne { width: 40px; height: 40px; }
+body.ecran-fournil .rayon-titre { font-size: clamp(26px, 3.5vw, 40px); }
+body.ecran-fournil .bouton-quitter-fournil { display: flex; position: fixed; right: var(--espace-4); bottom: var(--espace-4); width: auto; z-index: 60; }
+@media (min-width: 900px) {
+  body.ecran-fournil #listeRayons { display: grid; grid-template-columns: 1fr 1fr; gap: var(--espace-5); align-items: start; }
+  body.ecran-fournil .rayon + .rayon { margin-top: 0; }
+}
+.fournee-entete .actions-jour .btn-mini { padding: 6px 12px; }
+.fournee-entete { gap: var(--espace-2); }
+
+/* ---------- Commande (plan v2) ---------- */
+.commande-periode { display: flex; align-items: center; flex-wrap: wrap; gap: var(--espace-2) var(--espace-3); margin-bottom: var(--espace-4); }
+.commande-periode label { margin: 0; }
+.commande-periode select { width: auto; }
+.fournisseur { background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md); box-shadow: var(--ombre-carte); padding: var(--espace-4); }
+.fournisseur + .fournisseur { margin-top: var(--espace-4); }
+.fournisseur-entete { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: var(--espace-2); margin-bottom: var(--espace-2); }
+.fournisseur-entete h2 { margin: 0; }
+.liste-commande { list-style: none; margin: 0; padding: 0; }
+.ligne-commande { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--espace-3); align-items: center; padding: var(--espace-3) 0; border-top: 1px solid var(--couleur-bordure); }
+.ligne-commande-nom { display: flex; flex-direction: column; font-weight: 500; }
+.ligne-commande-nom .texte-aide--discret { font-size: var(--texte-xs); font-weight: 400; }
+.ligne-commande-quantite { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-weight: 600; font-size: var(--texte-lg); text-align: right; }
+.ligne-commande--couverte .ligne-commande-quantite { color: var(--couleur-succes); font-family: var(--police); font-size: var(--texte-sm); }
+.ligne-commande-stock { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--espace-2); margin: 0; font-size: var(--texte-xs); font-weight: 400; color: var(--couleur-texte-3); }
+.ligne-commande-stock input { width: 80px; min-height: 32px; padding: 4px 8px; font-size: var(--texte-sm); }
+.fournisseur-envoi { display: flex; gap: var(--espace-2); flex-wrap: wrap; margin-top: var(--espace-3); }
+.fournisseur-reglages { margin-top: var(--espace-3); font-size: var(--texte-sm); }
+.fournisseur-reglages summary { cursor: pointer; color: var(--couleur-texte-2); }
+.fournisseur-jours { border: 0; padding: 0; margin: var(--espace-3) 0; }
+.fournisseur-jours legend { font-weight: 500; font-size: var(--texte-sm); padding: 0; margin-bottom: var(--espace-2); }
+#noteRecettes { background: var(--couleur-surface-2); padding: var(--espace-3) var(--espace-4); border-radius: var(--rayon-sm); }
+#noteRecettes[hidden], #zoneCommande[hidden] { display: none; }
+.tendance { margin-top: var(--espace-4); padding: var(--espace-4); background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md); box-shadow: var(--ombre-carte); }
+.tendance-titre { margin: 0 0 var(--espace-3); font-size: var(--texte-md); }
+.graphique-colonnes--court { height: 140px; }
+
+/* ---------- Semaine (plan v2) ---------- */
+#zoneSemaine[hidden] { display: none; }
+.affluence { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--espace-2); margin: 0; padding: 0; list-style: none; }
+.affluence-jour { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: var(--espace-3) var(--espace-1); text-align: center; background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md); box-shadow: var(--ombre-carte); }
+.affluence-barre { display: flex; align-items: flex-end; width: 18px; height: 72px; background: var(--couleur-surface-2); border-radius: var(--rayon-rond); overflow: hidden; }
+.affluence-barre span { display: block; width: 100%; background: var(--couleur-bordure-forte); border-radius: var(--rayon-rond); }
+.affluence-jour--charge .affluence-barre span { background: var(--couleur-dore); }
+.affluence-jour--ferme { opacity: 0.6; }
+.affluence-nom { font-weight: 600; font-size: var(--texte-sm); }
+.affluence-total { font-size: var(--texte-xs); color: var(--couleur-texte-2); }
+.affluence-raison { font-size: var(--texte-xs); color: var(--couleur-texte-3); line-height: 1.3; }
+@media (max-width: 640px) {
+  .affluence { grid-template-columns: 1fr; }
+  .affluence-jour { display: grid; grid-template-columns: 64px 1fr auto; grid-template-areas: "nom barre total" "nom raison raison"; align-items: center; text-align: left; padding: var(--espace-2) var(--espace-3); column-gap: var(--espace-3); }
+  .affluence-nom { grid-area: nom; }
+  .affluence-barre { grid-area: barre; width: 100%; height: 10px; align-items: stretch; }
+  .affluence-barre span { height: 100% !important; }
+  .affluence-total { grid-area: total; }
+  .affluence-raison { grid-area: raison; }
+}
+.affluence-jour .affluence-barre span[style] { transition: height .2s ease; }
+@media (max-width: 640px) {
+  .affluence-jour .affluence-barre { position: relative; }
+}
+.tableau-semaine-defilement { overflow-x: auto; background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md); box-shadow: var(--ombre-carte); }
+.tableau-semaine { margin: 0; min-width: 560px; font-size: var(--texte-sm); }
+.tableau-semaine th, .tableau-semaine td { text-align: right; padding: var(--espace-2) var(--espace-3); white-space: nowrap; }
+.tableau-semaine th:first-child, .tableau-semaine tbody th, .tableau-semaine tfoot th { text-align: left; position: sticky; left: 0; background: var(--couleur-surface); font-weight: 500; color: var(--couleur-texte); z-index: 1; }
+.tableau-semaine thead th { font-weight: 600; color: var(--couleur-texte-2); }
+.tableau-semaine-rayon th { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: var(--texte-md); font-weight: 600; padding-top: var(--espace-4); background: var(--couleur-surface); }
+.tableau-semaine-total { font-weight: 600; }
+.tableau-semaine tfoot th, .tableau-semaine tfoot td { font-weight: 700; border-top: 2px solid var(--couleur-bordure-forte); }
+.liens-donnees { display: grid; gap: var(--espace-2); grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.lien-donnees { display: flex; flex-direction: column; gap: 2px; padding: var(--espace-4); color: var(--couleur-texte); background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md); box-shadow: var(--ombre-carte); }
+.lien-donnees:hover { text-decoration: none; border-color: var(--couleur-bordure-forte); }
+.lien-donnees span { font-size: var(--texte-sm); color: var(--couleur-texte-2); }
+.lien-donnees strong::after { content: ' →'; color: var(--couleur-accent-texte); }
+/* Produits : rayons déduits du nom, plus de zones de dépôt. */
+.bloc-categorie-produits { border: 0; padding: 0; }
+.entete-bloc-categorie-produits { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: var(--texte-lg); color: var(--couleur-texte); }
+.ligne-retour-donnees { margin: 0 0 var(--espace-3); font-size: var(--texte-sm); }

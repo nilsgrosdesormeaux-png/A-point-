@@ -178,7 +178,7 @@
       <div>
         <p class="heros-pilote"><b>Pilote</b> Gratuit pour les boulangeries indépendantes</p>
         <h1 id="titrePromesse">Sache combien cuire demain.</h1>
-        <p class="heros-texte">À Point lit tes ventes passées et te donne, pour chaque produit, la quantité à produire pour ton prochain jour d'ouverture. La météo, les jours fériés et les vacances scolaires sont pris en compte.</p>
+        <p class="heros-texte">À Point lit tes ventes passées et te donne, pour chaque produit, la quantité à produire pour ton prochain jour d'ouverture. Météo, jours fériés, ponts, vacances scolaires et grandes dates de la boulangerie sont pris en compte.</p>
         <div class="heros-actions">
           <a href="connexion.html?inscription" class="bouton-principal">Créer mon compte</a>
           <a href="#fonctionnement" class="lien-discret">Voir comment ça marche</a>
@@ -187,10 +187,10 @@
       </div>
 
       <div class="capture-scene">
-      <figure class="capture" aria-label="Exemple de l'écran Demain, avec des données fictives" style="margin:0;">
+      <figure class="capture" aria-label="Exemple de l'écran Fournée, avec des données fictives" style="margin:0;">
         <p class="capture-legende">Exemple, données fictives</p>
         <p class="capture-date">Vendredi 30 octobre</p>
-        <p class="capture-titre">À produire pour samedi 31 octobre</p>
+        <p class="capture-titre">À enfourner pour samedi 31 octobre</p>
         <div class="capture-jours" aria-hidden="true">
           <span class="actif charge">Sam.</span><span class="charge">Dim.</span><span class="ferme">Lun.</span><span>Mar.</span><span>Mer.</span><span>Jeu.</span><span>Ven.</span>
         </div>
@@ -198,7 +198,7 @@
         <div class="capture-ligne"><span>Croissant</span><span class="capture-chiffre"><strong>157</strong><small>145 – 170</small></span></div>
         <div class="capture-ligne"><span>Pain au chocolat</span><span class="capture-chiffre"><strong>128</strong><small>112 – 141</small></span></div>
         <div class="capture-ligne"><span>Flan pâtissier</span><span class="capture-chiffre"><strong>29</strong><small>24 – 33</small></span></div>
-        <span class="capture-bouton" aria-hidden="true">Préparer la commande de ce jour</span>
+        <span class="capture-bouton" aria-hidden="true">Voir la commande de matières premières</span>
       </figure>
       </div>
     </section>
@@ -218,14 +218,15 @@
         </li>
         <li>
           <h3>Tu produis</h3>
-          <p>Chaque produit a sa quantité et une fourchette, jamais un chiffre présenté comme certain. La commande fournisseurs se prépare depuis le même écran, en PDF.</p>
+          <p>Ta fournée par rayon, à cocher au fur et à mesure. La commande de matières premières est calculée pour toi et s'envoie à chaque fournisseur en PDF, par e-mail ou WhatsApp.</p>
         </li>
       </ol>
       <ul class="signaux" aria-label="Ce qui est pris en compte">
         <li>Jour de la semaine</li>
         <li>Météo de ta ville</li>
-        <li>Jours fériés</li>
+        <li>Jours fériés et ponts</li>
         <li>Vacances scolaires de ta zone</li>
+        <li>Galettes, Chandeleur, Pâques, Noël…</li>
         <li>Tes jours de fermeture</li>
       </ul>
     </section>
@@ -233,12 +234,12 @@
     <section class="bloc duo" aria-labelledby="titreBilan">
       <div>
         <h2 id="titreBilan">Tu vois ce que ça rapporte, en euros</h2>
-        <p class="bloc-intro">L'onglet Bilan rejoue les jours passés : ce que la prévision aurait fait produire, comparé à une production à l'instinct.</p>
+        <p class="bloc-intro">L'onglet Bilan rejoue les jours passés : ce que la prévision aurait fait produire, comparé à une production faite de mémoire.</p>
       </div>
       <ul class="liste-bilan">
-        <li><strong>Économies sur la matière première</strong><span>Calculées en euros dès que tes fiches techniques ont le prix des ingrédients.</span></li>
-        <li><strong>Invendus évités</strong><span>En nombre de pièces, sur 7 jours, 30 jours ou depuis le début.</span></li>
-        <li><strong>Précision des prévisions</strong><span>Mesurée sur tes propres ventes, et comparée à une simple moyenne.</span></li>
+        <li><strong>Invendus évités</strong><span>En euros dès que tes prix de vente sont connus, sinon en pièces, sur 7 jours, 30 jours ou depuis le début.</span></li>
+        <li><strong>Pain sauvé</strong><span>Les mêmes invendus, convertis en kilos.</span></li>
+        <li><strong>Précision</strong><span>En pièces, mesurée sur tes propres ventes : « à ±4 baguettes près ».</span></li>
         <li><strong>Jours records et produits phares</strong><span>Ton jour le plus chargé du mois et de l'année, et le classement de tes produits.</span></li>
       </ul>
     </section>
@@ -260,11 +261,11 @@
       <div class="faq">
         <details class="faq-item">
           <summary>De combien d'historique ai-je besoin ?</summary>
-          <p>La prévision s'appuie sur tes ventes passées : plus l'historique est long, plus elle s'affine. L'écran Demain affiche le nombre de jours d'historique pris en compte, et le Bilan mesure la précision dès que c'est possible.</p>
+          <p>La prévision s'appuie sur tes ventes passées : plus l'historique est long, plus elle s'affine. Chaque produit a un « Pourquoi ? » qui dit sur combien de jours il s'appuie, et le Bilan mesure la précision dès que c'est possible.</p>
         </details>
         <details class="faq-item">
           <summary>Je n'ai pas d'export de caisse. Comment je fais ?</summary>
-          <p>Tu peux tout saisir à la main : chaque jour, la page Ventes liste tes produits avec des boutons + et −. Tu peux aussi revenir sur les 7 derniers jours.</p>
+          <p>Tu peux tout saisir à la main dans Paramètres &gt; Mes données : tes produits s'affichent avec des boutons + et −, et tu peux revenir sur les 7 derniers jours.</p>
         </details>
         <details class="faq-item">
           <summary>À Point se branche-t-il sur ma caisse ?</summary>
@@ -276,7 +277,7 @@
         </details>
         <details class="faq-item">
           <summary>Faut-il remplir les fiches techniques ?</summary>
-          <p>Non, c'est facultatif. Sans fiche, tu as les quantités à produire. Avec les ingrédients et leurs prix, À Point calcule aussi la matière première à commander et tes économies en euros.</p>
+          <p>Non. Pour les produits courants (baguette, croissant, pain au chocolat, brioche…), une recette type sert à calculer la commande. Tu ne l'ajustes que si la tienne diffère.</p>
         </details>
         <details class="faq-item">
           <summary>Ça marche sur téléphone ?</summary>

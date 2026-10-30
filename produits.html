@@ -11,7 +11,8 @@
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="style.css?v=20261030">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20260922"></script>
+  <script src="moteur-prevision.js?v=20261031"></script>
+  <script src="boulangerie.js?v=20261031"></script>
   <script src="nav.js?v=20261030"></script>
   <style>
     /* Ventes du jour : même style de navigation par jour que ventes.html
@@ -49,6 +50,7 @@
   </header>
 
   <div id="contenu" role="main" class="conteneur conteneur--large">
+    <p class="ligne-retour-donnees"><a href="parametres.html#donnees">← Paramètres &gt; Mes données</a></p>
     <div class="carte-page">
       <div class="entete-page">
         <div>
@@ -99,7 +101,7 @@
           <h2 style="margin:0;">Ma gamme</h2>
           <a href="ventes.html?mode=fiches#importer" class="btn-gerer-postes">Importer des fiches techniques</a>
         </div>
-        <p class="texte-aide" style="margin-top:6px;">Touche un produit pour ouvrir sa fiche technique (facultative). Les catégories se créent depuis l’onglet <a href="previsions.html">Demain</a> ; range ensuite tes produits par glisser-déposer.</p>
+        <p class="texte-aide" style="margin-top:6px;">Tes produits se créent seuls à partir de tes ventes et se rangent par rayon d'après leur nom. Touche un produit pour ajuster sa recette (facultatif : sans recette, la commande utilise une recette type).</p>
         <div id="listeProduitsParCategorie" class="grille-produits-vendus"></div>
         <ul id="listeProduits" class="liste-produits" style="display:none;"></ul>
 
@@ -402,10 +404,26 @@
       function chargerProduits(apresChargement) {
         Promise.all([
           sbClient.from('produits').select('*').eq('commercant_id', commercantId),
-          sbClient.from('categories_produit').select('*').eq('commercant_id', commercantId).order('ordre', { ascending: true })
+          sbClient.from('categories_produit').select('*').eq('commercant_id', commercantId).order('ordre', { ascending: true }),
+          sbClient.from('ventes').select('nom_produit').eq('commercant_id', commercantId)
         ]).then(function (resultats) {
           produitsCourants = resultats[0].data || [];
           CATEGORIES = resultats[1].data || [];
+          // Plan v2 : les produits se créent seuls à partir des ventes (caisse,
+          // import ou saisie). On ajoute ceux qui manquent, sans doublon.
+          var connus = {};
+          produitsCourants.forEach(function (p) { connus[cleNormaliseeProduit(p.nom)] = true; });
+          var aCreer = [];
+          (resultats[2].data || []).forEach(function (v) {
+            var cle = cleNormaliseeProduit(v.nom_produit);
+            if (!cle || connus[cle]) return;
+            connus[cle] = true;
+            aCreer.push({ commercant_id: commercantId, nom: formatNomAffichage(v.nom_produit) });
+          });
+          if (aCreer.length > 0) {
+            sbClient.from('produits').insert(aCreer).then(function () { chargerProduits(apresChargement); });
+            return;
+          }
 
           var nb = produitsCourants.length;
           badgeProduits.textContent = nb + (nb > 1 ? ' produits' : ' produit');
@@ -510,18 +528,18 @@
       function rendreProduitsParCategorie() {
         listeProduitsParCategorieEl.innerHTML = '';
 
+        // Plan v2 : rayon déduit du nom (boulangerie.js), plus de rangement à la main.
         var parCategorie = {};
         produitsCourants.forEach(function (p) {
-          var cle = p.categorie_id || '__non_classe__';
+          var cle = window.Boulangerie.deduireRayon(p.nom);
           if (!parCategorie[cle]) parCategorie[cle] = [];
           parCategorie[cle].push(p);
         });
 
-        var blocs = CATEGORIES.map(function (cat) { return { id: cat.id, nom: cat.nom }; });
-        blocs.push({ id: null, nom: 'Non classé' });
+        var blocs = window.Boulangerie.RAYONS.filter(function (r) { return parCategorie[r]; }).map(function (r) { return { id: null, nom: r }; });
 
         blocs.forEach(function (cat) {
-          var cle = cat.id || '__non_classe__';
+          var cle = cat.nom;
           var produitsCat = parCategorie[cle] || [];
 
           var bloc = document.createElement('div');
@@ -541,11 +559,14 @@
             videLi.textContent = 'Glisse un produit ici.';
             ul.appendChild(videLi);
           } else {
-            produitsCat.forEach(function (p) { ul.appendChild(creerLigneProduit(p)); });
+            produitsCat.forEach(function (p) {
+              var li = creerLigneProduit(p);
+              li.draggable = false;
+              ul.appendChild(li);
+            });
           }
           bloc.appendChild(ul);
 
-          rendreBlocDropCategorie(bloc);
           listeProduitsParCategorieEl.appendChild(bloc);
         });
 
@@ -747,7 +768,25 @@
             var vide = document.createElement('p');
             vide.className = 'texte-aide';
             vide.style.marginTop = '10px';
-            vide.textContent = "Aucun ingrédient pour l'instant.";
+            var type = window.Boulangerie.recetteType(produitSelectionne.nom);
+            if (type) {
+              // Recette type pré-remplie en un geste : le boulanger n'ajuste
+              // ensuite que ce qui diffère chez lui.
+              vide.textContent = "Sans fiche, la commande utilise une recette type de " + formatNomAffichage(produitSelectionne.nom).toLowerCase() + ". ";
+              var btnType = document.createElement('button');
+              btnType.type = 'button';
+              btnType.className = 'lien-discret';
+              btnType.textContent = 'La copier ici pour l\'ajuster';
+              btnType.addEventListener('click', function () {
+                var produitId = produitSelectionne.id;
+                sbClient.from('ingredients_produit').insert(type.ingredients.map(function (l) {
+                  return { commercant_id: commercantId, produit_id: produitId, nom_ingredient: l[0], quantite: l[1], unite: l[2] === 'pièce' ? 'pièce' : l[2] };
+                })).then(function () { chargerIngredients(); });
+              });
+              vide.appendChild(btnType);
+            } else {
+              vide.textContent = "Aucun ingrédient pour l'instant.";
+            }
             listeIngredientsDiv.appendChild(vide);
             return;
           }

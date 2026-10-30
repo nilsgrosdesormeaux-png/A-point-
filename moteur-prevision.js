@@ -521,10 +521,106 @@
     return dates;
   }
 
+  // ---------- Calendrier boulanger et ponts (plan v2, oct. 2026) ----------
+  // Jours où une boulangerie vend autrement (galettes, crêpes, bûches…).
+  // Calcul interne, sans API. L'effet n'est jamais supposé : il est appris
+  // sur l'historique du commerce (voir apprendreEffet), comme la météo.
+  function premierDimancheJuin(annee) {
+    var d = new Date(annee, 5, 1);
+    return ajouterJours(d, (7 - d.getDay()) % 7);
+  }
+
+  function dateFeteDesMeres(annee) {
+    var d = new Date(annee, 4, 31);
+    d = ajouterJours(d, -d.getDay());
+    // Si le dernier dimanche de mai tombe à la Pentecôte, la fête passe en juin.
+    if (versISO(d) === versISO(ajouterJours(datePaques(annee), 49))) return premierDimancheJuin(annee);
+    return d;
+  }
+
+  function dateFeteDesPeres(annee) {
+    return ajouterJours(premierDimancheJuin(annee), 14);
+  }
+
+  var CACHE_FETES = {};
+  function fetesBoulangeresAnnee(annee) {
+    if (CACHE_FETES[annee]) return CACHE_FETES[annee];
+    var fetes = {};
+    function plage(debut, nbJours, cle, libelle, icone) {
+      for (var i = 0; i < nbJours; i++) fetes[versISO(ajouterJours(debut, i))] = { cle: cle, libelle: libelle, icone: icone };
+    }
+    var paques = datePaques(annee);
+    plage(new Date(annee, 0, 2), 14, 'epiphanie', 'Galettes des rois', '👑');
+    plage(new Date(annee, 1, 2), 1, 'chandeleur', 'Chandeleur', '🥞');
+    plage(ajouterJours(paques, -47), 1, 'mardi-gras', 'Mardi gras', '🍩');
+    plage(ajouterJours(paques, -1), 2, 'paques', 'Pâques', '🐣');
+    plage(dateFeteDesMeres(annee), 1, 'fete-meres', 'Fête des mères', '💐');
+    plage(dateFeteDesPeres(annee), 1, 'fete-peres', 'Fête des pères', '🎁');
+    plage(new Date(annee, 8, 1), 7, 'rentree', 'Rentrée scolaire', '🎒');
+    plage(new Date(annee, 11, 20), 5, 'noel', 'Noël', '🎄');
+    plage(new Date(annee, 11, 31), 1, 'reveillon', 'Réveillon', '🥂');
+    CACHE_FETES[annee] = fetes;
+    return fetes;
+  }
+
+  function feteBoulangere(date) {
+    return fetesBoulangeresAnnee(date.getFullYear())[versISO(date)] || null;
+  }
+
+  // Pont : vendredi après un jeudi férié, ou lundi avant un mardi férié.
+  function estPont(date) {
+    var j = date.getDay();
+    if (j === 5) return estJourFerie(ajouterJours(date, -1));
+    if (j === 1) return estJourFerie(ajouterJours(date, 1));
+    return false;
+  }
+
+  // Un jour « ordinaire » sert de référence : ni férié, ni vacances, ni pont,
+  // ni fête boulangère.
+  function estJourOrdinaire(date, zoneVacances) {
+    return !estJourFerie(date) && !estEnVacances(date, zoneVacances) && !estPont(date) && !feteBoulangere(date);
+  }
+
+  // Apprend l'effet d'un signal sur un produit : pour chaque jour passé où le
+  // signal s'appliquait, compare la vente à la moyenne des mêmes jours de
+  // semaine ordinaires des 8 semaines précédentes. Ratio moyen, rapproché de
+  // 1 quand il y a peu d'occurrences (n / (n + 1)), plafonné entre 0,5 et 2.
+  function apprendreEffet(ventesDuProduit, testSignal, zoneVacances) {
+    var parDate = {};
+    ventesDuProduit.forEach(function (v) { parDate[v.date_vente] = (parDate[v.date_vente] || 0) + v.quantite; });
+    var ratios = [];
+    Object.keys(parDate).forEach(function (iso) {
+      var d = new Date(iso + 'T00:00:00');
+      if (!testSignal(d, iso)) return;
+      var somme = 0, nb = 0;
+      for (var k = 1; k <= 8; k++) {
+        var ref = ajouterJours(d, -7 * k);
+        var q = parDate[versISO(ref)];
+        if (q !== undefined && estJourOrdinaire(ref, zoneVacances)) { somme += q; nb++; }
+      }
+      if (nb >= 2 && somme > 0) ratios.push(parDate[iso] / (somme / nb));
+    });
+    if (ratios.length === 0) return null;
+    var moyenneRatios = ratios.reduce(function (a, b) { return a + b; }, 0) / ratios.length;
+    var n = ratios.length;
+    var ratio = 1 + (moyenneRatios - 1) * n / (n + 1);
+    return { ratio: Math.max(0.5, Math.min(2, ratio)), nb: n };
+  }
+
+  // « +6 % », « −10 % » : effet d'un signal tel qu'affiché.
+  function libelleEffet(ratio) {
+    if (ratio === null || ratio === undefined) return null;
+    var pourcent = Math.round((ratio - 1) * 100);
+    if (pourcent === 0) return '=';
+    return (pourcent > 0 ? '+' : '−') + Math.abs(pourcent) + ' %';
+  }
+
   // Calcule la recommandation pour un produit et un jour cible donnés, avec
   // la comparaison ("delta") par rapport à la dernière vente réelle du même
   // jour de la semaine.
-  function calculerRecommandation(ventesDuProduit, jourCible, zoneVacances, evenements, meteoPassee, meteoPrevue) {
+  // signauxExternes (optionnel) : { iso: [{ type: 'evenement'|'match', libelle }] },
+  // fournis par les Edge Functions OpenAgenda / football-data ; absent = ignoré.
+  function calculerRecommandation(ventesDuProduit, jourCible, zoneVacances, evenements, meteoPassee, meteoPrevue, signauxExternes) {
     var numeroJourCible = jourCible.getDay();
     var nomJourCible = nomsJours[numeroJourCible];
     var isoCible = versISO(jourCible);
@@ -543,7 +639,7 @@
     // l'ouest de l'UTC (Antilles/Guyane). Convention du projet respectée.
     var ventesMemeJour = ventesDuProduit.filter(function (vente) {
       var d = new Date(vente.date_vente + 'T00:00:00');
-      return d.getDay() === numeroJourCible && !estJourFerie(d) && !estEnVacances(d, zoneVacances);
+      return d.getDay() === numeroJourCible && estJourOrdinaire(d, zoneVacances);
     });
 
     var baseVentes = ventesMemeJour.length > 0 ? ventesMemeJour : ventesDuProduit;
@@ -585,6 +681,48 @@
     if (ajustementMeteo) {
       quantite = Math.round(quantite * ajustementMeteo.ratio);
     }
+
+    // Signaux du jour, chacun avec son effet appris sur l'historique du
+    // produit. Un signal sans historique est affiché sans effet (« à
+    // apprendre ») et ne change pas la quantité.
+    var signaux = [];
+    var ratioSignaux = 1;
+    function ajouterSignal(cle, icone, libelle, apprentissage, minOccurrences) {
+      var appris = apprentissage && apprentissage.nb >= minOccurrences ? apprentissage : null;
+      if (appris) ratioSignaux *= appris.ratio;
+      signaux.push({ cle: cle, icone: icone, libelle: libelle, ratio: appris ? appris.ratio : null, nb: appris ? appris.nb : 0 });
+    }
+    if (!evenementCible) {
+      var feteCible = feteBoulangere(jourCible);
+      if (cibleFeriee) {
+        ajouterSignal('ferie', '📅', 'Jour férié', apprendreEffet(ventesDuProduit, function (d) { return estJourFerie(d); }, zoneVacances), 1);
+      }
+      if (estPont(jourCible)) {
+        ajouterSignal('pont', '🌉', 'Pont', apprendreEffet(ventesDuProduit, function (d) { return estPont(d); }, zoneVacances), 1);
+      }
+      if (feteCible) {
+        ajouterSignal(feteCible.cle, feteCible.icone, feteCible.libelle, apprendreEffet(ventesDuProduit, function (d) {
+          var f = feteBoulangere(d); return !!f && f.cle === feteCible.cle;
+        }, zoneVacances), 1);
+      }
+      if (cibleVacances) {
+        ajouterSignal('vacances', '🏖️', 'Vacances scolaires', apprendreEffet(ventesDuProduit, function (d) {
+          return d.getDay() === numeroJourCible && estEnVacances(d, zoneVacances) && !estJourFerie(d);
+        }, zoneVacances), 2);
+      }
+      var externesCible = (signauxExternes && signauxExternes[isoCible]) || [];
+      externesCible.forEach(function (sig) {
+        ajouterSignal(sig.type, sig.type === 'match' ? '⚽' : '🎉', sig.libelle, apprendreEffet(ventesDuProduit, function (d, iso) {
+          return (signauxExternes[iso] || []).some(function (x) { return x.type === sig.type; });
+        }, zoneVacances), 2);
+      });
+    }
+    if (ajustementMeteo) {
+      var meteoPluie = ajustementMeteo.categorie === 'pluvieux';
+      signaux.unshift({ cle: 'meteo', icone: meteoPluie ? '🌧️' : '☀️', libelle: meteoPluie ? 'Pluie' : 'Forte chaleur', ratio: ajustementMeteo.ratio, nb: ajustementMeteo.nbJours });
+    }
+    ratioSignaux = Math.max(0.5, Math.min(2, ratioSignaux));
+    if (ratioSignaux !== 1) quantite = Math.round(quantite * ratioSignaux);
 
     var fourchette = calculerFourchette(baseFinale, moyenne, quantite);
 
@@ -645,7 +783,12 @@
       fourchette: fourchette,
       jourFerie: cibleFeriee,
       vacancesScolaires: cibleVacances,
-      evenement: evenementCible
+      evenement: evenementCible,
+      signaux: signaux,
+      // Dernière vente du même jour de semaine : « +8 vs samedi dernier ».
+      dernierMemeJour: ventesMemeJour.length > 0 ? ventesMemeJour.slice().sort(function (a, b) {
+        return new Date(b.date_vente) - new Date(a.date_vente);
+      })[0] : null
     };
   }
 
@@ -847,6 +990,35 @@
     });
   }
 
+  // Fiabilité en unités, pour un produit : écart moyen entre la prévision
+  // (moyenne pondérée, SANS la marge de production, comme calculerFiabilite)
+  // et la vente réelle, rejoué sur l'historique. « ±4 baguettes ».
+  function calculerEcartUnites(ventesDuProduit) {
+    var parJour = {};
+    ventesDuProduit.slice().sort(function (a, b) { return new Date(a.date_vente) - new Date(b.date_vente); }).forEach(function (v) {
+      var jour = new Date(v.date_vente + 'T00:00:00').getDay();
+      if (!parJour[jour]) parJour[jour] = [];
+      parJour[jour].push(v);
+    });
+    var ecarts = [];
+    Object.keys(parJour).forEach(function (jour) {
+      var occ = parJour[jour];
+      for (var i = 2; i < occ.length; i++) {
+        var prevision = moyennePonderee(exclureValeursAberrantes(occ.slice(0, i)).ventesFiltrees);
+        ecarts.push(Math.abs(prevision - occ[i].quantite));
+      }
+    });
+    if (ecarts.length < 3) return null;
+    var somme = ecarts.reduce(function (a, b) { return a + b; }, 0);
+    return { ecart: Math.max(1, Math.round(somme / ecarts.length)), nbPoints: ecarts.length };
+  }
+
+  // Comparaison avec la moyenne simple : seulement si l'écart dépasse 3 points
+  // (en dessous, elle n'apprend rien au boulanger et dessert l'outil).
+  function comparaisonUtile(fiabilite, fiabiliteNaive) {
+    return !!(fiabilite && fiabiliteNaive && fiabiliteNaive.nbPoints >= 3 && fiabilite.valeur - fiabiliteNaive.valeur > 3);
+  }
+
   function calculerFiabiliteNaive(ventes) {
     return retroTesterMethode(ventes, function (historique) {
       var somme = 0;
@@ -957,6 +1129,14 @@
     retroTesterMethode: retroTesterMethode,
     calculerFiabilite: calculerFiabilite,
     calculerFiabiliteNaive: calculerFiabiliteNaive,
+    calculerEcartUnites: calculerEcartUnites,
+    comparaisonUtile: comparaisonUtile,
+    feteBoulangere: feteBoulangere,
+    estPont: estPont,
+    estJourOrdinaire: estJourOrdinaire,
+    apprendreEffet: apprendreEffet,
+    libelleEffet: libelleEffet,
+    MARGE_PRODUCTION: MARGE_PRODUCTION,
     calculerPrevisionSemaine: calculerPrevisionSemaine
   };
 })();
