@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Semaine</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101d">
+  <link rel="stylesheet" href="style.css?v=20261101e">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261101b"></script>
-  <script src="boulangerie.js?v=20261101b"></script>
-  <script src="contexte.js?v=20261101b"></script>
+  <script src="moteur-prevision.js?v=20261101e"></script>
+  <script src="boulangerie.js?v=20261101e"></script>
+  <script src="contexte.js?v=20261101e"></script>
   <script src="nav.js?v=20261031"></script>
 </head>
 <body>
@@ -29,7 +29,7 @@
   <div id="contenu" role="main" class="conteneur conteneur--large">
     <div class="entete-page">
       <div>
-        <h1>Les 7 prochains jours</h1>
+        <h1>Les 7 jours qui viennent</h1>
         <p class="texte-aide" style="margin:0;">L'affluence attendue, ses raisons, et ce qu'il faudra produire.</p>
       </div>
     </div>
@@ -76,7 +76,7 @@
 
       function afficher() {
         var jours = [];
-        for (var i = 1; i <= 7; i++) jours.push(MP.ajouterJours(new Date(), i));
+        for (var i = 0; i < 7; i++) jours.push(MP.ajouterJours(new Date(), i));
         var colonnes = jours.map(function (d) {
           var ferme = ctx.joursFermeture.indexOf(d.getDay()) !== -1;
           var prev = ferme ? [] : C.prevoirJour(ctx, d);
@@ -90,7 +90,7 @@
         // Affluence : une barre par jour, hauteur relative au jour le plus fort.
         var max = Math.max.apply(null, colonnes.map(function (c) { return c.total; })) || 1;
         document.getElementById('affluence').innerHTML = colonnes.map(function (c) {
-          var nomJour = MP.capitaliser(MP.nomsJoursCourts[c.date.getDay()]);
+          var nomJour = MP.versISO(c.date) === MP.versISO(new Date()) ? 'Auj.' : MP.capitaliser(MP.nomsJoursCourts[c.date.getDay()]);
           var raison;
           if (c.ferme) raison = 'Fermé';
           else if (c.raisons.length) {

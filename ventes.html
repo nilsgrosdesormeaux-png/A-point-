@@ -8,11 +8,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Ventes</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101d">
+  <link rel="stylesheet" href="style.css?v=20261101e">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="moteur-prevision.js?v=20261101b"></script>
+  <script src="moteur-prevision.js?v=20261101e"></script>
   <script src="nav.js?v=20261031"></script>
   <style>
     .detail-colonne { font-size: 12px; margin: 4px 0 12px; min-height: 1em; }
@@ -190,6 +190,12 @@
       // donnait aucune date précise, et il n'était possible de saisir que la
       // veille. decalageJour va de -1 (hier) à -7 (il y a une semaine).
       var decalageJour = -1;
+      // ?date=AAAA-MM-JJ : ouvrir un jour précis (correction depuis la saisie du soir).
+      var dateDemandee = /[?&]date=(\d{4}-\d{2}-\d{2})/.exec(window.location.search);
+      if (dateDemandee) {
+        var aujourdhuiMinuit = new Date(); aujourdhuiMinuit.setHours(0, 0, 0, 0);
+        decalageJour = Math.min(0, Math.round((new Date(dateDemandee[1] + 'T00:00:00') - aujourdhuiMinuit) / 86400000));
+      }
       var LIMITE_DECALAGE = -7;
 
       // MP.ajouterJours/versISO reprennent la même construction de date à

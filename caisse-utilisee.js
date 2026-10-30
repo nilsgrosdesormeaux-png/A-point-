@@ -16,7 +16,10 @@
     var autre = document.getElementById(idAutre);
     if (!select) return;
     select.innerHTML = '<option value="">Choisir (facultatif)</option>' + CAISSES.map(function (c) {
-      return '<option value="' + c[0] + '">' + c[1] + '</option>';
+      // Honnête sur le branchement : Hiboutik se branche directement, les
+      // autres passent par un fichier exporté de la caisse.
+      var mode = c[0] === 'hiboutik' ? ' (branchable)' : (c[0] === 'autre' || c[0] === 'aucune' ? '' : ' (par import de fichier)');
+      return '<option value="' + c[0] + '">' + c[1] + mode + '</option>';
     }).join('');
     function maj() { autre.hidden = select.value !== 'autre'; }
     select.addEventListener('change', maj);

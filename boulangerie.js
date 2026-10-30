@@ -47,9 +47,12 @@
   // Ordres de grandeur d'une fabrication artisanale courante, à ajuster.
   // Quantités en kg, L ou pièces. L'eau n'est pas commandée, donc absente.
   var RECETTES_TYPES = [
-    { mots: ['pain au chocolat', 'pains au chocolat', 'chocolatine'], poids: 0.07, ingredients: [['Farine T45', 0.026, 'kg'], ['Beurre de tourage', 0.013, 'kg'], ['Barres de chocolat', 2, 'pièce'], ['Sucre', 0.003, 'kg'], ['Lait', 0.007, 'L'], ['Levure fraîche', 0.001, 'kg'], ['Œufs', 0.05, 'pièce']] },
+    // Pâte levée feuilletée courante : 1 kg de farine, 500 g de beurre de
+    // tourage, 120 g de sucre, 20 g de sel, 40 g de levure, 50 cl de lait et
+    // d'eau pour une trentaine de pièces de 60 à 70 g, dorure à l'œuf.
+    { mots: ['pain au chocolat', 'pains au chocolat', 'chocolatine'], poids: 0.07, ingredients: [['Farine T45', 0.033, 'kg'], ['Beurre de tourage', 0.017, 'kg'], ['Barres de chocolat', 2, 'pièce'], ['Sucre', 0.004, 'kg'], ['Sel', 0.0007, 'kg'], ['Lait', 0.009, 'L'], ['Levure fraîche', 0.0013, 'kg'], ['Œufs', 0.05, 'pièce']] },
     { mots: ['pain aux raisins'], poids: 0.09, ingredients: [['Farine T45', 0.026, 'kg'], ['Beurre de tourage', 0.013, 'kg'], ['Raisins secs', 0.012, 'kg'], ['Lait', 0.03, 'L'], ['Sucre', 0.008, 'kg'], ['Œufs', 0.15, 'pièce']] },
-    { mots: ['croissant'], poids: 0.06, ingredients: [['Farine T45', 0.026, 'kg'], ['Beurre de tourage', 0.013, 'kg'], ['Sucre', 0.003, 'kg'], ['Lait', 0.007, 'L'], ['Levure fraîche', 0.001, 'kg'], ['Œufs', 0.05, 'pièce']] },
+    { mots: ['croissant'], poids: 0.06, ingredients: [['Farine T45', 0.033, 'kg'], ['Beurre de tourage', 0.017, 'kg'], ['Sucre', 0.004, 'kg'], ['Sel', 0.0007, 'kg'], ['Lait', 0.009, 'L'], ['Levure fraîche', 0.0013, 'kg'], ['Œufs', 0.05, 'pièce']] },
     { mots: ['brioche', 'pain au lait'], poids: 0.06, ingredients: [['Farine T45', 0.025, 'kg'], ['Beurre', 0.012, 'kg'], ['Œufs', 0.3, 'pièce'], ['Sucre', 0.004, 'kg'], ['Levure fraîche', 0.001, 'kg']] },
     { mots: ['chausson'], poids: 0.1, ingredients: [['Farine T45', 0.03, 'kg'], ['Beurre de tourage', 0.02, 'kg'], ['Compote de pommes', 0.04, 'kg']] },
     { mots: ['galette bretonne', 'galette de sarrasin', 'galette sarrasin', 'sarrasin', 'ble noir'], poids: 0.06, ingredients: [['Farine de sarrasin', 0.045, 'kg'], ['Sel', 0.001, 'kg'], ['Œufs', 0.1, 'pièce']] },
@@ -60,7 +63,8 @@
     { mots: ['tarte', 'tartelette'], poids: 0.12, ingredients: [['Farine T45', 0.03, 'kg'], ['Beurre', 0.015, 'kg'], ['Sucre', 0.015, 'kg'], ['Œufs', 0.2, 'pièce']] },
     { mots: ['sandwich', 'jambon'], poids: 0.25, ingredients: [['Farine T65', 0.075, 'kg'], ['Jambon blanc', 0.04, 'kg'], ['Beurre', 0.01, 'kg']] },
     { mots: ['quiche'], poids: 0.15, ingredients: [['Farine T45', 0.025, 'kg'], ['Beurre', 0.012, 'kg'], ['Œufs', 0.5, 'pièce'], ['Crème', 0.04, 'L'], ['Lardons', 0.02, 'kg']] },
-    { mots: ['campagne', 'seigle', 'miche', 'boule', 'levain'], poids: 0.4, ingredients: [['Farine T65', 0.19, 'kg'], ['Farine de seigle', 0.04, 'kg'], ['Sel', 0.005, 'kg'], ['Levure fraîche', 0.001, 'kg']] },
+    { mots: ['pain de seigle', 'seigle'], poids: 0.4, ingredients: [['Farine de seigle', 0.17, 'kg'], ['Farine T80', 0.07, 'kg'], ['Sel', 0.005, 'kg'], ['Levure fraîche', 0.001, 'kg']] },
+    { mots: ['campagne', 'miche', 'boule', 'levain'], poids: 0.4, ingredients: [['Farine T80', 0.19, 'kg'], ['Farine de seigle', 0.04, 'kg'], ['Sel', 0.005, 'kg'], ['Levure fraîche', 0.001, 'kg']] },
     { mots: ['complet', 'cereale'], poids: 0.4, ingredients: [['Farine complète T150', 0.2, 'kg'], ['Graines', 0.02, 'kg'], ['Sel', 0.005, 'kg'], ['Levure fraîche', 0.002, 'kg']] },
     { mots: ['ficelle'], poids: 0.125, ingredients: [['Farine T65', 0.075, 'kg'], ['Sel', 0.0015, 'kg'], ['Levure fraîche', 0.0008, 'kg']] },
     { mots: ['tradition', 'trad'], poids: 0.25, ingredients: [['Farine de tradition', 0.15, 'kg'], ['Sel', 0.003, 'kg'], ['Levure fraîche', 0.0008, 'kg']] },
@@ -191,7 +195,25 @@
     return entiers;
   }
 
+  // Versions précédentes des recettes types (lot 6) : une fiche copiée
+  // d'une ancienne version reste reconnue comme « proposée par À Point ».
+  var ANCIENNES_RECETTES_TYPES = [
+    { mots: ['croissant'], ingredients: [['Farine T45', 0.026, 'kg'], ['Beurre de tourage', 0.013, 'kg'], ['Sucre', 0.003, 'kg'], ['Lait', 0.007, 'L'], ['Levure fraîche', 0.001, 'kg'], ['Œufs', 0.05, 'pièce']] },
+    { mots: ['pain au chocolat', 'pains au chocolat', 'chocolatine'], ingredients: [['Farine T45', 0.026, 'kg'], ['Beurre de tourage', 0.013, 'kg'], ['Barres de chocolat', 2, 'pièce'], ['Sucre', 0.003, 'kg'], ['Lait', 0.007, 'L'], ['Levure fraîche', 0.001, 'kg'], ['Œufs', 0.05, 'pièce']] }
+  ];
+  function versionsRecetteType(nomProduit) {
+    var actuelle = recetteType(nomProduit);
+    var nom = normaliser(nomProduit);
+    return (actuelle ? [actuelle] : []).concat(ANCIENNES_RECETTES_TYPES.filter(function (r) { return contient(nom, r.mots); }));
+  }
+
+  // Suggestions d'ingrédients dans l'éditeur de recettes.
+  var INGREDIENTS_COURANTS = ['Farine T45', 'Farine T55', 'Farine T65', 'Farine T80', 'Farine T110', 'Farine T150', 'Farine de tradition', 'Farine de seigle', 'Farine de sarrasin', 'Farine d\'épeautre',
+    'Levure fraîche', 'Levain', 'Sel', 'Sucre', 'Beurre', 'Beurre de tourage', 'Lait', 'Crème', 'Œufs', 'Barres de chocolat', 'Chocolat de couverture', 'Poudre d\'amande', 'Raisins secs', 'Jambon blanc', 'Graines'];
+
   window.Boulangerie = {
+    INGREDIENTS_COURANTS: INGREDIENTS_COURANTS,
+    versionsRecetteType: versionsRecetteType,
     TRANCHES: TRANCHES,
     repartitionParDefaut: repartitionParDefaut,
     repartir: repartir,

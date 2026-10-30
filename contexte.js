@@ -114,8 +114,15 @@
   // Prévision de tous les produits pour un jour : [{ nom, rayon, r }].
   // Seuls les produits qui sortent du four (lot 3) : ni boissons, ni menus,
   // burgers, salades ou desserts du traiteur.
+  // Produit cuit au fournil : d'après son nom, sauf si le boulanger a dit
+  // « je le cuis » pour un produit classé hors fournée (compte : au_four).
+  function estCuitPour(ctx, nom) {
+    var m = (ctx.session && ctx.session.user.user_metadata) || {};
+    return B.estCuit(nom) || (m.au_four || []).indexOf(nom) !== -1;
+  }
+
   function prevoirJour(ctx, date) {
-    return Object.keys(ctx.parProduit).filter(B.estCuit).map(function (nom) {
+    return Object.keys(ctx.parProduit).filter(function (nom) { return estCuitPour(ctx, nom); }).map(function (nom) {
       var r = MP.calculerRecommandation(ctx.parProduit[nom], date, ctx.zoneVacances, ctx.evenements, ctx.meteoPassee, ctx.meteoPrevue, ctx.signauxExternes);
       return { nom: nom, rayon: B.deduireRayon(nom), r: r };
     });
@@ -182,6 +189,7 @@
 
   window.ContexteBoulangerie = {
     farineVendue: farineVendue,
+    estCuitPour: estCuitPour,
     client: client,
     charger: charger,
     enrichir: enrichir,

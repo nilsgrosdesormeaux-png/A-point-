@@ -7,9 +7,9 @@
   <title>À Point - Connexion</title>
   <meta name="description" content="À Point prévoit ton activité de la semaine à venir à partir de tes propres ventes, pour savoir quoi produire ou commander et si tu auras besoin de renfort, sans jamais rien deviner à ta place.">
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101d">
+  <link rel="stylesheet" href="style.css?v=20261101e">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="caisse-utilisee.js?v=20261031"></script>
+  <script src="caisse-utilisee.js?v=20261101e"></script>
   <style>
     body { display: flex; align-items: center; min-height: 100vh; }
     .conteneur { margin: auto; width: 100%; padding-top: 0; padding-bottom: 40px; }
@@ -35,11 +35,12 @@
       <div class="onglet" id="ongletInscription" role="tab" tabindex="0" aria-selected="false">Créer un compte</div>
     </div>
 
+    <form id="formAuth" novalidate>
     <label for="email">Email</label>
-    <input type="email" id="email" placeholder="ton@email.com">
+    <input type="email" id="email" name="email" autocomplete="username" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="ton@email.com" required>
 
     <label for="motdepasse">Mot de passe</label>
-    <input type="password" id="motdepasse" placeholder="Au moins 8 caractères">
+    <input type="password" id="motdepasse" name="password" autocomplete="current-password" minlength="8" placeholder="Au moins 8 caractères" required>
 
     <p class="texte-aide" style="text-align: right; margin: 6px 0 0;" id="ligneMotDePasseOublie">
       <a href="#" id="lienMotDePasseOublie">Mot de passe oublié ?</a>
@@ -65,7 +66,8 @@
       <span>J'ai lu et j'accepte les <a href="cgu.html" target="_blank" rel="noopener">conditions générales d'utilisation</a>.</span>
     </label>
 
-    <button id="btnAction">Se connecter</button>
+    <button id="btnAction" type="submit">Se connecter</button>
+    </form>
 
     <div id="message"></div>
 
@@ -121,6 +123,7 @@
         ongletConnexion.setAttribute('aria-selected', 'true');
         ongletInscription.setAttribute('aria-selected', 'false');
         btnAction.textContent = 'Se connecter';
+        document.getElementById('motdepasse').setAttribute('autocomplete', 'current-password');
         messageDiv.style.display = 'none';
         ligneCgu.style.display = 'none';
         document.getElementById('ligneCaisse').style.display = 'none';
@@ -139,6 +142,7 @@
         ligneCgu.style.display = 'flex';
         document.getElementById('ligneCaisse').style.display = 'block';
         document.getElementById('ligneAvant').style.display = 'block';
+        document.getElementById('motdepasse').setAttribute('autocomplete', 'new-password');
         ligneMotDePasseOublie.style.display = 'none';
       }
 
@@ -159,11 +163,11 @@
         activerOngletInscription();
       }
 
-      // Valider avec la touche Entrée depuis l'un ou l'autre champ.
-      ['email', 'motdepasse'].forEach(function (id) {
-        document.getElementById(id).addEventListener('keydown', function (e) {
-          if (e.key === 'Enter') btnAction.click();
-        });
+      // Vrai formulaire : Entrée valide, et le gestionnaire de mots de passe
+      // reconnaît la connexion (current-password) ou la création (new-password).
+      document.getElementById('formAuth').addEventListener('submit', function (e) {
+        e.preventDefault();
+        traiterFormulaire();
       });
 
       lienMotDePasseOublie.addEventListener('click', function (e) {
@@ -191,7 +195,7 @@
         });
       });
 
-      btnAction.addEventListener('click', function () {
+      function traiterFormulaire() {
         var email = document.getElementById('email').value;
         var motdepasse = document.getElementById('motdepasse').value;
 
@@ -261,7 +265,7 @@
             }
           });
         }
-      });
+      }
     })();
   </script>
 </body>

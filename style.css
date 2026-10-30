@@ -1461,3 +1461,18 @@ body.ecran-fournil > :not(.vue-fournil):not(script) { display: none !important; 
   .fournil-tranche + .fournil-tranche { margin-top: 0; }
 }
 .note-tranches { margin: 0 0 var(--espace-3); }
+.visuellement-cache { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.recette-alerte { margin: var(--espace-2) 0 0; padding: var(--espace-2) var(--espace-3); font-size: var(--texte-sm); color: var(--couleur-alerte); background: var(--couleur-alerte-doux); border-radius: var(--rayon-sm); }
+.calcul-gain { margin: 0 0 var(--espace-4); padding-left: 1.3em; font-size: var(--texte-sm); color: var(--couleur-texte-2); }
+.calcul-gain li + li { margin-top: 4px; }
+.recette-prix { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espace-2) var(--espace-4); margin: var(--espace-3) 0; padding-top: var(--espace-3); border-top: 1px solid var(--couleur-bordure); }
+.recette-prix label { display: inline-flex; align-items: center; gap: var(--espace-2); margin: 0; font-weight: 500; }
+.recette-prix input { width: 90px; text-align: center; }
+.ligne-reste-donne { grid-column: 1 / -1; font-size: var(--texte-xs); color: var(--couleur-texte-3); }
+.ligne-reste-donne summary { cursor: pointer; padding: 2px 0; }
+.ligne-reste-donne label { display: inline-flex; align-items: center; gap: var(--espace-2); margin: 4px 0 0; font-weight: 400; }
+.ligne-reste-donne input { width: 72px; padding: 4px 6px; }
+.note-non-cuits { margin: 0 0 var(--espace-3); font-size: var(--texte-sm); color: var(--couleur-texte-2); }
+.note-non-cuits summary { cursor: pointer; }
+.note-non-cuits ul { list-style: none; margin: var(--espace-2) 0 0; padding: 0; }
+.note-non-cuits li label { display: flex; align-items: center; gap: var(--espace-2); margin: 0; padding: 4px 0; font-weight: 400; }

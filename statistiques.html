@@ -7,11 +7,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Bilan</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101d">
+  <link rel="stylesheet" href="style.css?v=20261101e">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261101b"></script>
-  <script src="boulangerie.js?v=20261101b"></script>
-  <script src="contexte.js?v=20261101b"></script>
+  <script src="moteur-prevision.js?v=20261101e"></script>
+  <script src="boulangerie.js?v=20261101e"></script>
+  <script src="contexte.js?v=20261101e"></script>
   <script src="nav.js?v=20261030"></script>
 </head>
 <body>
@@ -61,6 +61,7 @@
         </div>
         <details class="bilan-detail">
           <summary>Le détail du calcul</summary>
+          <ol class="calcul-gain" id="calculGain"></ol>
         <div class="grille-kpi grille-kpi--resultats">
           <div class="carte-kpi">
             <p class="carte-kpi-titre">Tes invendus <span class="etiquette-mesure">mesuré</span></p>
@@ -479,7 +480,9 @@
         var commercantId = session.user.id;
 
         sbClient.from('ventes').select('*').eq('commercant_id', commercantId).then(function (result) {
-          ventesToutes = MP.dedoublonnerVentes(result.data || []);
+          // Pièces de fournée seulement : cafés, boissons et produits non cuits
+          // ne comptent ni dans les classements ni dans les totaux.
+          ventesToutes = MP.dedoublonnerVentes(result.data || []).filter(function (v) { return window.Boulangerie.estCuit(v.nom_produit); });
           statutDiv.style.display = 'none';
           zoneContenuEl.style.display = 'block';
 
@@ -583,7 +586,7 @@
           (kilos > 0 ? ' (≈ ' + (Math.round(kilos * 10) / 10).toLocaleString('fr-FR') + ' kg)' : '') + ', sur ' + nbJours + ' jour' + (nbJours > 1 ? 's' : '') + ' cochés.' +
           ' Épuisé avant la fermeture : ' + mesure.epuises + ' fois.';
         // Sauvé = écart de taux avec la référence, appliqué à ce qui a été cuit.
-        var sauvees = Math.max(0, Math.round((ref.taux - taux) * cuit));
+        var sauvees = Math.max(0, Math.round(ref.taux * cuit) - invendus);
         // Correctif lot 2 : une pièce non jetée vaut son coût de revient
         // (matière d'après tes prix d'ingrédients, sinon ≈ 30 % du prix de
         // vente, estimé), jamais son prix de vente.
@@ -593,6 +596,16 @@
         document.getElementById('etiquetteSauve').className = 'etiquette-mesure' + (estime ? ' etiquette-mesure--estime' : '');
         var periodeTxt = periode === 'tout' ? 'depuis le début' : 'ce mois-ci';
         document.getElementById('titreGain').textContent = (periode === 'tout' ? 'Depuis le début' : 'Ce mois-ci') + ', À Point t\'a fait gagner';
+        // Le calcul pas à pas, avec les vrais nombres, pour pouvoir le refaire.
+        var lignesCalcul = [
+          'Avant À Point : ' + pourcent(ref.taux) + ' d\'invendus (' + ref.nature + '). Sur tes ' + cuit.toLocaleString('fr-FR') + ' pièces cuites, cela ferait ' + Math.round(ref.taux * cuit).toLocaleString('fr-FR') + ' invendus.',
+          'Avec À Point : ' + invendus.toLocaleString('fr-FR') + ' invendus mesurés (cuit − vendu), soit ' + pourcent(taux) + '.',
+          'Écart : ' + Math.round(ref.taux * cuit).toLocaleString('fr-FR') + ' − ' + invendus.toLocaleString('fr-FR') + ' = ' + sauvees.toLocaleString('fr-FR') + ' pièces de moins jetées' + (sauvees === 0 ? ' (pas encore de gain)' : '') + '.'
+        ];
+        if (cout && sauvees > 0) lignesCalcul.push(sauvees.toLocaleString('fr-FR') + ' pièces × ' + cout.valeur.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' € de coût matière moyen par pièce = ' + (sauvees * cout.valeur).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' +
+          (cout.estime ? ' (coût matière ≈ 30 % du prix de vente ; <a href="produits.html">renseigne tes prix d\'ingrédients</a> pour un chiffre exact).' : ' (d\'après tes prix d\'ingrédients).'));
+        else if (!cout) lignesCalcul.push('Pour passer en euros : <a href="produits.html">indique le prix de vente ou le coût de tes ingrédients</a> dans la fiche de chaque produit.');
+        document.getElementById('calculGain').innerHTML = lignesCalcul.map(function (l) { return '<li>' + l + '</li>'; }).join('');
         if (sauvees === 0) {
           sauveEl.textContent = '0 €';
           sauveDetail.textContent = 'Pas encore moins d\'invendus qu\'avant ' + periodeTxt + ' : ' + pourcent(taux) + ' contre ' + pourcent(ref.taux) + '.';

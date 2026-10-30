@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Fournée</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101d">
+  <link rel="stylesheet" href="style.css?v=20261101e">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261101b"></script>
-  <script src="boulangerie.js?v=20261101b"></script>
-  <script src="contexte.js?v=20261101b"></script>
+  <script src="moteur-prevision.js?v=20261101e"></script>
+  <script src="boulangerie.js?v=20261101e"></script>
+  <script src="contexte.js?v=20261101e"></script>
   <script src="nav.js?v=20261031"></script>
 </head>
 <body>
@@ -39,7 +39,7 @@
     <!-- Saisie du soir (lot 4) : seulement ce qu'il reste ; ventes = cuit − reste. -->
     <section class="saisie-reste" id="saisieReste" hidden aria-labelledby="titreReste">
       <h2 id="titreReste">Ce qu'il te reste</h2>
-      <p class="texte-aide">Compte ce qui reste sur les étagères. Les ventes se calculent seules : cuit − reste.</p>
+      <p class="texte-aide">Compte ce qui reste sur les étagères. Les ventes s'en déduisent (cuit − reste) : c'est une estimation, corrigeable ensuite dans Ventes.</p>
       <ul class="liste-reste" id="listeReste"></ul>
       <div class="saisie-reste-actions">
         <button type="button" class="bouton-principal" id="btnEnregistrerReste">Enregistrer la journée</button>
@@ -82,6 +82,7 @@
     </div>
 
     <p class="texte-aide note-tranches" id="noteTranches" hidden>Sous chaque total, le nombre de pièces à enfourner à chaque tournée : « 5 h → 94 » veut dire 94 pièces pour 5 h. <span id="noteTranchesDefaut">Répartition par défaut selon le rayon, réglable produit par produit dans « Pourquoi ? ».</span></p>
+    <details class="note-non-cuits" id="noteNonCuits" hidden><summary id="resumeNonCuits"></summary><ul id="listeNonCuits"></ul></details>
     <div id="listeRayons"></div>
 
     <section class="fiabilite" id="blocFiabilite" hidden aria-label="Fiabilité">
@@ -309,6 +310,7 @@
             '<ul class="liste-fournee">' + html + '</ul></section>';
         }).join('');
         majProgression();
+        afficherNonCuits();
         var chiffres = previsions.filter(function (p) { return !p.r.insuffisant; });
         document.getElementById('noteTranches').hidden = chiffres.length === 0;
         document.getElementById('noteTranchesDefaut').hidden = chiffres.every(function (p) { return tranchesPerso[p.nom]; });
@@ -316,6 +318,33 @@
 
         document.getElementById('blocCommande').innerHTML = '<a class="btn-cta-commandes" href="commandes.html?jour=' + MP.versISO(jourCible) + '">Voir la commande de matières premières</a>';
       }
+
+      // Produits vendus mais pas cuits (cafés, salades…) : masqués de la
+      // fournée, en le disant, avec un réglage « je le cuis » par produit.
+      function afficherNonCuits() {
+        var m = ctx.session.user.user_metadata || {};
+        var auFour = m.au_four || [];
+        var noms = Object.keys(ctx.parProduit).filter(function (n) { return !B.estCuit(n); }).sort();
+        var masques = noms.filter(function (n) { return auFour.indexOf(n) === -1; });
+        var el = document.getElementById('noteNonCuits');
+        el.hidden = noms.length === 0;
+        document.getElementById('resumeNonCuits').textContent = masques.length + ' produit' + (masques.length > 1 ? 's' : '') + ' non cuit' + (masques.length > 1 ? 's' : '') + ' masqué' + (masques.length > 1 ? 's' : '') + ' (boissons, salades…), réglable';
+        document.getElementById('listeNonCuits').innerHTML = noms.map(function (n) {
+          return '<li><label><input type="checkbox" data-au-four="' + echapper(n) + '"' + (auFour.indexOf(n) !== -1 ? ' checked' : '') + '> ' + echapper(n) + ' : je le cuis au fournil</label></li>';
+        }).join('');
+      }
+      document.getElementById('listeNonCuits').addEventListener('change', function (e) {
+        var nom = e.target.getAttribute('data-au-four');
+        if (!nom) return;
+        var m = ctx.session.user.user_metadata = ctx.session.user.user_metadata || {};
+        var auFour = (m.au_four || []).filter(function (n) { return n !== nom; });
+        if (e.target.checked) auFour.push(nom);
+        m.au_four = auFour;
+        ctx.sb.auth.updateUser({ data: { au_four: auFour } }).then(function () {}, function () {});
+        var ouvert = document.getElementById('noteNonCuits').open;
+        afficher();
+        document.getElementById('noteNonCuits').open = ouvert;
+      });
 
       // « D'habitude, on tombe à ±4 baguettes près », sur le produit le plus
       // vendu ; la comparaison avec la moyenne simple seulement si elle parle.
@@ -413,6 +442,14 @@
       function afficherFournil() {
         var faits = lireFaits();
         var previsions = C.prevoirJour(ctx, jourCible).filter(function (p) { return !p.r.insuffisant && p.r.quantite > 0; });
+        // Produit déjà coché dans la liste (quantité cuite en base) sans case
+        // du mode fournil : ses tournées sont cochées dans l'ordre jusqu'à ce total.
+        previsions.forEach(function (p) {
+          var aDesCases = Object.keys(faits).some(function (c) { return c.split('|')[1] === p.nom; });
+          if (aDesCases || typeof cuites[p.nom] !== 'number') return;
+          var n = B.repartir(Math.ceil(p.r.quantite), partsTranches(p)), cumul = 0;
+          n.forEach(function (x, i) { if (x && cumul + x <= cuites[p.nom]) { cumul += x; faits[i + '|' + p.nom] = true; } });
+        });
         var total = 0, nbFaits = 0;
         var tranches = B.TRANCHES.map(function (t, i) {
           var lignes = previsions.map(function (p) {
@@ -422,30 +459,41 @@
           var somme = lignes.reduce(function (s, l) { return s + l.n; }, 0);
           return '<section class="fournil-tranche"><h2>' + t.heure + ' <span>' + t.libelle + ', ' + somme + ' pièces</span></h2><ul>' + lignes.map(function (l) {
             var cle = i + '|' + l.nom, fait = !!faits[cle];
-            total++; if (fait) nbFaits++;
-            return '<li class="fournil-ligne' + (fait ? ' fournil-ligne--faite' : '') + '"><label><input type="checkbox" data-fournil="' + echapper(cle) + '"' + (fait ? ' checked' : '') + '>' +
+            total += l.n; if (fait) nbFaits += l.n;
+            return '<li class="fournil-ligne' + (fait ? ' fournil-ligne--faite' : '') + '"><label><input type="checkbox" data-fournil="' + echapper(cle) + '" data-n="' + l.n + '"' + (fait ? ' checked' : '') + '>' +
               '<span class="fournil-nom">' + echapper(l.nom) + '</span><span class="fournil-nombre">' + l.n + '</span></label></li>';
           }).join('') + '</ul></section>';
         }).join('');
         vueFournil.innerHTML = '<header class="fournil-entete"><div><p class="fournil-titre">Fournée ' + (MP.versISO(jourCible) === MP.versISO(new Date()) ? 'd\'aujourd\'hui' : 'de ' + MP.formatDateLongue(jourCible).toLowerCase()) + '</p>' +
-          '<p class="fournil-progression" id="fournilProgression">' + nbFaits + ' sur ' + total + ' enfournés</p></div>' +
+          '<p class="fournil-progression" id="fournilProgression">' + texteProgressionFournil(nbFaits, total) + '</p></div>' +
           '<button type="button" class="fournil-quitter" data-quitter>Quitter</button></header>' +
           '<div class="fournil-tranches">' + (tranches || '<p class="fournil-vide">Rien à enfourner pour l\'instant.</p>') + '</div>';
+      }
+      function texteProgressionFournil(faits, total) {
+        return faits + ' pièce' + (faits > 1 ? 's' : '') + ' enfournée' + (faits > 1 ? 's' : '') + ' sur ' + total;
       }
       vueFournil.addEventListener('change', function (e) {
         var cle = e.target.getAttribute('data-fournil');
         if (!cle) return;
-        var faits = lireFaits();
-        if (e.target.checked) faits[cle] = true; else delete faits[cle];
+        // Toutes les cases visibles font foi (y compris celles déduites de la liste).
+        var faits = {};
+        vueFournil.querySelectorAll('[data-fournil]:checked').forEach(function (c) { faits[c.getAttribute('data-fournil')] = true; });
         try { localStorage.setItem(cleFournil(), JSON.stringify(faits)); } catch (x) {}
         e.target.closest('.fournil-ligne').classList.toggle('fournil-ligne--faite', e.target.checked);
-        var cases = vueFournil.querySelectorAll('[data-fournil]');
-        document.getElementById('fournilProgression').textContent = vueFournil.querySelectorAll('[data-fournil]:checked').length + ' sur ' + cases.length + ' enfournés';
+        function somme(sel) { return Array.prototype.reduce.call(vueFournil.querySelectorAll(sel), function (s, c) { return s + (parseInt(c.getAttribute('data-n'), 10) || 0); }, 0); }
+        document.getElementById('fournilProgression').textContent = texteProgressionFournil(somme('[data-fournil]:checked'), somme('[data-fournil]'));
+        // Enregistré en base comme quantité cuite : somme des tournées cochées.
+        var nom = cle.split('|').slice(1).join('|');
+        var cuit = Array.prototype.reduce.call(vueFournil.querySelectorAll('[data-fournil]:checked'), function (s, c) {
+          return c.getAttribute('data-fournil').split('|').slice(1).join('|') === nom ? s + (parseInt(c.getAttribute('data-n'), 10) || 0) : s;
+        }, 0);
+        enregistrerCuite(nom, cuit > 0 ? cuit : null);
       });
       vueFournil.addEventListener('click', function (e) { if (e.target.closest('[data-quitter]')) basculerEcranFournil(false); });
       document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !vueFournil.hidden) basculerEcranFournil(false); });
       function basculerEcranFournil(actif) {
         if (actif) afficherFournil();
+        else if (!vueFournil.hidden) afficher(); // la liste reprend les quantités cuites
         vueFournil.hidden = !actif;
         document.body.classList.toggle('ecran-fournil', actif);
         document.getElementById('btnEcranFournil').setAttribute('aria-pressed', actif ? 'true' : 'false');
@@ -546,7 +594,8 @@
               '<span class="stepper"><button type="button" class="stepper-bouton" data-pas-reste="-1" aria-label="Une de moins : ' + echapper(p.nom) + '">−</button>' +
                 '<input type="number" class="stepper-valeur champ-reste" id="' + id + '" min="0" inputmode="numeric" value="0" aria-label="Il me reste : ' + echapper(p.nom) + '">' +
                 '<button type="button" class="stepper-bouton" data-pas-reste="1" aria-label="Une de plus : ' + echapper(p.nom) + '">+</button></span>' +
-              '<span class="ligne-reste-vendu" aria-live="polite"></span></li>';
+              '<span class="ligne-reste-vendu" aria-live="polite"></span>' +
+              '<details class="ligne-reste-donne"><summary>Dont donné ou cassé</summary><label>Pièces sorties sans être vendues <input type="number" class="champ-donne" min="0" inputmode="numeric" placeholder="0"></label></details></li>';
           }).join('');
           majVendus();
         });
@@ -554,12 +603,15 @@
       function lireLigneReste(li) {
         var cuit = li.querySelector('.champ-cuit').value;
         var reste = Math.max(0, parseInt(li.querySelector('.champ-reste').value, 10) || 0);
-        return { nom: li.getAttribute('data-nom'), cuit: cuit === '' ? null : Math.max(0, parseInt(cuit, 10) || 0), reste: reste };
+        // Donné ou cassé : sorti des étagères sans être vendu (facultatif).
+        var donne = Math.max(0, parseInt(li.querySelector('.champ-donne').value, 10) || 0);
+        return { nom: li.getAttribute('data-nom'), cuit: cuit === '' ? null : Math.max(0, parseInt(cuit, 10) || 0), reste: reste + donne };
       }
       function majVendus() {
         listeReste.querySelectorAll('.ligne-reste').forEach(function (li) {
           var l = lireLigneReste(li);
-          li.querySelector('.ligne-reste-vendu').textContent = l.cuit === null ? '' : Math.max(0, l.cuit - l.reste) + ' vendus';
+          var n = l.cuit === null ? null : Math.max(0, l.cuit - l.reste);
+          li.querySelector('.ligne-reste-vendu').textContent = n === null ? '' : n + ' vendu' + (n > 1 ? 's' : '') + ' (estimé)';
         });
       }
       listeReste.addEventListener('click', function (e) {
@@ -592,8 +644,10 @@
           if (r && r.error) throw r.error;
           return ctx.sb.from('fournees').upsert(fournees);
         }).then(function () {
-          statut.textContent = 'Journée enregistrée : ' + ventes.reduce(function (s, v) { return s + v.quantite; }, 0) + ' pièces vendues.';
-          setTimeout(function () { window.location.reload(); }, 1200);
+          var total = ventes.reduce(function (s, v) { return s + v.quantite; }, 0);
+          statut.innerHTML = 'Journée enregistrée : ' + total + ' pièce' + (total > 1 ? 's' : '') + ' vendue' + (total > 1 ? 's' : '') + ' (estimé). <a href="ventes.html?date=' + iso + '">Corriger une vente</a>';
+          bouton.hidden = true;
+          document.getElementById('carteSaisieHier').hidden = true;
         }).catch(function () {
           bouton.disabled = false;
           statut.textContent = 'Pas de réseau : rien n\'est perdu, réessaie dans un instant.';

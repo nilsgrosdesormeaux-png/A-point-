@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Aide</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101d">
+  <link rel="stylesheet" href="style.css?v=20261101e">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="nav.js?v=20261031"></script>
 </head>
@@ -44,12 +44,12 @@
 
           <details class="faq-item">
             <summary>Combien de temps avant que ce soit vraiment fiable ?</summary>
-            <p>Ça dépend de la régularité de ton historique, mais compte quelques semaines pour que les fourchettes se resserrent vraiment. Au tout début, avec peu de données, l'outil reste volontairement prudent plutôt que de te donner un faux sentiment de précision.</p>
+            <p>Ça dépend de la régularité de ton historique, mais il faut au moins 4 mêmes jours de semaine connus (4 samedis, par exemple) pour qu'un produit ait un chiffre. Avant, la Fournée affiche « Pas assez d'historique » plutôt qu'un chiffre inventé, et signale les prévisions encore peu sûres. Avec une caisse branchée, tes 12 derniers mois arrivent d'un coup et c'est fiable dès le premier jour. Le Bilan donne l'écart habituel, par exemple « ±4 baguettes ».</p>
           </details>
 
           <details class="faq-item">
             <summary>Je n'ai pas d'export de caisse, je peux quand même m'en servir ?</summary>
-            <p>Oui. Tu notes tes ventes de la veille chaque jour dans l’onglet « Ventes », et l'historique se construit progressivement. Ce sera juste un peu moins précis les toutes premières semaines, le temps d'accumuler des données.</p>
+            <p>Oui. Le soir, la Fournée te propose « Ce qu'il te reste » : tu comptes seulement ce qui reste sur les étagères, et les ventes se calculent seules (cuit − reste), en moins d'une minute. C'est une estimation, que tu peux corriger dans Paramètres, puis Ventes. Tu peux aussi importer un fichier de ventes.</p>
           </details>
 
           <details class="faq-item">
@@ -79,7 +79,17 @@
 
           <details class="faq-item">
             <summary>Comment est calculée la quantité recommandée, en détail ?</summary>
-            <p>Pour chaque produit et chaque jour, l'outil part de tes ventes passées ce même jour de semaine (par exemple, tous tes jeudis), en moyenne pondérée : les ventes récentes comptent plus que les anciennes, pour suivre une tendance plutôt que rester bloqué sur une ancienne habitude. Un jour exceptionnel et isolé est écarté du calcul. Un seul ajustement est ensuite appliqué si la situation le justifie, jamais plusieurs à la fois, dans cet ordre : jour de fermeture connu, événement que tu as signalé, jour férié, vacances scolaires, puis météo prévue. Le résultat est toujours donné en fourchette plutôt qu'un chiffre unique.</p>
+            <p>Pour chaque produit et chaque jour, l'outil part de tes ventes passées ce même jour de semaine (par exemple, tous tes jeudis), en moyenne pondérée : les ventes récentes comptent plus que les anciennes, pour suivre une tendance plutôt que rester bloqué sur une ancienne habitude. Un jour exceptionnel et isolé est écarté du calcul. Un seul ajustement est ensuite appliqué si la situation le justifie, jamais plusieurs à la fois, dans cet ordre : jour de fermeture connu, événement que tu as signalé, jour férié, vacances scolaires, puis météo prévue. Une marge de sécurité de 10 % est ajoutée pour ne pas manquer. Tu obtiens un seul chiffre par produit, à enfourner, réparti en tournées (5 h, 8 h, 11 h) ; « Pourquoi ? » sous chaque produit montre d'où il vient.</p>
+          </details>
+
+          <details class="faq-item">
+            <summary>D'où viennent les recettes ? Je n'en ai jamais écrit.</summary>
+            <p>Quand un produit n'a pas encore ta recette, À Point propose une recette type de boulangerie (quantités moyennes pour une pièce), marquée « proposée par À Point, à vérifier ». Elle ne compte dans la commande qu'une fois que tu as touché « C'est ma recette ». Tu peux la modifier à tout moment dans Commande, puis Tes recettes.</p>
+          </details>
+
+          <details class="faq-item">
+            <summary>Comment est calculé ce que À Point me fait gagner ?</summary>
+            <p>On compare tes invendus d'avant à ceux d'après. Ceux d'avant viennent de ta farine achetée comparée à celle réellement vendue, si tu l'as indiquée dans Paramètres ; sinon, de la moyenne nationale (environ 10 %, ADEME), signalée comme une estimation. Ceux d'après sont mesurés : ce que tu as enfourné moins ce que tu as vendu. Chaque pièce de moins jetée vaut son coût matière : le prix de tes ingrédients, sinon environ 30 % du prix de vente. Le détail, avec tes vrais nombres, est dans le Bilan, sous « Le détail du calcul ».</p>
           </details>
 
           <details class="faq-item">
@@ -129,8 +139,12 @@
 
       sbClient.auth.getSession().then(function (result) {
         var session = result.data.session;
+        // L'aide est publique ; seul le formulaire de contact demande un compte.
+        statutDiv.style.display = 'none';
+        zoneAideEl.style.display = 'block';
         if (!session) {
-          statutDiv.innerHTML = "Tu n'es pas connecté. <a href='connexion.html'>Va sur la page de connexion →</a>";
+          inputSujetContactEl.disabled = inputMessageContactEl.disabled = btnEnvoyerContactEl.disabled = true;
+          messageContactEl.innerHTML = '<p class="texte-aide"><a href="connexion.html">Connecte-toi</a> pour nous écrire d\'ici.</p>';
           return;
         }
         commercantId = session.user.id;
