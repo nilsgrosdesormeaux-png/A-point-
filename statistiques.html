@@ -7,9 +7,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Bilan</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101h">
+  <link rel="stylesheet" href="style.css?v=20261101k">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261101g"></script>
+  <script src="moteur-prevision.js?v=20261101j"></script>
   <script src="boulangerie.js?v=20261101g"></script>
   <script src="contexte.js?v=20261101g"></script>
   <script src="nav.js?v=20261030"></script>
@@ -61,7 +61,7 @@
         </div>
         <details class="bilan-detail">
           <summary>Le détail du calcul</summary>
-          <ol class="calcul-gain" id="calculGain"></ol>
+          <div class="calcul-gain" id="calculGain"></div>
         <div class="grille-kpi grille-kpi--resultats">
           <div class="carte-kpi">
             <p class="carte-kpi-titre">Tes invendus <span class="etiquette-mesure">mesuré</span></p>
@@ -585,41 +585,81 @@
         detail.textContent = invendus.toLocaleString('fr-FR') + ' pièce' + (invendus > 1 ? 's' : '') + ' non vendue' + (invendus > 1 ? 's' : '') + ' sur ' + cuit.toLocaleString('fr-FR') + ' cuites' +
           (kilos > 0 ? ' (≈ ' + (Math.round(kilos * 10) / 10).toLocaleString('fr-FR') + ' kg)' : '') + ', sur ' + nbJours + ' jour' + (nbJours > 1 ? 's' : '') + ' cochés.' +
           ' Épuisé avant la fermeture : ' + mesure.epuises + ' fois.';
-        // Sauvé = écart de taux avec la référence, appliqué à ce qui a été cuit.
-        var sauvees = Math.max(0, Math.round(ref.taux * cuit) - invendus);
-        // Correctif lot 2 : une pièce non jetée vaut son coût de revient
-        // (matière d'après tes prix d'ingrédients, sinon ≈ 30 % du prix de
-        // vente, estimé), jamais son prix de vente.
-        var cout = coutMoyenPondere();
-        var estime = ref.nature === 'estimé' || !cout || cout.estime;
+        // Pièces évitées par produit = invendus attendus avant (taux avant ×
+        // cuit) − invendus mesurés ; × coût de revient du produit = €.
+        // Le chiffre en tête est la somme exacte des lignes du détail.
+        var couts = coutParNom(), f2 = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+        // Seulement ce qui passe au four (cafés, menus… hors calcul).
+        var lignesProduits = Object.keys(mesure.cuitParProduit).filter(function (nom) { return C.estCuitPour(ctx, nom); }).map(function (nom) {
+          var c = mesure.cuitParProduit[nom], inv = mesure.parProduit[nom] || 0, attendus = Math.round(ref.taux * c);
+          var ev = attendus - inv, ct = couts[nom] || null;
+          return { nom: nom, cuit: c, vendu: mesure.venduParProduit[nom] || 0, inv: inv, attendus: attendus, evitees: ev, cout: ct, euros: ct ? ev * ct.valeur : null };
+        }).sort(function (x, y) { return (y.euros || 0) - (x.euros || 0) || y.evitees - x.evitees; });
+        var sauvees = Math.max(0, lignesProduits.reduce(function (t, l) { return t + l.evitees; }, 0));
+        var cuitFour = lignesProduits.reduce(function (t, l) { return t + l.cuit; }, 0);
+        taux = cuitFour ? lignesProduits.reduce(function (t, l) { return t + l.inv; }, 0) / cuitFour : taux;
+        var avecCout = lignesProduits.filter(function (l) { return l.cout; });
+        var totalEuros = avecCout.reduce(function (t, l) { return t + l.euros; }, 0);
+        var coutEstime = avecCout.some(function (l) { return l.cout.estime; });
+        var estime = ref.nature === 'estimé' || !avecCout.length || coutEstime;
         document.getElementById('etiquetteSauve').textContent = estime ? 'estimé' : 'mesuré';
         document.getElementById('etiquetteSauve').className = 'etiquette-mesure' + (estime ? ' etiquette-mesure--estime' : '');
         var periodeTxt = periode === 'tout' ? 'depuis le début' : 'ce mois-ci';
         document.getElementById('titreGain').textContent = (periode === 'tout' ? 'Depuis le début' : 'Ce mois-ci') + ', À Point t\'a fait gagner';
-        // Le calcul pas à pas, avec les vrais nombres, pour pouvoir le refaire.
-        var lignesCalcul = [
-          'Avant À Point : ' + pourcent(ref.taux) + ' d\'invendus (' + ref.nature + '). Sur tes ' + cuit.toLocaleString('fr-FR') + ' pièces cuites, cela ferait ' + Math.round(ref.taux * cuit).toLocaleString('fr-FR') + ' invendus.',
-          'Avec À Point : ' + invendus.toLocaleString('fr-FR') + ' invendus mesurés (cuit − vendu), soit ' + pourcent(taux) + '.',
-          'Écart : ' + Math.round(ref.taux * cuit).toLocaleString('fr-FR') + ' − ' + invendus.toLocaleString('fr-FR') + ' = ' + sauvees.toLocaleString('fr-FR') + ' pièces de moins jetées' + (sauvees === 0 ? ' (pas encore de gain)' : '') + '.'
-        ];
-        if (cout && sauvees > 0) lignesCalcul.push(sauvees.toLocaleString('fr-FR') + ' pièces × ' + cout.valeur.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' € de coût matière moyen par pièce = ' + (sauvees * cout.valeur).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' +
-          (cout.estime ? ' (coût matière ≈ 30 % du prix de vente ; <a href="produits.html">renseigne tes prix d\'ingrédients</a> pour un chiffre exact).' : ' (d\'après tes prix d\'ingrédients).'));
-        else if (!cout) lignesCalcul.push('Pour passer en euros : <a href="produits.html">indique le prix de vente ou le coût de tes ingrédients</a> dans la fiche de chaque produit.');
-        document.getElementById('calculGain').innerHTML = lignesCalcul.map(function (l) { return '<li>' + l + '</li>'; }).join('');
+        afficherDetailCalcul(lignesProduits, ref, limite, aujourdhui, sauvees, totalEuros);
         if (sauvees === 0) {
           sauveEl.textContent = '0 €';
           sauveDetail.textContent = 'Pas encore moins d\'invendus qu\'avant ' + periodeTxt + ' : ' + pourcent(taux) + ' contre ' + pourcent(ref.taux) + '.';
           return;
         }
         var pieces = sauvees.toLocaleString('fr-FR') + ' pièce' + (sauvees > 1 ? 's' : '') + ' de moins jetée' + (sauvees > 1 ? 's' : '');
-        if (cout) {
-          sauveEl.textContent = '+ ' + euros(sauvees * cout.valeur);
+        if (avecCout.length) {
+          sauveEl.textContent = (totalEuros >= 0 ? '+ ' : '− ') + euros(Math.abs(totalEuros));
           sauveDetail.textContent = 'Matière économisée : ' + pieces + ' qu\'avant (' + pourcent(taux) + ' d\'invendus contre ' + pourcent(ref.taux) + ').';
         } else {
           sauveEl.textContent = pieces;
           sauveDetail.textContent = 'Moins d\'invendus qu\'avant ' + periodeTxt + '. Le montant en euros apparaîtra avec tes prix de vente ou d\'ingrédients.';
         }
       }
+
+      // Détail vérifiable : d'où vient chaque donnée, puis le calcul produit
+      // par produit, dont la somme est le chiffre affiché en tête.
+      function etiquette(nature) {
+        var classes = { auto: 'source--auto', saisi: 'source--saisi', estime: 'source--estime', test: 'source--test' };
+        var libelles = { auto: 'automatique (caisse)', saisi: 'saisi', estime: 'estimé', test: 'données de test' };
+        return '<span class="source ' + classes[nature] + '">' + libelles[nature] + '</span>';
+      }
+      function afficherDetailCalcul(lignes, ref, debut, fin, sauvees, totalEuros) {
+        var f2 = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+        // Provenance des ventes de la période (colonne source de chaque vente).
+        var sources = {};
+        ctx.ventes.forEach(function (v) {
+          if (v.date_vente < debut || v.date_vente >= fin) return;
+          var n = v.source === 'manuel' ? 'saisi' : v.source === 'reste' ? 'estime' : v.source === 'demo' ? 'test' : 'auto';
+          sources[n] = (sources[n] || 0) + 1;
+        });
+        var libSources = { auto: 'remontées par ta caisse', saisi: 'saisies à la main', estime: 'déduites le soir (cuit − reste)', test: 'données de test du compte démo' };
+        var ventesTxt = Object.keys(sources).map(function (n) { return etiquette(n) + ' ' + sources[n] + ' ligne' + (sources[n] > 1 ? 's' : '') + ' ' + libSources[n]; }).join(' ; ') || 'aucune';
+        var refNature = ref.nature === 'estimé' ? 'estime' : 'saisi';
+        var nbCoutsSaisis = lignes.filter(function (l) { return l.cout && !l.cout.estime; }).length, nbCoutsEstimes = lignes.filter(function (l) { return l.cout && l.cout.estime; }).length;
+        var html = '<h3 class="detail-titre">D\'où viennent les chiffres</h3><ul class="detail-sources">' +
+          '<li><strong>Ventes</strong> : ' + ventesTxt + '.</li>' +
+          '<li><strong>Pièces cuites</strong> : ' + etiquette('saisi') + ' cochées dans la Fournée ou le mode fournil.</li>' +
+          '<li><strong>Invendus d\'avant</strong> : ' + etiquette(refNature) + ' ' + pourcent(ref.taux) + ', ' + ref.libelle + (ref.source ? ' (' + ref.source + ')' : '') + '.</li>' +
+          '<li><strong>Coût de revient</strong> : ' + (nbCoutsSaisis ? etiquette('saisi') + ' ' + nbCoutsSaisis + ' produit' + (nbCoutsSaisis > 1 ? 's' : '') + ' d\'après tes prix d\'ingrédients' : '') + (nbCoutsSaisis && nbCoutsEstimes ? ' ; ' : '') +
+            (nbCoutsEstimes ? etiquette('estime') + ' ' + nbCoutsEstimes + ' produit' + (nbCoutsEstimes > 1 ? 's' : '') + ' à 30 % du prix de vente' : '') + (!nbCoutsSaisis && !nbCoutsEstimes ? 'inconnu : <a href="commandes.html#titreRecettes">indique tes prix de vente</a>' : '') + '.</li></ul>' +
+          '<h3 class="detail-titre">Le calcul, produit par produit</h3><ol class="detail-produits">' + lignes.map(function (l) {
+            return '<li><strong>' + echapperTexte(l.nom) + '</strong>' +
+              '<span>' + l.cuit.toLocaleString('fr-FR') + ' cuites − ' + l.vendu.toLocaleString('fr-FR') + ' vendues = <b>' + l.inv + ' invendus</b> (' + pourcent(l.cuit ? l.inv / l.cuit : 0) + ')</span>' +
+              '<span>Avant : ' + pourcent(ref.taux) + ' × ' + l.cuit.toLocaleString('fr-FR') + ' = ' + l.attendus + ' invendus. Évités : ' + l.attendus + ' − ' + l.inv + ' = <b>' + signe(l.evitees) + '</b>' + (l.evitees < 0 ? ' (plus d\'invendus qu\'avant)' : '') + '</span>' +
+              '<span>' + (l.cout ? signe(l.evitees) + ' × ' + l.cout.valeur.toLocaleString('fr-FR', f2) + ' € de coût de revient = <b>' + signe(l.euros, f2) + ' €</b>' : 'Coût de revient inconnu : pas d\'euros pour ce produit') + '</span></li>';
+          }).join('') + '</ol>' +
+          '<p class="detail-total">Total : ' + sauvees.toLocaleString('fr-FR') + ' pièces évitées, ' + signe(totalEuros, f2) + ' € (somme des lignes ci-dessus).</p>' +
+          '<p class="texte-aide">Caisse branchée : les ventes arrivent seules chaque jour, il ne reste qu\'à cocher ce que tu enfournes, et ce calcul se refait sans rien saisir.</p>';
+        document.getElementById('calculGain').innerHTML = html;
+      }
+      function signe(n, options) { return (n < 0 ? '−' : '') + Math.abs(n).toLocaleString('fr-FR', options); }
+      function echapperTexte(t) { return String(t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 
       // Coût de revient d'une pièce, par produit : fiche technique entièrement
       // chiffrée (mesuré), sinon 30 % du prix de vente (estimé), sinon inconnu.

@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Fournée</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101h">
+  <link rel="stylesheet" href="style.css?v=20261101k">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261101g"></script>
+  <script src="moteur-prevision.js?v=20261101j"></script>
   <script src="boulangerie.js?v=20261101g"></script>
   <script src="contexte.js?v=20261101g"></script>
   <script src="nav.js?v=20261031"></script>
@@ -464,66 +464,88 @@
           (ecart ? ', soit ' + (ecart > 0 ? '+' : '−') + Math.abs(ecart) + ' pièces' : '') + ' ; repris dans la Commande et la Semaine.';
       }
 
-      // Mode fournil : plein écran, la fournée rangée par tranche horaire
-      // (ordre des cuissons), gros chiffres, une case par ligne. Les cases
-      // sont gardées sur l'appareil pour la journée.
+      // Mode fournil (lot 7) : la feuille de fournée près du four, une
+      // fournée à la fois, lisible à 1 m. Chaque case cochée s'enregistre
+      // (quantité cuite en base = somme des fournées cochées du produit).
       var vueFournil = document.getElementById('vueFournil');
+      var fournilEtat = { faits: {}, tranches: [], courante: 0 };
       function cleFournil() { return 'apoint-fournil:' + ctx.commercantId + ':' + MP.versISO(jourCible); }
       function lireFaits() { try { return JSON.parse(localStorage.getItem(cleFournil()) || '{}'); } catch (e) { return {}; } }
-      function afficherFournil() {
+      function preparerFournil() {
         var faits = lireFaits();
         var previsions = C.prevoirJour(ctx, jourCible).filter(function (p) { return !p.r.insuffisant && p.r.quantite > 0; });
         // Produit déjà coché dans la liste (quantité cuite en base) sans case
-        // du mode fournil : ses tournées sont cochées dans l'ordre jusqu'à ce total.
+        // du mode fournil : ses fournées sont cochées dans l'ordre jusqu'à ce total.
         previsions.forEach(function (p) {
           var aDesCases = Object.keys(faits).some(function (c) { return c.split('|')[1] === p.nom; });
           if (aDesCases || typeof cuites[p.nom] !== 'number') return;
           var n = B.repartir(Math.ceil(p.r.quantite), partsTranches(p)), cumul = 0;
           n.forEach(function (x, i) { if (x && cumul + x <= cuites[p.nom]) { cumul += x; faits[i + '|' + p.nom] = true; } });
         });
-        var total = 0, nbFaits = 0;
-        var tranches = tournees().map(function (t, i) {
+        fournilEtat.faits = faits;
+        fournilEtat.tranches = tournees().map(function (t, i) {
           var lignes = previsions.map(function (p) {
-            return { nom: p.nom, n: B.repartir(Math.ceil(p.r.quantite), partsTranches(p))[i] };
+            return { nom: p.nom, n: B.repartir(Math.ceil(p.r.quantite), partsTranches(p))[i], cle: i + '|' + p.nom };
           }).filter(function (l) { return l.n > 0; }).sort(function (a, b) { return b.n - a.n; });
-          if (!lignes.length) return '';
-          var somme = lignes.reduce(function (s, l) { return s + l.n; }, 0);
-          return '<section class="fournil-tranche"><h2>' + B.formaterHeure(t.heure) + ' <span>' + echapper(t.nom) + ', ' + somme + ' pièces</span></h2><ul>' + lignes.map(function (l) {
-            var cle = i + '|' + l.nom, fait = !!faits[cle];
-            total += l.n; if (fait) nbFaits += l.n;
-            return '<li class="fournil-ligne' + (fait ? ' fournil-ligne--faite' : '') + '"><label><input type="checkbox" data-fournil="' + echapper(cle) + '" data-n="' + l.n + '"' + (fait ? ' checked' : '') + '>' +
-              '<span class="fournil-nom">' + echapper(l.nom) + '</span><span class="fournil-nombre">' + l.n + '</span></label></li>';
-          }).join('') + '</ul></section>';
-        }).join('');
-        vueFournil.innerHTML = '<header class="fournil-entete"><div><p class="fournil-titre">Tes fournées ' + (MP.versISO(jourCible) === MP.versISO(new Date()) ? 'd\'aujourd\'hui' : 'de ' + MP.formatDateLongue(jourCible).toLowerCase()) + '</p>' +
-          '<p class="fournil-progression" id="fournilProgression">' + texteProgressionFournil(nbFaits, total) + '</p></div>' +
-          '<button type="button" class="fournil-quitter" data-quitter>Quitter</button></header>' +
-          '<div class="fournil-tranches">' + (tranches || '<p class="fournil-vide">Rien à enfourner pour l\'instant.</p>') + '</div>';
+          return { heure: B.formaterHeure(t.heure), nom: t.nom, lignes: lignes };
+        }).filter(function (t) { return t.lignes.length; });
+        // On ouvre sur la première fournée qui n'est pas finie.
+        var i = 0;
+        while (i < fournilEtat.tranches.length - 1 && trancheFinie(fournilEtat.tranches[i])) i++;
+        fournilEtat.courante = i;
       }
-      function texteProgressionFournil(faits, total) {
-        return faits + ' pièce' + (faits > 1 ? 's' : '') + ' enfournée' + (faits > 1 ? 's' : '') + ' sur ' + total;
+      function trancheFinie(t) { return t.lignes.every(function (l) { return fournilEtat.faits[l.cle]; }); }
+      function afficherFournil() {
+        var T = fournilEtat.tranches;
+        if (!T.length) {
+          vueFournil.innerHTML = '<div class="fournil"><header class="fournil-haut"><span></span><button type="button" class="fournil-quitter" data-quitter>Quitter</button></header><p class="fournil-vide">Rien à enfourner pour ce jour.</p></div>';
+          return;
+        }
+        var t = T[fournilEtat.courante];
+        var faites = t.lignes.filter(function (l) { return fournilEtat.faits[l.cle]; });
+        var pieces = t.lignes.reduce(function (s, l) { return s + l.n; }, 0);
+        var piecesFaites = faites.reduce(function (s, l) { return s + l.n; }, 0);
+        var suivante = T[fournilEtat.courante + 1];
+        vueFournil.innerHTML = '<div class="fournil">' +
+          '<header class="fournil-haut"><nav class="fournil-pastilles" aria-label="Fournées de la journée">' + T.map(function (x, i) {
+            return '<button type="button" class="fournil-pastille' + (i === fournilEtat.courante ? ' fournil-pastille--active' : '') + (trancheFinie(x) ? ' fournil-pastille--finie' : '') + '" data-aller="' + i + '"' + (i === fournilEtat.courante ? ' aria-current="step"' : '') + '>' + x.heure + '</button>';
+          }).join('') + '</nav><button type="button" class="fournil-quitter" data-quitter>Quitter</button></header>' +
+          '<div class="fournil-titre-bloc"><h2 class="fournil-heure">' + t.heure + '</h2><p class="fournil-nom-tranche">' + echapper(t.nom) + '</p>' +
+            '<p class="fournil-compte" role="status">' + piecesFaites + ' sur ' + pieces + ' pièces enfournées</p></div>' +
+          '<ul class="fournil-liste">' + t.lignes.map(function (l) {
+            var fait = !!fournilEtat.faits[l.cle];
+            return '<li class="fournil-ligne' + (fait ? ' fournil-ligne--faite' : '') + '"><label>' +
+              '<span class="fournil-produit">' + echapper(l.nom) + '</span><span class="fournil-nombre">' + l.n + '</span>' +
+              '<input type="checkbox" class="fournil-case" data-fournil="' + echapper(l.cle) + '" data-n="' + l.n + '"' + (fait ? ' checked' : '') + ' aria-label="' + echapper(l.nom) + ', ' + l.n + ' pièces, enfourné"></label></li>';
+          }).join('') + '</ul>' +
+          '<footer class="fournil-bas">' +
+            (fournilEtat.courante > 0 ? '<button type="button" class="fournil-precedente" data-aller="' + (fournilEtat.courante - 1) + '" aria-label="Fournée précédente">←</button>' : '') +
+            (suivante ? '<button type="button" class="fournil-suivante' + (trancheFinie(t) ? ' fournil-suivante--prete' : '') + '" data-aller="' + (fournilEtat.courante + 1) + '">Fournée suivante : ' + suivante.heure + '</button>'
+              : '<button type="button" class="fournil-suivante' + (trancheFinie(t) ? ' fournil-suivante--prete' : '') + '" data-quitter>' + (trancheFinie(t) ? 'Tout est enfourné' : 'Dernière fournée') + '</button>') +
+          '</footer></div>';
       }
       vueFournil.addEventListener('change', function (e) {
         var cle = e.target.getAttribute('data-fournil');
         if (!cle) return;
-        // Toutes les cases visibles font foi (y compris celles déduites de la liste).
-        var faits = {};
-        vueFournil.querySelectorAll('[data-fournil]:checked').forEach(function (c) { faits[c.getAttribute('data-fournil')] = true; });
-        try { localStorage.setItem(cleFournil(), JSON.stringify(faits)); } catch (x) {}
-        e.target.closest('.fournil-ligne').classList.toggle('fournil-ligne--faite', e.target.checked);
-        function somme(sel) { return Array.prototype.reduce.call(vueFournil.querySelectorAll(sel), function (s, c) { return s + (parseInt(c.getAttribute('data-n'), 10) || 0); }, 0); }
-        document.getElementById('fournilProgression').textContent = texteProgressionFournil(somme('[data-fournil]:checked'), somme('[data-fournil]'));
-        // Enregistré en base comme quantité cuite : somme des tournées cochées.
+        if (e.target.checked) fournilEtat.faits[cle] = true; else delete fournilEtat.faits[cle];
+        try { localStorage.setItem(cleFournil(), JSON.stringify(fournilEtat.faits)); } catch (x) {}
+        // Quantité cuite en base : somme des fournées cochées de ce produit.
         var nom = cle.split('|').slice(1).join('|');
-        var cuit = Array.prototype.reduce.call(vueFournil.querySelectorAll('[data-fournil]:checked'), function (s, c) {
-          return c.getAttribute('data-fournil').split('|').slice(1).join('|') === nom ? s + (parseInt(c.getAttribute('data-n'), 10) || 0) : s;
-        }, 0);
+        var cuit = 0;
+        fournilEtat.tranches.forEach(function (t) { t.lignes.forEach(function (l) { if (l.nom === nom && fournilEtat.faits[l.cle]) cuit += l.n; }); });
         enregistrerCuite(nom, cuit > 0 ? cuit : null);
+        afficherFournil();
+        var c = vueFournil.querySelector('[data-fournil="' + cle.replace(/"/g, '\\"') + '"]');
+        if (c) c.focus();
       });
-      vueFournil.addEventListener('click', function (e) { if (e.target.closest('[data-quitter]')) basculerEcranFournil(false); });
+      vueFournil.addEventListener('click', function (e) {
+        if (e.target.closest('[data-quitter]')) { basculerEcranFournil(false); return; }
+        var aller = e.target.closest('[data-aller]');
+        if (aller) { fournilEtat.courante = parseInt(aller.getAttribute('data-aller'), 10); afficherFournil(); vueFournil.scrollTop = 0; }
+      });
       document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !vueFournil.hidden) basculerEcranFournil(false); });
       function basculerEcranFournil(actif) {
-        if (actif) afficherFournil();
+        if (actif) { preparerFournil(); afficherFournil(); }
         else if (!vueFournil.hidden) afficher(); // la liste reprend les quantités cuites
         vueFournil.hidden = !actif;
         document.body.classList.toggle('ecran-fournil', actif);

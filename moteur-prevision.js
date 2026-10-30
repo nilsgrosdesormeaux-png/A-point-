@@ -1092,7 +1092,7 @@
       vendu[cle] = (vendu[cle] || 0) + v.quantite;
       joursVentes[v.date_vente] = true;
     });
-    var parProduit = {}, jours = {}, cuit = 0, total = 0, epuises = 0;
+    var parProduit = {}, cuitParProduit = {}, venduParProduit = {}, jours = {}, cuit = 0, total = 0, epuises = 0;
     fournees.forEach(function (f) {
       if (f.date_fournee < isoDebut || f.date_fournee >= isoFin || !joursVentes[f.date_fournee]) return;
       var nom = formatNomAffichage(f.nom_produit);
@@ -1101,9 +1101,11 @@
       cuit += f.quantite_cuite;
       total += reste;
       parProduit[nom] = (parProduit[nom] || 0) + reste;
+      cuitParProduit[nom] = (cuitParProduit[nom] || 0) + f.quantite_cuite;
+      venduParProduit[nom] = (venduParProduit[nom] || 0) + (vendu[f.date_fournee + '|' + nom] || 0);
       if (f.epuise) epuises++;
     });
-    return { invendus: total, cuit: cuit, nbJours: Object.keys(jours).length, parProduit: parProduit, epuises: epuises,
+    return { invendus: total, cuit: cuit, nbJours: Object.keys(jours).length, parProduit: parProduit, cuitParProduit: cuitParProduit, venduParProduit: venduParProduit, epuises: epuises,
       taux: cuit > 0 ? total / cuit : null };
   }
 

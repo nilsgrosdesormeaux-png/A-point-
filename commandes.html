@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Commande</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101h">
+  <link rel="stylesheet" href="style.css?v=20261101k">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <script src="moteur-prevision.js?v=20261101g"></script>
+  <script src="moteur-prevision.js?v=20261101j"></script>
   <script src="boulangerie.js?v=20261101g"></script>
   <script src="contexte.js?v=20261101g"></script>
   <script src="nav.js?v=20261031"></script>
@@ -329,12 +329,17 @@
             var l = ligneACommander(b, estimation.q);
             derniereCommande[f.cle].push({ cle: cle, nom: b.nom, texte: l.achatTexte, stock: estimation.q, commande: l.commande, livraison: MP.versISO(horizon.livraison) });
             if (l.reste === 0) enStock.push(b.nom);
-            else articles += '<li><span>' + echapper(b.nom) + '<small>' + l.explication + ', pour ' + echapper(b.produits.slice(0, 2).join(', ')) + (b.produits.length > 2 ? '…' : '') + '</small></span><strong>' + echapper(l.achat) + '</strong></li>';
+            else {
+              // Grille alignée : article · quantité · unité.
+              var m = /^([\d\s\u202f.,]+)\s+(.+)$/.exec(l.achat) || [null, l.achat, ''];
+              articles += '<li><span class="article-nom">' + echapper(b.nom) + '<small>' + l.explication + ', pour ' + echapper(b.produits.slice(0, 2).join(', ')) + (b.produits.length > 2 ? '…' : '') + '</small></span>' +
+                '<strong class="article-qte">' + echapper(m[1].trim()) + '</strong><span class="article-unite">' + echapper(m[2]) + '</span></li>';
+            }
             // Stock dans l'unité de l'ingrédient : petites quantités en grammes.
             var enGrammes = b.unite === 'kg' && b.quantite < 2;
             var valeurStock = estimation.q ? (enGrammes ? Math.round(estimation.q * 1000) : Math.round(estimation.q * 10) / 10) : '';
-            stocksHtml += '<label class="stock-ligne"><span>' + echapper(b.nom) + '</span><input type="number" min="0" step="any" inputmode="decimal" data-cle="' + echapper(cle) + '" data-grammes="' + (enGrammes ? '1' : '') + '" value="' + valeurStock + '" placeholder="0"> ' +
-              (enGrammes ? 'g' : (b.unite === 'pièce' ? 'pièces' : b.unite)) + (estimation.estime ? ' <span class="texte-aide--discret">estimé</span>' : '') + '</label>';
+            stocksHtml += '<label class="stock-ligne"><span class="article-nom">' + echapper(b.nom) + (estimation.estime ? '<small>estimé</small>' : '') + '</span><input type="number" min="0" step="any" inputmode="decimal" data-cle="' + echapper(cle) + '" data-grammes="' + (enGrammes ? '1' : '') + '" value="' + valeurStock + '" placeholder="0">' +
+              '<span class="article-unite">' + (enGrammes ? 'g' : (b.unite === 'pièce' ? 'pièces' : b.unite)) + '</span></label>';
           });
           var joursCases = [1, 2, 3, 4, 5, 6, 0].map(function (j) {
             var coche = (infos.jours && infos.jours.length ? infos.jours : LIVRAISONS_PAR_DEFAUT).indexOf(j) !== -1;

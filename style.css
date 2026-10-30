@@ -1380,18 +1380,10 @@ body.ecran-fournil .ligne-fournee-cuit .valeur-cuite { width: 96px; min-height: 
 .fournisseur-livraison { margin: 0; text-align: left; font-weight: 600; font-size: var(--texte-sm); }
 .fournisseur-livraison small { display: block; font-weight: 400; font-size: var(--texte-xs); color: var(--couleur-texte-3); }
 .commande-articles { list-style: none; margin: var(--espace-2) 0 0; padding: 0; }
-.commande-articles li { display: flex; justify-content: space-between; align-items: baseline; gap: var(--espace-3); padding: var(--espace-3) 0; border-top: 1px solid var(--couleur-bordure); }
-.commande-articles li > span { font-weight: 500; }
-.commande-articles small { display: block; font-weight: 400; font-size: var(--texte-xs); color: var(--couleur-texte-3); }
-.commande-articles strong { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-weight: 600; font-size: var(--texte-lg); text-align: right; white-space: nowrap; }
 .commande-rien { margin: var(--espace-2) 0 0; color: var(--couleur-succes); font-weight: 500; }
 .commande-en-stock { margin: var(--espace-2) 0 0; }
 .fournisseur-envoyer { width: 100%; margin-top: var(--espace-3); }
 .fournisseur-stock { border: 0; padding: 0; margin: var(--espace-4) 0 var(--espace-3); }
-.fournisseur-stock legend { font-weight: 500; padding: 0; margin-bottom: var(--espace-2); }
-.stock-ligne { display: flex; align-items: center; gap: var(--espace-2); margin: 0 0 var(--espace-2); font-weight: 400; }
-.stock-ligne > span:first-child { flex: 1; }
-.stock-ligne input { width: 88px; min-height: 36px; padding: 4px 8px; }
 #titreRecettes { margin-top: var(--espace-7, 48px); }
 .recette { background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md); box-shadow: var(--ombre-carte); padding: var(--espace-4); }
 .recette + .recette { margin-top: var(--espace-3); }
@@ -1439,32 +1431,9 @@ body.ecran-fournil .ligne-fournee-cuit .valeur-cuite { width: 96px; min-height: 
 .ligne-fournee--faite .ligne-fournee-tranches { opacity: .6; }
 body.ecran-fournil { padding-bottom: 0; background-image: none; overflow: hidden; }
 body.ecran-fournil > :not(.vue-fournil):not(script) { display: none !important; }
-.vue-fournil { position: fixed; inset: 0; z-index: 100; overflow-y: auto; background: var(--couleur-fond); color: var(--couleur-texte); padding: var(--espace-4) var(--espace-4) var(--espace-8, 64px); }
-.vue-fournil[hidden] { display: none; }
-.fournil-entete { position: sticky; top: calc(-1 * var(--espace-4)); z-index: 1; display: flex; justify-content: space-between; align-items: center; gap: var(--espace-4); margin: calc(-1 * var(--espace-4)) calc(-1 * var(--espace-4)) var(--espace-4); padding: var(--espace-4); background: var(--couleur-fond); border-bottom: 2px solid var(--couleur-bordure); }
-.fournil-titre { margin: 0; font-family: var(--police-titre); font-size: clamp(24px, 4vw, 40px); font-weight: 600; line-height: 1.1; }
-.fournil-progression { margin: 4px 0 0; font-size: clamp(16px, 2.2vw, 22px); color: var(--couleur-texte-2); }
-.fournil-quitter { flex-shrink: 0; width: auto; min-width: 0; padding: 0 var(--espace-5); min-height: 56px; font-size: clamp(18px, 2.4vw, 24px); }
-.fournil-tranche + .fournil-tranche { margin-top: var(--espace-6); }
-.fournil-tranche h2 { display: flex; align-items: baseline; gap: var(--espace-3); margin: 0 0 var(--espace-2); font-size: clamp(34px, 6vw, 56px); }
-.fournil-tranche h2 span { font-family: var(--police); font-size: clamp(16px, 2.2vw, 22px); font-weight: 500; color: var(--couleur-texte-3); }
-.fournil-tranche ul { list-style: none; margin: 0; padding: 0; background: var(--couleur-surface); border: 2px solid var(--couleur-bordure); border-radius: var(--rayon-md); }
-.fournil-ligne + .fournil-ligne { border-top: 2px solid var(--couleur-bordure); }
-.fournil-ligne label { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--espace-4); margin: 0; padding: var(--espace-3) var(--espace-4); cursor: pointer; }
-.fournil-ligne input { width: 44px; height: 44px; margin: 0; accent-color: var(--couleur-accent); }
-.fournil-nom { font-size: clamp(22px, 3.6vw, 34px); font-weight: 600; line-height: 1.15; }
-.fournil-nombre { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: clamp(44px, 8vw, 80px); font-weight: 600; line-height: 1; }
-.fournil-ligne--faite .fournil-nom, .fournil-ligne--faite .fournil-nombre { color: var(--couleur-texte-3); text-decoration: line-through; text-decoration-thickness: 3px; }
-.fournil-vide { font-size: clamp(20px, 3vw, 28px); }
-@media (min-width: 1000px) {
-  .fournil-tranches { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--espace-5); align-items: start; }
-  .fournil-tranche + .fournil-tranche { margin-top: 0; }
-}
 .note-tranches { margin: 0 0 var(--espace-3); }
 .visuellement-cache { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .recette-alerte { margin: var(--espace-2) 0 0; padding: var(--espace-2) var(--espace-3); font-size: var(--texte-sm); color: var(--couleur-alerte); background: var(--couleur-alerte-doux); border-radius: var(--rayon-sm); }
-.calcul-gain { margin: 0 0 var(--espace-4); padding-left: 1.3em; font-size: var(--texte-sm); color: var(--couleur-texte-2); }
-.calcul-gain li + li { margin-top: 4px; }
 .recette-prix { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espace-2) var(--espace-4); margin: var(--espace-3) 0; padding-top: var(--espace-3); border-top: 1px solid var(--couleur-bordure); }
 .recette-prix label { display: inline-flex; align-items: center; gap: var(--espace-2); margin: 0; font-weight: 500; }
 .recette-prix input { width: 90px; text-align: center; }
@@ -1485,3 +1454,66 @@ body.ecran-fournil > :not(.vue-fournil):not(script) { display: none !important; 
 .tournee-retirer { width: 40px; height: 40px; min-height: 40px; margin: 0; padding: 0; font-size: 20px; color: var(--couleur-texte-3); background: none; border: 0; box-shadow: none !important; }
 #fournees > div:last-child { margin-top: var(--espace-3); }
 .ligne-fournee-tranches .tranche { white-space: nowrap; }
+
+/* Lot 7 : mode fournil, la feuille de fournée près du four (une fournée à la fois). */
+.vue-fournil {
+  --f-fond: #24160D; --f-ligne: #2F1E12; --f-trait: #4A3322; --f-texte: #F6EBDA; --f-texte-2: #C9B49A; --f-or: #E3A94B;
+  position: fixed; inset: 0; z-index: 100; overflow-y: auto; background: var(--f-fond); color: var(--f-texte);
+  font-variant-numeric: tabular-nums;
+}
+.vue-fournil[hidden] { display: none; }
+.fournil { min-height: 100%; display: flex; flex-direction: column; max-width: 900px; margin: 0 auto; padding: 16px 16px 0; }
+.fournil-haut { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.fournil-haut { align-items: flex-start; }
+.fournil-pastilles { display: flex; flex-wrap: wrap; gap: 8px; }
+.fournil-pastille { flex-shrink: 0; width: auto; min-height: 44px; margin: 0; padding: 0 14px; font: 600 18px/1 var(--police); color: var(--f-texte-2); background: transparent; border: 2px solid var(--f-trait); border-radius: 999px; box-shadow: none !important; }
+.fournil-pastille--finie { color: var(--f-fond); background: var(--f-texte-2); border-color: var(--f-texte-2); }
+.fournil-pastille--active { color: var(--f-fond); background: var(--f-or); border-color: var(--f-or); }
+.fournil-quitter { flex-shrink: 0; width: auto; min-height: 48px; margin: 0; padding: 0 20px; font: 600 18px/1 var(--police); color: var(--f-texte); background: transparent; border: 2px solid var(--f-texte-2); border-radius: 999px; box-shadow: none !important; }
+.fournil-titre-bloc { padding: 20px 0 12px; border-bottom: 2px solid var(--f-trait); }
+.fournil-heure { margin: 0; font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-weight: 600; font-size: clamp(64px, 16vw, 128px); line-height: .95; letter-spacing: -0.02em; color: var(--f-texte); }
+.fournil-nom-tranche { margin: 6px 0 0; font-size: clamp(22px, 4vw, 30px); font-weight: 600; color: var(--f-texte); }
+.fournil-compte { margin: 4px 0 0; font-size: clamp(16px, 2.6vw, 20px); color: var(--f-texte-2); }
+.fournil-liste { list-style: none; margin: 0; padding: 0; flex: 1; }
+.fournil-ligne { border-bottom: 1px solid var(--f-trait); }
+.fournil-ligne label { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 16px; margin: 0; padding: 14px 0; cursor: pointer; color: inherit; }
+.fournil-produit { font-size: clamp(24px, 5vw, 40px); font-weight: 600; line-height: 1.1; overflow-wrap: anywhere; }
+.fournil-nombre { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-weight: 600; font-size: clamp(56px, 13vw, 104px); line-height: 1; color: var(--f-or); text-align: right; min-width: 2ch; }
+.fournil-case { appearance: none; -webkit-appearance: none; flex: none; box-sizing: border-box; width: 56px; min-width: 56px; height: 56px; min-height: 56px; padding: 0; margin: 0; border: 3px solid var(--f-texte-2); border-radius: 50%; background: transparent; cursor: pointer; display: grid; place-content: center; transition: background-color .15s ease, border-color .15s ease; }
+.fournil-case::after { content: ''; width: 22px; height: 12px; border: solid var(--f-fond); border-width: 0 0 5px 5px; transform: rotate(-45deg) translate(2px, -2px); opacity: 0; }
+.fournil-case:checked { background: var(--f-or); border-color: var(--f-or); }
+.fournil-case:checked::after { opacity: 1; }
+.fournil-case:focus-visible, .fournil-pastille:focus-visible, .fournil-quitter:focus-visible, .fournil-suivante:focus-visible, .fournil-precedente:focus-visible { outline: 3px solid var(--f-or); outline-offset: 3px; }
+.fournil-ligne--faite .fournil-produit, .fournil-ligne--faite .fournil-nombre { color: var(--f-texte-2); opacity: .55; text-decoration: line-through; text-decoration-thickness: 3px; }
+.fournil-bas { position: sticky; bottom: 0; display: flex; gap: 12px; padding: 16px 0 calc(16px + env(safe-area-inset-bottom)); background: var(--f-fond); border-top: 2px solid var(--f-trait); }
+.fournil-precedente { width: 64px; min-height: 64px; margin: 0; padding: 0; font-size: 28px; color: var(--f-texte); background: transparent; border: 2px solid var(--f-trait); border-radius: 16px; box-shadow: none !important; }
+.fournil-suivante { flex: 1; width: auto; min-height: 64px; margin: 0; font: 600 clamp(20px, 3.4vw, 26px)/1.1 var(--police); color: var(--f-texte); background: var(--f-ligne); border: 2px solid var(--f-trait); border-radius: 16px; box-shadow: none !important; }
+.fournil-suivante--prete { color: var(--f-fond); background: var(--f-or); border-color: var(--f-or); }
+.fournil-vide { margin: 48px 0; font-size: 26px; color: var(--f-texte-2); }
+@media (prefers-reduced-motion: reduce) { .fournil-case { transition: none; } }
+/* Lot 7 : listes de la Commande en grille alignée (article · quantité · unité). */
+.commande-articles, .fournisseur-stock { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(4.5em, max-content); column-gap: var(--espace-3); }
+.commande-articles li, .stock-ligne { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: baseline; }
+.commande-articles li { padding: var(--espace-3) 0; border-top: 1px solid var(--couleur-bordure); }
+.article-nom { min-width: 0; font-weight: 500; overflow-wrap: anywhere; }
+.article-nom small { display: block; font-weight: 400; font-size: var(--texte-xs); color: var(--couleur-texte-3); }
+.commande-articles .article-qte { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-weight: 600; font-size: var(--texte-lg); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.article-unite { font-size: var(--texte-sm); color: var(--couleur-texte-2); }
+.fournisseur-stock legend { grid-column: 1 / -1; }
+.stock-ligne { align-items: center; margin: 0; padding: var(--espace-2) 0; border-top: 1px solid var(--couleur-bordure); font-weight: 400; }
+.stock-ligne input { width: 96px; min-height: 40px; margin: 0; padding: 4px 8px; text-align: right; font-variant-numeric: tabular-nums; }
+/* Lot 7 : détail vérifiable du Bilan. */
+.calcul-gain { margin: 0 0 var(--espace-4); padding: 0; font-size: var(--texte-sm); color: var(--couleur-texte-2); }
+.detail-titre { margin: var(--espace-4) 0 var(--espace-2); font-size: var(--texte-md); color: var(--couleur-texte); }
+.detail-sources { margin: 0; padding-left: 1.1em; }
+.detail-sources li + li { margin-top: 6px; }
+.detail-produits { list-style: none; margin: 0; padding: 0; }
+.detail-produits li { display: flex; flex-direction: column; gap: 2px; padding: var(--espace-3) 0; border-top: 1px solid var(--couleur-bordure); font-variant-numeric: tabular-nums; }
+.detail-produits strong { color: var(--couleur-texte); }
+.detail-produits b { color: var(--couleur-texte); font-weight: 600; }
+.detail-total { margin: var(--espace-3) 0; padding-top: var(--espace-3); border-top: 2px solid var(--couleur-bordure); font-weight: 600; color: var(--couleur-texte); }
+.source { display: inline-block; padding: 0 7px; font-size: 11px; font-weight: 600; line-height: 18px; border-radius: var(--rayon-rond); vertical-align: 1px; white-space: nowrap; }
+.source--auto { background: var(--couleur-succes-doux); color: var(--couleur-succes); }
+.source--saisi { background: var(--couleur-surface-2); color: var(--couleur-texte-2); }
+.source--estime { background: var(--couleur-alerte-doux); color: var(--couleur-alerte); }
+.source--test { background: var(--couleur-accent-doux); color: var(--couleur-accent-texte); }
