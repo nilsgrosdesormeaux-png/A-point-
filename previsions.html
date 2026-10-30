@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Fournée</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261031c">
+  <link rel="stylesheet" href="style.css?v=20261031d">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="moteur-prevision.js?v=20261031c"></script>
   <script src="boulangerie.js?v=20261031"></script>
@@ -144,9 +144,26 @@
         });
         items.push('<li>📈 ' + echapper(p.r.texteBase.replace(/^[^B]*Basé/, 'Basé')) + '</li>');
         items.push('<li>🛟 Marge de sécurité de ' + Math.round((MP.MARGE_PRODUCTION - 1) * 100) + ' % pour ne pas manquer</li>');
-        var ecart = MP.calculerEcartUnites(ctx.parProduit[p.nom]);
-        if (ecart) items.push('<li>🎯 D\'habitude, la prévision tombe à ±' + ecart.ecart + ' pièce' + (ecart.ecart > 1 ? 's' : '') + ' près</li>');
+        var fiab = fiabiliteProduit(p);
+        if (fiab.ecart) items.push('<li>🎯 D\'habitude, la prévision tombe à ±' + fiab.ecart.ecart + ' pièce' + (fiab.ecart.ecart > 1 ? 's' : '') + ' près</li>');
+        else items.push('<li>🎯 Pas encore assez d\'historique pour dire à combien de pièces près la prévision tombe</li>');
         return items.join('');
+      }
+
+      // Incertitude d'un produit, d'après son rétro-test réel (écart moyen
+      // observé, sans la marge de production) : jamais d'intervalle affiché,
+      // seulement un repère discret si la prévision est encore peu sûre.
+      var cacheFiabilite = {};
+      function fiabiliteProduit(p) {
+        if (cacheFiabilite[p.nom]) return cacheFiabilite[p.nom];
+        var ecart = MP.calculerEcartUnites(ctx.parProduit[p.nom]);
+        var nbMemeJour = p.r.memeJourSemaine ? p.r.nbJoursUtilises : 0;
+        var demande = p.r.quantite / MP.MARGE_PRODUCTION;
+        var peuSur = null;
+        if (nbMemeJour < 4) peuSur = 'Prévision encore peu sûre : moins de 4 ' + p.r.nomJourCible + 's connus';
+        else if (ecart && demande > 0 && ecart.ecart / demande > 0.25) peuSur = 'Prévision encore peu sûre : ventes très variables';
+        cacheFiabilite[p.nom] = { ecart: ecart, peuSur: peuSur };
+        return cacheFiabilite[p.nom];
       }
 
       function afficherRaisons(previsions) {
@@ -177,6 +194,7 @@
       }
 
       function afficher() {
+        cacheFiabilite = {};
         var previsions = C.prevoirJour(ctx, jourCible);
         var facteur = modificateur === 'plus' ? 1.15 : (modificateur === 'moins' ? 0.85 : 1);
         afficherRaisons(previsions);
@@ -195,13 +213,14 @@
             var q = Math.ceil(p.r.quantite * facteur);
             total += q;
             var id = 'enf-' + B.normaliser(p.nom).replace(/ /g, '-');
-            var four = p.r.fourchette ? '<span class="ligne-fournee-fourchette">' + Math.round(p.r.fourchette.bas * facteur) + ' à ' + Math.round(p.r.fourchette.haut * facteur) + '</span>' : '';
+            var fiab = fiabiliteProduit(p);
             var cuit = cuites[p.nom];
             var fait = typeof cuit === 'number';
             return '<li class="ligne-fournee' + (fait ? ' ligne-fournee--faite' : '') + '" data-nom="' + echapper(p.nom) + '" data-prevu="' + q + '">' +
               '<input type="checkbox" class="case-enfourne" id="' + id + '"' + (fait ? ' checked' : '') + ' aria-describedby="' + id + '-cuit">' +
-              '<label for="' + id + '" class="ligne-fournee-nom"><span>' + echapper(p.nom) + '</span>' + texteDelta(p, q) + '</label>' +
-              '<span class="ligne-fournee-chiffre"><span class="ligne-fournee-quantite">' + q + '</span>' + four + '</span>' +
+              '<label for="' + id + '" class="ligne-fournee-nom"><span>' + echapper(p.nom) + '</span>' + texteDelta(p, q) +
+                (fiab.peuSur ? '<span class="repere-peu-sur">' + fiab.peuSur + '</span>' : '') + '</label>' +
+              '<span class="ligne-fournee-chiffre"><span class="ligne-fournee-quantite">' + q + '</span></span>' +
               '<div class="ligne-fournee-cuit" id="' + id + '-cuit"' + (fait ? '' : ' hidden') + '>' +
                 '<span>Cuit</span>' +
                 '<button type="button" class="stepper-bouton" data-pas="-1" aria-label="Une pièce cuite de moins : ' + echapper(p.nom) + '">−</button>' +
