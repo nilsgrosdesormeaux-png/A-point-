@@ -36,7 +36,7 @@ La migration dans un Postgres en mémoire : normalisation identique au JS, dédo
    `https://eqvbksxfwlgbcxgqljqn.supabase.co/functions/v1/connecter-caisse`. Noter client id et secret.
 3. **Secrets** des Edge Functions :
    ```bash
-   supabase secrets set SUMUP_CLIENT_ID=… SUMUP_CLIENT_SECRET=… CLE_CHIFFREMENT_CAISSE=$(openssl rand -base64 32) CLE_SYNCHRO_CAISSE=$(openssl rand -hex 24) CLE_IMPORT_EMAIL=$(openssl rand -hex 24)
+   supabase secrets set SUMUP_CLIENT_ID=… SUMUP_CLIENT_SECRET=… CLE_CHIFFREMENT_CAISSE=$(openssl rand -base64 32) CLE_IMPORT_EMAIL=$(openssl rand -hex 24)
    ```
    Garder `CLE_CHIFFREMENT_CAISSE` : la changer rend les jetons enregistrés illisibles (il faudrait reconnecter les caisses).
 4. **Déploiement** (les trois s'authentifient eux-mêmes, d'où `--no-verify-jwt`) :
@@ -45,8 +45,8 @@ La migration dans un Postgres en mémoire : normalisation identique au JS, dédo
    supabase functions deploy synchro-caisse --no-verify-jwt
    supabase functions deploy import-export-caisse --no-verify-jwt
    ```
-5. **Synchro nocturne** : activer pg_cron, créer le secret `cle_synchro_caisse` dans Vault (même valeur que `CLE_SYNCHRO_CAISSE`), puis exécuter le `cron.schedule` de la partie 7 de la migration.
-6. **Repli e-mail** (quand une boulangerie sans API arrive) : compte Postmark, domaine entrant `import.apointapp.fr` (enregistrement MX chez le registrar), webhook Inbound vers
+5. **Synchro nocturne** : activer pg_cron, puis exécuter la partie 7 de la migration (clé générée dans Vault, fonction `verifier_cle_synchro`, `cron.schedule`).
+6. **Repli e-mail** : compte Postmark, serveur > Inbound : copier l'adresse de réception (`…@inbound.postmarkapp.com`, aucun réglage DNS) dans le secret `ADRESSE_IMPORT`, et régler le webhook Inbound sur
    `https://eqvbksxfwlgbcxgqljqn.supabase.co/functions/v1/import-export-caisse?cle=<CLE_IMPORT_EMAIL>`.
 
 ## Premier test réel (ton propre compte SumUp, sans app OAuth)
@@ -61,10 +61,10 @@ await sb.functions.invoke('connecter-caisse', { body: { action: 'synchroniser' }
 
 Les ventes d'hier apparaissent dans Ventes avec `source = 'sumup'`. Tester ensuite le parcours OAuth avec le bouton « Connecter ma caisse SumUp ».
 
-Test de la synchro nocturne à la main :
+Test de la synchro nocturne à la main (SQL Editor) :
 
-```bash
-curl -X POST https://eqvbksxfwlgbcxgqljqn.supabase.co/functions/v1/synchro-caisse -H "x-cle-synchro: <CLE_SYNCHRO_CAISSE>"
+```sql
+select net.http_post(url := 'https://eqvbksxfwlgbcxgqljqn.supabase.co/functions/v1/synchro-caisse', headers := jsonb_build_object('x-cle-synchro', (select decrypted_secret from vault.decrypted_secrets where name = 'cle_synchro_caisse')));
 ```
 
 Test du repli e-mail sans Postmark (`<jeton>` : affiché dans Paramètres après « Obtenir mon adresse d'import ») :

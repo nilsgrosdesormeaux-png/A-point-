@@ -5,6 +5,7 @@
 //   POST { action: 'synchroniser' }                     -> synchro immédiate (jusqu'à hier)
 //   POST { action: 'deconnecter', fournisseur }         -> supprime la connexion et ses jetons
 //   POST { action: 'activer_import_email' }             -> { adresse } pour l'export envoyé par e-mail
+//   POST { action: 'etat' }                             -> { sumup, email } : connexions disponibles
 //   POST { action: 'connecter_cle', cle: 'sup_sk_…' }   -> branche un compte SumUp par clé API
 //        (tests sans app OAuth, ou pilote qui préfère coller sa clé)
 // Et par SumUp lui-même, au retour de l'autorisation :
@@ -14,7 +15,9 @@
 //   supabase functions deploy connecter-caisse --no-verify-jwt
 // Le JWT est vérifié ici, à la main, pour toutes les requêtes POST.
 //
-// Secrets : SUMUP_CLIENT_ID, SUMUP_CLIENT_SECRET, CLE_CHIFFREMENT_CAISSE.
+// Secrets : SUMUP_CLIENT_ID, SUMUP_CLIENT_SECRET, CLE_CHIFFREMENT_CAISSE,
+// ADRESSE_IMPORT (adresse de réception, ex. abc123@inbound.postmarkapp.com :
+// chaque commerçant reçoit abc123+<jeton>@inbound.postmarkapp.com).
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import * as sumup from '../_shared/caisse/sumup.ts';
@@ -27,7 +30,7 @@ var CORS_HEADERS = {
 };
 
 var URL_PARAMETRES = 'https://apointapp.fr/parametres.html';
-var DOMAINE_IMPORT = 'import.apointapp.fr';
+var ADRESSE_IMPORT = Deno.env.get('ADRESSE_IMPORT') || '';
 var DUREE_ETAT_MS = 15 * 60000;
 
 function reponse(corps: unknown, status = 200) {
@@ -123,14 +126,20 @@ Deno.serve(async (req) => {
       return reponse({ ok: true });
     }
 
+    if (corps.action === 'etat') {
+      return reponse({ sumup: !!ENV.sumupClientId, email: !!ADRESSE_IMPORT });
+    }
+
     if (corps.action === 'activer_import_email') {
-      var existante = await admin.from('connexions_caisse').select('jeton_import').eq('commercant_id', commercantId).eq('fournisseur', 'export_email').maybeSingle();
-      var jeton = existante.data ? existante.data.jeton_import : aleatoire(8);
-      if (!existante.data) {
-        var cree = await admin.from('connexions_caisse').insert({ commercant_id: commercantId, fournisseur: 'export_email', jeton_import: jeton });
-        if (cree.error) return reponse({ error: cree.error.message }, 400);
-      }
-      return reponse({ adresse: 'ventes+' + jeton + '@' + DOMAINE_IMPORT });
+      if (!ADRESSE_IMPORT) return reponse({ error: 'Import par e-mail pas encore configuré' }, 503);
+      var existante = await admin.from('connexions_caisse').select('adresse_import').eq('commercant_id', commercantId).eq('fournisseur', 'export_email').maybeSingle();
+      if (existante.data) return reponse({ adresse: existante.data.adresse_import });
+      var jeton = aleatoire(8);
+      var morceaux = ADRESSE_IMPORT.split('@');
+      var adresse = morceaux[0] + '+' + jeton + '@' + morceaux[1];
+      var cree = await admin.from('connexions_caisse').insert({ commercant_id: commercantId, fournisseur: 'export_email', jeton_import: jeton, adresse_import: adresse });
+      if (cree.error) return reponse({ error: cree.error.message }, 400);
+      return reponse({ adresse: adresse });
     }
 
     return reponse({ error: 'Action inconnue' }, 400);

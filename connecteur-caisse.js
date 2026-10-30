@@ -6,8 +6,6 @@
 // Lit l'état dans connexions_caisse (RLS : le commerçant ne voit que ses
 // lignes) et passe par l'Edge Function connecter-caisse pour tout le reste.
 (function () {
-  var DOMAINE_IMPORT = 'import.apointapp.fr';
-
   function echapper(texte) {
     var div = document.createElement('div');
     div.textContent = texte === null || texte === undefined ? '' : String(texte);
@@ -54,7 +52,7 @@
       el.textContent = texte;
     }
 
-    function rendre(connexions) {
+    function rendre(connexions, disponibles) {
       var sumup = connexions.filter(function (c) { return c.fournisseur === 'sumup'; })[0];
       var email = connexions.filter(function (c) { return c.fournisseur === 'export_email'; })[0];
       var html = '<p class="section-titre">Ma caisse</p>';
@@ -66,17 +64,20 @@
           + '<button type="button" id="btnSynchroCaisse">Synchroniser maintenant</button>'
           + '<button type="button" id="btnDeconnecterCaisse" style="background-color: var(--surface); color: var(--texte); border: 1px solid var(--bordure);">Déconnecter</button>'
           + '</div>';
-      } else {
+      } else if (disponibles.sumup) {
         html += '<p class="texte-aide">Branche ta caisse : tes ventes arrivent seules chaque nuit, tu n\'as plus rien à saisir.</p>'
           + '<button type="button" id="btnConnecterSumup">Connecter ma caisse SumUp</button>';
+      } else {
+        html += '<p class="texte-aide">Bientôt : branche ta caisse SumUp et tes ventes arriveront seules chaque nuit.</p>';
       }
 
-      html += '<p class="texte-aide" style="margin-top:14px;">Autre caisse (Bimedia, Crisalid, Toporder, Tactill…) ? Programme l\'envoi automatique de ton export des ventes (CSV) vers ton adresse d\'import personnelle.</p>';
       if (email) {
-        html += '<p><strong>' + echapper('ventes+' + email.jeton_import + '@' + DOMAINE_IMPORT) + '</strong></p>'
+        html += '<p class="texte-aide" style="margin-top:14px;">Ton adresse d\'import : programme l\'envoi automatique de l\'export des ventes (CSV) de ta caisse vers cette adresse.</p>'
+          + '<p><strong>' + echapper(email.adresse_import) + '</strong></p>'
           + '<p class="texte-aide">' + (email.derniere_synchro ? etatSynchro(email) : 'Aucun export reçu pour l\'instant.') + '</p>';
-      } else {
-        html += '<button type="button" id="btnAdresseImport" style="background-color: var(--surface); color: var(--texte); border: 1px solid var(--bordure);">Obtenir mon adresse d\'import</button>';
+      } else if (disponibles.email) {
+        html += '<p class="texte-aide" style="margin-top:14px;">Autre caisse (Bimedia, Crisalid, Toporder, Tactill…) ? Programme l\'envoi automatique de ton export des ventes (CSV) vers ton adresse d\'import personnelle.</p>'
+          + '<button type="button" id="btnAdresseImport" style="background-color: var(--surface); color: var(--texte); border: 1px solid var(--bordure);">Obtenir mon adresse d\'import</button>';
       }
       html += '<div id="messageCaisse" aria-live="polite"></div>';
       bloc.innerHTML = html;
@@ -116,15 +117,24 @@
       });
     }
 
+    // Quelles connexions sont configurées côté serveur (app SumUp, adresse
+    // de réception des e-mails) : demandé une seule fois par page.
+    var disponibles = null;
+
     function charger() {
-      return sbClient.from('connexions_caisse').select('*').eq('commercant_id', commercantId).then(function (res) {
-        if (res.error) {
-          // Table absente tant que migration-connecteurs-caisse.sql n'est pas
-          // exécutée : on n'affiche rien plutôt qu'une erreur.
+      var etat = disponibles
+        ? Promise.resolve(disponibles)
+        : appeler({ action: 'etat' }).catch(function () { return { sumup: false, email: false }; });
+      return Promise.all([sbClient.from('connexions_caisse').select('*').eq('commercant_id', commercantId), etat]).then(function (r) {
+        var res = r[0];
+        disponibles = r[1];
+        if (res.error || (!disponibles.sumup && !disponibles.email && !(res.data || []).length)) {
+          // Migration pas encore exécutée, ou rien de configuré : on
+          // n'affiche rien plutôt qu'une erreur ou un bouton inutile.
           bloc.innerHTML = '';
           return;
         }
-        rendre(res.data || []);
+        rendre(res.data || [], disponibles);
       });
     }
 

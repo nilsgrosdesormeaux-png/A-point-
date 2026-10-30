@@ -1,7 +1,7 @@
 // Edge Function : repli pour les caisses sans API (Bimedia, Crisalid,
 // Toporder, Tactill…). La caisse envoie chaque jour son export CSV des
-// ventes à l'adresse personnelle du commerçant,
-// ventes+<jeton>@import.apointapp.fr ; le service d'e-mail entrant
+// ventes à l'adresse personnelle du commerçant (ADRESSE_IMPORT avec
+// +<jeton>, voir connecter-caisse) ; le service d'e-mail entrant
 // (Postmark Inbound) transmet l'e-mail ici en JSON.
 //
 // Format attendu : webhook Postmark Inbound

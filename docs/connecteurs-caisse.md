@@ -27,7 +27,7 @@ Objectif (REFONTE.md § 4 bis) : les ventes par article arrivent seules chaque n
 
 ## Repli pour les caisses sans API : export envoyé par e-mail
 
-Presque toutes ces caisses savent envoyer un export ou un rapport des ventes par e-mail (CSV). Chaque commerçant reçoit une adresse personnelle `ventes+<jeton>@import.apointapp.fr` à mettre en destinataire de l'export automatique de sa caisse. Un service d'e-mail entrant (Postmark Inbound, gratuit jusqu'à 100 e-mails/mois puis payant) transmet chaque e-mail à l'Edge Function `import-export-caisse`, qui lit la pièce jointe CSV, reconnaît les colonnes produit / quantité / date et enregistre les ventes avec le même dédoublonnage que la synchro.
+Presque toutes ces caisses savent envoyer un export ou un rapport des ventes par e-mail (CSV). Chaque commerçant reçoit une adresse personnelle (adresse de réception Postmark suivie de `+<jeton>`, plus tard `ventes+<jeton>@import.apointapp.fr` avec un enregistrement MX) à mettre en destinataire de l'export automatique de sa caisse. Un service d'e-mail entrant (Postmark Inbound, offre gratuite limitée à 100 e-mails par mois) transmet chaque e-mail à l'Edge Function `import-export-caisse`, qui lit la pièce jointe CSV, reconnaît les colonnes produit / quantité / date et enregistre les ventes avec le même dédoublonnage que la synchro.
 
 ## Architecture livrée
 

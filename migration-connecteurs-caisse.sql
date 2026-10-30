@@ -15,7 +15,8 @@ create table connexions_caisse (
   fournisseur text not null check (fournisseur in ('sumup', 'export_email')),
   statut text not null default 'active' check (statut in ('active', 'erreur')),
   compte_caisse text,                 -- ex. merchant_code SumUp
-  jeton_import text unique,           -- partie <jeton> de ventes+<jeton>@import.apointapp.fr
+  jeton_import text unique,           -- partie après le « + » de l'adresse d'import
+  adresse_import text,                -- adresse complète à donner à la caisse
   derniere_synchro timestamptz,
   derniere_date_synchronisee date,    -- dernier jour complet importé
   nb_lignes_derniere_synchro integer,
@@ -68,6 +69,7 @@ create or replace function normaliser_nom_produit(nom text)
 returns text
 language sql
 immutable
+set search_path = public, pg_catalog
 as $$
   select case when length(p) > 3 and p ~ '[sx]$' then left(p, -1) else p end
   from (
@@ -92,6 +94,7 @@ on ventes (commercant_id, date_vente, normaliser_nom_produit(nom_produit));
 create or replace function enregistrer_ventes_caisse(p_commercant uuid, p_lignes jsonb, p_source text)
 returns integer
 language plpgsql
+set search_path = public, pg_catalog
 as $$
 declare
   ligne record;
@@ -139,9 +142,18 @@ grant execute on function enregistrer_ventes_caisse(uuid, jsonb, text) to servic
 
 -- 7. Synchro nocturne : À FAIRE APRÈS le déploiement des Edge Functions.
 --    a) Database > Extensions : activer pg_cron (pg_net est déjà actif).
---    b) Créer le secret partagé avec la fonction (même valeur que
---       CLE_SYNCHRO_CAISSE dans les secrets des Edge Functions) :
---         select vault.create_secret('<valeur>', 'cle_synchro_caisse');
+--    b) Clé de l'appel nocturne, générée dans Vault et vérifiée par
+--       synchro-caisse via verifier_cle_synchro : elle ne sort jamais de la base.
+--
+-- select vault.create_secret(encode(extensions.gen_random_bytes(24), 'hex'), 'cle_synchro_caisse');
+--
+-- create or replace function verifier_cle_synchro(p_cle text)
+-- returns boolean language sql stable security definer set search_path = public, pg_catalog as $$
+--   select exists (select 1 from vault.decrypted_secrets where name = 'cle_synchro_caisse' and decrypted_secret = p_cle)
+-- $$;
+-- revoke execute on function verifier_cle_synchro(text) from public, anon, authenticated;
+-- grant execute on function verifier_cle_synchro(text) to service_role;
+--
 --    c) Planifier : toutes les 10 min entre 1 h et 3 h 50 UTC (3 h à 5 h 50
 --       à Paris en été). Chaque appel traite les connexions pas encore
 --       synchronisées aujourd'hui, dans la limite de temps d'une fonction :

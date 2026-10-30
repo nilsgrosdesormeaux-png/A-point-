@@ -7,9 +7,11 @@
 // Function : l'appel suivant reprend où celui-ci s'est arrêté.
 //
 // Déploiement : supabase functions deploy synchro-caisse --no-verify-jwt
-// (l'appel pg_cron s'authentifie par l'en-tête x-cle-synchro).
+// (l'appel pg_cron s'authentifie par l'en-tête x-cle-synchro, comparé au
+// secret Vault « cle_synchro_caisse » par la fonction SQL verifier_cle_synchro :
+// la clé ne quitte jamais la base).
 //
-// Secrets : CLE_SYNCHRO_CAISSE, CLE_CHIFFREMENT_CAISSE, SUMUP_CLIENT_ID, SUMUP_CLIENT_SECRET.
+// Secrets : CLE_CHIFFREMENT_CAISSE, SUMUP_CLIENT_ID, SUMUP_CLIENT_SECRET.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { debutJourParisUTC, jourParis } from '../_shared/caisse/commun.ts';
@@ -18,12 +20,12 @@ import { synchroniserConnexion } from '../_shared/caisse/synchroniser.ts';
 var BUDGET_MS = 110000;
 
 Deno.serve(async (req) => {
-  var cleAttendue = Deno.env.get('CLE_SYNCHRO_CAISSE');
-  if (!cleAttendue || req.headers.get('x-cle-synchro') !== cleAttendue) {
-    return new Response(JSON.stringify({ error: 'Non autorise' }), { status: 401 });
-  }
   var debutAppel = Date.now();
   var admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  var verif = await admin.rpc('verifier_cle_synchro', { p_cle: req.headers.get('x-cle-synchro') || '' });
+  if (verif.error || verif.data !== true) {
+    return new Response(JSON.stringify({ error: 'Non autorise' }), { status: 401 });
+  }
   var env = {
     cleChiffrement: Deno.env.get('CLE_CHIFFREMENT_CAISSE') || '',
     sumupClientId: Deno.env.get('SUMUP_CLIENT_ID') || '',
