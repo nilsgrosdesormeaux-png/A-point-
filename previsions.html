@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Fournée</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261031d">
+  <link rel="stylesheet" href="style.css?v=20261031e">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="moteur-prevision.js?v=20261031c"></script>
   <script src="boulangerie.js?v=20261031"></script>
@@ -53,6 +53,8 @@
         <button type="button" class="btn-mini" data-modificateur="moins" aria-pressed="false">− Moins de monde</button>
       </div>
     </section>
+
+    <p class="repere-peu-sur repere-peu-sur--global" id="repereGlobal" hidden></p>
 
     <div class="fournee-progression" id="progression" hidden>
       <span id="texteProgression"></span>
@@ -206,6 +208,14 @@
           parRayon[p.rayon].push(p);
         });
 
+        // Si la plupart des produits sont encore peu sûrs (historique jeune),
+        // un seul repère en haut plutôt que le même sous chaque ligne.
+        var peuSurs = previsions.filter(function (p) { return fiabiliteProduit(p).peuSur; });
+        var repereUnique = peuSurs.length >= Math.max(3, previsions.length / 2);
+        var repereGlobal = document.getElementById('repereGlobal');
+        repereGlobal.hidden = !repereUnique;
+        if (repereUnique) repereGlobal.textContent = 'Prévisions encore peu sûres : ton historique est jeune, elles s\'affinent à chaque journée saisie.';
+
         listeEl.innerHTML = B.RAYONS.filter(function (rayon) { return parRayon[rayon]; }).map(function (rayon) {
           var lignes = parRayon[rayon].sort(function (a, b) { return b.r.quantite - a.r.quantite; });
           var total = 0;
@@ -219,7 +229,7 @@
             return '<li class="ligne-fournee' + (fait ? ' ligne-fournee--faite' : '') + '" data-nom="' + echapper(p.nom) + '" data-prevu="' + q + '">' +
               '<input type="checkbox" class="case-enfourne" id="' + id + '"' + (fait ? ' checked' : '') + ' aria-describedby="' + id + '-cuit">' +
               '<label for="' + id + '" class="ligne-fournee-nom"><span>' + echapper(p.nom) + '</span>' + texteDelta(p, q) +
-                (fiab.peuSur ? '<span class="repere-peu-sur">' + fiab.peuSur + '</span>' : '') + '</label>' +
+                (fiab.peuSur && !repereUnique ? '<span class="repere-peu-sur">' + fiab.peuSur + '</span>' : '') + '</label>' +
               '<span class="ligne-fournee-chiffre"><span class="ligne-fournee-quantite">' + q + '</span></span>' +
               '<div class="ligne-fournee-cuit" id="' + id + '-cuit"' + (fait ? '' : ' hidden') + '>' +
                 '<span>Cuit</span>' +

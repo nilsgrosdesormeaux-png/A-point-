@@ -1360,3 +1360,4 @@ body.ecran-fournil .ligne-fournee-cuit .valeur-cuite { width: 96px; min-height: 
 .simulation { margin-top: var(--espace-4); padding: var(--espace-4); background: var(--couleur-surface-2); border: 1px dashed var(--couleur-bordure-forte); border-radius: var(--rayon-md); }
 .simulation .texte-aide { margin-bottom: var(--espace-2); }
 .repere-peu-sur { font-size: var(--texte-xs); font-weight: 400; color: var(--couleur-alerte); }
+.repere-peu-sur--global { margin: 0 0 var(--espace-3); font-size: var(--texte-sm); }
