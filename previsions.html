@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Fournée</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101a">
+  <link rel="stylesheet" href="style.css?v=20261101b">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261031h"></script>
-  <script src="boulangerie.js?v=20261101a"></script>
-  <script src="contexte.js?v=20261031h"></script>
+  <script src="moteur-prevision.js?v=20261101b"></script>
+  <script src="boulangerie.js?v=20261101b"></script>
+  <script src="contexte.js?v=20261101b"></script>
   <script src="nav.js?v=20261031"></script>
 </head>
 <body>
@@ -35,20 +35,8 @@
       <span class="carte-saisie-hier-fleche" aria-hidden="true">→</span>
     </a>
 
-    <!-- Saisie du soir (lot 4) : seulement ce qu'il reste ; ventes = cuit − reste. -->
-    <section class="saisie-reste" id="saisieReste" hidden aria-labelledby="titreReste">
-      <h2 id="titreReste">Ce qu'il te reste</h2>
-      <p class="texte-aide">Compte ce qui reste sur les étagères. Les ventes se calculent seules : cuit − reste.</p>
-      <ul class="liste-reste" id="listeReste"></ul>
-      <div class="saisie-reste-actions">
-        <button type="button" class="bouton-principal" id="btnEnregistrerReste">Enregistrer la journée</button>
-        <a href="ventes.html">Saisir les ventes une à une</a>
-        <span class="texte-aide" id="statutReste" role="status"></span>
-      </div>
-    </section>
 
     <a class="lien-brancher-caisse" id="lienBrancherCaisse" href="parametres.html#caisse" hidden>Branche ta caisse : tes ventes arrivent seules →</a>
-    <p class="bandeau-observation" id="bandeauObservation" hidden></p>
 
     <section class="claire-entete fournee-entete" aria-labelledby="titreFournee">
       <div class="fournee-entete-haut">
@@ -119,7 +107,6 @@
       var cuites = {};
       var epuises = {}; // « épuisé avant la fermeture » (rupture), facultatif
       var colonneEpuise = true;
-      var enObservation = false; // 2 semaines où le boulanger produit comme d'habitude
       var enBase = true;
       // Répartition par tranche horaire choisie par produit ({ nom: [40, 35, 25] }),
       // gardée dans le compte (user_metadata), sinon celle du rayon.
@@ -277,8 +264,8 @@
           var total = 0;
           var html = lignes.map(function (p) {
             var insuffisant = p.r.insuffisant;
-            var masque = insuffisant || enObservation;
-            var q = (insuffisant || enObservation) ? 0 : Math.ceil(p.r.quantite * facteur);
+            var masque = insuffisant;
+            var q = insuffisant ? 0 : Math.ceil(p.r.quantite * facteur);
             total += q;
             var id = 'enf-' + B.normaliser(p.nom).replace(/ /g, '-');
             var fiab = fiabiliteProduit(p);
@@ -289,7 +276,7 @@
               '<label for="' + id + '" class="ligne-fournee-nom"><span>' + echapper(p.nom) + '</span>' + (masque ? '' : texteDelta(p, q)) +
                 (fiab.peuSur && !repereUnique ? '<span class="repere-peu-sur">' + fiab.peuSur + '</span>' : '') + '</label>' +
               (masque
-                ? '<span class="ligne-fournee-chiffre"><span class="ligne-fournee-insuffisant">' + (enObservation ? 'Observation : produis comme d\'habitude' : 'Pas assez d\'historique (' + p.r.nbMemeJour + ' ' + p.r.nomJourCible + (p.r.nbMemeJour > 1 ? 's' : '') + ')') + '</span></span>'
+                ? '<span class="ligne-fournee-chiffre"><span class="ligne-fournee-insuffisant">' + 'Pas assez d\'historique (' + p.r.nbMemeJour + ' ' + p.r.nomJourCible + (p.r.nbMemeJour > 1 ? 's' : '') + ')' + '</span></span>'
                 : '<span class="ligne-fournee-chiffre"><span class="ligne-fournee-quantite">' + q + '</span><span class="ligne-fournee-tranches">' + texteTranches(p, q) + '</span></span>') +
               '<div class="ligne-fournee-cuit" id="' + id + '-cuit"' + (fait ? '' : ' hidden') + '>' +
                 '<span>Cuit</span>' +
@@ -302,7 +289,7 @@
               '</li>';
           }).join('');
           return '<section class="rayon" aria-labelledby="rayon-' + B.normaliser(rayon) + '">' +
-            '<h2 class="rayon-titre" id="rayon-' + B.normaliser(rayon) + '">' + rayon + (enObservation ? '' : ' <span class="rayon-total">' + total + ' pièces</span>') + '</h2>' +
+            '<h2 class="rayon-titre" id="rayon-' + B.normaliser(rayon) + '">' + rayon + ' <span class="rayon-total">' + total + ' pièces</span>' + '</h2>' +
             '<ul class="liste-fournee">' + html + '</ul></section>';
         }).join('');
         majProgression();
@@ -451,107 +438,20 @@
           carte.hidden = false;
           return;
         }
-        // Le soir (dès 17 h, jour ouvert), la journée en cours ; sinon hier.
-        function manquant(d) {
-          var iso = MP.versISO(d);
-          return ctx.joursFermeture.indexOf(d.getDay()) === -1 && !ctx.ventes.some(function (v) { return v.date_vente === iso; });
-        }
-        var maintenant = new Date();
-        var hier = MP.ajouterJours(maintenant, -1);
-        var ceSoir = maintenant.getHours() >= 17 && manquant(maintenant);
-        jourReste = ceSoir ? maintenant : (manquant(hier) ? hier : null);
+        var hier = MP.ajouterJours(new Date(), -1);
+        var isoHier = MP.versISO(hier);
+        var hierManquant = ctx.joursFermeture.indexOf(hier.getDay()) === -1 && !ctx.ventes.some(function (v) { return v.date_vente === isoHier; });
         ctx.sb.from('connexions_caisse').select('fournisseur, statut, derniere_synchro').eq('commercant_id', ctx.commercantId).then(function (r) {
           var caisseActive = (r.data || []).some(function (cx) {
             return cx.statut === 'active' && (cx.fournisseur !== 'export_email' || !!cx.derniere_synchro);
           });
           // Tant qu'aucune caisse n'est branchée : un lien vers le bon parcours.
           document.getElementById('lienBrancherCaisse').hidden = caisseActive;
-          if (caisseActive || !jourReste) return;
-          carte.querySelector('strong').textContent = ceSoir ? 'Fin de journée : ce qu\'il te reste' : 'Ce qu\'il te restait hier soir';
-          document.getElementById('texteSaisieHier').textContent = (ceSoir ? 'Moins d\'une minute' : MP.formatDateLongue(hier)) + ' : saisis seulement tes restes, les ventes se calculent seules.';
+          if (caisseActive || !hierManquant) return;
+          document.getElementById('texteSaisieHier').textContent = MP.formatDateLongue(hier) + ' : sans ces ventes, la prochaine fournée ne peut pas apprendre.';
           carte.hidden = false;
         }, function () {});
       }
-
-      // ---------- Saisie du soir : « il me reste N » (lot 4) ----------
-      var jourReste = null;
-      var panneauReste = document.getElementById('saisieReste');
-      var listeReste = document.getElementById('listeReste');
-      function ouvrirSaisieReste() {
-        var iso = MP.versISO(jourReste);
-        document.getElementById('titreReste').textContent = 'Ce qu\'il te reste, ' + MP.formatDateLongue(jourReste).toLowerCase();
-        listeReste.innerHTML = '<li class="texte-aide">Chargement…</li>';
-        panneauReste.hidden = false;
-        document.getElementById('carteSaisieHier').hidden = true;
-        ctx.sb.from('fournees').select('nom_produit, quantite_cuite').eq('commercant_id', ctx.commercantId).eq('date_fournee', iso).then(function (r) { return (r && r.data) || []; }, function () { return []; }).then(function (lignes) {
-          // Cuit : la fournée cochée ce jour-là, sinon la prévision (modifiable).
-          var cuitsJour = {};
-          lignes.forEach(function (l) { cuitsJour[MP.formatNomAffichage(l.nom_produit)] = l.quantite_cuite; });
-          var produits = C.prevoirJour(ctx, jourReste).map(function (p) {
-            var coche = typeof cuitsJour[p.nom] === 'number';
-            return { nom: p.nom, cuit: coche ? cuitsJour[p.nom] : (p.r.insuffisant ? null : p.r.quantite), coche: coche };
-          }).sort(function (a, b) { return (b.cuit || 0) - (a.cuit || 0); });
-          listeReste.innerHTML = produits.map(function (p, i) {
-            var id = 'reste-' + i;
-            return '<li class="ligne-reste" data-nom="' + echapper(p.nom) + '">' +
-              '<span class="ligne-reste-nom">' + echapper(p.nom) +
-                '<label class="ligne-reste-cuit">Cuit <input type="number" class="champ-cuit" min="0" inputmode="numeric" value="' + (p.cuit === null ? '' : p.cuit) + '" placeholder="?" aria-label="Quantité cuite : ' + echapper(p.nom) + '">' + (p.coche ? '' : ' <span class="texte-aide--discret">prévu</span>') + '</label></span>' +
-              '<span class="stepper"><button type="button" class="stepper-bouton" data-pas-reste="-1" aria-label="Une de moins : ' + echapper(p.nom) + '">−</button>' +
-                '<input type="number" class="stepper-valeur champ-reste" id="' + id + '" min="0" inputmode="numeric" value="0" aria-label="Il me reste : ' + echapper(p.nom) + '">' +
-                '<button type="button" class="stepper-bouton" data-pas-reste="1" aria-label="Une de plus : ' + echapper(p.nom) + '">+</button></span>' +
-              '<span class="ligne-reste-vendu" aria-live="polite"></span></li>';
-          }).join('');
-          majVendus();
-        });
-      }
-      function lireLigneReste(li) {
-        var cuit = li.querySelector('.champ-cuit').value;
-        var reste = Math.max(0, parseInt(li.querySelector('.champ-reste').value, 10) || 0);
-        return { nom: li.getAttribute('data-nom'), cuit: cuit === '' ? null : Math.max(0, parseInt(cuit, 10) || 0), reste: reste };
-      }
-      function majVendus() {
-        listeReste.querySelectorAll('.ligne-reste').forEach(function (li) {
-          var l = lireLigneReste(li);
-          li.querySelector('.ligne-reste-vendu').textContent = l.cuit === null ? '' : Math.max(0, l.cuit - l.reste) + ' vendus';
-        });
-      }
-      listeReste.addEventListener('click', function (e) {
-        var pas = e.target.closest('[data-pas-reste]');
-        if (!pas) return;
-        var champ = pas.parentNode.querySelector('.champ-reste');
-        champ.value = Math.max(0, (parseInt(champ.value, 10) || 0) + parseInt(pas.getAttribute('data-pas-reste'), 10));
-        majVendus();
-      });
-      listeReste.addEventListener('input', majVendus);
-      document.getElementById('carteSaisieHier').addEventListener('click', function (e) {
-        if (!jourReste) return; // ventes périmées : saisie jour par jour dans Ventes
-        e.preventDefault();
-        ouvrirSaisieReste();
-      });
-      document.getElementById('btnEnregistrerReste').addEventListener('click', function () {
-        var bouton = this, statut = document.getElementById('statutReste');
-        var iso = MP.versISO(jourReste);
-        var lignes = Array.prototype.map.call(listeReste.querySelectorAll('.ligne-reste'), lireLigneReste).filter(function (l) { return l.cuit !== null; });
-        if (!lignes.length) { statut.textContent = 'Indique au moins une quantité cuite.'; return; }
-        bouton.disabled = true;
-        statut.textContent = 'Enregistrement…';
-        var noms = lignes.map(function (l) { return l.nom; });
-        var ventes = lignes.map(function (l) { return { commercant_id: ctx.commercantId, date_vente: iso, nom_produit: l.nom, quantite: Math.max(0, l.cuit - l.reste), source: 'reste' }; });
-        var fournees = lignes.map(function (l) { return { commercant_id: ctx.commercantId, date_fournee: iso, nom_produit: l.nom, quantite_cuite: l.cuit, maj: new Date().toISOString() }; });
-        // Comme la saisie des Ventes : la journée remplace les lignes déjà saisies.
-        ctx.sb.from('ventes').delete().eq('commercant_id', ctx.commercantId).eq('date_vente', iso).in('nom_produit', noms).then(function () {
-          return ctx.sb.from('ventes').insert(ventes);
-        }).then(function (r) {
-          if (r && r.error) throw r.error;
-          return ctx.sb.from('fournees').upsert(fournees);
-        }).then(function () {
-          statut.textContent = 'Journée enregistrée : ' + ventes.reduce(function (s, v) { return s + v.quantite; }, 0) + ' pièces vendues.';
-          setTimeout(function () { window.location.reload(); }, 1200);
-        }).catch(function () {
-          bouton.disabled = false;
-          statut.textContent = 'Pas de réseau : rien n\'est perdu, réessaie dans un instant.';
-        });
-      });
 
       C.charger().then(function (c) {
         ctx = c;
@@ -565,14 +465,6 @@
         aujourdhuiOuvert = ctx.joursFermeture.indexOf(maintenant.getDay()) === -1;
         choisirJour(maintenant.getHours() < 12 && aujourdhuiOuvert ? 'aujourdhui' : 'demain');
         afficherCarteSaisieHier();
-        var obs = MP.referenceAvant(ctx.parametres, [], [], MP.versISO(new Date()));
-        if (obs.enCours) {
-          enObservation = true;
-          var bandeauObs = document.getElementById('bandeauObservation');
-          bandeauObs.textContent = 'Observation, jour ' + obs.jour + ' sur 14 : produis comme d\'habitude et coche ce que tu enfournes. À Point mesure tes invendus de départ.';
-          bandeauObs.hidden = false;
-        }
-
         if (ctx.ventes.length === 0) {
           listeEl.innerHTML = '<div class="carte-vide-claire">Pas encore de ventes : <a href="parametres.html#caisse">branche ta caisse</a> (tes 12 derniers mois arrivent d\'un coup) ou ajoute la journée d\'hier depuis <a href="parametres.html#donnees">Paramètres &gt; Mes données</a>.</div>';
           return;

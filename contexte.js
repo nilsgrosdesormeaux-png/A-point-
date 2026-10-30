@@ -155,7 +155,33 @@
     return MP.prochainJourOuvert(new Date(), ctx.joursFermeture);
   }
 
+  // Farine (kg) contenue dans les ventes d'une période : fiche du boulanger
+  // si elle existe, sinon recette type. Sert à la référence « avant ».
+  function farineVendue(ctx, debut, fin) {
+    var ficheParNom = {};
+    ctx.produits.forEach(function (p) {
+      var lignes = ctx.ingredients.filter(function (l) { return String(l.produit_id) === String(p.id); });
+      if (lignes.length) ficheParNom[MP.cleProduit(p.nom)] = lignes.map(function (l) { return [l.nom_ingredient, Number(l.quantite) || 0, l.unite]; });
+    });
+    var parPiece = {};
+    function farineParPiece(nom) {
+      if (parPiece[nom] === undefined) {
+        var type = B.recetteType(nom);
+        var lignes = ficheParNom[MP.cleProduit(nom)] || (type ? type.ingredients : []);
+        parPiece[nom] = lignes.reduce(function (s, l) {
+          var base = B.versUniteBase(l[1], l[2]);
+          return s + (base.unite === 'kg' && B.normaliser(l[0]).indexOf('farine') !== -1 ? base.quantite : 0);
+        }, 0);
+      }
+      return parPiece[nom];
+    }
+    return ctx.ventes.reduce(function (s, v) {
+      return v.date_vente >= debut && v.date_vente <= fin && B.estCuit(v.nom_produit) ? s + v.quantite * farineParPiece(v.nom_produit) : s;
+    }, 0);
+  }
+
   window.ContexteBoulangerie = {
+    farineVendue: farineVendue,
     client: client,
     charger: charger,
     enrichir: enrichir,

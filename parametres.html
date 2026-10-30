@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Paramètres</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101a">
+  <link rel="stylesheet" href="style.css?v=20261101b">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="nav.js?v=20261031"></script>
   <script src="caisse-utilisee.js?v=20261031"></script>
@@ -86,16 +86,14 @@
         <!-- Lot 2 point 9 : référence « avant À Point » pour mesurer honnêtement le gaspillage. -->
         <section id="avant" aria-labelledby="titreAvant">
           <h2 class="section-titre" id="titreAvant">Avant À Point</h2>
-          <p class="texte-aide">Pour savoir ce que l'appli te fait vraiment gagner, il faut savoir d'où tu pars. Le plus fiable : 2 semaines d'observation, où tu produis comme d'habitude et coches ce que tu enfournes.</p>
-          <button type="button" id="btnObservation" class="bouton-secondaire">Démarrer 2 semaines d'observation</button>
-          <p class="texte-aide" id="etatObservation" role="status"></p>
-          <p class="texte-aide" style="margin-top:var(--espace-4);">À défaut, réponds à 3 questions (une estimation) :</p>
+          <p class="texte-aide">Pour savoir ce que l'appli te fait gagner, il faut ton point de départ. Rien à saisir chaque jour : on compare la farine que tu as achetée sur une période à celle réellement vendue (tes ventes × tes recettes). L'écart, c'est ta surproduction d'avant. Sans ces chiffres, on prend la moyenne nationale (environ 10 %), signalée comme estimation.</p>
+          <p class="texte-aide">Prends tes factures de meunier d'une période passée (idéalement 12 mois) :</p>
           <div class="ligne-form">
-            <div><label for="avantProduction">Pièces produites un samedi normal</label><input type="number" id="avantProduction" min="0" inputmode="numeric" placeholder="Ex : 600"></div>
-            <div><label for="avantReste">Pièces qui restent le soir</label><input type="number" id="avantReste" min="0" inputmode="numeric" placeholder="Ex : 50"></div>
+            <div><label for="achatFarine">Farine achetée (kg)</label><input type="number" id="achatFarine" min="0" inputmode="numeric" placeholder="Ex : 12000"></div>
+            <div><label for="achatDebut">Du</label><input type="date" id="achatDebut"></div>
+            <div><label for="achatFin">Au</label><input type="date" id="achatFin"></div>
           </div>
-          <label class="case-consentement"><input type="checkbox" id="avantDons"> Je donne mes invendus (Too Good To Go, associations…)</label>
-          <button type="button" id="btnAvant" class="bouton-secondaire">Enregistrer mes réponses</button>
+          <button type="button" id="btnAvant" class="bouton-secondaire">Enregistrer mes achats</button>
           <span class="texte-aide" id="messageAvant" role="status"></span>
         </section>
 
@@ -224,12 +222,12 @@
           if (!parametres) return;
           if (parametres.caisse) window.CaisseUtilisee.definir('selectCaisse', 'autreCaisse', parametres.caisse);
           var rep = parametres.reference_avant || (session.user.user_metadata && session.user.user_metadata.reference_avant);
-          if (rep) {
-            document.getElementById('avantProduction').value = rep.production || '';
-            document.getElementById('avantReste').value = rep.reste !== undefined && rep.reste !== null ? rep.reste : '';
-            document.getElementById('avantDons').checked = !!rep.dons;
+          referenceAvantActuelle = rep || {};
+          if (rep && rep.achats) {
+            document.getElementById('achatFarine').value = rep.achats.farine_kg || '';
+            document.getElementById('achatDebut').value = rep.achats.debut || '';
+            document.getElementById('achatFin').value = rep.achats.fin || '';
           }
-          afficherObservation(parametres.observation_debut);
           inputNomRestaurantEl.value = parametres.nom_restaurant || '';
           inputCodePostalEl.value = parametres.code_postal || '';
           inputVilleEl.value = parametres.ville || '';
@@ -248,13 +246,7 @@
         });
       }
 
-      function afficherObservation(debut) {
-        var el = document.getElementById('etatObservation');
-        if (!debut) { el.textContent = ''; return; }
-        var d = new Date(debut + 'T00:00:00');
-        var fin = new Date(d); fin.setDate(fin.getDate() + 14);
-        el.textContent = (fin > new Date() ? 'Observation en cours depuis le ' : 'Observation faite à partir du ') + d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) + '.';
-      }
+      var referenceAvantActuelle = {};
 
       // Colonnes du lot 2 : enregistrées à part, pour ne jamais bloquer le
       // reste des réglages si la migration n'est pas encore passée.
@@ -264,16 +256,17 @@
           messageEl.textContent = r && r.error ? 'Pas encore disponible, réessaie plus tard.' : texteOk;
         }, function () { messageEl.textContent = 'Impossible d\'enregistrer, vérifie ta connexion.'; });
       }
+      // Farine achetée sur une période : la référence « avant » se calcule seule.
       document.getElementById('btnAvant').addEventListener('click', function () {
-        var production = parseInt(document.getElementById('avantProduction').value, 10);
-        var reste = parseInt(document.getElementById('avantReste').value, 10);
+        var kg = Number(document.getElementById('achatFarine').value);
+        var debut = document.getElementById('achatDebut').value, fin = document.getElementById('achatFin').value;
         var msg = document.getElementById('messageAvant');
-        if (!(production > 0) || isNaN(reste) || reste < 0) { msg.textContent = 'Indique la production et le reste du soir.'; return; }
-        enregistrerAvant({ reference_avant: { production: production, reste: reste, dons: document.getElementById('avantDons').checked } }, msg, 'Réponses enregistrées.');
-      });
-      document.getElementById('btnObservation').addEventListener('click', function () {
-        var n = new Date(); var aujourdhui = n.getFullYear() + '-' + ('0' + (n.getMonth() + 1)).slice(-2) + '-' + ('0' + n.getDate()).slice(-2);
-        enregistrerAvant({ observation_debut: aujourdhui }, document.getElementById('etatObservation'), 'Observation démarrée : produis comme d\'habitude et coche ta fournée pendant 14 jours.');
+        if (!(kg > 0) || !debut || !fin || debut >= fin) { msg.textContent = 'Indique les kilos de farine et une période (du … au …).'; return; }
+        var ref = {};
+        Object.keys(referenceAvantActuelle).forEach(function (k) { ref[k] = referenceAvantActuelle[k]; });
+        ref.achats = { farine_kg: kg, debut: debut, fin: fin };
+        referenceAvantActuelle = ref;
+        enregistrerAvant({ reference_avant: ref }, msg, 'Enregistré : le Bilan compare maintenant à ta vraie surproduction d\'avant.');
       });
 
       btnEnregistrerCommerceEl.addEventListener('click', function () {

@@ -1387,7 +1387,7 @@ body.ecran-fournil .ligne-fournee-cuit .valeur-cuite { width: 96px; min-height: 
 .effet-affluence { width: 100%; margin: var(--espace-1) 0 0; }
 .ligne-commande-nom .texte-aide--discret + .texte-aide--discret { margin-top: 1px; }
 
-/* ---------- Lot 4 : saisie du soir et fournées horaires ---------- */
+/* ---------- Lot 4 : fournées horaires ---------- */
 .ligne-fournee-tranches { display: flex; gap: var(--espace-2); margin-top: 6px; font-size: var(--texte-xs); color: var(--couleur-texte-3); white-space: nowrap; }
 .ligne-fournee-tranches strong { color: var(--couleur-texte-2); font-weight: 600; }
 .ligne-fournee--faite .ligne-fournee-tranches { opacity: .6; }
@@ -1395,15 +1395,45 @@ body.ecran-fournil .ligne-fournee-tranches { font-size: clamp(16px, 2vw, 22px); 
 .tranches-reglage { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espace-2); }
 .tranches-reglage label { display: inline-flex; align-items: center; gap: 4px; margin: 0; font-weight: 500; }
 .tranches-reglage input { width: 58px; padding: 4px 6px; text-align: center; }
-.saisie-reste { margin-bottom: var(--espace-5); padding: var(--espace-4); background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md); box-shadow: var(--ombre-carte); }
-.saisie-reste h2 { margin: 0 0 var(--espace-1); font-size: var(--texte-lg); }
-.liste-reste { list-style: none; margin: var(--espace-3) 0; padding: 0; }
-.ligne-reste { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "nom stepper" "nom vendu"; align-items: center; column-gap: var(--espace-3); padding: var(--espace-2) 0; }
-.ligne-reste + .ligne-reste { border-top: 1px solid var(--couleur-bordure); }
-.ligne-reste-nom { grid-area: nom; display: flex; flex-direction: column; gap: 4px; font-weight: 500; }
-.ligne-reste-cuit { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: var(--texte-xs); font-weight: 400; color: var(--couleur-texte-3); }
-.ligne-reste-cuit input { width: 64px; padding: 4px 6px; }
-.ligne-reste .stepper { grid-area: stepper; }
-.ligne-reste .stepper-valeur { width: 56px; text-align: center; font-weight: 600; -moz-appearance: textfield; }
-.ligne-reste-vendu { grid-area: vendu; justify-self: end; font-size: var(--texte-xs); color: var(--couleur-texte-3); }
-.saisie-reste-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espace-3); }
+/* Lot 4 : fournisseurs simplifiés et recettes modifiables sur place. */
+.fournisseur-entete { align-items: flex-start; }
+.fournisseur-entete:has(.fournisseur-livraison) { flex-direction: column; gap: 2px; }
+.fournisseur-livraison { margin: 0; text-align: left; font-weight: 600; font-size: var(--texte-sm); }
+.fournisseur-livraison small { display: block; font-weight: 400; font-size: var(--texte-xs); color: var(--couleur-texte-3); }
+.commande-articles { list-style: none; margin: var(--espace-2) 0 0; padding: 0; }
+.commande-articles li { display: flex; justify-content: space-between; align-items: baseline; gap: var(--espace-3); padding: var(--espace-3) 0; border-top: 1px solid var(--couleur-bordure); }
+.commande-articles li > span { font-weight: 500; }
+.commande-articles small { display: block; font-weight: 400; font-size: var(--texte-xs); color: var(--couleur-texte-3); }
+.commande-articles strong { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-weight: 600; font-size: var(--texte-lg); text-align: right; white-space: nowrap; }
+.commande-rien { margin: var(--espace-2) 0 0; color: var(--couleur-succes); font-weight: 500; }
+.commande-en-stock { margin: var(--espace-2) 0 0; }
+.fournisseur-envoyer { width: 100%; margin-top: var(--espace-3); }
+.fournisseur-stock { border: 0; padding: 0; margin: var(--espace-4) 0 var(--espace-3); }
+.fournisseur-stock legend { font-weight: 500; padding: 0; margin-bottom: var(--espace-2); }
+.stock-ligne { display: flex; align-items: center; gap: var(--espace-2); margin: 0 0 var(--espace-2); font-weight: 400; }
+.stock-ligne > span:first-child { flex: 1; }
+.stock-ligne input { width: 88px; min-height: 36px; padding: 4px 8px; }
+#titreRecettes { margin-top: var(--espace-7, 48px); }
+.recette { background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md); box-shadow: var(--ombre-carte); padding: var(--espace-4); }
+.recette + .recette { margin-top: var(--espace-3); }
+.recette-entete { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: var(--espace-2); }
+.recette-entete h3 { margin: 0; font-size: var(--texte-md); }
+.recette-etat { font-size: var(--texte-xs); font-weight: 600; color: var(--couleur-alerte); }
+.recette-etat--ok { color: var(--couleur-succes); }
+.recette-aide { margin: 2px 0 0; }
+.recette-ingredients { list-style: none; margin: var(--espace-2) 0; padding: 0; }
+.ingredient { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "nom retirer" "quantite quantite"; align-items: center; gap: var(--espace-2); padding: var(--espace-2) 0; border-top: 1px solid var(--couleur-bordure); }
+.ingredient-nom { grid-area: nom; min-height: 36px; padding: 4px 8px; font-weight: 500; }
+.ingredient-retirer { grid-area: retirer; width: 36px; height: 36px; min-height: 36px; margin: 0; padding: 0; font-size: 20px; color: var(--couleur-texte-3); background: none; border: 0; box-shadow: none !important; }
+.ingredient-quantite { grid-area: quantite; display: flex; align-items: center; gap: var(--espace-2); }
+.ingredient-valeur { width: 84px; text-align: center; font-size: var(--texte-lg); font-weight: 600; -moz-appearance: textfield; }
+.ingredient-valeur::-webkit-inner-spin-button, .ingredient-valeur::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.ingredient-unite { width: auto; min-width: 72px; font-size: var(--texte-md); font-weight: 600; }
+.recette-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espace-3); }
+@media (min-width: 700px) {
+  .ingredient { grid-template-columns: 1fr auto auto; grid-template-areas: "nom quantite retirer"; }
+}
+.carte-kpi--gain #ligneVentesRecuperees { margin-top: 4px; opacity: .8; }
+.bilan-detail { margin-top: var(--espace-4); }
+.bilan-detail > summary { cursor: pointer; padding: var(--espace-2) 0; font-weight: 500; color: var(--couleur-texte-2); }
+.bilan-detail[open] > summary { margin-bottom: var(--espace-3); }

@@ -176,21 +176,15 @@ test('recette : correspondance exacte d\'abord', () => {
   assert.equal(B.deduireRayon('Café'), 'Boissons');
 });
 
-test('référence avant : nationale estimée, réponses, observation mesurée', () => {
-  const ventes = [], fournees = [];
-  for (let d = jour('2026-09-01'); d < jour('2026-09-15'); d = MP.ajouterJours(d, 1)) {
-    const iso = MP.versISO(d);
-    ventes.push({ nom_produit: 'Baguette', date_vente: iso, quantite: 89 });
-    fournees.push({ nom_produit: 'Baguette', date_fournee: iso, quantite_cuite: 100, epuise: false });
-  }
+test('référence avant : nationale estimée, réponses, farine achetée − vendue', () => {
   const nat = MP.referenceAvant(null, [], [], '2026-10-30');
   assert.equal(nat.nature, 'estimé'); assert.equal(nat.taux, 0.10); assert.ok(nat.source);
   const rep = MP.referenceAvant({ reference_avant: { production: 400, reste: 40 } }, [], [], '2026-10-30');
   assert.equal(rep.nature, 'estimé'); assert.equal(rep.taux, 0.1);
-  const obs = MP.referenceAvant({ observation_debut: '2026-09-01' }, fournees, ventes, '2026-10-30');
-  assert.equal(obs.nature, 'mesuré'); assert.ok(Math.abs(obs.taux - 0.11) < 1e-9);
-  const enCours = MP.referenceAvant({ observation_debut: '2026-10-25' }, fournees, ventes, '2026-10-30');
-  assert.equal(enCours.enCours, true); assert.equal(enCours.jour, 6);
+  const achats = { reference_avant: { achats: { farine_kg: 1000, debut: '2025-01-01', fin: '2025-12-31' } } };
+  const calc = MP.referenceAvant(achats, [], [], '2026-10-30', () => 880);
+  assert.equal(calc.nature, 'calculé'); assert.ok(Math.abs(calc.taux - 0.12) < 1e-9);
+  assert.equal(MP.referenceAvant(achats, [], [], '2026-10-30', () => 0).nature, 'estimé');
 });
 
 test('lot 3 : non cuits, sarrasin, farines fusionnées', () => {

@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Commande</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101a">
+  <link rel="stylesheet" href="style.css?v=20261101b">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <script src="moteur-prevision.js?v=20261031h"></script>
-  <script src="boulangerie.js?v=20261101a"></script>
-  <script src="contexte.js?v=20261031h"></script>
+  <script src="moteur-prevision.js?v=20261101b"></script>
+  <script src="boulangerie.js?v=20261101b"></script>
+  <script src="contexte.js?v=20261101b"></script>
   <script src="nav.js?v=20261031"></script>
 </head>
 <body>
@@ -38,9 +38,12 @@
     <p id="statutConnexion" class="texte-aide">Chargement…</p>
 
     <div id="zoneCommande" hidden>
-      <p class="texte-aide" id="textePeriode">Chaque commande couvre de la livraison jusqu'à la suivante. Le stock se reprend d'une commande à l'autre.</p>
+      <p class="texte-aide" id="textePeriode" hidden>Chaque commande couvre de la livraison jusqu'à la suivante. Le stock se reprend d'une commande à l'autre.</p>
       <p class="texte-aide" id="noteRecettes" hidden></p>
       <div id="listeFournisseurs"></div>
+      <h2 class="section-titre" id="titreRecettes">Tes recettes</h2>
+      <p class="texte-aide">Ingrédients pour une pièce. Change une quantité, puis Enregistrer : la commande se met à jour.</p>
+      <div id="listeRecettes"></div>
     </div>
   </div>
 
@@ -199,30 +202,60 @@
         return { reste: reste, commande: commande, achat: achat, achatTexte: achatTexte, explication: besoinTxt + stockTxt };
       }
 
-      function libelleRecette(lignes) {
-        return lignes.map(function (l) {
-          var q = Number(l[1]), u = l[2];
-          var txt = u === 'kg' && q < 1 ? Math.round(q * 1000) + ' g' : (u === 'L' && q < 1 ? Math.round(q * 1000) + ' mL' : String(q).replace('.', ',') + ' ' + u);
-          return echapper(l[0]) + ' ' + txt;
-        }).join(', ');
+      // ---------- Recettes : modifiables sur place (lot 4) ----------
+      // Une recette s'affiche comme une liste d'ingrédients par pièce, avec
+      // quantité et unité en gros et − / +. Enregistrer remplace la fiche.
+      var UNITES = ['g', 'kg', 'mL', 'L', 'pièce'];
+      function versAffichage(q, unite) {
+        var u = B.normaliser(unite || '');
+        if (u === 'kg' && q < 1) return { q: Math.round(q * 10000) / 10, u: 'g' };
+        if (u === 'l' && q < 1) return { q: Math.round(q * 10000) / 10, u: 'mL' };
+        if (u === 'kg') return { q: q, u: 'kg' };
+        if (u === 'l') return { q: q, u: 'L' };
+        if (u === 'g') return { q: q, u: 'g' };
+        if (u === 'ml') return { q: q, u: 'mL' };
+        return { q: q, u: 'pièce' };
+      }
+      function pasPour(u) { return u === 'g' || u === 'mL' ? 5 : (u === 'pièce' ? 1 : 0.1); }
+      function ligneIngredient(nom, q, u) {
+        return '<li class="ingredient">' +
+          '<input type="text" class="ingredient-nom" value="' + echapper(nom) + '" aria-label="Ingrédient" placeholder="Ingrédient">' +
+          '<span class="ingredient-quantite"><button type="button" class="stepper-bouton" data-pas-ing="-1" aria-label="Moins">−</button>' +
+          '<input type="number" class="ingredient-valeur" min="0" step="any" inputmode="decimal" value="' + q + '" aria-label="Quantité par pièce">' +
+          '<button type="button" class="stepper-bouton" data-pas-ing="1" aria-label="Plus">+</button>' +
+          '<select class="ingredient-unite" aria-label="Unité">' + UNITES.map(function (x) { return '<option' + (x === u ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></span>' +
+          '<button type="button" class="ingredient-retirer" data-retirer aria-label="Retirer ' + echapper(nom) + '">×</button></li>';
+      }
+      function afficherRecettes(fiches) {
+        var noms = Object.keys(fiches).sort(function (a, b) {
+          return (fiches[a].fiche ? 1 : 0) - (fiches[b].fiche ? 1 : 0) || a.localeCompare(b, 'fr');
+        });
+        document.getElementById('listeRecettes').innerHTML = noms.map(function (nom) {
+          var f = fiches[nom];
+          var lignes = f.fiche
+            ? f.fiche.map(function (l) { var a = versAffichage(Number(l.quantite) || 0, l.unite); return ligneIngredient(l.nom_ingredient, a.q, a.u); })
+            : (f.type ? f.type.ingredients.map(function (l) { var a = versAffichage(Number(l[1]), l[2]); return ligneIngredient(l[0], a.q, a.u); }) : []);
+          var etat = f.fiche ? '<span class="recette-etat recette-etat--ok">Ta recette, modifiable</span>'
+            : '<span class="recette-etat">' + (f.type ? 'Recette type à vérifier' : 'Recette à compléter') + ' : ne compte pas encore</span>';
+          return '<section class="recette" data-nom="' + echapper(nom) + '">' +
+            '<div class="recette-entete"><h3>' + echapper(nom) + '</h3>' + etat + '</div>' +
+            '<p class="texte-aide--discret recette-aide">Pour une pièce</p>' +
+            '<ul class="recette-ingredients">' + lignes.join('') + '</ul>' +
+            '<div class="recette-actions"><button type="button" class="lien-discret" data-ajouter>+ Ajouter un ingrédient</button>' +
+            '<button type="button" class="bouton-principal" data-enregistrer-recette>' + (f.fiche ? 'Enregistrer' : 'Enregistrer, c\'est ma recette') + '</button>' +
+            '<span class="texte-aide" role="status"></span></div></section>';
+        }).join('');
       }
 
       function afficher() {
         cacheProduction = {};
         cacheConso = {};
         var fiches = fichesParProduit();
-
-        // Recettes à voir et valider une fois (aucune recette appliquée en silence).
         var aValider = Object.keys(fiches).filter(function (n) { return !fiches[n].fiche; });
         var note = document.getElementById('noteRecettes');
-        note.innerHTML = aValider.length ? '<strong>' + aValider.length + ' recette' + (aValider.length > 1 ? 's' : '') + ' à valider</strong> : tant qu\'elle n\'est pas validée, un produit ne compte pas dans la commande.' +
-          '<ul class="recettes-a-valider">' + aValider.map(function (n) {
-            var f = fiches[n];
-            return '<li><span><strong>' + echapper(n) + '</strong>' + (f.type ? ' : ' + libelleRecette(f.type.ingredients) + ' <span class="texte-aide--discret">(recette type, par pièce)</span>' : ' : pas de recette type connue') + '</span>' +
-              '<span class="recettes-actions">' + (f.type && f.produit ? '<button type="button" class="bouton-secondaire" data-valider="' + echapper(n) + '">C\'est ma recette</button>' : '') +
-              '<a href="produits.html">' + (f.type ? 'Modifier' : 'Ajouter sa recette') + '</a></span></li>';
-          }).join('') + '</ul>' : '';
+        note.innerHTML = '<strong>' + aValider.length + ' recette' + (aValider.length > 1 ? 's' : '') + ' à vérifier</strong> : un produit compte dans la commande dès que sa recette est enregistrée. <a href="#titreRecettes">Voir les recettes</a>';
         note.hidden = aValider.length === 0;
+        afficherRecettes(fiches);
 
         derniereCommande = {};
         var sections = B.FOURNISSEURS.map(function (f) {
@@ -233,48 +266,44 @@
           if (!cles.length) return '';
           var jusqua = MP.formatDateLongue(horizon.jours[horizon.jours.length - 1]).toLowerCase();
           derniereCommande[f.cle] = [];
-          var html = cles.map(function (cle) {
+          var articles = '', enStock = [], stocksHtml = '';
+          cles.forEach(function (cle) {
             var b = besoins[cle];
             var estimation = stockEstime(cle, fiches);
-            var stock = estimation.q;
-            var l = ligneACommander(b, stock);
-            derniereCommande[f.cle].push({ cle: cle, nom: b.nom, texte: l.achatTexte, stock: stock, commande: l.commande, livraison: MP.versISO(horizon.livraison) });
+            var l = ligneACommander(b, estimation.q);
+            derniereCommande[f.cle].push({ cle: cle, nom: b.nom, texte: l.achatTexte, stock: estimation.q, commande: l.commande, livraison: MP.versISO(horizon.livraison) });
+            if (l.reste === 0) enStock.push(b.nom);
+            else articles += '<li><span>' + echapper(b.nom) + '<small>' + l.explication + ', pour ' + echapper(b.produits.slice(0, 2).join(', ')) + (b.produits.length > 2 ? '…' : '') + '</small></span><strong>' + echapper(l.achat) + '</strong></li>';
             // Stock dans l'unité de l'ingrédient : petites quantités en grammes.
             var enGrammes = b.unite === 'kg' && b.quantite < 2;
-            var uniteStock = enGrammes ? 'g' : (b.unite === 'pièce' ? 'pièces' : b.unite);
-            var valeurStock = stock ? (enGrammes ? Math.round(stock * 1000) : Math.round(stock * 10) / 10) : '';
-            return '<li class="ligne-commande' + (l.reste === 0 ? ' ligne-commande--couverte' : '') + '">' +
-              '<span class="ligne-commande-nom">' + echapper(b.nom) + '<span class="texte-aide--discret">' + l.explication + ' jusqu\'au ' + jusqua + '</span>' +
-                '<span class="texte-aide--discret">Pour ' + echapper(b.produits.slice(0, 3).join(', ')) + (b.produits.length > 3 ? '…' : '') + '</span></span>' +
-              '<span class="ligne-commande-quantite">' + echapper(l.achat) + '</span>' +
-              '<label class="ligne-commande-stock">Il me reste <input type="number" min="0" step="any" inputmode="decimal" data-cle="' + echapper(cle) + '" data-grammes="' + (enGrammes ? '1' : '') + '" value="' + valeurStock + '" placeholder="0"> ' + uniteStock + (estimation.estime ? ' <span class="texte-aide--discret">estimé</span>' : '') + '</label>' +
-              '</li>';
-          }).join('');
+            var valeurStock = estimation.q ? (enGrammes ? Math.round(estimation.q * 1000) : Math.round(estimation.q * 10) / 10) : '';
+            stocksHtml += '<label class="stock-ligne"><span>' + echapper(b.nom) + '</span><input type="number" min="0" step="any" inputmode="decimal" data-cle="' + echapper(cle) + '" data-grammes="' + (enGrammes ? '1' : '') + '" value="' + valeurStock + '" placeholder="0"> ' +
+              (enGrammes ? 'g' : (b.unite === 'pièce' ? 'pièces' : b.unite)) + (estimation.estime ? ' <span class="texte-aide--discret">estimé</span>' : '') + '</label>';
+          });
           var joursCases = [1, 2, 3, 4, 5, 6, 0].map(function (j) {
             var coche = (infos.jours && infos.jours.length ? infos.jours : LIVRAISONS_PAR_DEFAUT).indexOf(j) !== -1;
             return '<label class="case-jour"><input type="checkbox" data-jour="' + j + '"' + (coche ? ' checked' : '') + '> ' + JOURS_SEMAINE[j] + '</label>';
           }).join('');
-          var entete = 'Livraison ' + MP.formatDateLongue(horizon.livraison).toLowerCase() + ', couvre jusqu\'au ' + jusqua +
-            (horizon.parDefaut ? ' (mardi et vendredi par défaut)' : '');
+          var moyen = infos.telephone ? 'par WhatsApp' : (infos.email ? 'par e-mail' : '');
           return '<section class="fournisseur" data-fournisseur="' + f.cle + '" aria-labelledby="f-' + f.cle + '">' +
-            '<div class="fournisseur-entete"><h2 id="f-' + f.cle + '">' + f.nom + '</h2><span class="texte-aide">' + entete + '</span></div>' +
-            '<ul class="liste-commande">' + html + '</ul>' +
-            '<div class="fournisseur-envoi">' +
-              '<button type="button" class="bouton-secondaire" data-envoi="pdf">PDF</button>' +
-              '<button type="button" class="bouton-secondaire" data-envoi="email">E-mail</button>' +
-              '<button type="button" class="bouton-secondaire" data-envoi="whatsapp">WhatsApp</button>' +
-            '</div>' +
-            '<details class="fournisseur-reglages"><summary>Coordonnées et jours de livraison</summary>' +
+            '<div class="fournisseur-entete"><h2 id="f-' + f.cle + '">' + f.nom + '</h2>' +
+              '<p class="fournisseur-livraison">Livraison ' + MP.formatDateLongue(horizon.livraison).toLowerCase() + '<small>couvre jusqu\'au ' + jusqua + (horizon.parDefaut ? ', jours par défaut' : '') + '</small></p></div>' +
+            (articles ? '<ul class="commande-articles">' + articles + '</ul>' : '<p class="commande-rien">Rien à commander : ton stock suffit.</p>') +
+            (enStock.length ? '<p class="texte-aide--discret commande-en-stock">En stock : ' + echapper(enStock.join(', ')) + '</p>' : '') +
+            (articles ? '<button type="button" class="bouton-principal fournisseur-envoyer" data-envoyer>Envoyer au ' + f.nom.toLowerCase() + (moyen ? ' ' + moyen : '') + '</button>' : '') +
+            '<details class="fournisseur-reglages"><summary>Coordonnées, livraison et stock</summary>' +
               '<div class="ligne-form">' +
-                '<div><label for="email-' + f.cle + '">E-mail</label><input type="email" id="email-' + f.cle + '" data-champ="email" value="' + echapper(infos.email || '') + '" placeholder="commandes@exemple.fr"></div>' +
                 '<div><label for="tel-' + f.cle + '">Téléphone (WhatsApp)</label><input type="tel" id="tel-' + f.cle + '" data-champ="telephone" value="' + echapper(infos.telephone || '') + '" placeholder="06 12 34 56 78"></div>' +
+                '<div><label for="email-' + f.cle + '">E-mail</label><input type="email" id="email-' + f.cle + '" data-champ="email" value="' + echapper(infos.email || '') + '" placeholder="commandes@exemple.fr"></div>' +
               '</div>' +
               '<fieldset class="fournisseur-jours"><legend>Jours de livraison</legend><div class="grille-jours">' + joursCases + '</div></fieldset>' +
               '<button type="button" class="bouton-secondaire" data-action="enregistrer">Enregistrer</button> <span class="texte-aide" role="status"></span>' +
+              '<fieldset class="fournisseur-stock"><legend>Il me reste</legend>' + stocksHtml + '</fieldset>' +
+              '<button type="button" class="lien-discret" data-envoi="pdf">Télécharger le bon en PDF</button>' +
             '</details>' +
             '</section>';
         }).join('');
-        listeEl.innerHTML = sections || '<div class="carte-vide-claire">Rien à commander : valide d\'abord les recettes de tes produits ci-dessus.</div>';
+        listeEl.innerHTML = sections || '<div class="carte-vide-claire">Rien à commander : enregistre d\'abord les recettes de tes produits plus bas.</div>';
       }
 
       function textePdf(t) {
@@ -343,8 +372,18 @@
       listeEl.addEventListener('click', function (e) {
         var section = e.target.closest('.fournisseur');
         if (!section) return;
+        var cle = section.getAttribute('data-fournisseur');
         var envoi = e.target.closest('[data-envoi]');
-        if (envoi) envoyer(section.getAttribute('data-fournisseur'), envoi.getAttribute('data-envoi'));
+        if (envoi) envoyer(cle, envoi.getAttribute('data-envoi'));
+        if (e.target.closest('[data-envoyer]')) {
+          // Un seul bouton : WhatsApp si un numéro est connu, sinon e-mail,
+          // sinon le partage du téléphone, sinon le bon en PDF.
+          var infos = fournisseursInfos[cle] || {};
+          if (infos.telephone) envoyer(cle, 'whatsapp');
+          else if (infos.email) envoyer(cle, 'email');
+          else if (navigator.share) { memoriserCommande(cle); navigator.share({ text: texteCommande(cle) }).catch(function () {}); }
+          else envoyer(cle, 'pdf');
+        }
         if (e.target.closest('[data-action="enregistrer"]')) enregistrerFournisseur(section);
       });
 
@@ -358,26 +397,68 @@
         stocks[cle] = { q: e.target.getAttribute('data-grammes') ? v / 1000 : v, date: aujourdhui };
         if (ancien.commande && ancien.livraison > aujourdhui) { stocks[cle].commande = ancien.commande; stocks[cle].livraison = ancien.livraison; }
         sauverStocks();
+        var ouverts = Array.prototype.map.call(listeEl.querySelectorAll('details[open]'), function (d) { return d.closest('.fournisseur').getAttribute('data-fournisseur'); });
         afficher();
+        ouverts.forEach(function (c) { var d = listeEl.querySelector('[data-fournisseur="' + c + '"] details'); if (d) d.open = true; });
       });
 
-
-      // « C'est ma recette » : la recette type devient la fiche du produit.
-      document.getElementById('noteRecettes').addEventListener('click', function (e) {
-        var b = e.target.closest('[data-valider]');
-        if (!b) return;
-        var nom = b.getAttribute('data-valider');
+      // Recettes : − / +, ajout, retrait, enregistrement.
+      var recettesEl = document.getElementById('listeRecettes');
+      recettesEl.addEventListener('click', function (e) {
+        var recette = e.target.closest('.recette');
+        if (!recette) return;
+        var pas = e.target.closest('[data-pas-ing]');
+        if (pas) {
+          var li = pas.closest('.ingredient'), champ = li.querySelector('.ingredient-valeur');
+          var p = pasPour(li.querySelector('.ingredient-unite').value);
+          champ.value = Math.max(0, Math.round(((Number(champ.value) || 0) + p * parseInt(pas.getAttribute('data-pas-ing'), 10)) * 1000) / 1000);
+          return;
+        }
+        if (e.target.closest('[data-retirer]')) { e.target.closest('.ingredient').remove(); return; }
+        if (e.target.closest('[data-ajouter]')) {
+          recette.querySelector('.recette-ingredients').insertAdjacentHTML('beforeend', ligneIngredient('', '', 'g'));
+          recette.querySelector('.ingredient:last-child .ingredient-nom').focus();
+          return;
+        }
+        var bouton = e.target.closest('[data-enregistrer-recette]');
+        if (!bouton) return;
+        var nom = recette.getAttribute('data-nom');
         var f = fichesParProduit()[nom];
-        if (!f || !f.type || !f.produit) return;
-        b.disabled = true;
-        var lignes = f.type.ingredients.map(function (l) {
-          return { commercant_id: ctx.commercantId, produit_id: f.produit.id, nom_ingredient: l[0], quantite: l[1], unite: l[2] };
+        var statut = recette.querySelector('[role="status"]');
+        var anciennes = (f.fiche || []);
+        var lignes = Array.prototype.map.call(recette.querySelectorAll('.ingredient'), function (li) {
+          var n = li.querySelector('.ingredient-nom').value.trim(), q = Number(li.querySelector('.ingredient-valeur').value) || 0, u = li.querySelector('.ingredient-unite').value;
+          if (!n || q <= 0) return null;
+          // Prix d'achat gardé si l'ingrédient et l'unité n'ont pas changé.
+          var avant = anciennes.filter(function (l) { return B.normaliser(l.nom_ingredient) === B.normaliser(n) && l.unite === u; })[0];
+          return { commercant_id: ctx.commercantId, nom_ingredient: n, quantite: q, unite: u, cout_unitaire: avant ? avant.cout_unitaire : null };
+        }).filter(Boolean);
+        if (!lignes.length) { statut.textContent = 'Ajoute au moins un ingrédient.'; return; }
+        bouton.disabled = true;
+        statut.textContent = 'Enregistrement…';
+        // Produit vu dans les ventes mais pas encore créé : créé au passage.
+        var produit = f.produit ? Promise.resolve(f.produit) : ctx.sb.from('produits').insert({ commercant_id: ctx.commercantId, nom: nom }).select().then(function (r) {
+          if (!r || r.error || !r.data || !r.data[0]) throw (r && r.error) || new Error('produit');
+          ctx.produits.push(r.data[0]);
+          return r.data[0];
         });
-        ctx.sb.from('ingredients_produit').insert(lignes).select().then(function (r) {
-          if (r && r.error) { b.disabled = false; b.textContent = 'Réessayer'; return; }
-          ctx.ingredients = ctx.ingredients.concat(r && r.data && r.data.length ? r.data : lignes);
+        produit.then(function (p) {
+          f.produit = p;
+          lignes.forEach(function (l) { l.produit_id = p.id; });
+          return ctx.sb.from('ingredients_produit').delete().eq('commercant_id', ctx.commercantId).eq('produit_id', p.id);
+        }).then(function (r) {
+          if (r && r.error) throw r.error;
+          return ctx.sb.from('ingredients_produit').insert(lignes).select();
+        }).then(function (r) {
+          if (r && r.error) throw r.error;
+          ctx.ingredients = ctx.ingredients.filter(function (l) { return String(l.produit_id) !== String(f.produit.id); }).concat(r && r.data && r.data.length ? r.data : lignes);
           afficher();
-        }, function () { b.disabled = false; });
+          var nouvelle = recettesEl.querySelector('.recette[data-nom="' + nom.replace(/"/g, '\\"') + '"] [role="status"]');
+          if (nouvelle) nouvelle.textContent = 'Enregistrée. La commande est à jour.';
+        }).catch(function () {
+          bouton.disabled = false;
+          statut.textContent = 'Impossible d\'enregistrer, vérifie ta connexion.';
+        });
       });
 
       C.charger().then(function (c) {

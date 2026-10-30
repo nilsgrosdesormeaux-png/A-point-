@@ -1107,23 +1107,23 @@
       taux: cuit > 0 ? total / cuit : null };
   }
 
-  // Référence « avant À Point » (lot 2, point 9), par ordre de fiabilité :
-  // (a) 2 semaines d'observation mesurées, (b) réponses du boulanger,
-  // (c) ordre de grandeur national. Jamais présentée comme mesurée sauf (a).
+  // Référence « avant À Point », sans aucune saisie quotidienne (lot 4) :
+  // (a) farine achetée sur une période (factures du meunier, saisies une fois)
+  //     comparée à la farine réellement vendue (ventes × recettes) : l'écart
+  //     est la surproduction d'avant ; (b) anciennes réponses du boulanger ;
+  // (c) moyenne nationale ADEME, signalée comme estimation.
+  // farineVendue(debut, fin) : kg de farine contenus dans les ventes.
   var TAUX_NATIONAL_ESTIME = 0.10;
-  function referenceAvant(parametres, fournees, ventes, aujourdhuiIso) {
-    var debut = parametres && parametres.observation_debut;
-    if (debut) {
-      var fin = versISO(ajouterJours(new Date(debut + 'T00:00:00'), 14));
-      var obs = calculerInvendusReels(fournees, ventes, debut, fin < aujourdhuiIso ? fin : aujourdhuiIso);
-      if (fin <= aujourdhuiIso && obs.nbJours >= 5 && obs.taux !== null) {
-        return { taux: obs.taux, nature: 'mesuré', libelle: 'mesuré pendant tes 2 semaines d\'observation', epuisesParJour: obs.epuises / obs.nbJours };
-      }
-      if (fin > aujourdhuiIso) {
-        return { enCours: true, jour: Math.min(14, Math.round((new Date(aujourdhuiIso + 'T00:00:00') - new Date(debut + 'T00:00:00')) / 86400000) + 1), fin: fin };
+  function referenceAvant(parametres, fournees, ventes, aujourdhuiIso, farineVendue) {
+    var rep = parametres && parametres.reference_avant;
+    var achats = rep && rep.achats;
+    if (achats && Number(achats.farine_kg) > 0 && achats.debut && achats.fin && typeof farineVendue === 'function') {
+      var vendue = farineVendue(achats.debut, achats.fin);
+      if (vendue > 0) {
+        return { taux: Math.min(0.6, Math.max(0, 1 - vendue / Number(achats.farine_kg))), nature: 'calculé',
+          libelle: 'calculé d\'après ta farine achetée et tes ventes', source: Math.round(Number(achats.farine_kg)) + ' kg achetés, ' + Math.round(vendue) + ' kg vendus du ' + achats.debut.split('-').reverse().join('/') + ' au ' + achats.fin.split('-').reverse().join('/') };
       }
     }
-    var rep = parametres && parametres.reference_avant;
     if (rep && Number(rep.production) > 0 && rep.reste !== undefined && rep.reste !== null && rep.reste !== '') {
       return { taux: Math.min(1, Math.max(0, Number(rep.reste) / Number(rep.production))), nature: 'estimé', libelle: 'estimé d\'après tes réponses' };
     }
