@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Ventes</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261031e">
+  <link rel="stylesheet" href="style.css?v=20261031f">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -184,6 +184,7 @@
       var btnJourSuivant = document.getElementById('btnJourSuivant');
       var commercantId = null;
       var produits = [];
+      var nomsExistantsDuJour = []; // noms exacts en base pour le jour affiché
 
       // Retour utilisateur, 23 sept. 2026 : le titre "Mes ventes d'hier" ne
       // donnait aucune date précise, et il n'était possible de saisir que la
@@ -238,8 +239,8 @@
           input.setAttribute('data-produit', produit.nom);
           input.placeholder = '0';
           input.setAttribute('aria-label', 'Quantité vendue : ' + formatNomAffichage(produit.nom));
-          if (quantitesExistantes && Object.prototype.hasOwnProperty.call(quantitesExistantes, produit.nom)) {
-            input.value = quantitesExistantes[produit.nom];
+          if (quantitesExistantes && Object.prototype.hasOwnProperty.call(quantitesExistantes, MP.cleProduit(produit.nom))) {
+            input.value = quantitesExistantes[MP.cleProduit(produit.nom)];
           }
 
           // Boutons tactiles +/- : plus faciles à utiliser sur mobile/tablette
@@ -282,10 +283,15 @@
         majEnteteJour();
         messageDiv.style.display = 'none';
         sbClient.from('ventes').select('*').eq('commercant_id', commercantId).eq('date_vente', dateSelectionnee()).then(function (result) {
+          // Lot 2 : rangées par clé de produit (casse, accents, pluriel) en
+          // gardant la saisie la plus récente ; on garde aussi les noms exacts
+          // déjà en base pour les remplacer tous à l'enregistrement.
           var quantitesExistantes = {};
-          (result.data || []).forEach(function (ligne) {
-            quantitesExistantes[ligne.nom_produit] = ligne.quantite;
+          nomsExistantsDuJour = [];
+          MP.dedoublonnerVentes(result.data || []).forEach(function (ligne) {
+            quantitesExistantes[MP.cleProduit(ligne.nom_produit)] = ligne.quantite;
           });
+          (result.data || []).forEach(function (ligne) { nomsExistantsDuJour.push(ligne.nom_produit); });
           afficherProduits(quantitesExistantes);
         });
       }
@@ -304,7 +310,15 @@
           statutDiv.textContent = '';
 
           sbClient.from('produits').select('*').eq('commercant_id', commercantId).then(function (result) {
-            produits = result.data || [];
+            // Une seule ligne par produit, même si « Croissant » et
+            // « CROISSANT » existent tous les deux dans la liste.
+            var vus = {};
+            produits = (result.data || []).filter(function (p) {
+              var cle = MP.cleProduit(p.nom);
+              if (vus[cle]) return false;
+              vus[cle] = true;
+              return true;
+            });
             if (produits.length === 0) {
               statutDiv.textContent = "Tu n'as pas encore ajouté de produits.";
             } else {
@@ -345,7 +359,10 @@
         // un jour déjà saisi (navigation sur les 7 derniers jours). On
         // remplace donc les lignes déjà enregistrées ce jour-là pour ces
         // produits plutôt que d'en réinsérer des doublons.
-        var nomsProduits = produits.map(function (p) { return p.nom; });
+        var clesSaisies = {};
+        lignesAEnregistrer.forEach(function (l) { clesSaisies[MP.cleProduit(l.nom_produit)] = true; });
+        var nomsProduits = nomsExistantsDuJour.filter(function (n) { return clesSaisies[MP.cleProduit(n)]; })
+          .concat(lignesAEnregistrer.map(function (l) { return l.nom_produit; }));
         sbClient.from('ventes').delete().eq('commercant_id', commercantId).eq('date_vente', dateJour).in('nom_produit', nomsProduits).then(function () {
           sbClient.from('ventes').insert(lignesAEnregistrer).then(function (result) {
             messageDiv.style.display = 'block';

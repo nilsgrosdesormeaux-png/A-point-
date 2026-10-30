@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Fournée</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261031e">
+  <link rel="stylesheet" href="style.css?v=20261031f">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261031c"></script>
+  <script src="moteur-prevision.js?v=20261031f"></script>
   <script src="boulangerie.js?v=20261031"></script>
-  <script src="contexte.js?v=20261031c"></script>
+  <script src="contexte.js?v=20261031f"></script>
   <script src="nav.js?v=20261031"></script>
 </head>
 <body>
@@ -40,6 +40,10 @@
         <div>
           <p class="claire-date" id="dateAujourdhui"></p>
           <h1 class="claire-titre" id="titreFournee">Ta fournée</h1>
+          <div class="selecteur-periode selecteur-jour" id="selecteurJour" role="group" aria-label="Jour de la fournée" hidden>
+            <button type="button" class="periode-bouton" data-jour="aujourdhui" aria-pressed="false">Aujourd'hui</button>
+            <button type="button" class="periode-bouton" data-jour="demain" aria-pressed="false">Demain</button>
+          </div>
         </div>
         <button type="button" class="bouton-secondaire" id="btnEcranFournil" aria-pressed="false">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
@@ -142,7 +146,7 @@
           var effet = MP.libelleEffet(s.ratio);
           return '<li>' + s.icone + ' ' + echapper(s.libelle) + ' : ' + (effet
             ? '<strong>' + effet + '</strong> <span class="texte-aide--discret">(appris sur ' + s.nb + ' jour' + (s.nb > 1 ? 's' : '') + ')</span>'
-            : '<span class="texte-aide--discret">effet pas encore appris, quantité inchangée</span>') + '</li>';
+            : '<span class="texte-aide--discret">' + (s.dejaPrisEnCompte ? 'déjà pris en compte : comparé à tes ' + p.r.nomJourCible + 's de vacances' : 'effet pas encore appris, quantité inchangée') + '</span>') + '</li>';
         });
         items.push('<li>📈 ' + echapper(p.r.texteBase.replace(/^[^B]*Basé/, 'Basé')) + '</li>');
         items.push('<li>🛟 Marge de sécurité de ' + Math.round((MP.MARGE_PRODUCTION - 1) * 100) + ' % pour ne pas manquer</li>');
@@ -159,10 +163,11 @@
       function fiabiliteProduit(p) {
         if (cacheFiabilite[p.nom]) return cacheFiabilite[p.nom];
         var ecart = MP.calculerEcartUnites(ctx.parProduit[p.nom]);
-        var nbMemeJour = p.r.memeJourSemaine ? p.r.nbJoursUtilises : 0;
+        var nbMemeJour = p.r.nbMemeJour;
         var demande = p.r.quantite / MP.MARGE_PRODUCTION;
         var peuSur = null;
-        if (nbMemeJour < 4) peuSur = 'Prévision encore peu sûre : moins de 4 ' + p.r.nomJourCible + 's connus';
+        if (p.r.insuffisant) peuSur = null;
+        else if (nbMemeJour < 4) peuSur = 'Prévision encore peu sûre : moins de 4 ' + p.r.nomJourCible + 's connus';
         else if (ecart && demande > 0 && ecart.ecart / demande > 0.25) peuSur = 'Prévision encore peu sûre : ventes très variables';
         cacheFiabilite[p.nom] = { ecart: ecart, peuSur: peuSur };
         return cacheFiabilite[p.nom];
@@ -210,7 +215,7 @@
 
         // Si la plupart des produits sont encore peu sûrs (historique jeune),
         // un seul repère en haut plutôt que le même sous chaque ligne.
-        var peuSurs = previsions.filter(function (p) { return fiabiliteProduit(p).peuSur; });
+        var peuSurs = previsions.filter(function (p) { return !p.r.insuffisant && fiabiliteProduit(p).peuSur; });
         var repereUnique = peuSurs.length >= Math.max(3, previsions.length / 2);
         var repereGlobal = document.getElementById('repereGlobal');
         repereGlobal.hidden = !repereUnique;
@@ -220,7 +225,8 @@
           var lignes = parRayon[rayon].sort(function (a, b) { return b.r.quantite - a.r.quantite; });
           var total = 0;
           var html = lignes.map(function (p) {
-            var q = Math.ceil(p.r.quantite * facteur);
+            var insuffisant = p.r.insuffisant;
+            var q = insuffisant ? 0 : Math.ceil(p.r.quantite * facteur);
             total += q;
             var id = 'enf-' + B.normaliser(p.nom).replace(/ /g, '-');
             var fiab = fiabiliteProduit(p);
@@ -228,13 +234,15 @@
             var fait = typeof cuit === 'number';
             return '<li class="ligne-fournee' + (fait ? ' ligne-fournee--faite' : '') + '" data-nom="' + echapper(p.nom) + '" data-prevu="' + q + '">' +
               '<input type="checkbox" class="case-enfourne" id="' + id + '"' + (fait ? ' checked' : '') + ' aria-describedby="' + id + '-cuit">' +
-              '<label for="' + id + '" class="ligne-fournee-nom"><span>' + echapper(p.nom) + '</span>' + texteDelta(p, q) +
+              '<label for="' + id + '" class="ligne-fournee-nom"><span>' + echapper(p.nom) + '</span>' + (insuffisant ? '' : texteDelta(p, q)) +
                 (fiab.peuSur && !repereUnique ? '<span class="repere-peu-sur">' + fiab.peuSur + '</span>' : '') + '</label>' +
-              '<span class="ligne-fournee-chiffre"><span class="ligne-fournee-quantite">' + q + '</span></span>' +
+              (insuffisant
+                ? '<span class="ligne-fournee-chiffre"><span class="ligne-fournee-insuffisant">Pas assez d\'historique (' + p.r.nbMemeJour + ' ' + p.r.nomJourCible + (p.r.nbMemeJour > 1 ? 's' : '') + ')</span></span>'
+                : '<span class="ligne-fournee-chiffre"><span class="ligne-fournee-quantite">' + q + '</span></span>') +
               '<div class="ligne-fournee-cuit" id="' + id + '-cuit"' + (fait ? '' : ' hidden') + '>' +
                 '<span>Cuit</span>' +
                 '<button type="button" class="stepper-bouton" data-pas="-1" aria-label="Une pièce cuite de moins : ' + echapper(p.nom) + '">−</button>' +
-                '<input type="number" class="stepper-valeur valeur-cuite" min="0" inputmode="numeric" value="' + (fait ? cuit : q) + '" aria-label="Quantité cuite : ' + echapper(p.nom) + '">' +
+                '<input type="number" class="stepper-valeur valeur-cuite" min="0" inputmode="numeric" value="' + (fait ? cuit : (insuffisant ? '' : q)) + '" placeholder="0" aria-label="Quantité cuite : ' + echapper(p.nom) + '">' +
                 '<button type="button" class="stepper-bouton" data-pas="1" aria-label="Une pièce cuite de plus : ' + echapper(p.nom) + '">+</button>' +
               '</div>' +
               '<details class="ligne-fournee-pourquoi"><summary>Pourquoi ?</summary><ul>' + lignesPourquoi(p) + '</ul></details>' +
@@ -253,7 +261,7 @@
       // « D'habitude, on tombe à ±4 baguettes près », sur le produit le plus
       // vendu ; la comparaison avec la moyenne simple seulement si elle parle.
       function afficherFiabilite(previsions) {
-        var principal = previsions.slice().sort(function (a, b) { return b.r.quantite - a.r.quantite; })[0];
+        var principal = previsions.filter(function (p) { return !p.r.insuffisant; }).sort(function (a, b) { return b.r.quantite - a.r.quantite; })[0];
         var ecart = principal ? MP.calculerEcartUnites(ctx.parProduit[principal.nom]) : null;
         if (!ecart) { fiabiliteEl.hidden = true; return; }
         var texte = "D'habitude, la prévision tombe à <strong>±" + ecart.ecart + ' ' + echapper(principal.nom.toLowerCase()) + '</strong> près.';
@@ -319,9 +327,44 @@
         if (!document.fullscreenElement) basculerEcranFournil(false);
       });
 
+      var aujourdhuiOuvert = true;
+      function choisirJour(quel) {
+        var maintenant = new Date();
+        var estAujourdhui = quel === 'aujourdhui' && aujourdhuiOuvert;
+        jourCible = estAujourdhui ? maintenant : C.prochainJourOuvert(ctx);
+        cocheCle = 'apoint-fournee-cuit:' + ctx.commercantId + ':' + MP.versISO(jourCible);
+        var dateTitre = MP.formatDateLongue(jourCible).toLowerCase();
+        titreEl.textContent = estAujourdhui ? 'À enfourner aujourd\'hui, ' + dateTitre : 'À enfourner pour ' + dateTitre;
+        var selecteur = document.getElementById('selecteurJour');
+        selecteur.hidden = false;
+        selecteur.querySelectorAll('[data-jour]').forEach(function (b) {
+          var actif = (b.getAttribute('data-jour') === 'aujourdhui') === estAujourdhui;
+          b.classList.toggle('actif', actif);
+          b.setAttribute('aria-pressed', actif ? 'true' : 'false');
+          if (b.getAttribute('data-jour') === 'aujourdhui') {
+            b.disabled = !aujourdhuiOuvert;
+            b.title = aujourdhuiOuvert ? '' : 'Fermé aujourd\'hui';
+          } else {
+            var d = C.prochainJourOuvert(ctx);
+            b.textContent = MP.versISO(d) === MP.versISO(MP.ajouterJours(maintenant, 1)) ? 'Demain' : MP.capitaliser(MP.nomsJours[d.getDay()]);
+          }
+        });
+      }
+
       // Tant qu'aucune caisse ne remonte les ventes, la saisie d'hier est à un
       // tapotement. La carte disparaît dès qu'hier est saisi (ou jour fermé).
       function afficherCarteSaisieHier() {
+        var carte = document.getElementById('carteSaisieHier');
+        // Ventes périmées (plus de 3 jours sans vente) : toujours signalé, en
+        // premier, avec le même bouton de saisie.
+        var dernieres = C.dernieresVentes(ctx);
+        if (dernieres && dernieres.perimees) {
+          var d = new Date(dernieres.date + 'T00:00:00');
+          carte.querySelector('strong').textContent = 'Dernières ventes le ' + d.getDate() + ' ' + MP.nomsMoisCourts[d.getMonth()] + ' : saisis-les ou branche ta caisse';
+          document.getElementById('texteSaisieHier').textContent = 'Sans ventes récentes, la fournée se base sur un historique ancien.';
+          carte.hidden = false;
+          return;
+        }
         var hier = MP.ajouterJours(new Date(), -1);
         var isoHier = MP.versISO(hier);
         if (ctx.joursFermeture.indexOf(hier.getDay()) !== -1) return;
@@ -342,13 +385,10 @@
         document.getElementById('bandeauReglages').hidden = !!(ctx.parametres && ctx.parametres.code_postal);
         // Avant midi, un jour d'ouverture, la fournée est celle du jour (on
         // coche ce qu'on enfourne ce matin) ; ensuite, celle du lendemain.
+        // Sélecteur Aujourd'hui / Demain ; les cases restent attachées à leur date.
         var maintenant = new Date();
-        var aujourdhuiOuvert = ctx.joursFermeture.indexOf(maintenant.getDay()) === -1;
-        var cEstAujourdhui = maintenant.getHours() < 12 && aujourdhuiOuvert;
-        jourCible = cEstAujourdhui ? maintenant : C.prochainJourOuvert(ctx);
-        cocheCle = 'apoint-fournee-cuit:' + ctx.commercantId + ':' + MP.versISO(jourCible);
-        var dateTitre = MP.formatDateLongue(jourCible).toLowerCase();
-        titreEl.textContent = cEstAujourdhui ? 'À enfourner aujourd\'hui, ' + dateTitre : 'À enfourner pour ' + dateTitre;
+        aujourdhuiOuvert = ctx.joursFermeture.indexOf(maintenant.getDay()) === -1;
+        choisirJour(maintenant.getHours() < 12 && aujourdhuiOuvert ? 'aujourdhui' : 'demain');
         afficherCarteSaisieHier();
 
         if (ctx.ventes.length === 0) {
@@ -359,6 +399,12 @@
         chargerCuites().then(function () {
           afficher();
           C.enrichir(ctx).then(afficher);
+        });
+        document.getElementById('selecteurJour').addEventListener('click', function (e) {
+          var b = e.target.closest('[data-jour]');
+          if (!b || b.disabled) return;
+          choisirJour(b.getAttribute('data-jour'));
+          chargerCuites().then(afficher);
         });
       }).catch(function (err) {
         if (err && err.nonConnecte) {

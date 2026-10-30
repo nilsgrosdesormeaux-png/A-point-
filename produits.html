@@ -9,9 +9,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Produits</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261031e">
+  <link rel="stylesheet" href="style.css?v=20261031f">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261031c"></script>
+  <script src="moteur-prevision.js?v=20261031f"></script>
   <script src="boulangerie.js?v=20261031"></script>
   <script src="nav.js?v=20261031"></script>
   <style>
@@ -425,7 +425,9 @@
             return;
           }
 
-          var nb = produitsCourants.length;
+          var clesUniques = {};
+          produitsCourants.forEach(function (p) { clesUniques[MP.cleProduit(p.nom)] = true; });
+          var nb = Object.keys(clesUniques).length;
           badgeProduits.textContent = nb + (nb > 1 ? ' produits' : ' produit');
           badgeProduits.style.display = 'inline-block';
 
@@ -530,7 +532,14 @@
 
         // Plan v2 : rayon déduit du nom (boulangerie.js), plus de rangement à la main.
         var parCategorie = {};
-        produitsCourants.forEach(function (p) {
+        // Lot 2 : une seule ligne par produit (« Croissant » = « CROISSANT »).
+        var dejaVus = {};
+        produitsCourants.filter(function (p) {
+          var cleNom = MP.cleProduit(p.nom);
+          if (dejaVus[cleNom]) return false;
+          dejaVus[cleNom] = true;
+          return true;
+        }).forEach(function (p) {
           var cle = window.Boulangerie.deduireRayon(p.nom);
           if (!parCategorie[cle]) parCategorie[cle] = [];
           parCategorie[cle].push(p);

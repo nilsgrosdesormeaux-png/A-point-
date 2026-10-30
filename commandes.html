@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Commande</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261031e">
+  <link rel="stylesheet" href="style.css?v=20261031f">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <script src="moteur-prevision.js?v=20261031c"></script>
+  <script src="moteur-prevision.js?v=20261031f"></script>
   <script src="boulangerie.js?v=20261031"></script>
-  <script src="contexte.js?v=20261031c"></script>
+  <script src="contexte.js?v=20261031f"></script>
   <script src="nav.js?v=20261031"></script>
 </head>
 <body>
@@ -81,7 +81,8 @@
       function calculerBesoins(jours) {
         var production = {};
         jours.forEach(function (d) {
-          C.prevoirJour(ctx, d).forEach(function (p) { production[p.nom] = (production[p.nom] || 0) + p.r.quantite; });
+          // Historique insuffisant : pas de chiffre, donc rien à commander.
+          C.prevoirJour(ctx, d).forEach(function (p) { if (!p.r.insuffisant) production[p.nom] = (production[p.nom] || 0) + p.r.quantite; });
         });
         var idParNom = {};
         ctx.produits.forEach(function (p) { idParNom[MP.formatNomAffichage(p.nom)] = String(p.id); });
@@ -185,6 +186,13 @@
         }).join('') || '<div class="carte-vide-claire">Aucune matière première à prévoir pour cette période.</div>';
       }
 
+      // Les polices de base du PDF ne connaissent ni « Œ », ni « ≈ », ni les
+      // espaces fines insécables des nombres français : on les remplace.
+      function textePdf(t) {
+        return String(t).replace(/Œ/g, 'OE').replace(/œ/g, 'oe').replace(/≈\s*/g, 'environ ')
+          .replace(/[\u202f\u00a0]/g, ' ').replace(/[–—]/g, '-').replace(/…/g, '...');
+      }
+
       function texteCommande(cle) {
         var f = B.FOURNISSEURS.filter(function (x) { return x.cle === cle; })[0];
         var nomCommerce = (ctx.parametres && ctx.parametres.nom_restaurant) || 'ma boulangerie';
@@ -204,10 +212,10 @@
           var doc = new window.jspdf.jsPDF();
           var f = B.FOURNISSEURS.filter(function (x) { return x.cle === cle; })[0];
           doc.setFontSize(16);
-          doc.text('Commande ' + f.nom + ' - ' + ((ctx.parametres && ctx.parametres.nom_restaurant) || ''), 14, 18);
+          doc.text(textePdf('Commande ' + f.nom + ' - ' + ((ctx.parametres && ctx.parametres.nom_restaurant) || '')), 14, 18);
           doc.setFontSize(10);
-          doc.text(document.getElementById('textePeriode').textContent, 14, 26);
-          doc.autoTable({ startY: 32, head: [['Article', 'Quantité']], body: (derniereCommande[cle] || []).map(function (l) { return [l.nom, l.texte]; }), headStyles: { fillColor: [158, 76, 12] } });
+          doc.text(textePdf(document.getElementById('textePeriode').textContent), 14, 26);
+          doc.autoTable({ startY: 32, head: [['Article', 'Quantité']], body: (derniereCommande[cle] || []).map(function (l) { return [textePdf(l.nom), textePdf(l.texte)]; }), headStyles: { fillColor: [158, 76, 12] } });
           doc.save('commande-' + cle + '.pdf');
         }
       }

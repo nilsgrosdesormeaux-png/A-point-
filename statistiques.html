@@ -7,11 +7,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Bilan</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261030">
+  <link rel="stylesheet" href="style.css?v=20261031f">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261031c"></script>
+  <script src="moteur-prevision.js?v=20261031f"></script>
   <script src="boulangerie.js?v=20261031"></script>
-  <script src="contexte.js?v=20261031c"></script>
+  <script src="contexte.js?v=20261031f"></script>
   <script src="nav.js?v=20261030"></script>
 </head>
 <body>
@@ -36,6 +36,11 @@
           <p class="texte-aide" style="margin:0;">Tes invendus réels, et ce que ton historique raconte.</p>
         </div>
       </div>
+
+      <a class="carte-saisie-hier" id="bandeauPerimees" href="ventes.html" hidden>
+        <span class="carte-saisie-hier-texte"><strong id="textePerimees"></strong><span>Le Bilan ne peut pas mesurer les jours sans ventes.</span></span>
+        <span class="carte-saisie-hier-fleche" aria-hidden="true">→</span>
+      </a>
 
       <!-- Résultats en euros (ex-bloc "Vos résultats" de l'accueil, refonte oct. 2026).
            Hors de #zoneContenu, que le script des statistiques remplace quand l'historique est vide. -->
@@ -453,7 +458,7 @@
         var commercantId = session.user.id;
 
         sbClient.from('ventes').select('*').eq('commercant_id', commercantId).then(function (result) {
-          ventesToutes = result.data || [];
+          ventesToutes = MP.dedoublonnerVentes(result.data || []);
           statutDiv.style.display = 'none';
           zoneContenuEl.style.display = 'block';
 
@@ -561,7 +566,13 @@
       function afficherSimulation(periode) {
         var jours = joursHistorique();
         if (jours.length === 0) return;
-        var retenus = periode === 'tout' ? jours : jours.slice(Math.max(0, jours.length - periode));
+        // Période calendaire (jusqu'à aujourd'hui), comme les invendus réels.
+        var limite = periode === 'tout' ? '0000-00-00' : MP.versISO(MP.ajouterJours(new Date(), -periode));
+        var retenus = jours.filter(function (iso) { return iso >= limite; });
+        if (retenus.length === 0) {
+          document.getElementById('texteSimulation').textContent = 'Aucune vente sur cette période : rien à estimer.';
+          return;
+        }
         var pieces = 0, kilos = 0, montant = 0;
         var prix = prixParNom();
         retenus.forEach(function (iso) {
@@ -636,6 +647,12 @@
         }, function () { fournees = []; });
       }).then(function () {
         if (!ctx || ctx.ventes.length === 0) return;
+        var dernieres = C.dernieresVentes(ctx);
+        if (dernieres && dernieres.perimees) {
+          var d = new Date(dernieres.date + 'T00:00:00');
+          document.getElementById('textePerimees').textContent = 'Dernières ventes le ' + d.getDate() + ' ' + MP.nomsMoisCourts[d.getMonth()] + ' : saisis-les ou branche ta caisse';
+          document.getElementById('bandeauPerimees').hidden = false;
+        }
         afficherResultats(periodeActuelle);
         afficherFiabilite();
         afficherTendance();

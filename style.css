@@ -1361,3 +1361,6 @@ body.ecran-fournil .ligne-fournee-cuit .valeur-cuite { width: 96px; min-height: 
 .simulation .texte-aide { margin-bottom: var(--espace-2); }
 .repere-peu-sur { font-size: var(--texte-xs); font-weight: 400; color: var(--couleur-alerte); }
 .repere-peu-sur--global { margin: 0 0 var(--espace-3); font-size: var(--texte-sm); }
+.ligne-fournee-insuffisant { max-width: 9.5em; font-size: var(--texte-xs); line-height: 1.3; text-align: right; color: var(--couleur-texte-3); }
+.selecteur-jour { margin-top: var(--espace-3); background: color-mix(in srgb, var(--couleur-surface) 60%, transparent); }
+.selecteur-jour .periode-bouton:disabled { opacity: 0.45; }

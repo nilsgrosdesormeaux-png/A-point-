@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Semaine</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261031e">
+  <link rel="stylesheet" href="style.css?v=20261031f">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261031c"></script>
+  <script src="moteur-prevision.js?v=20261031f"></script>
   <script src="boulangerie.js?v=20261031"></script>
-  <script src="contexte.js?v=20261031c"></script>
+  <script src="contexte.js?v=20261031f"></script>
   <script src="nav.js?v=20261031"></script>
 </head>
 <body>
@@ -80,7 +80,7 @@
         var colonnes = jours.map(function (d) {
           var ferme = ctx.joursFermeture.indexOf(d.getDay()) !== -1;
           var prev = ferme ? [] : C.prevoirJour(ctx, d);
-          var total = prev.reduce(function (s, p) { return s + p.r.quantite; }, 0);
+          var total = prev.reduce(function (s, p) { return s + (p.r.insuffisant ? 0 : p.r.quantite); }, 0);
           var normal = ferme ? null : volumeNormal(d.getDay());
           var raisons = ferme ? [] : C.raisonsDuJour(prev);
           return { date: d, ferme: ferme, prev: prev, total: total, ratio: normal ? total / normal : null, raisons: raisons };
@@ -121,11 +121,13 @@
             var somme = 0;
             var cellules = ouverts.map(function (c) {
               var p = c.prev.filter(function (x) { return x.nom === nom; })[0];
-              var q = p ? p.r.quantite : 0;
+              if (!p || p.r.insuffisant) return '<td title="Pas assez d\'historique">–</td>';
+              var q = p.r.quantite;
               somme += q;
               return '<td>' + q + '</td>';
             }).join('');
-            return '<tr><th scope="row">' + echapper(nom) + '</th>' + cellules + '<td class="tableau-semaine-total">' + somme + '</td></tr>';
+            var aUnChiffre = ouverts.some(function (c) { var p = c.prev.filter(function (x) { return x.nom === nom; })[0]; return p && !p.r.insuffisant; });
+            return '<tr><th scope="row">' + echapper(nom) + '</th>' + cellules + '<td class="tableau-semaine-total">' + (aUnChiffre ? somme : '–') + '</td></tr>';
           }).join('');
         }).join('');
         var totalSemaine = ouverts.reduce(function (s, c) { return s + c.total; }, 0);
