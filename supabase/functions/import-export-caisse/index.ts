@@ -18,6 +18,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { agregerLignes, ajouterJours, jourParis } from '../_shared/caisse/commun.ts';
+import { journaliser } from '../_shared/caisse/synchroniser.ts';
 import { lignesDepuisExport, lignesDepuisTableau } from '../_shared/caisse/export-csv.ts';
 import * as XLSX from 'npm:xlsx@0.18.5';
 
@@ -99,6 +100,13 @@ Deno.serve(async (req) => {
   maj.statut = erreurs.length ? 'erreur' : 'active';
   maj.derniere_erreur = erreurs.length ? erreurs.join(' ; ').slice(0, 500) : null;
   await admin.from('connexions_caisse').update(maj).eq('commercant_id', cx.data.commercant_id).eq('fournisseur', 'export_email');
+  var jours = agregees.map(function (l) { return l.date_vente; }).sort();
+  await journaliser(admin, {
+    commercant_id: cx.data.commercant_id, source: 'email', fournisseur: 'export_email',
+    nb_ventes: Number(maj.nb_lignes_derniere_synchro) || 0, du: jours[0] || null, au: jours[jours.length - 1] || null,
+    erreur: maj.derniere_erreur || null,
+    detail: (email.Attachments || []).map(function (pj: any) { return pj.Name; }).filter(Boolean).join(', ').slice(0, 200) || null
+  });
 
   return new Response(JSON.stringify({ lignes: agregees.length, erreurs: erreurs }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 });

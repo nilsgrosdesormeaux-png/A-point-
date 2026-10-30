@@ -11,7 +11,7 @@
 | `synchro-caisse` | Synchro en continu (pg_cron chaque minute) : 12 mois d'historique au branchement, puis la veille chaque nuit |
 | `import-export-caisse` | Repli : reçoit l'export CSV envoyé par e-mail (webhook Postmark Inbound) |
 | `_shared/caisse/` | Code commun : normalisation, dates de Paris, client SumUp, chiffrement des jetons, lecture CSV, synchro |
-| `connecteur-caisse.js` + `#blocCaisse` | Bloc « Ma caisse » de Paramètres |
+| `caisse.html` + `connecteur-caisse.js` | Page « Ma caisse » : état, branchement, import de fichier, journal des réceptions |
 
 Dédoublonnage : pour chaque (commerçant, nom de produit normalisé, date), `enregistrer_ventes_caisse` remplace les lignes existantes (saisie manuelle comprise) par le total de la caisse. Relancer une synchro ne crée jamais de doublon.
 

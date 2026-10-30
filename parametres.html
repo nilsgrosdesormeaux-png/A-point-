@@ -11,8 +11,6 @@
   <script src="nav.js?v=20261031"></script>
   <script src="boulangerie.js?v=20261101g"></script>
   <script src="caisse-utilisee.js?v=20261101e"></script>
-  <script src="supabase/functions/_shared/caisse/lecture-export.js?v=20261101"></script>
-  <script src="connecteur-caisse.js?v=20261101"></script>
 </head>
 <body>
   <a class="lien-evitement" href="#contenu">Aller au contenu</a>
@@ -69,18 +67,7 @@
         <button id="btnEnregistrerCommerce" type="button">Enregistrer</button>
         <div id="messageCommerce" aria-live="polite"></div>
 
-        <!-- Branchement caisse (REFONTE.md § 4 bis) : connecteur-caisse.js remplace
-             cette section dès qu'une connexion (SumUp, import e-mail) est configurée. -->
-        <div id="caisse"><div id="blocCaisse">
-        <section class="bloc-caisse" aria-labelledby="titreCaisse">
-          <h2 class="section-titre" id="titreCaisse">Connecter ma caisse <span class="badge-bientot">Bientôt disponible</span></h2>
-          <p class="texte-aide">Tes ventes arriveront seules chaque nuit, sans rien saisir. En attendant, saisis la veille ou importe l'export de ta caisse depuis <a href="#donnees">Mes données</a>.</p>
-          <ul class="grille-caisses" aria-label="Branchements prévus">
-            <li>SumUp<br><span class="texte-aide--discret">en premier</span></li><li>Zettle<br><span class="texte-aide--discret">ensuite</span></li><li>Autres caisses<br><span class="texte-aide--discret">export envoyé par e-mail</span></li>
-          </ul>
-          <p class="texte-aide" style="margin-top:var(--espace-3);">Indique ta caisse plus haut : on branche en priorité les plus utilisées.</p>
-        </section>
-        </div></div>
+        <p class="texte-aide" id="caisse" style="margin-top:14px;">Branchement de ta caisse, état et journal des réceptions : page <a href="caisse.html">Ma caisse</a>.</p>
 
         <!-- Plan v2 : Ventes et Produits quittent la navigation. Ils restent ici,
              en secours, pour qui n'a pas encore de caisse branchée. -->
@@ -210,7 +197,6 @@
         statutDiv.style.display = 'none';
         zoneParametresEl.style.display = 'block';
         emailActuelEl.textContent = "Adresse actuelle : " + session.user.email;
-        window.ConnecteurCaisse.init(sbClient, commercantId, session.user.user_metadata && session.user.user_metadata.caisse);
 
         grilleJoursFermetureEl.innerHTML = '';
         JOURS_AFFICHES.forEach(function (j) {

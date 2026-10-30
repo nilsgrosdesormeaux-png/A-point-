@@ -11,6 +11,12 @@ import { chiffrer, dechiffrer } from './chiffrement.ts';
 import { type FetchFn, type Jetons, ErreurAutorisation } from './http.ts';
 import { FOURNISSEURS, identifiantsApp } from './fournisseurs.ts';
 
+// Une ligne par réception dans journal_caisse (page « Ma caisse »). Le
+// journal ne doit jamais faire échouer une synchro : erreurs ignorées.
+export async function journaliser(admin: any, entree: Record<string, unknown>) {
+  try { await admin.from('journal_caisse').insert(entree); } catch (_e) { /* journal facultatif */ }
+}
+
 // 12 mois d'historique au branchement : des prévisions fiables (saisons,
 // jours fériés, vacances) dès le lendemain.
 export var JOURS_HISTORIQUE_INITIAL = 365;
@@ -105,6 +111,13 @@ export async function synchroniserConnexion(admin: any, connexion: any, env: Env
     };
     if (aJour) valeurs.derniere_synchro = new Date().toISOString();
     await majConnexion(valeurs);
+    if (jour > debut) {
+      await journaliser(admin, {
+        commercant_id: connexion.commercant_id, source: 'api', fournisseur: cible,
+        nb_ventes: nbLignes, du: debut, au: ajouterJours(jour, -1),
+        detail: aJour ? null : 'Historique en cours d\'import'
+      });
+    }
     return { ok: true, lignes: nbLignes, du: debut, au: ajouterJours(jour, -1), complet: aJour };
   } catch (erreur) {
     // Accès refusé : inutile d'insister avant que le commerçant reconnecte
@@ -116,6 +129,11 @@ export async function synchroniserConnexion(admin: any, connexion: any, env: Env
       derniere_erreur: (acces ? 'Reconnecte ta caisse : ' : '') + message.slice(0, 480),
       reessayer_apres: new Date(Date.now() + (acces ? 6 * 3600000 : 30 * 60000)).toISOString(),
       verrou_jusqua: null
+    });
+    await journaliser(admin, {
+      commercant_id: connexion.commercant_id, source: 'api', fournisseur: cible,
+      nb_ventes: nbLignes, du: jour > debut ? debut : null, au: jour > debut ? ajouterJours(jour, -1) : null,
+      erreur: ((acces ? 'Reconnecte ta caisse : ' : '') + message).slice(0, 500)
     });
     return { ok: false, erreur: message, lignes: nbLignes };
   }
