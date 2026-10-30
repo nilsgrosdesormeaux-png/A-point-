@@ -114,6 +114,9 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* Un élément masqué l'est toujours, même si sa classe lui donne un display. */
+[hidden] { display: none !important; }
+
 html { -webkit-text-size-adjust: 100%; }
 
 body {
