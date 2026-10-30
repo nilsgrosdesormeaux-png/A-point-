@@ -125,9 +125,11 @@ Deno.serve(async (req) => {
     var signaux: Signal[] = [];
 
     if (cleAgenda) {
-      // Fenêtres de 30 jours, position arrondie (~1 km) pour partager le cache.
+      // Fenêtres de 30 jours alignées sur le calendrier, position arrondie
+      // (~1 km) : les mêmes clés de cache d'un jour à l'autre.
       var la = lat.toFixed(2), lo = lng.toFixed(2);
-      for (var d = debut; d <= fin; d = ajouterJours(d, 30)) {
+      var departAgenda = ajouterJours(debut, -((new Date(debut + 'T12:00:00Z').getTime() / 86400000) % 30 | 0));
+      for (var d = departAgenda; d <= fin; d = ajouterJours(d, 30)) {
         var f = ajouterJours(d, 29) < fin ? ajouterJours(d, 29) : fin;
         signaux = signaux.concat(await avecCache(admin, 'agenda:' + la + ',' + lo + ':' + d, f, function () {
           return evenementsOpenAgenda(cleAgenda, Number(la), Number(lo), d, f);
