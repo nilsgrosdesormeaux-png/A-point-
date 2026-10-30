@@ -207,6 +207,14 @@
     return (actuelle ? [actuelle] : []).concat(ANCIENNES_RECETTES_TYPES.filter(function (r) { return contient(nom, r.mots); }));
   }
 
+  // Coût d'une ligne de recette. Personne n'achète au gramme : un prix
+  // saisi sur une ligne en g ou mL (≥ 0,10 €) est un prix au kg ou au litre.
+  function coutLigne(quantite, unite, coutUnitaire) {
+    var q = Number(quantite) || 0, c = Number(coutUnitaire) || 0, u = normaliser(unite || '');
+    if ((u === 'g' || u === 'mg' || u === 'ml' || u === 'cl') && c >= 0.1) return versUniteBase(q, unite).quantite * c;
+    return q * c;
+  }
+
   // Suggestions d'ingrédients dans l'éditeur de recettes.
   var INGREDIENTS_COURANTS = ['Farine T45', 'Farine T55', 'Farine T65', 'Farine T80', 'Farine T110', 'Farine T150', 'Farine de tradition', 'Farine de seigle', 'Farine de sarrasin', 'Farine d\'épeautre',
     'Levure fraîche', 'Levain', 'Sel', 'Sucre', 'Beurre', 'Beurre de tourage', 'Lait', 'Crème', 'Œufs', 'Barres de chocolat', 'Chocolat de couverture', 'Poudre d\'amande', 'Raisins secs', 'Jambon blanc', 'Graines'];
@@ -214,6 +222,7 @@
   window.Boulangerie = {
     INGREDIENTS_COURANTS: INGREDIENTS_COURANTS,
     versionsRecetteType: versionsRecetteType,
+    coutLigne: coutLigne,
     TRANCHES: TRANCHES,
     repartitionParDefaut: repartitionParDefaut,
     repartir: repartir,

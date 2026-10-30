@@ -7,11 +7,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Bilan</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101e">
+  <link rel="stylesheet" href="style.css?v=20261101f">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261101e"></script>
-  <script src="boulangerie.js?v=20261101e"></script>
-  <script src="contexte.js?v=20261101e"></script>
+  <script src="moteur-prevision.js?v=20261101f"></script>
+  <script src="boulangerie.js?v=20261101f"></script>
+  <script src="contexte.js?v=20261101f"></script>
   <script src="nav.js?v=20261030"></script>
 </head>
 <body>
@@ -631,8 +631,11 @@
         ctx.produits.forEach(function (p) {
           var nom = MP.formatNomAffichage(p.nom);
           var fiche = lignesParId[String(p.id)];
-          if (fiche && fiche.length && fiche.every(function (l) { return l.cout_unitaire != null; })) {
-            couts[nom] = { valeur: fiche.reduce(function (s, l) { return s + Number(l.quantite) * Number(l.cout_unitaire); }, 0), estime: false };
+          var valeurFiche = fiche && fiche.length && fiche.every(function (l) { return l.cout_unitaire != null; })
+            ? fiche.reduce(function (s, l) { return s + B.coutLigne(l.quantite, l.unite, l.cout_unitaire); }, 0) : null;
+          // Coût de fiche plus cher que le prix de vente : saisie à vérifier, on ne s'y fie pas.
+          if (valeurFiche !== null && !(prix[nom] && valeurFiche > prix[nom])) {
+            couts[nom] = { valeur: valeurFiche, estime: false };
           } else if (prix[nom]) {
             couts[nom] = { valeur: prix[nom] * 0.30, estime: true };
           }

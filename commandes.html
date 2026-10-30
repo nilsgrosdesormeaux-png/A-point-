@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Commande</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101e">
+  <link rel="stylesheet" href="style.css?v=20261101f">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <script src="moteur-prevision.js?v=20261101e"></script>
-  <script src="boulangerie.js?v=20261101e"></script>
-  <script src="contexte.js?v=20261101e"></script>
+  <script src="moteur-prevision.js?v=20261101f"></script>
+  <script src="boulangerie.js?v=20261101f"></script>
+  <script src="contexte.js?v=20261101f"></script>
   <script src="nav.js?v=20261031"></script>
 </head>
 <body>
@@ -260,8 +260,12 @@
       function blocPrix(f) {
         var prix = f.produit && f.produit.prix_vente != null ? Number(f.produit.prix_vente) : null;
         var cout;
-        if (f.fiche && f.fiche.every(function (l) { return l.cout_unitaire != null; })) {
-          cout = 'Coût matière : <strong>' + f.fiche.reduce(function (s, l) { return s + Number(l.quantite) * Number(l.cout_unitaire); }, 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €</strong> par pièce';
+        var valeurFiche = f.fiche && f.fiche.every(function (l) { return l.cout_unitaire != null; })
+          ? f.fiche.reduce(function (s, l) { return s + B.coutLigne(l.quantite, l.unite, l.cout_unitaire); }, 0) : null;
+        if (valeurFiche !== null && prix && valeurFiche > prix) {
+          cout = '<span class="recette-alerte">Coût matière (' + valeurFiche.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + ' €) plus cher que le prix de vente : vérifie les prix d\'ingrédients dans Produits.</span>';
+        } else if (valeurFiche !== null) {
+          cout = 'Coût matière : <strong>' + valeurFiche.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €</strong> par pièce';
         } else if (prix) {
           cout = 'Coût matière : <strong>≈ ' + (prix * 0.3).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €</strong> par pièce (estimé à 30 % du prix de vente)';
         } else cout = 'Coût matière inconnu : indique le prix de vente';
