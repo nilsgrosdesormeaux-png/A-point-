@@ -7,7 +7,7 @@
   <title>À Point - Connexion</title>
   <meta name="description" content="À Point prévoit ton activité de la semaine à venir à partir de tes propres ventes, pour savoir quoi produire ou commander et si tu auras besoin de renfort, sans jamais rien deviner à ta place.">
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261031f">
+  <link rel="stylesheet" href="style.css?v=20261031g">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="caisse-utilisee.js?v=20261031"></script>
   <style>
@@ -51,6 +51,15 @@
       <input type="text" id="autreCaisse" placeholder="Nom de ta caisse" aria-label="Nom de ta caisse" maxlength="60" hidden style="margin-top:8px;">
     </div>
 
+    <details class="avant-inscription" id="ligneAvant" style="display:none;">
+      <summary>Ta production habituelle (facultatif, 3 questions)</summary>
+      <label for="avantProduction">Pièces produites un samedi normal</label>
+      <input type="number" id="avantProduction" min="0" inputmode="numeric" placeholder="Ex : 600">
+      <label for="avantReste">Pièces qui restent le soir</label>
+      <input type="number" id="avantReste" min="0" inputmode="numeric" placeholder="Ex : 50">
+      <label class="case-consentement"><input type="checkbox" id="avantDons"> Je donne mes invendus (Too Good To Go, associations…)</label>
+    </details>
+
     <label class="case-consentement" id="ligneCgu" style="display:none;">
       <input type="checkbox" id="caseCgu">
       <span>J'ai lu et j'accepte les <a href="cgu.html" target="_blank" rel="noopener">conditions générales d'utilisation</a>.</span>
@@ -80,6 +89,13 @@
       var messageDiv = document.getElementById('message');
       var ligneCgu = document.getElementById('ligneCgu');
       window.CaisseUtilisee.brancher('selectCaisse', 'autreCaisse', null);
+      // 3 questions « avant À Point » (lot 2) : estimation de départ du gaspillage.
+      function lireReponsesAvant() {
+        var production = parseInt(document.getElementById('avantProduction').value, 10);
+        var reste = parseInt(document.getElementById('avantReste').value, 10);
+        if (!(production > 0) || isNaN(reste)) return null;
+        return { production: production, reste: Math.max(0, reste), dons: document.getElementById('avantDons').checked };
+      }
       var caseCgu = document.getElementById('caseCgu');
       var ligneMotDePasseOublie = document.getElementById('ligneMotDePasseOublie');
       var lienMotDePasseOublie = document.getElementById('lienMotDePasseOublie');
@@ -108,6 +124,7 @@
         messageDiv.style.display = 'none';
         ligneCgu.style.display = 'none';
         document.getElementById('ligneCaisse').style.display = 'none';
+        document.getElementById('ligneAvant').style.display = 'none';
         ligneMotDePasseOublie.style.display = 'block';
       }
 
@@ -121,6 +138,7 @@
         messageDiv.style.display = 'none';
         ligneCgu.style.display = 'flex';
         document.getElementById('ligneCaisse').style.display = 'block';
+        document.getElementById('ligneAvant').style.display = 'block';
         ligneMotDePasseOublie.style.display = 'none';
       }
 
@@ -213,7 +231,7 @@
               // Gardée dans le compte, recopiée dans parametres_commercant au
               // premier chargement (contexte.js) : à l'inscription, la session
               // n'existe pas encore si l'e-mail doit être confirmé.
-              data: { caisse: window.CaisseUtilisee.lire('selectCaisse', 'autreCaisse') }
+              data: { caisse: window.CaisseUtilisee.lire('selectCaisse', 'autreCaisse'), reference_avant: lireReponsesAvant() }
             }
           }).then(function (result) {
             btnAction.disabled = false;

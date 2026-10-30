@@ -48,7 +48,7 @@
     { mots: ['croissant'], poids: 0.06, ingredients: [['Farine T45', 0.026, 'kg'], ['Beurre de tourage', 0.013, 'kg'], ['Sucre', 0.003, 'kg'], ['Lait', 0.007, 'L'], ['Levure fraîche', 0.001, 'kg'], ['Œufs', 0.05, 'pièce']] },
     { mots: ['brioche', 'pain au lait'], poids: 0.06, ingredients: [['Farine T45', 0.025, 'kg'], ['Beurre', 0.012, 'kg'], ['Œufs', 0.3, 'pièce'], ['Sucre', 0.004, 'kg'], ['Levure fraîche', 0.001, 'kg']] },
     { mots: ['chausson'], poids: 0.1, ingredients: [['Farine T45', 0.03, 'kg'], ['Beurre de tourage', 0.02, 'kg'], ['Compote de pommes', 0.04, 'kg']] },
-    { mots: ['galette des rois', 'galette'], poids: 0.6, ingredients: [['Farine T45', 0.12, 'kg'], ['Beurre de tourage', 0.12, 'kg'], ['Poudre d\'amande', 0.1, 'kg'], ['Sucre', 0.08, 'kg'], ['Œufs', 2, 'pièce']] },
+    { mots: ['galette des rois', 'galette frangipane', 'frangipane'], poids: 0.6, ingredients: [['Farine T45', 0.12, 'kg'], ['Beurre de tourage', 0.12, 'kg'], ['Poudre d\'amande', 0.1, 'kg'], ['Sucre', 0.08, 'kg'], ['Œufs', 2, 'pièce']] },
     { mots: ['eclair'], poids: 0.08, ingredients: [['Farine T45', 0.006, 'kg'], ['Beurre', 0.005, 'kg'], ['Œufs', 0.3, 'pièce'], ['Lait', 0.05, 'L'], ['Sucre', 0.01, 'kg'], ['Chocolat de couverture', 0.008, 'kg']] },
     { mots: ['flan'], poids: 0.15, ingredients: [['Lait', 0.12, 'L'], ['Sucre', 0.02, 'kg'], ['Œufs', 0.3, 'pièce'], ['Farine T45', 0.012, 'kg'], ['Beurre', 0.006, 'kg']] },
     { mots: ['tarte', 'tartelette'], poids: 0.12, ingredients: [['Farine T45', 0.03, 'kg'], ['Beurre', 0.015, 'kg'], ['Sucre', 0.015, 'kg'], ['Œufs', 0.2, 'pièce']] },
@@ -63,6 +63,11 @@
 
   function recetteType(nomProduit) {
     var nom = normaliser(nomProduit);
+    // Correspondance exacte d'abord, puis par mot (« galette bretonne » ne
+    // reçoit pas la recette de la galette des rois).
+    for (var e = 0; e < RECETTES_TYPES.length; e++) {
+      if (RECETTES_TYPES[e].mots.indexOf(nom) !== -1) return RECETTES_TYPES[e];
+    }
     for (var i = 0; i < RECETTES_TYPES.length; i++) {
       if (contient(nom, RECETTES_TYPES[i].mots)) return RECETTES_TYPES[i];
     }

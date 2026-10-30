@@ -54,6 +54,15 @@
           sb.from('parametres_commercant').upsert({ commercant_id: id, caisse: caisseInscription }).then(function () {}, function () {});
           if (parametres) parametres.caisse = caisseInscription;
         }
+        var avantInscription = session.user.user_metadata && session.user.user_metadata.reference_avant;
+        if (avantInscription && parametres && !parametres.reference_avant && 'observation_debut' in parametres) {
+          sb.from('parametres_commercant').upsert({ commercant_id: id, reference_avant: avantInscription }).then(function () {}, function () {});
+          parametres.reference_avant = avantInscription;
+        } else if (avantInscription && !parametres) {
+          parametres = { reference_avant: avantInscription };
+        } else if (avantInscription && parametres && !parametres.reference_avant) {
+          parametres.reference_avant = avantInscription; // colonne pas encore créée : lu depuis le compte
+        }
         var evenements = {};
         (r[4].data || []).forEach(function (e) { evenements[e.date_evenement] = e.direction; });
         var ctx = {

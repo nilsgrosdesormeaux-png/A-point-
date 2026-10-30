@@ -1092,7 +1092,7 @@
       vendu[cle] = (vendu[cle] || 0) + v.quantite;
       joursVentes[v.date_vente] = true;
     });
-    var parProduit = {}, jours = {}, cuit = 0, total = 0;
+    var parProduit = {}, jours = {}, cuit = 0, total = 0, epuises = 0;
     fournees.forEach(function (f) {
       if (f.date_fournee < isoDebut || f.date_fournee >= isoFin || !joursVentes[f.date_fournee]) return;
       var nom = formatNomAffichage(f.nom_produit);
@@ -1101,8 +1101,33 @@
       cuit += f.quantite_cuite;
       total += reste;
       parProduit[nom] = (parProduit[nom] || 0) + reste;
+      if (f.epuise) epuises++;
     });
-    return { invendus: total, cuit: cuit, nbJours: Object.keys(jours).length, parProduit: parProduit };
+    return { invendus: total, cuit: cuit, nbJours: Object.keys(jours).length, parProduit: parProduit, epuises: epuises,
+      taux: cuit > 0 ? total / cuit : null };
+  }
+
+  // Référence « avant À Point » (lot 2, point 9), par ordre de fiabilité :
+  // (a) 2 semaines d'observation mesurées, (b) réponses du boulanger,
+  // (c) ordre de grandeur national. Jamais présentée comme mesurée sauf (a).
+  var TAUX_NATIONAL_ESTIME = 0.10;
+  function referenceAvant(parametres, fournees, ventes, aujourdhuiIso) {
+    var debut = parametres && parametres.observation_debut;
+    if (debut) {
+      var fin = versISO(ajouterJours(new Date(debut + 'T00:00:00'), 14));
+      var obs = calculerInvendusReels(fournees, ventes, debut, fin < aujourdhuiIso ? fin : aujourdhuiIso);
+      if (fin <= aujourdhuiIso && obs.nbJours >= 5 && obs.taux !== null) {
+        return { taux: obs.taux, nature: 'mesuré', libelle: 'mesuré pendant tes 2 semaines d\'observation', epuisesParJour: obs.epuises / obs.nbJours };
+      }
+      if (fin > aujourdhuiIso) {
+        return { enCours: true, jour: Math.min(14, Math.round((new Date(aujourdhuiIso + 'T00:00:00') - new Date(debut + 'T00:00:00')) / 86400000) + 1), fin: fin };
+      }
+    }
+    var rep = parametres && parametres.reference_avant;
+    if (rep && Number(rep.production) > 0 && rep.reste !== undefined && rep.reste !== null && rep.reste !== '') {
+      return { taux: Math.min(1, Math.max(0, Number(rep.reste) / Number(rep.production))), nature: 'estimé', libelle: 'estimé d\'après tes réponses' };
+    }
+    return { taux: TAUX_NATIONAL_ESTIME, nature: 'estimé', libelle: 'moyenne nationale estimée', source: 'ADEME 2016 : environ 10 % de la production des petites boulangeries part en invendus' };
   }
 
   // Comparaison avec la moyenne simple : seulement si l'écart dépasse 3 points
@@ -1225,6 +1250,7 @@
     calculerFiabiliteNaive: calculerFiabiliteNaive,
     calculerEcartUnites: calculerEcartUnites,
     calculerInvendusReels: calculerInvendusReels,
+    referenceAvant: referenceAvant,
     comparaisonUtile: comparaisonUtile,
     feteBoulangere: feteBoulangere,
     estPont: estPont,

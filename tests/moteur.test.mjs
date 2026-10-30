@@ -169,3 +169,26 @@ test('un dimanche férié ne prend pas la moyenne de tous les jours', () => {
   const r = MP.calculerRecommandation(ventes, jour('2026-11-01'), null, {}, {}, {});
   assert.equal(r.insuffisant, true);
 });
+
+test('recette : correspondance exacte d\'abord', () => {
+  assert.equal(B.recetteType('Galette bretonne'), null);
+  assert.equal(B.recetteType('Galette des rois').poids, 0.6);
+  assert.equal(B.deduireRayon('Café'), 'Boissons');
+});
+
+test('référence avant : nationale estimée, réponses, observation mesurée', () => {
+  const ventes = [], fournees = [];
+  for (let d = jour('2026-09-01'); d < jour('2026-09-15'); d = MP.ajouterJours(d, 1)) {
+    const iso = MP.versISO(d);
+    ventes.push({ nom_produit: 'Baguette', date_vente: iso, quantite: 89 });
+    fournees.push({ nom_produit: 'Baguette', date_fournee: iso, quantite_cuite: 100, epuise: false });
+  }
+  const nat = MP.referenceAvant(null, [], [], '2026-10-30');
+  assert.equal(nat.nature, 'estimé'); assert.equal(nat.taux, 0.10); assert.ok(nat.source);
+  const rep = MP.referenceAvant({ reference_avant: { production: 400, reste: 40 } }, [], [], '2026-10-30');
+  assert.equal(rep.nature, 'estimé'); assert.equal(rep.taux, 0.1);
+  const obs = MP.referenceAvant({ observation_debut: '2026-09-01' }, fournees, ventes, '2026-10-30');
+  assert.equal(obs.nature, 'mesuré'); assert.ok(Math.abs(obs.taux - 0.11) < 1e-9);
+  const enCours = MP.referenceAvant({ observation_debut: '2026-10-25' }, fournees, ventes, '2026-10-30');
+  assert.equal(enCours.enCours, true); assert.equal(enCours.jour, 6);
+});

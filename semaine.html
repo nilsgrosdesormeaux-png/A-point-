@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Semaine</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261031f">
+  <link rel="stylesheet" href="style.css?v=20261031g">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261031f"></script>
-  <script src="boulangerie.js?v=20261031"></script>
-  <script src="contexte.js?v=20261031f"></script>
+  <script src="moteur-prevision.js?v=20261031g"></script>
+  <script src="boulangerie.js?v=20261031g"></script>
+  <script src="contexte.js?v=20261031g"></script>
   <script src="nav.js?v=20261031"></script>
 </head>
 <body>
@@ -80,7 +80,8 @@
         var colonnes = jours.map(function (d) {
           var ferme = ctx.joursFermeture.indexOf(d.getDay()) !== -1;
           var prev = ferme ? [] : C.prevoirJour(ctx, d);
-          var total = prev.reduce(function (s, p) { return s + (p.r.insuffisant ? 0 : p.r.quantite); }, 0);
+          // Totaux en pièces de fournée : sans les boissons (cafés, jus…).
+          var total = prev.reduce(function (s, p) { return s + (p.r.insuffisant || p.rayon === 'Boissons' ? 0 : p.r.quantite); }, 0);
           var normal = ferme ? null : volumeNormal(d.getDay());
           var raisons = ferme ? [] : C.raisonsDuJour(prev);
           return { date: d, ferme: ferme, prev: prev, total: total, ratio: normal ? total / normal : null, raisons: raisons };
@@ -117,7 +118,7 @@
         var corps = B.RAYONS.map(function (rayon) {
           var produits = Object.keys(noms).filter(function (n) { return noms[n] === rayon; }).sort();
           if (!produits.length) return '';
-          return '<tr class="tableau-semaine-rayon"><th scope="rowgroup" colspan="' + (ouverts.length + 2) + '">' + rayon + '</th></tr>' + produits.map(function (nom) {
+          return '<tr class="tableau-semaine-rayon"><th scope="rowgroup" colspan="' + (ouverts.length + 2) + '">' + rayon + (rayon === 'Boissons' ? ' <span class="texte-aide--discret">(hors totaux)</span>' : '') + '</th></tr>' + produits.map(function (nom) {
             var somme = 0;
             var cellules = ouverts.map(function (c) {
               var p = c.prev.filter(function (x) { return x.nom === nom; })[0];
