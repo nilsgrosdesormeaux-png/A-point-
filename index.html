@@ -52,7 +52,7 @@
       background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-rond);
     }
     .heros-pilote b { padding: 2px 8px; font-size: var(--texte-xs); font-weight: 600; color: var(--couleur-sur-accent); background: var(--couleur-accent); border-radius: var(--rayon-rond); }
-    .heros h1 { font-size: var(--texte-3xl); line-height: 1.02; letter-spacing: -0.045em; margin: 0 0 var(--espace-5); max-width: 13ch; }
+    .heros h1 { font-size: var(--texte-3xl); font-weight: 600; line-height: 1.02; letter-spacing: -0.025em; margin: 0 0 var(--espace-5); max-width: 13ch; }
     .heros-texte { font-size: var(--texte-lg); line-height: 1.45; color: var(--couleur-texte-2); max-width: 46ch; margin: 0 0 var(--espace-6); }
     .heros-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espace-4); }
     .heros-actions .bouton-principal { margin: 0; min-height: 52px; padding: 12px 28px; font-size: var(--texte-md); }
@@ -129,6 +129,27 @@
     .vente-pied a { color: var(--couleur-texte-2); }
     .vente-pied .logo { margin-right: auto; }
     @media (max-width: 720px) { .heros-texte, .bloc-intro { font-size: var(--texte-md); } }
+    /* Fournil : la maquette posée sur un fond de croûte dorée */
+    .capture-scene {
+      justify-self: stretch;
+      display: flex; justify-content: center;
+      padding: var(--espace-7) var(--espace-4);
+      border-radius: var(--rayon-lg);
+      background:
+        radial-gradient(120% 90% at 20% 10%, color-mix(in srgb, var(--couleur-dore) 55%, transparent), transparent 60%),
+        radial-gradient(100% 80% at 90% 100%, color-mix(in srgb, var(--couleur-accent) 35%, transparent), transparent 65%),
+        var(--couleur-accent-doux);
+    }
+    .capture { background: var(--couleur-fond); }
+    .capture-titre, .bloc h2, .prix-montant { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; }
+    .capture-titre { font-weight: 600; letter-spacing: -0.01em; }
+    .capture-chiffre strong { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-weight: 600; letter-spacing: -0.02em; }
+    .capture-jours .actif { border-color: var(--couleur-accent); color: var(--couleur-accent-texte); }
+    .capture-jours .charge::after { background: var(--couleur-dore); }
+    .bloc h2 { font-weight: 600; letter-spacing: -0.015em; }
+    .heros-pilote b { color: var(--couleur-texte); background: var(--couleur-dore); }
+    .prix-montant { color: var(--couleur-dore); font-weight: 600; letter-spacing: -0.03em; }
+    .etapes li { border-top-color: var(--couleur-dore); }
   </style>
 </head>
 <body class="vente">
@@ -165,6 +186,7 @@
         <p class="heros-note">Sur téléphone comme sur ordinateur, sans rien installer.</p>
       </div>
 
+      <div class="capture-scene">
       <figure class="capture" aria-label="Exemple de l'écran Demain, avec des données fictives" style="margin:0;">
         <p class="capture-legende">Exemple, données fictives</p>
         <p class="capture-date">Vendredi 30 octobre</p>
@@ -178,6 +200,7 @@
         <div class="capture-ligne"><span>Flan pâtissier</span><span class="capture-chiffre"><strong>29</strong><small>24 – 33</small></span></div>
         <span class="capture-bouton" aria-hidden="true">Préparer la commande de ce jour</span>
       </figure>
+      </div>
     </section>
 
     <section class="bloc" id="fonctionnement" aria-labelledby="titreFonctionnement">

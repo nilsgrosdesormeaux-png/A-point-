@@ -5,40 +5,45 @@
    Planning et Espace employé (masqués) gardent style-planning.css.
    ========================================================= */
 
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,500..600,100&family=Inter:wght@400;500;600&display=swap');
 
+/* Direction « Fournil » (DESIGN.md). Le mode clair est le défaut, même si le
+   système est en sombre ; le mode sombre (brun, jamais noir) ne s'active
+   que par <html data-theme="dark">. */
 :root {
   color-scheme: light;
-  --couleur-fond: #FAFAF9;
-  --couleur-surface: #FFFFFF;
-  --couleur-surface-2: #F3F3F1;
-  --couleur-bordure: #E6E4E0;
-  --couleur-bordure-forte: #CFCCC6;
-  --couleur-texte: #141414;
-  --couleur-texte-2: #57544F;
-  --couleur-texte-3: #6E6A64;
-  --couleur-accent: #FF6A13;
-  --couleur-accent-fort: #E85A05;
-  --couleur-accent-texte: #B83F00;
-  --couleur-accent-doux: #FFF0E5;
-  --couleur-sur-accent: #141414;
-  --couleur-succes: #157F3B;
-  --couleur-succes-doux: #E8F5EC;
-  --couleur-alerte: #9A5B00;
-  --couleur-alerte-doux: #FFF6E0;
-  --couleur-erreur: #B42318;
-  --couleur-erreur-doux: #FDECEA;
-  --couleur-inverse: #141414;
-  --couleur-sur-inverse: #E9E7E3;
+  --couleur-fond: #FBF5EA;
+  --couleur-surface: #FFFDF8;
+  --couleur-surface-2: #F3E8D6;
+  --couleur-bordure: #EADBC4;
+  --couleur-bordure-forte: #D6C2A5;
+  --couleur-texte: #2B1D13;
+  --couleur-texte-2: #6B5544;
+  --couleur-texte-3: #76614F;
+  --couleur-accent: #9E4C0C;
+  --couleur-accent-fort: #843F09;
+  --couleur-accent-texte: #9E4C0C;
+  --couleur-accent-doux: #F7E4C8;
+  --couleur-sur-accent: #FFFDF8;
+  --couleur-dore: #E2A23B;
+  --couleur-succes: #3F7A2E;
+  --couleur-succes-doux: #E6F0DC;
+  --couleur-alerte: #94600A;
+  --couleur-alerte-doux: #FDF2D8;
+  --couleur-erreur: #A8321E;
+  --couleur-erreur-doux: #FBE6E0;
+  --couleur-inverse: #3A281B;
+  --couleur-sur-inverse: #F4E9D8;
 
-  --police: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --police: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --police-titre: 'Fraunces', Georgia, 'Times New Roman', serif;
   --texte-xs: 12px;
   --texte-sm: 14px;
   --texte-md: 16px;
   --texte-lg: 20px;
-  --texte-xl: 28px;
-  --texte-2xl: 40px;
-  --texte-3xl: clamp(40px, 7vw, 68px);
+  --texte-xl: 30px;
+  --texte-2xl: 44px;
+  --texte-3xl: clamp(42px, 7vw, 72px);
 
   --espace-1: 4px;
   --espace-2: 8px;
@@ -50,17 +55,18 @@
   --espace-8: 64px;
   --espace-9: 96px;
 
-  --rayon-sm: 8px;
-  --rayon-md: 12px;
-  --rayon-lg: 20px;
+  --rayon-sm: 10px;
+  --rayon-md: 16px;
+  --rayon-lg: 24px;
   --rayon-rond: 999px;
-  --ombre: 0 1px 2px rgba(20, 20, 20, 0.04), 0 8px 24px rgba(20, 20, 20, 0.08);
+  --ombre: 0 1px 2px rgba(80, 50, 20, 0.05), 0 10px 28px rgba(80, 50, 20, 0.10);
+  --ombre-carte: 0 1px 2px rgba(80, 50, 20, 0.05);
   --largeur-app: 960px;
   --hauteur-onglets: 64px;
 
   /* Alias des anciens noms (styles locaux encore présents dans certaines pages). */
   --accent: var(--couleur-accent-texte);
-  --accent-fonce: var(--couleur-accent-texte);
+  --accent-fonce: var(--couleur-accent-fort);
   --accent-clair: var(--couleur-accent-doux);
   --fond: var(--couleur-fond);
   --surface: var(--couleur-surface);
@@ -75,60 +81,33 @@
   --info-fond: var(--couleur-surface-2);
   --info-texte: var(--couleur-texte-2);
   --rayon: var(--rayon-sm);
-  --police-titre: var(--police);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --couleur-fond: #0E0E0F;
-    --couleur-surface: #17171A;
-    --couleur-surface-2: #212125;
-    --couleur-bordure: #2C2C31;
-    --couleur-bordure-forte: #44444B;
-    --couleur-texte: #F3F3F1;
-    --couleur-texte-2: #B4B4AF;
-    --couleur-texte-3: #93938E;
-    --couleur-accent: #FF7A2B;
-    --couleur-accent-fort: #FF8F4D;
-    --couleur-accent-texte: #FF9A5C;
-    --couleur-accent-doux: #2B1A0F;
-    --couleur-sur-accent: #140A03;
-    --couleur-succes: #5BD68A;
-    --couleur-succes-doux: #12271A;
-    --couleur-alerte: #F5C04A;
-    --couleur-alerte-doux: #2A2210;
-    --couleur-erreur: #FF8A80;
-    --couleur-erreur-doux: #2E1513;
-    --couleur-inverse: #212125;
-    --couleur-sur-inverse: #C9C9C4;
-    --ombre: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.45);
-  }
-}
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --couleur-fond: #0E0E0F;
-  --couleur-surface: #17171A;
-  --couleur-surface-2: #212125;
-  --couleur-bordure: #2C2C31;
-  --couleur-bordure-forte: #44444B;
-  --couleur-texte: #F3F3F1;
-  --couleur-texte-2: #B4B4AF;
-  --couleur-texte-3: #93938E;
-  --couleur-accent: #FF7A2B;
-  --couleur-accent-fort: #FF8F4D;
-  --couleur-accent-texte: #FF9A5C;
-  --couleur-accent-doux: #2B1A0F;
-  --couleur-sur-accent: #140A03;
-  --couleur-succes: #5BD68A;
-  --couleur-succes-doux: #12271A;
-  --couleur-alerte: #F5C04A;
-  --couleur-alerte-doux: #2A2210;
-  --couleur-erreur: #FF8A80;
-  --couleur-erreur-doux: #2E1513;
-  --couleur-inverse: #212125;
-  --couleur-sur-inverse: #C9C9C4;
-  --ombre: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.45);
+  --couleur-fond: #1F1712;
+  --couleur-surface: #2A2019;
+  --couleur-surface-2: #33271E;
+  --couleur-bordure: #43342A;
+  --couleur-bordure-forte: #5A4738;
+  --couleur-texte: #F4E9D8;
+  --couleur-texte-2: #CDB9A1;
+  --couleur-texte-3: #AE9A84;
+  --couleur-accent: #E89A4B;
+  --couleur-accent-fort: #F0A65A;
+  --couleur-accent-texte: #F0A65A;
+  --couleur-accent-doux: #3D2A18;
+  --couleur-sur-accent: #1F1712;
+  --couleur-dore: #E8B65A;
+  --couleur-succes: #8FCB72;
+  --couleur-succes-doux: #22301A;
+  --couleur-alerte: #E8B65A;
+  --couleur-alerte-doux: #3A2C14;
+  --couleur-erreur: #F08E7A;
+  --couleur-erreur-doux: #3A1E17;
+  --couleur-inverse: #3A2A1E;
+  --couleur-sur-inverse: #F4E9D8;
+  --ombre: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
 }
 
 /* ---------- Base ---------- */
@@ -149,8 +128,8 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-h1, h2, h3 { line-height: 1.15; letter-spacing: -0.02em; color: var(--couleur-texte); }
-h1 { font-size: var(--texte-xl); font-weight: 700; margin: 0 0 var(--espace-2); }
+h1, h2, h3 { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; line-height: 1.15; letter-spacing: -0.01em; color: var(--couleur-texte); }
+h1 { font-size: var(--texte-xl); font-weight: 600; margin: 0 0 var(--espace-2); }
 h2 { font-size: var(--texte-lg); font-weight: 600; margin: var(--espace-6) 0 var(--espace-3); }
 h3 { font-size: var(--texte-md); font-weight: 600; margin: var(--espace-5) 0 var(--espace-2); }
 p { margin: 0 0 var(--espace-3); }
@@ -625,7 +604,8 @@ button:disabled { opacity: 0.45; cursor: default; }
   margin-bottom: var(--espace-5);
 }
 .claire-date { margin: 0 0 var(--espace-1); font-size: var(--texte-sm); color: var(--couleur-texte-3); }
-.claire-titre { margin: 0; font-size: var(--texte-xl); font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; }
+.claire-titre { margin: 0; font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: var(--texte-xl); font-weight: 600; letter-spacing: -0.01em; line-height: 1.15; }
+.claire-titre--petit { font-family: var(--police); }
 .claire-titre--petit { font-size: var(--texte-md); font-weight: 600; margin-bottom: var(--espace-2); }
 .entete-droite-previsions { display: flex; flex-direction: column; align-items: flex-end; gap: var(--espace-2); }
 
@@ -1127,3 +1107,81 @@ button.lien-supprimer:hover { background: var(--couleur-erreur-doux); }
 .grille-kpi--resultats { grid-template-columns: 1fr; }
 @media (min-width: 560px) { .grille-kpi--resultats { grid-template-columns: 1fr 1fr; } }
 .grille-kpi--quatre { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+
+/* ---------- Direction « Fournil » : chiffres en serif, cartes chaudes ---------- */
+.ligne-prod-jour-quantite, .produit-top-quantite, .carte-kpi-valeur, .ligne-fiabilite .valeur, .libelle-jour {
+  font-family: var(--police-titre);
+  font-variation-settings: 'SOFT' 100;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.ligne-prod-jour-quantite .delta { font-family: var(--police); }
+.ligne-prod-jour, .carte-kpi, .carte, .carte-page, .chip-jour, ul.liste-produits li, .ligne-produit, .etat-synchro { box-shadow: var(--ombre-carte); }
+.carte-kpi--heros .carte-kpi-valeur { color: var(--couleur-dore); }
+.classement-remplissage, .colonne-barre { background: var(--couleur-dore); }
+.chip-jour--charge .chip-jour-point { background: var(--couleur-dore); }
+.chip-jour.actif { border-color: var(--couleur-accent); box-shadow: inset 0 0 0 1px var(--couleur-accent); }
+.pill-categorie.actif, .btn-mini.actif { background: var(--couleur-accent); color: var(--couleur-sur-accent); border-color: var(--couleur-accent); }
+.entete-site { background: color-mix(in srgb, var(--couleur-fond) 92%, transparent); }
+.logo-texte { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-weight: 600; font-size: 19px; letter-spacing: -0.01em; }
+
+/* ---------- Fournil, finitions ---------- */
+
+/* Grain de farine très léger sur le fond crème (SVG inline, aucun fichier). */
+body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .3 0 0 0 0 .15 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+/* En-tête de Demain / Semaine : un bandeau doré, comme la croûte qui sort du four. */
+.claire-entete {
+  padding: var(--espace-5);
+  border-radius: var(--rayon-lg);
+  background:
+    radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--couleur-dore) 45%, transparent), transparent 60%),
+    radial-gradient(90% 110% at 100% 100%, color-mix(in srgb, var(--couleur-accent) 18%, transparent), transparent 60%),
+    var(--couleur-accent-doux);
+  border: 1px solid color-mix(in srgb, var(--couleur-dore) 40%, var(--couleur-bordure));
+}
+.claire-entete .claire-date { color: var(--couleur-texte-2); }
+.claire-entete .meteo-moment, .claire-entete .claire-badge { background: color-mix(in srgb, var(--couleur-surface) 70%, transparent); }
+.vue-semaine .claire-entete { margin-top: 0; }
+
+/* Cartes produit : un filet doré qui signale le produit, la quantité reste le héros. */
+.ligne-prod-jour { position: relative; overflow: hidden; }
+.ligne-prod-jour::before {
+  content: ''; position: absolute; left: 0; top: var(--espace-4); bottom: var(--espace-4);
+  width: 3px; border-radius: 0 3px 3px 0; background: var(--couleur-dore);
+}
+
+/* Onglets : pastille dorée derrière l'onglet actif. */
+.nav-onglet.actif { background: var(--couleur-accent-doux); color: var(--couleur-accent-texte); }
+.nav-onglet.actif .nav-icone { color: var(--couleur-accent-texte); }
+@media (max-width: 720px) {
+  .nav-onglets { box-shadow: 0 -6px 20px rgba(80, 50, 20, 0.06); }
+  .nav-onglet .nav-icone { width: 44px; height: 28px; padding: 3px 11px; border-radius: var(--rayon-rond); }
+  .nav-onglet.actif { background: transparent; }
+  .nav-onglet.actif .nav-icone { background: var(--couleur-accent-doux); }
+}
+
+/* Titres de page : serif plus généreuse. */
+.entete-page h1 { font-size: clamp(30px, 6vw, 38px); }
+
+/* Boutons : légère profondeur, comme une croûte. */
+button:not(.periode-bouton):not(.chip-jour):not(.pill-categorie):not(.btn-mini):not(.stepper-bouton):not(.bouton-nav-jour):not(.icone-action):not(.lien-discret):not(.lien-suggestion):not(.lien-supprimer):not(.btn-compte):not(.bouton-secondaire):not(.btn-ajouter-categorie),
+.bouton-principal, .btn-cta-commandes {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 2px 6px color-mix(in srgb, var(--couleur-accent) 30%, transparent);
+}
+@media (max-width: 400px) {
+  .stepper { gap: 6px; }
+  .stepper-bouton { width: 36px; height: 36px; min-height: 36px; }
+  .ligne-produit .stepper-valeur { width: 54px; padding: 8px 4px; }
+  .ligne-produit { padding: var(--espace-3); }
+}
+[id] { scroll-margin-top: 80px; }
+.onglets { scrollbar-width: none; }
+.onglets::-webkit-scrollbar { display: none; }
+/* Sur téléphone, la page n'est plus une carte dans la carte : le contenu respire. */
+@media (max-width: 720px) {
+  .carte-page { background: transparent; border: 0; box-shadow: none; padding: 0; }
+  .carte-page + .carte-page, section.carte-page { margin-top: var(--espace-6) !important; }
+}

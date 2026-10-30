@@ -1,78 +1,85 @@
 # À Point — système de design
 
-Direction : **moderne et tech**, lisible à 5 h du matin sur un téléphone.
-Références regardées (oct. 2026) : Linear, Resend, Attio, Cal.com. Ce qu'on en retient :
-fond neutre presque blanc (ou presque noir), texte quasi noir, bordures fines de 1 px
-plutôt que des ombres, titres serrés et gras, une seule action principale par écran,
-le produit montré dans une carte plutôt que des illustrations. Ce qu'on ne reprend pas :
-leurs dégradés animés et leurs couleurs de marque.
+Direction : **« Fournil »**, chaleureuse et appétissante, lisible à 5 h du matin sur un téléphone.
+Remplace la piste « moderne et tech » du 30 oct. 2026, jugée trop sombre et futuriste pour des boulangers.
 
-Toutes les valeurs vivent dans `style.css` (`:root`). Les pages n'utilisent que les noms.
+## Références regardées (30 oct. 2026)
+
+- **Poilâne** : fond clair, logotype serif, le pain en grand, très peu d'éléments autour.
+- **King Arthur Baking** : grands titres serif chaleureux, une seule couleur d'action franche en pilule, beaucoup de crème.
+- **Tartine** : photo de pain plein cadre, texte réduit au strict nécessaire.
+
+Ce qu'on en retient : le produit (le pain, les chiffres de la fournée) au centre, un serif généreux pour les titres,
+un fond crème plutôt que blanc, une seule couleur d'action. Ce qu'on ne reprend pas : leurs photos, logos et couleurs de marque.
+
+## Pistes comparées
+
+1. **Fournil** (retenue) — crème farine, brun mie de seigle pour le texte, **croûte dorée** pour l'action.
+   Titres et grands chiffres en serif doux (Fraunces, axe SOFT), texte en sans serif lisible (Inter).
+   Chaleureux sans être rétro, et les quantités du jour deviennent l'élément mémorable.
+2. **Meunier** — papier kraft et blé, encre bleu sac de farine, tampons et filets. Plus graphique,
+   mais le bleu éloigne de l'appétit et les tampons alourdissent un écran qui doit rester synthétique.
+3. **Vitrine** — blanc chaud, photos de pain plein cadre, serif fine et élégante. Très haut de gamme,
+   mais dépend de vraies photos qu'on n'a pas encore et prend trop de place sur un téléphone.
 
 ## Couleur
 
+Le **mode clair est le mode par défaut**, même si le téléphone est en mode sombre.
+Le mode sombre est chaud (brun de croûte, jamais noir) et ne s'active que par `data-theme="dark"`.
+
 | Jeton | Clair | Sombre | Rôle |
 |---|---|---|---|
-| `--couleur-fond` | `#FAFAF9` | `#0C0C0D` | fond de page |
-| `--couleur-surface` | `#FFFFFF` | `#161618` | cartes, champs, barre de nav |
-| `--couleur-surface-2` | `#F4F4F2` | `#1E1E21` | survol, zones en retrait, pastilles |
-| `--couleur-bordure` | `#E7E5E2` | `#2A2A2E` | bordures 1 px, séparateurs |
-| `--couleur-texte` | `#141414` | `#F2F2F0` | texte, grands chiffres |
-| `--couleur-texte-2` | `#5C5A57` | `#A3A3A0` | texte secondaire (≥ 4.5:1) |
-| `--couleur-texte-3` | `#76736F` | `#8A8A86` | légendes, dates (≥ 4.5:1) |
-| `--couleur-accent` | `#FF6A13` | `#FF7A2B` | **unique accent**, en aplat : bouton principal, barres, chiffre héros |
-| `--couleur-accent-fort` | `#E85A05` | `#FF8F4D` | survol du bouton principal |
-| `--couleur-accent-texte` | `#B83F00` | `#FF9A5C` | même orange, assez foncé pour du texte : liens, onglet actif (≥ 4.5:1) |
-| `--couleur-accent-doux` | `#FFF0E5` | `#2B1A0F` | fond d'une pastille ou d'un état actif |
-| `--couleur-sur-accent` | `#141414` | `#140A03` | texte posé sur l'accent (noir sur orange vif : 7:1) |
-| `--couleur-succes` | `#15803D` | `#4ADE80` | économie positive, synchro OK |
-| `--couleur-alerte` | `#B45309` | `#FBBF24` | prévision fragile, à vérifier |
-| `--couleur-erreur` | `#B91C1C` | `#F87171` | erreur, suppression |
-
-L'orange vif « four » est la seule couleur de marque, posé en aplat avec du texte noir (pas de terre cuite assourdie). Pas de dégradé, pas de violet.
-Le mode sombre suit le système (`prefers-color-scheme`) et peut être forcé par `data-theme`.
+| `--couleur-fond` | `#FBF5EA` | `#1F1712` | fond de page, crème farine |
+| `--couleur-surface` | `#FFFDF8` | `#2A2019` | cartes, champs, barre d'onglets |
+| `--couleur-surface-2` | `#F3E8D6` | `#33271E` | survol, pastilles, zones en retrait |
+| `--couleur-bordure` | `#EADBC4` | `#43342A` | bordures 1 px |
+| `--couleur-texte` | `#2B1D13` | `#F4E9D8` | texte, grands chiffres |
+| `--couleur-texte-2` | `#6B5544` | `#CDB9A1` | texte secondaire |
+| `--couleur-texte-3` | `#76614F` | `#AE9A84` | légendes, dates (≥ 4.5:1) |
+| `--couleur-accent` | `#9E4C0C` | `#E89A4B` | **croûte dorée**, unique couleur d'action : bouton principal, onglet actif |
+| `--couleur-accent-texte` | `#9E4C0C` | `#F0A65A` | liens et textes d'accent |
+| `--couleur-sur-accent` | `#FFFDF8` | `#1F1712` | texte posé sur l'accent |
+| `--couleur-accent-doux` | `#F7E4C8` | `#3D2A18` | fond d'une pastille ou d'un état actif |
+| `--couleur-dore` | `#E2A23B` | `#E8B65A` | décor seulement (barres, points) : jamais du texte sur crème |
+| `--couleur-succes` | `#3F7A2E` | `#8FCB72` | économie positive, synchro OK |
+| `--couleur-alerte` | `#94600A` | `#E8B65A` | jour férié, vacances, à vérifier |
+| `--couleur-erreur` | `#A8321E` | `#F08E7A` | erreur, suppression |
 
 ## Typographie
 
-Une seule famille : **Geist** (Google Fonts, 400/500/600/700), repli `system-ui`. Préférée à Inter : plus « outil technique », chiffres tabulaires nets.
-Chiffres toujours tabulaires (`font-variant-numeric: tabular-nums`).
+- **Fraunces** (serif douce, axe `SOFT` à 100, opsz automatique) : titres et **grands chiffres de production**. 500–600.
+- **Inter** : tout le reste (texte, boutons, tableaux, étiquettes). 400/500/600, chiffres tabulaires.
 
 | Jeton | Taille / interligne | Usage |
 |---|---|---|
 | `--texte-xs` | 12 / 16 | légendes, pastilles |
-| `--texte-sm` | 14 / 20 | texte secondaire, tableaux |
+| `--texte-sm` | 14 / 20 | texte secondaire |
 | `--texte-md` | 16 / 24 | texte courant (jamais moins sur mobile) |
 | `--texte-lg` | 20 / 28 | titres de carte |
-| `--texte-xl` | 28 / 34 | titre de page |
-| `--texte-2xl` | 40 / 44 | chiffre clé |
-| `--texte-3xl` | clamp(40px, 7vw, 64px) / 1.05 | titre de la page de vente |
+| `--texte-xl` | 30 / 36 | titre de page (serif) |
+| `--texte-2xl` | 44 / 44 | chiffre de production (serif) |
+| `--texte-3xl` | clamp(42px, 7vw, 72px) | titre de la page de vente (serif) |
 
-Titres : 600–700, interlettrage −0.02em, en casse normale (jamais de petites capitales espacées). Lignes de texte : 65 caractères max.
+Titres en casse normale, jamais de capitales espacées. Lignes de 65 caractères max.
 
-## Espacement et largeur
+## Espacement, forme, profondeur
 
-Échelle en base 4 : `--espace-1` 4 · `-2` 8 · `-3` 12 · `-4` 16 · `-5` 24 · `-6` 32 · `-7` 48 · `-8` 64 · `-9` 96.
-Gouttière mobile 16 px. Contenu app : 960 px max. Page de vente : 1120 px max, sections espacées de 96 px (64 px sur mobile).
-
-## Forme et profondeur
-
-Rayons : `--rayon-sm` 8 (champs, pastilles), `--rayon-md` 12 (cartes), `--rayon-lg` 20 (carte héros), `--rayon-rond` 999 (boutons pilule).
-Une seule ombre `--ombre` très légère pour ce qui flotte (menu du compte, modale). Les cartes se contentent de la bordure.
+Échelle base 4 : 4 · 8 · 12 · 16 · 24 · 32 · 48 · 64 · 96 (`--espace-1` à `--espace-9`). Gouttière mobile 16 px, contenu app 960 px max.
+Rayons plus ronds que la piste précédente, comme une miche : `--rayon-sm` 10, `--rayon-md` 16, `--rayon-lg` 24, pilule 999.
+Une ombre chaude et douce (`--ombre`) pour ce qui flotte ; les cartes ont une bordure crème et une ombre très légère.
 
 ## Composants
 
-- **Bouton principal** : fond accent, texte `--couleur-sur-accent`, pilule, 44 px de haut min. Survol : légèrement plus foncé. Focus : anneau 2 px accent décalé de 2 px. Désactivé : opacité 0.45.
-- **Bouton secondaire** : surface + bordure, texte normal. **Bouton discret** : texte seul, souligné au survol.
-- **Lien** : couleur accent, soulignement au survol.
-- **Champ** : surface, bordure, rayon sm, 44 px ; focus = bordure accent + anneau.
-- **Carte** : surface, bordure 1 px, rayon md, padding 16 (mobile) / 24.
-- **Chiffre clé** : étiquette 12 px en texte-3, valeur 40 px 700 tabulaire, détail 14 px.
-- **Pastille** : 12 px 500, fond surface-2 (ou accent-doux pour l'état actif), pilule.
-- **Tableau** : en-têtes 12 px texte-3 en capitales légères, lignes séparées par la bordure.
-- **Navigation app** : barre du haut (logo, 5 onglets, menu du compte) sur ordinateur ; sur mobile, les 5 onglets passent en **barre fixe en bas d'écran** (atteignables au pouce), le menu du compte reste en haut à droite.
-- **Explications** : repliées dans `<details>`, jamais affichées par défaut.
+- **Bouton principal** : croûte dorée, texte crème, pilule, 44 px min. Un seul par écran.
+- **Bouton secondaire** : surface + bordure. **Discret** : texte souligné.
+- **Carte produit (Demain)** : nom en sans serif, quantité en Fraunces 44 px, fourchette en légende.
+- **Chiffre héros (Bilan)** : carte brun mie, montant en Fraunces doré.
+- **Pastille** : fond `surface-2`, ou `accent-doux` pour l'état actif / jour chargé.
+- **Navigation** : en-tête crème (logo, onglets, compte) sur ordinateur ; sur mobile, 5 onglets en barre fixe en bas.
+- **Explications** : repliées dans `<details>`.
 
 ## Images et icônes
 
-Pas de photos de stock ni d'emoji décoratifs dans l'interface. Icônes en traits fins (SVG inline, 1.75 px, `currentColor`).
-La page de vente montre une **maquette de l'écran « Demain »** construite en HTML, avec des données d'exemple signalées comme telles.
+Icônes en traits fins (SVG inline, 1.75 px, `currentColor`), pas d'emoji décoratif.
+La page de vente montre une maquette de l'écran « Demain » (données fictives signalées) posée sur un fond doré chaud ;
+de vraies photos de fournée pourront la remplacer quand les boulangeries pilotes en fourniront.
