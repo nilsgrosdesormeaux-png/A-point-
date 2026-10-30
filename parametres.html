@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="nav.js"></script>
+  <script src="connecteur-caisse.js"></script>
 </head>
 <body>
   <header class="entete-site entete-site--pleine-largeur">
@@ -58,6 +59,9 @@
 
         <button id="btnEnregistrerCommerce" type="button">Enregistrer</button>
         <div id="messageCommerce" aria-live="polite"></div>
+
+        <!-- Bloc « Connecter ma caisse » : rempli par connecteur-caisse.js -->
+        <div id="blocCaisse"></div>
 
         <p class="section-titre">Compte</p>
         <p class="texte-aide" id="emailActuel"></p>
@@ -153,6 +157,7 @@
         statutDiv.style.display = 'none';
         zoneParametresEl.style.display = 'block';
         emailActuelEl.textContent = "Adresse actuelle : " + session.user.email;
+        window.ConnecteurCaisse.init(sbClient, commercantId);
 
         grilleJoursFermetureEl.innerHTML = '';
         JOURS_AFFICHES.forEach(function (j) {
