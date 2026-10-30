@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Achats & commandes</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261030">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -23,20 +23,22 @@
     .apercu-habitude-famille { font-size: 12px; color: var(--texte-tres-attenue); text-transform: uppercase; letter-spacing: 0.03em; margin: 14px 0 2px; }
     .apercu-habitude-famille:first-of-type { margin-top: 4px; }
   </style>
-  <script src="nav.js"></script>
+  <script src="nav.js?v=20261030"></script>
 </head>
 <body>
-  <div class="conteneur conteneur--large">
-    <header class="entete-site">
-      <a href="tableau-de-bord.html" class="logo">
-        <svg class="logo-marque" viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
-          <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
-          <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
-          <circle cx="50" cy="56" r="8" fill="currentColor"/>
-        </svg>
-      </a>
-      <nav id="navPrincipale"></nav>
-    </header>
+  <a class="lien-evitement" href="#contenu">Aller au contenu</a>
+  <header class="entete-site">
+    <a href="previsions.html" class="logo" aria-label="À Point, accueil">
+      <svg class="logo-marque" viewBox="0 0 100 100" width="24" height="24" aria-hidden="true">
+        <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <circle cx="50" cy="56" r="8" fill="currentColor"/>
+      </svg>
+      <span class="logo-texte">À Point</span>
+    </a>
+    <nav id="navPrincipale"></nav>
+  </header>
+  <div id="contenu" role="main" class="conteneur conteneur--large">
 
     <p id="statutCommande" class="texte-aide">Vérification de la connexion...</p>
 
@@ -48,11 +50,11 @@
           <h1 id="titreGenererCommande">Générer ma commande</h1>
         </div>
       </div>
-      <p class="texte-aide">Pour importer tes ventes, tes fiches techniques ou tes prix, direction <a href="import.html">Importation des données →</a></p>
+      <p class="texte-aide">Pour importer tes ventes, tes fiches techniques ou tes prix, direction l’onglet <a href="ventes.html#importer">Ventes</a>.</p>
       <p class="texte-aide" id="bandeauContexteJour" style="display:none;"></p>
 
       <div class="selecteur-couverture">
-        <label for="selectCouverture">🗓️ Cette commande couvre une période de :</label>
+        <label for="selectCouverture">Cette commande couvre :</label>
         <select id="selectCouverture"></select>
         <p class="selecteur-couverture-aide">Les quantités ci-dessous et le PDF s'ajustent à cette durée précise.</p>
       </div>
@@ -502,7 +504,7 @@
         if (lignesTableau.length === 0) {
           messageCommandeEl.style.display = 'block';
           messageCommandeEl.className = 'erreur';
-          messageCommandeEl.textContent = "Aucun article à commander pour ces jours (vérifie que tes produits ont une fiche technique dans Produits vendus).";
+          messageCommandeEl.textContent = "Aucun article à commander pour ces jours (vérifie que tes produits ont une fiche technique dans Produits).";
           return;
         }
 

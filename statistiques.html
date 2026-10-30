@@ -5,44 +5,74 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>À Point - Statistiques</title>
+  <title>À Point - Bilan</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261030">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="moteur-prevision.js?v=20260922"></script>
-  <script src="nav.js"></script>
+  <script src="nav.js?v=20261030"></script>
 </head>
 <body>
-  <header class="entete-site entete-site--pleine-largeur">
-    <a href="tableau-de-bord.html" class="logo">
-      <svg class="logo-marque" viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
+  <a class="lien-evitement" href="#contenu">Aller au contenu</a>
+  <header class="entete-site">
+    <a href="previsions.html" class="logo" aria-label="À Point, accueil">
+      <svg class="logo-marque" viewBox="0 0 100 100" width="24" height="24" aria-hidden="true">
         <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
         <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
         <circle cx="50" cy="56" r="8" fill="currentColor"/>
       </svg>
+      <span class="logo-texte">À Point</span>
     </a>
     <nav id="navPrincipale"></nav>
   </header>
 
-  <div class="conteneur conteneur--large">
-    <div class="carte-page">
+  <div id="contenu" role="main" class="conteneur conteneur--large">
+    <div>
       <div class="entete-page">
         <div>
-          <p class="eyebrow">Analyse</p>
-          <h1>Statistiques</h1>
+          <h1>Bilan</h1>
+          <p class="texte-aide" style="margin:0;">Ce que les prévisions t'ont fait gagner, et ce que ton historique raconte.</p>
         </div>
       </div>
+
+      <!-- Résultats en euros (ex-bloc "Vos résultats" de l'accueil, refonte oct. 2026).
+           Hors de #zoneContenu, que le script des statistiques remplace quand l'historique est vide. -->
+      <section class="section-resultats" style="margin-top:0;" aria-labelledby="titreResultats">
+        <div class="entete-resultats">
+          <h2 class="titre-resultats" id="titreResultats">Tes résultats</h2>
+          <div class="selecteur-periode" id="selecteurPeriode" role="group" aria-label="Période des résultats">
+            <button type="button" class="periode-bouton actif" data-periode="7" aria-pressed="true">7 jours</button>
+            <button type="button" class="periode-bouton" data-periode="30" aria-pressed="false">30 jours</button>
+            <button type="button" class="periode-bouton" data-periode="tout" aria-pressed="false">Depuis le début</button>
+          </div>
+        </div>
+        <div class="grille-kpi grille-kpi--resultats">
+          <div class="carte-kpi carte-kpi--heros">
+            <p class="carte-kpi-titre">Économisé sur la matière première</p>
+            <p class="carte-kpi-valeur" id="kpiEconomieValeur">–</p>
+            <p class="carte-kpi-detail" id="kpiEconomieDetail">Renseigne le prix de tes ingrédients (fiche technique) pour voir ce montant.</p>
+          </div>
+          <div class="carte-kpi">
+            <p class="carte-kpi-titre">Invendus évités</p>
+            <p class="carte-kpi-valeur carte-kpi-valeur--neutre" id="kpiInvendusValeur">–</p>
+            <p class="carte-kpi-detail" id="kpiInvendusDetail">Pas encore assez d'historique.</p>
+          </div>
+          <div class="carte-kpi">
+            <p class="carte-kpi-titre">Précision des prévisions</p>
+            <p class="carte-kpi-valeur carte-kpi-valeur--neutre" id="kpiFiabiliteValeur">–</p>
+            <p class="carte-kpi-detail" id="kpiFiabiliteDetail">Pas encore assez d'historique.</p>
+          </div>
+        </div>
+      </section>
       <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
 
       <div id="zoneContenu" style="display:none;">
-        <p class="texte-aide" style="margin-top:4px;">Ce que ton historique de ventes raconte : tes jours records, tes produits qui marchent, et le rythme de ton activité dans le temps.</p>
 
         <!-- Jours records : pas de sélecteur, fenêtres fixes (mois en cours / année en cours), cohérent avec la demande pilote ("jour le plus chargé du mois/de l'année"). -->
-        <section class="section-resultats">
+        <section class="section-resultats carte">
           <div class="entete-resultats">
             <div>
-              <p class="eyebrow" style="margin:0;">Jours records</p>
-              <h2 class="titre-resultats">Ce mois-ci et cette année</h2>
+              <h2 class="titre-resultats">Jours records</h2>
             </div>
           </div>
           <p class="section-titre" style="margin-top:0;">Ce mois-ci</p>
@@ -75,10 +105,9 @@
 
         <!-- Classement produits : sélecteur de période, réutilise le même
              composant que "Vos résultats" sur l'Accueil (cohérence visuelle). -->
-        <section class="section-resultats">
+        <section class="section-resultats carte">
           <div class="entete-resultats">
             <div>
-              <p class="eyebrow" style="margin:0;">Classement</p>
               <h2 class="titre-resultats">Produits les plus vendus</h2>
             </div>
             <div class="selecteur-periode" id="selecteurPeriodeClassement">
@@ -94,11 +123,10 @@
         <!-- Affluence : tendance de l'activité globale (tous produits
              confondus), agrégée par semaine, mois ou année selon l'onglet
              choisi. Un seul graphique, jamais deux échelles superposées. -->
-        <section class="section-resultats">
+        <section class="section-resultats carte">
           <div class="entete-resultats">
             <div>
-              <p class="eyebrow" style="margin:0;">Tendance</p>
-              <h2 class="titre-resultats">Affluence dans le temps</h2>
+              <h2 class="titre-resultats">Articles vendus dans le temps</h2>
             </div>
             <div class="selecteur-periode" id="selecteurGranulariteAffluence">
               <button type="button" class="periode-bouton" data-granularite="semaine">Semaine</button>
@@ -412,7 +440,7 @@
           zoneContenuEl.style.display = 'block';
 
           if (ventesToutes.length === 0) {
-            zoneContenuEl.innerHTML = '<p class="carte-vide-claire">Pas encore assez de ventes enregistrées pour construire des statistiques. <a href="produits.html">Ajoute tes premières ventes →</a></p>';
+            zoneContenuEl.innerHTML = '<p class="carte-vide-claire">Pas encore assez de ventes enregistrées pour construire des statistiques. <a href="ventes.html">Ajoute tes premières ventes</a></p>';
             return;
           }
 
@@ -424,6 +452,127 @@
           // laissait la page bloquée indéfiniment sur "Vérification de la
           // connexion...".
           statutDiv.textContent = "Impossible de charger tes données pour l'instant. Vérifie ta connexion et réessaie.";
+        });
+      });
+    })();
+  </script>
+  <script>
+    // Résultats en euros : repris de l'ancien accueil (tableau-de-bord.html),
+    // même calcul rétrospectif via moteur-prevision.js (non modifié). Pour
+    // chaque jour passé de la période, rejoue la prévision avec l'historique
+    // disponible avant ce jour-là et compare à une production "à l'instinct".
+    (function () {
+      var SUPABASE_URL = "https://eqvbksxfwlgbcxgqljqn.supabase.co";
+      var SUPABASE_KEY = "sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc";
+      var sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      var MP = window.MoteurPrevision;
+      var donneesResultats = null;
+      var periodeActuelle = 7;
+
+      function afficherFiabilite(ventes) {
+        var kpiValeurEl = document.getElementById('kpiFiabiliteValeur');
+        var kpiDetailEl = document.getElementById('kpiFiabiliteDetail');
+        var fiabilite = MP.calculerFiabilite(ventes);
+        if (!fiabilite || fiabilite.nbPoints < 3) return;
+        kpiValeurEl.textContent = fiabilite.valeur + ' %';
+        var classe = 'carte-kpi-valeur--neutre';
+        if (fiabilite.valeur >= 80) classe = 'carte-kpi-valeur--hausse';
+        else if (fiabilite.valeur < 50) classe = 'carte-kpi-valeur--attention';
+        kpiValeurEl.className = 'carte-kpi-valeur ' + classe;
+        var naive = MP.calculerFiabiliteNaive(ventes);
+        var detail = 'Sur ' + fiabilite.nbPoints + ' prévision(s) passée(s)';
+        if (naive && naive.nbPoints >= 3) detail += ', contre ' + naive.valeur + ' % avec une simple moyenne';
+        kpiDetailEl.textContent = detail + '.';
+      }
+
+      function calculerResultatsPeriode(periode) {
+        if (!donneesResultats) return;
+        var ventes = donneesResultats.ventes;
+        var joursSet = {};
+        ventes.forEach(function (v) { joursSet[v.date_vente] = true; });
+        var joursHisto = Object.keys(joursSet).sort();
+        if (joursHisto.length === 0) return;
+        var joursRetenus = periode === 'tout' ? joursHisto : joursHisto.slice(Math.max(0, joursHisto.length - periode));
+
+        var parProduit = {};
+        ventes.forEach(function (vente) {
+          var nom = MP.formatNomAffichage(vente.nom_produit);
+          if (!parProduit[nom]) parProduit[nom] = [];
+          parProduit[nom].push(vente);
+        });
+
+        var recommandationsParJour = joursRetenus.map(function (isoJour) {
+          var jourCible = new Date(isoJour + 'T00:00:00');
+          var recommandationsParNom = {};
+          var recommandationsInstinctParNom = {};
+          Object.keys(parProduit).forEach(function (nom) {
+            var avant = parProduit[nom].filter(function (v) { return v.date_vente < isoJour; });
+            if (avant.length === 0) return;
+            var r = MP.calculerRecommandation(avant, jourCible, donneesResultats.zoneVacances, donneesResultats.evenements, {}, {});
+            recommandationsParNom[nom] = r.quantite;
+            recommandationsInstinctParNom[nom] = r.quantiteInstinct;
+          });
+          return { recommandationsParNom: recommandationsParNom, recommandationsInstinctParNom: recommandationsInstinctParNom };
+        });
+
+        var valeurEl = document.getElementById('kpiEconomieValeur');
+        var detailEl = document.getElementById('kpiEconomieDetail');
+        var economie = MP.calculerEconomieReellePeriode(recommandationsParJour, donneesResultats.produits, donneesResultats.ingredientsLignes);
+        if (!economie) {
+          valeurEl.textContent = '–';
+          detailEl.textContent = 'Renseigne le prix de tes ingrédients (fiche technique) pour voir ce montant.';
+        } else {
+          var montant = Math.abs(Math.round(economie.economie)).toLocaleString('fr-FR');
+          valeurEl.textContent = (economie.economie >= 0 ? '' : '−') + montant + ' €';
+          detailEl.textContent = 'Sur ' + joursRetenus.length + ' jour(s), par rapport à une production à l\'instinct (' + economie.nbIngredients + ' ingrédient(s) chiffré(s)).';
+        }
+
+        var invendus = Math.round(MP.calculerInvendusEvitesPeriode(recommandationsParJour));
+        var invendusEl = document.getElementById('kpiInvendusValeur');
+        invendusEl.textContent = (invendus > 0 ? '≈ ' : '') + invendus.toLocaleString('fr-FR') + ' pièce(s)';
+        invendusEl.className = 'carte-kpi-valeur ' + (invendus > 0 ? 'carte-kpi-valeur--hausse' : 'carte-kpi-valeur--neutre');
+        document.getElementById('kpiInvendusDetail').textContent = 'Sur ' + joursRetenus.length + ' jour(s) : écart entre une production à l\'instinct et la prévision.';
+      }
+
+      var boutons = document.querySelectorAll('#selecteurPeriode .periode-bouton');
+      boutons.forEach(function (bouton) {
+        bouton.addEventListener('click', function () {
+          boutons.forEach(function (b) { b.classList.remove('actif'); b.setAttribute('aria-pressed', 'false'); });
+          bouton.classList.add('actif');
+          bouton.setAttribute('aria-pressed', 'true');
+          var val = bouton.getAttribute('data-periode');
+          periodeActuelle = val === 'tout' ? 'tout' : parseInt(val, 10);
+          calculerResultatsPeriode(periodeActuelle);
+        });
+      });
+
+      sbClient.auth.getSession().then(function (result) {
+        var session = result.data.session;
+        if (!session) return;
+        var commercantId = session.user.id;
+        Promise.all([
+          sbClient.from('ventes').select('*').eq('commercant_id', commercantId),
+          sbClient.from('produits').select('*').eq('commercant_id', commercantId),
+          sbClient.from('ingredients_produit').select('*').eq('commercant_id', commercantId),
+          sbClient.from('parametres_commercant').select('*').eq('commercant_id', commercantId),
+          sbClient.from('evenements_commercant').select('*').eq('commercant_id', commercantId)
+        ]).then(function (r) {
+          var ventes = r[0].data || [];
+          if (ventes.length === 0) return;
+          var parametres = (r[3].data && r[3].data[0]) || null;
+          var evenements = {};
+          (r[4].data || []).forEach(function (e) { evenements[e.date_evenement] = e.direction; });
+          donneesResultats = {
+            ventes: ventes,
+            produits: r[1].data || [],
+            ingredientsLignes: r[2].data || [],
+            zoneVacances: parametres ? MP.zoneVacancesPourCodePostal(parametres.code_postal) : null,
+            evenements: evenements
+          };
+          afficherFiabilite(ventes);
+          calculerResultatsPeriode(periodeActuelle);
+        }).catch(function () {
+          document.getElementById('kpiEconomieDetail').textContent = 'Impossible de charger tes résultats. Vérifie ta connexion et recharge la page.';
         });
       });
     })();

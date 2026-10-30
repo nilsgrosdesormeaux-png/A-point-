@@ -5,23 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Aide</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261030">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="nav.js"></script>
+  <script src="nav.js?v=20261030"></script>
 </head>
 <body>
-  <header class="entete-site entete-site--pleine-largeur">
-    <a href="tableau-de-bord.html" class="logo">
-      <svg class="logo-marque" viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
+  <a class="lien-evitement" href="#contenu">Aller au contenu</a>
+  <header class="entete-site">
+    <a href="previsions.html" class="logo" aria-label="À Point, accueil">
+      <svg class="logo-marque" viewBox="0 0 100 100" width="24" height="24" aria-hidden="true">
         <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
         <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
         <circle cx="50" cy="56" r="8" fill="currentColor"/>
       </svg>
+      <span class="logo-texte">À Point</span>
     </a>
     <nav id="navPrincipale"></nav>
   </header>
 
-  <div class="conteneur conteneur--moyen">
+  <div id="contenu" role="main" class="conteneur conteneur--moyen">
     <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
 
     <div id="zoneAide" style="display:none;">
@@ -32,7 +34,7 @@
             <h1>Questions fréquentes</h1>
           </div>
         </div>
-        <p class="texte-aide" style="margin-top:-4px;">Les réponses aux questions les plus courantes. Pour une présentation complète de l'outil, le <a href="bienvenue.html">guide de démarrage</a> reste aussi disponible.</p>
+        <p class="texte-aide" style="margin-top:-4px;">Les réponses aux questions les plus courantes. Pour une présentation complète de l'outil, la <a href="index.html">page de présentation</a> reste aussi disponible.</p>
 
         <div style="margin-top:20px;">
           <details class="faq-item">
@@ -47,7 +49,7 @@
 
           <details class="faq-item">
             <summary>Je n'ai pas d'export de caisse, je peux quand même m'en servir ?</summary>
-            <p>Oui. Tu notes tes ventes de la veille chaque jour dans « Mes ventes » (30 secondes), et l'historique se construit progressivement. Ce sera juste un peu moins précis les toutes premières semaines, le temps d'accumuler des données.</p>
+            <p>Oui. Tu notes tes ventes de la veille chaque jour dans l’onglet « Ventes », et l'historique se construit progressivement. Ce sera juste un peu moins précis les toutes premières semaines, le temps d'accumuler des données.</p>
           </details>
 
           <details class="faq-item">

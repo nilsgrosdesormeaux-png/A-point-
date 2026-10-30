@@ -6,27 +6,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Paramètres</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261030">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="nav.js"></script>
+  <script src="nav.js?v=20261030"></script>
 </head>
 <body>
-  <header class="entete-site entete-site--pleine-largeur">
-    <a href="tableau-de-bord.html" class="logo">
-      <svg class="logo-marque" viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
+  <a class="lien-evitement" href="#contenu">Aller au contenu</a>
+  <header class="entete-site">
+    <a href="previsions.html" class="logo" aria-label="À Point, accueil">
+      <svg class="logo-marque" viewBox="0 0 100 100" width="24" height="24" aria-hidden="true">
         <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
         <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
         <circle cx="50" cy="56" r="8" fill="currentColor"/>
       </svg>
+      <span class="logo-texte">À Point</span>
     </a>
     <nav id="navPrincipale"></nav>
   </header>
 
-  <div class="conteneur conteneur--moyen">
+  <div id="contenu" role="main" class="conteneur conteneur--moyen">
     <div class="carte-page">
       <div class="entete-page">
         <div>
-          <p class="eyebrow">Réglages</p>
           <h1>Paramètres</h1>
         </div>
       </div>
@@ -35,8 +36,8 @@
       <div id="zoneParametres" style="display:none;">
         <p class="section-titre" style="margin-top:22px;">Mon commerce</p>
 
-        <label for="inputNomRestaurant">Nom du restaurant</label>
-        <input type="text" id="inputNomRestaurant" placeholder="Ex : Le Petit Comptoir">
+        <label for="inputNomRestaurant">Nom de la boulangerie</label>
+        <input type="text" id="inputNomRestaurant" placeholder="Ex : Boulangerie du Marché">
 
         <label for="inputCodePostal">Code postal</label>
         <input type="text" id="inputCodePostal" placeholder="Ex : 35400" maxlength="5" inputmode="numeric">
@@ -51,13 +52,23 @@
              <fieldset>/<legend> reprend exactement le style du label
              existant pour ne rien changer visuellement. -->
         <fieldset style="border:none; padding:0; margin:16px 0 6px;">
-          <legend style="font-weight:600; font-size:13px; padding:0;">Jours de fermeture habituels</legend>
+          <legend style="font-weight:500; font-size:var(--texte-sm); padding:0;">Jours de fermeture habituels</legend>
           <div class="grille-jours" id="grilleJoursFermeture"></div>
         </fieldset>
         <p class="texte-aide">Les jours cochés ne seront jamais recommandés à la production, et ne compteront pas comme des jours "ratés" dans le calcul de fiabilité.</p>
 
         <button id="btnEnregistrerCommerce" type="button">Enregistrer</button>
         <div id="messageCommerce" aria-live="polite"></div>
+
+        <!-- Branchement caisse : chantier séparé (REFONTE.md § 4 bis). Ici, seulement la place réservée. -->
+        <section class="bloc-caisse" id="caisse" aria-labelledby="titreCaisse">
+          <h2 class="section-titre" id="titreCaisse">Connecter ma caisse <span class="badge-bientot">Bientôt disponible</span></h2>
+          <p class="texte-aide">Tes ventes arriveront seules chaque nuit, sans rien saisir. En attendant, saisis la veille ou importe l'export de ta caisse depuis <a href="ventes.html#importer">Ventes</a>.</p>
+          <ul class="grille-caisses" aria-label="Caisses prévues">
+            <li>SumUp</li><li>Bimedia</li><li>Lightspeed</li><li>Zettle</li><li>Square</li><li>Hiboutik</li>
+          </ul>
+          <p class="texte-aide" style="margin-top:var(--espace-3);">Ta caisse n'est pas dans la liste ? <a href="aide.html">Dis-le nous</a>, on la prendra en compte.</p>
+        </section>
 
         <p class="section-titre">Compte</p>
         <p class="texte-aide" id="emailActuel"></p>
@@ -77,7 +88,7 @@
         <div id="messageMdp" aria-live="polite"></div>
 
         <p class="section-titre">Session</p>
-        <button id="btnDeconnexion" type="button" style="background-color: var(--surface); color: var(--texte); border: 1px solid var(--bordure);">Se déconnecter</button>
+        <button id="btnDeconnexion" type="button" class="bouton-secondaire">Se déconnecter</button>
       </div>
       <p class="pied-page"><a href="cgu.html">Conditions générales d'utilisation</a></p>
     </div>

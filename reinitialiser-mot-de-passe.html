@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Réinitialiser le mot de passe</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261030">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { display: flex; align-items: center; min-height: 100vh; }
@@ -144,7 +144,7 @@
           // envoyait à tort un compte employé vers le tableau de bord patron.
           sbClient.auth.getUser().then(function (resultUtilisateur) {
             var estEmploye = ((resultUtilisateur.data.user || {}).user_metadata || {}).role === 'employe';
-            var destination = estEmploye ? 'espace-employe.html' : 'tableau-de-bord.html';
+            var destination = estEmploye ? 'espace-employe.html' : 'previsions.html';
             var apresActivation = function () { setTimeout(function () { window.location.href = destination; }, 1200); };
 
             if (!estEmploye) { apresActivation(); return; }
