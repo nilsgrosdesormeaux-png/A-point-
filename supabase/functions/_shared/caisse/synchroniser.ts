@@ -1,21 +1,27 @@
 // Synchro d'une connexion caisse vers `ventes`, partagée entre la synchro
-// nocturne (synchro-caisse) et le bouton « Synchroniser maintenant »
-// (connecter-caisse).
+// en continu (synchro-caisse) et le bouton « Synchroniser maintenant »
+// (connecter-caisse), pour toutes les caisses du registre.
 //
-// Fenêtre : du lendemain du dernier jour importé (ou 14 jours en arrière à
-// la première synchro) jusqu'à hier inclus. Le jour en cours n'est jamais
-// importé : ses ventes sont incomplètes.
+// Fenêtre : du lendemain du dernier jour importé (ou 12 mois en arrière au
+// branchement) jusqu'à hier inclus. Le jour en cours n'est jamais importé :
+// ses ventes sont incomplètes.
 
-import { agregerLignes, ajouterJours, debutJourParisUTC, jourParis } from './commun.ts';
+import { agregerLignes, ajouterJours, jourParis } from './commun.ts';
 import { chiffrer, dechiffrer } from './chiffrement.ts';
-import * as sumup from './sumup.ts';
+import { type FetchFn, type Jetons, ErreurAutorisation } from './http.ts';
+import { FOURNISSEURS, identifiantsApp } from './fournisseurs.ts';
 
-export var JOURS_HISTORIQUE_INITIAL = 14;
+// 12 mois d'historique au branchement : des prévisions fiables (saisons,
+// jours fériés, vacances) dès le lendemain.
+export var JOURS_HISTORIQUE_INITIAL = 365;
 
-type Env = { cleChiffrement: string; sumupClientId: string; sumupClientSecret: string };
-type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
+export type Env = { cleChiffrement: string; lireEnv: (cle: string) => string | undefined };
 
-export async function enregistrerJetons(admin: any, commercantId: string, fournisseur: string, jetons: sumup.Jetons, cleChiffrement: string) {
+export function debutHistorique(aujourdhui: string): string {
+  return ajouterJours(aujourdhui, -JOURS_HISTORIQUE_INITIAL);
+}
+
+export async function enregistrerJetons(admin: any, commercantId: string, fournisseur: string, jetons: Jetons, cleChiffrement: string) {
   var res = await admin.from('connexions_caisse_secrets').upsert({
     commercant_id: commercantId,
     fournisseur: fournisseur,
@@ -26,10 +32,10 @@ export async function enregistrerJetons(admin: any, commercantId: string, fourni
   if (res.error) throw new Error(res.error.message);
 }
 
-async function lireJetons(admin: any, connexion: any, env: Env): Promise<sumup.Jetons> {
+async function lireJetons(admin: any, connexion: any, env: Env): Promise<Jetons> {
   var res = await admin.from('connexions_caisse_secrets').select('*')
     .eq('commercant_id', connexion.commercant_id).eq('fournisseur', connexion.fournisseur).single();
-  if (res.error || !res.data) throw new Error('Jetons caisse introuvables : reconnecte ta caisse');
+  if (res.error || !res.data) throw new ErreurAutorisation('Accès à la caisse introuvables : reconnecte ta caisse');
   return {
     access_token: await dechiffrer(res.data.access_token, env.cleChiffrement),
     refresh_token: res.data.refresh_token ? await dechiffrer(res.data.refresh_token, env.cleChiffrement) : null,
@@ -38,10 +44,12 @@ async function lireJetons(admin: any, connexion: any, env: Env): Promise<sumup.J
 }
 
 async function jetonValide(admin: any, connexion: any, env: Env, fetchFn: FetchFn, forcer: boolean): Promise<string> {
+  var f = FOURNISSEURS[connexion.fournisseur];
   var jetons = await lireJetons(admin, connexion, env);
   var bientotExpire = jetons.expire_a && Date.parse(jetons.expire_a) < Date.now() + 5 * 60000;
-  if (jetons.refresh_token && (forcer || bientotExpire)) {
-    jetons = await sumup.rafraichir(fetchFn, env.sumupClientId, env.sumupClientSecret, jetons.refresh_token);
+  if (f.rafraichir && jetons.refresh_token && (forcer || bientotExpire)) {
+    var app = identifiantsApp(connexion.fournisseur, env.lireEnv);
+    jetons = await f.rafraichir(fetchFn, app.clientId, app.clientSecret, jetons.refresh_token);
     await enregistrerJetons(admin, connexion.commercant_id, connexion.fournisseur, jetons, env.cleChiffrement);
   }
   return jetons.access_token;
@@ -50,40 +58,35 @@ async function jetonValide(admin: any, connexion: any, env: Env, fetchFn: FetchF
 // Jour par jour : chaque jour importé est acquis (derniere_date_synchronisee
 // avance), même si l'Edge Function est coupée ensuite. Passé `limite`
 // (horodatage ms), on s'arrête proprement ; le passage suivant reprend au
-// jour manquant. derniere_synchro n'est posée qu'une fois à jour, pour que
-// la synchro nocturne reprenne cette connexion tant qu'il reste des jours.
+// jour manquant.
 export async function synchroniserConnexion(admin: any, connexion: any, env: Env, fetchFn: FetchFn, maintenant?: Date, limite?: number) {
   var aujourdhui = jourParis(maintenant || new Date());
   var hier = ajouterJours(aujourdhui, -1);
   var debut = connexion.derniere_date_synchronisee
     ? ajouterJours(connexion.derniere_date_synchronisee, 1)
-    : ajouterJours(aujourdhui, -JOURS_HISTORIQUE_INITIAL);
+    : (connexion.debut_historique || debutHistorique(aujourdhui));
   var finBudget = limite || Date.now() + 100000;
   var cible = connexion.fournisseur;
+  var f = FOURNISSEURS[cible];
 
   function majConnexion(valeurs: Record<string, unknown>) {
     return admin.from('connexions_caisse').update(valeurs)
       .eq('commercant_id', connexion.commercant_id).eq('fournisseur', cible);
   }
 
+  var nbLignes = 0;
+  var jour = debut;
   try {
-    var nbLignes = 0;
-    var jour = debut;
-    var token = '';
-    if (debut <= hier) {
-      if (cible !== 'sumup') throw new Error('Fournisseur non pris en charge : ' + cible);
-      token = await jetonValide(admin, connexion, env, fetchFn, false);
-    }
+    if (!f) throw new Error('Caisse non prise en charge : ' + cible);
+    var jeton = debut <= hier ? await jetonValide(admin, connexion, env, fetchFn, false) : '';
     for (; jour <= hier && Date.now() < finBudget; jour = ajouterJours(jour, 1)) {
-      var debutISO = debutJourParisUTC(jour);
-      var finISO = debutJourParisUTC(ajouterJours(jour, 1));
       var brutes;
       try {
-        brutes = await sumup.lignesVendues(fetchFn, token, connexion.compte_caisse, debutISO, finISO);
+        brutes = await f.lignesDuJour(fetchFn, jeton, connexion.compte_caisse, jour);
       } catch (e) {
-        if (!(e instanceof sumup.ErreurAutorisation)) throw e;
-        token = await jetonValide(admin, connexion, env, fetchFn, true);
-        brutes = await sumup.lignesVendues(fetchFn, token, connexion.compte_caisse, debutISO, finISO);
+        if (!(e instanceof ErreurAutorisation) || !f.rafraichir) throw e;
+        jeton = await jetonValide(admin, connexion, env, fetchFn, true);
+        brutes = await f.lignesDuJour(fetchFn, jeton, connexion.compte_caisse, jour);
       }
       var lignes = agregerLignes(brutes);
       if (lignes.length > 0) {
@@ -96,16 +99,24 @@ export async function synchroniserConnexion(admin: any, connexion: any, env: Env
       await majConnexion({ derniere_date_synchronisee: jour });
     }
     var aJour = jour > hier;
-    var valeurs: Record<string, unknown> = { statut: 'active', nb_lignes_derniere_synchro: nbLignes, derniere_erreur: null };
+    var valeurs: Record<string, unknown> = {
+      statut: 'active', nb_lignes_derniere_synchro: nbLignes, derniere_erreur: null,
+      reessayer_apres: null, verrou_jusqua: null
+    };
     if (aJour) valeurs.derniere_synchro = new Date().toISOString();
     await majConnexion(valeurs);
     return { ok: true, lignes: nbLignes, du: debut, au: ajouterJours(jour, -1), complet: aJour };
   } catch (erreur) {
-    // derniere_synchro n'est pas avancée : le passage suivant de la nuit
-    // réessaiera (panne passagère de l'API caisse).
-    await admin.from('connexions_caisse').update({
-      statut: 'erreur', derniere_erreur: String((erreur as Error).message || erreur).slice(0, 500)
-    }).eq('commercant_id', connexion.commercant_id).eq('fournisseur', connexion.fournisseur);
-    return { ok: false, erreur: String((erreur as Error).message || erreur) };
+    // Accès refusé : inutile d'insister avant que le commerçant reconnecte
+    // sa caisse. Autre erreur (panne passagère) : nouvel essai dans 30 min.
+    var acces = erreur instanceof ErreurAutorisation;
+    var message = String((erreur as Error).message || erreur);
+    await majConnexion({
+      statut: 'erreur',
+      derniere_erreur: (acces ? 'Reconnecte ta caisse : ' : '') + message.slice(0, 480),
+      reessayer_apres: new Date(Date.now() + (acces ? 6 * 3600000 : 30 * 60000)).toISOString(),
+      verrou_jusqua: null
+    });
+    return { ok: false, erreur: message, lignes: nbLignes };
   }
 }

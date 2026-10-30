@@ -17,6 +17,39 @@ Objectif (REFONTE.md § 4 bis) : les ventes par article arrivent seules chaque n
 | **Crisalid** (ALIRIS) | **Aucune doc publique trouvée** | — | Logiciel installé en local (Windows + base Firebird) | Contact commercial nécessaire | Repli export e-mail |
 | **Bimedia** (groupe Orisha) | **Aucune doc publique trouvée** | — | — | Contact commercial / partenariat Orisha nécessaire | Plus grosse base en boulangerie (≈ 7 000 clients d'après les comparatifs) : **ouvrir la discussion partenariat dès maintenant**, repli export e-mail en attendant |
 
+## État au 1er novembre 2026
+
+| Caisse | Branchement | Historique au branchement |
+|---|---|---|
+| SumUp | Bouton « Brancher » (OAuth) | 12 mois (un appel par ticket : quelques heures, en tâche de fond) |
+| Zettle | Bouton « Brancher » (OAuth) | 12 mois (jusqu'à 3 ans possibles), quelques minutes |
+| Square | Bouton « Brancher » (OAuth) | 12 mois, quelques minutes |
+| Hiboutik | Le commerçant colle sa clé API | 12 mois, limité au début de son abonnement Hiboutik |
+| Bimedia, Crisalid, Toporder, Tactill, autres | Import guidé du fichier d'export (CSV ou Excel, même gros), puis export quotidien par e-mail | Ce que contient le fichier |
+
+Chaque bouton n'apparaît qu'une fois l'app développeur de la caisse créée et ses codes ajoutés aux secrets Supabase.
+
+## Agrégateur ou connecteurs maison ?
+
+Un agrégateur donne une seule API pour des dizaines de caisses. Comparatif (tarifs relevés le 1er novembre 2026, à confirmer par devis) :
+
+| Agrégateur | Caisses utiles pour nous | Caisses boulangerie manquantes | Prix | Effort d'intégration |
+|---|---|---|---|---|
+| **Chift** (Belgique, spécialiste France/Benelux) | 39 caisses, dont SumUp, Zettle, Square, Lightspeed, Hiboutik, Tiller (SumUp Caisse), Cashpad, Cashmag, Zelty, L'Addition, Popina, myPOS | Bimedia, Crisalid, Toporder, Tactill | Sur devis, facturé au nombre de connexions actives (pas de grille publique) | 2 à 3 jours : un connecteur de plus dans notre registre, OAuth géré par Chift |
+| **Apideck** | Surtout caisses américaines (Square, Clover…) | Toutes les caisses françaises spécialisées | À partir de 599 $/mois (25 clients connectés) | 2 à 3 jours |
+| **Unified.to** | Square, Lightspeed, quelques autres | Toutes les caisses françaises spécialisées | À partir d'environ 750 $/mois (facturé à l'appel) | 2 à 3 jours |
+| **Codat** | Square, Lightspeed K ; intégration Zettle restauration abandonnée | Toutes les caisses françaises spécialisées | Contrat entreprise | Pensé pour la finance, pas pour le détail des articles |
+| **Rollee** | Aucune : vérifie les revenus de travailleurs indépendants | — | — | Hors sujet |
+
+**Calcul** : à 35 € par mois et par boulangerie, 10 pilotes rapportent 350 € par mois. Apideck ou Unified.to coûteraient plus que tout le chiffre d'affaires. Pour Chift, le seuil raisonnable est d'environ 5 € par boulangerie et par mois (15 % du prix) ; au-delà, il vaut mieux coder.
+
+**Ce que coûtent nos connecteurs maison** : SumUp, Zettle, Square et Hiboutik sont faits (une demi-journée chacun une fois l'architecture en place), sans frais par boulangerie. Aucun agrégateur ne couvre Bimedia, Crisalid, Toporder ni Tactill : pour elles, l'import de fichier puis l'e-mail restent indispensables dans tous les cas.
+
+**Recommandation** :
+1. Pas d'agrégateur pour les 10 pilotes : nos 4 connecteurs plus l'import de fichier couvrent tout le monde, gratuitement.
+2. Demander le devis Chift (déjà fait) et le reconsidérer quand une boulangerie équipée **Lightspeed, Tiller, Cashpad ou Cashmag** arrive : ces caisses exigent un statut de partenaire que Chift possède déjà. S'il coûte moins de 5 € par connexion et par mois, le brancher comme cinquième fournisseur du registre.
+3. Pour Bimedia (la plus grosse base en boulangerie) : seul un partenariat direct avec Orisha donnera un vrai branchement. La demande est envoyée.
+
 ## Recommandation : SumUp d'abord
 
 1. **Facilité** : seules SumUp, Zettle et Square offrent une API publique, gratuite, en OAuth libre-service. Les caisses spécialisées boulangerie (Bimedia, Crisalid, Toporder) n'en publient aucune ; Lightspeed exige un dossier partenaire.
@@ -57,4 +90,9 @@ Mise en service et tests : voir `supabase/functions/README-caisse.md`.
 - Tactill — formules et API (comparatifs, non officiel) : https://tool-advisor.fr/logiciel-de-caisse/comparatif/tactill/ et https://independant.io/avis/tactill/
 - Toporder — intégrations : https://www.mypos.com/fr-fr/appmarket/application/26948 et https://www.lafabriquedunet.fr/logiciel/toporder-by-mypos
 - Crisalid — produit et installation locale : https://www.hellopro.fr/crisalid-167832-profil-fr-societe.html
+- Hiboutik — API officielle (Swagger, `GET /products_sold/{store_id}/{année}/{mois}/{jour}`) : https://test.hiboutik.com/api/
+- Chift — caisses couvertes : https://docs.chift.eu/connectors/pos
+- Apideck — tarifs : https://www.apideck.com/pricing
+- Unified.to — tarifs (comparatif publié par Unified.to) : https://unified.to/blog/apideck_vs_unified_which_unified_api_is_right_for_your_product_in_2026
+- Codat — intégrations commerce : https://docs.codat.io/integrations/commerce/overview
 - Bimedia — positionnement boulangerie et nombre de clients (comparatif, non officiel) : https://tool-advisor.fr/logiciel-de-caisse/comparatif/logiciel-de-caisse-boulangerie/

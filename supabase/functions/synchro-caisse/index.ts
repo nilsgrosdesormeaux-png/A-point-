@@ -1,20 +1,21 @@
-// Edge Function : synchro nocturne des caisses vers `ventes`.
+// Edge Function : synchro en continu des caisses branchées vers `ventes`.
 //
-// Appelée par pg_cron toutes les 10 minutes la nuit (voir la fin de
-// migration-connecteurs-caisse.sql), jamais par le navigateur. Chaque appel
-// traite les connexions pas encore synchronisées aujourd'hui, en commençant
-// par les plus anciennes, et s'arrête avant la limite de durée d'une Edge
-// Function : l'appel suivant reprend où celui-ci s'est arrêté.
+// Appelée par pg_cron chaque minute (migration-connecteurs-caisse-v2.sql),
+// jamais par le navigateur. Chaque appel réserve les caisses en retard
+// (prendre_connexions_caisse : historique de 12 mois en cours d'import, ou
+// journée d'hier pas encore lue), les avance jour par jour et s'arrête avant
+// la limite de durée d'une Edge Function. Deux appels qui se chevauchent ne
+// prennent jamais la même caisse. Sans retard, l'appel ne fait qu'une requête.
 //
 // Déploiement : supabase functions deploy synchro-caisse --no-verify-jwt
 // (l'appel pg_cron s'authentifie par l'en-tête x-cle-synchro, comparé au
 // secret Vault « cle_synchro_caisse » par la fonction SQL verifier_cle_synchro :
 // la clé ne quitte jamais la base).
 //
-// Secrets : CLE_CHIFFREMENT_CAISSE, SUMUP_CLIENT_ID, SUMUP_CLIENT_SECRET.
+// Secrets : CLE_CHIFFREMENT_CAISSE, <CAISSE>_CLIENT_ID et <CAISSE>_CLIENT_SECRET.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { debutJourParisUTC, jourParis } from '../_shared/caisse/commun.ts';
+import { ajouterJours, jourParis } from '../_shared/caisse/commun.ts';
 import { synchroniserConnexion } from '../_shared/caisse/synchroniser.ts';
 
 var BUDGET_MS = 110000;
@@ -28,32 +29,27 @@ Deno.serve(async (req) => {
   }
   var env = {
     cleChiffrement: Deno.env.get('CLE_CHIFFREMENT_CAISSE') || '',
-    sumupClientId: Deno.env.get('SUMUP_CLIENT_ID') || '',
-    sumupClientSecret: Deno.env.get('SUMUP_CLIENT_SECRET') || ''
+    lireEnv: function (cle: string) { return Deno.env.get(cle); }
   };
+  var hier = ajouterJours(jourParis(new Date()), -1);
 
-  var debutJournee = debutJourParisUTC(jourParis(new Date()));
-  var aFaire = await admin.from('connexions_caisse').select('*')
-    .eq('fournisseur', 'sumup')
-    .or('derniere_synchro.is.null,derniere_synchro.lt.' + debutJournee)
-    .order('derniere_synchro', { ascending: true, nullsFirst: true })
-    .limit(200);
-  if (aFaire.error) {
-    return new Response(JSON.stringify({ error: aFaire.error.message }), { status: 500 });
-  }
-
-  var bilan = { traitees: 0, erreurs: 0, restantes: 0 };
-  for (var i = 0; i < aFaire.data.length; i++) {
-    if (Date.now() - debutAppel > BUDGET_MS) {
-      bilan.restantes = aFaire.data.length - i;
-      break;
-    }
-    var resultat = await synchroniserConnexion(admin, aFaire.data[i], env, fetch, undefined, debutAppel + BUDGET_MS);
-    bilan.traitees++;
-    if (!resultat.ok) {
-      bilan.erreurs++;
-      console.error('synchro-caisse', aFaire.data[i].commercant_id, resultat.erreur);
-    }
+  var bilan = { traitees: 0, erreurs: 0, lignes: 0 };
+  while (Date.now() - debutAppel < BUDGET_MS) {
+    var lot = await admin.rpc('prendre_connexions_caisse', { p_hier: hier, p_limite: 3 });
+    if (lot.error) return new Response(JSON.stringify({ error: lot.error.message }), { status: 500 });
+    if (!lot.data || lot.data.length === 0) break;
+    // Les caisses d'un lot avancent en parallèle, chacune jusqu'au budget.
+    var resultats = await Promise.all(lot.data.map(function (connexion: any) {
+      return synchroniserConnexion(admin, connexion, env, fetch, undefined, debutAppel + BUDGET_MS);
+    }));
+    resultats.forEach(function (r: any, i: number) {
+      bilan.traitees++;
+      bilan.lignes += r.lignes || 0;
+      if (!r.ok) {
+        bilan.erreurs++;
+        console.error('synchro-caisse', lot.data[i].fournisseur, lot.data[i].commercant_id, r.erreur);
+      }
+    });
   }
   return new Response(JSON.stringify(bilan), { status: 200, headers: { 'Content-Type': 'application/json' } });
 });

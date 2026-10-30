@@ -18,12 +18,24 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { agregerLignes, ajouterJours, jourParis } from '../_shared/caisse/commun.ts';
-import { lignesDepuisExport } from '../_shared/caisse/export-csv.ts';
+import { lignesDepuisExport, lignesDepuisTableau } from '../_shared/caisse/export-csv.ts';
+import * as XLSX from 'npm:xlsx@0.18.5';
 
-function decoderPieceJointe(base64: string): string {
+function octetsBase64(base64: string): Uint8Array {
   var bin = atob(base64);
   var octets = new Uint8Array(bin.length);
   for (var i = 0; i < bin.length; i++) octets[i] = bin.charCodeAt(i);
+  return octets;
+}
+
+// Excel (.xlsx, .xls) : première feuille, lue comme un tableau.
+function tableauExcel(base64: string): unknown[][] {
+  var classeur = XLSX.read(octetsBase64(base64), { type: 'array' });
+  return XLSX.utils.sheet_to_json(classeur.Sheets[classeur.SheetNames[0]], { header: 1, raw: true }) as unknown[][];
+}
+
+function decoderPieceJointe(base64: string): string {
+  var octets = octetsBase64(base64);
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(octets);
   } catch (_e) {
@@ -57,9 +69,19 @@ Deno.serve(async (req) => {
   var lignes: any[] = [];
   var erreurs: string[] = [];
   (email.Attachments || []).forEach(function (pj: any) {
+    if (!pj.Content) return;
+    var estExcel = /\.xlsx?$/i.test(pj.Name || '') || /spreadsheet|excel/i.test(pj.ContentType || '');
     var estCsv = /\.(csv|txt)$/i.test(pj.Name || '') || /csv|text\/plain/i.test(pj.ContentType || '');
-    if (!estCsv || !pj.Content) return;
-    var lu = lignesDepuisExport(decoderPieceJointe(pj.Content), jourParDefaut(new Date()));
+    if (!estCsv && !estExcel) return;
+    var lu;
+    try {
+      lu = estExcel
+        ? lignesDepuisTableau(tableauExcel(pj.Content), jourParDefaut(new Date()))
+        : lignesDepuisExport(decoderPieceJointe(pj.Content), jourParDefaut(new Date()));
+    } catch (e) {
+      erreurs.push(pj.Name + ' : fichier illisible');
+      return;
+    }
     if (lu.erreur) erreurs.push(pj.Name + ' : ' + lu.erreur);
     lignes = lignes.concat(lu.lignes);
   });
@@ -72,7 +94,7 @@ Deno.serve(async (req) => {
     maj.nb_lignes_derniere_synchro = rpc.data || 0;
     maj.derniere_date_synchronisee = agregees.map(function (l) { return l.date_vente; }).sort().pop();
   } else if (erreurs.length === 0) {
-    erreurs.push('Aucun fichier CSV de ventes dans l\'e-mail reçu');
+    erreurs.push('Aucun fichier de ventes (CSV ou Excel) dans l\'e-mail reçu');
   }
   maj.statut = erreurs.length ? 'erreur' : 'active';
   maj.derniere_erreur = erreurs.length ? erreurs.join(' ; ').slice(0, 500) : null;

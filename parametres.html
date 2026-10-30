@@ -10,7 +10,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="nav.js?v=20261031"></script>
   <script src="caisse-utilisee.js?v=20261031"></script>
-  <script src="connecteur-caisse.js?v=20261031"></script>
+  <script src="supabase/functions/_shared/caisse/lecture-export.js?v=20261101"></script>
+  <script src="connecteur-caisse.js?v=20261101"></script>
 </head>
 <body>
   <a class="lien-evitement" href="#contenu">Aller au contenu</a>
@@ -185,7 +186,7 @@
         statutDiv.style.display = 'none';
         zoneParametresEl.style.display = 'block';
         emailActuelEl.textContent = "Adresse actuelle : " + session.user.email;
-        window.ConnecteurCaisse.init(sbClient, commercantId);
+        window.ConnecteurCaisse.init(sbClient, commercantId, session.user.user_metadata && session.user.user_metadata.caisse);
 
         grilleJoursFermetureEl.innerHTML = '';
         JOURS_AFFICHES.forEach(function (j) {

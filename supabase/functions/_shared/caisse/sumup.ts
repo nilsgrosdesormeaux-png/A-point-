@@ -6,15 +6,18 @@
 // `fetchFn` est injecté pour pouvoir tester sans compte marchand réel.
 
 import { type LigneVente, jourParis } from './commun.ts';
+import { type FetchFn, type Jetons, appelJson, demanderJetons, ErreurAutorisation } from './http.ts';
+
+export { ErreurAutorisation };
+export type { Jetons };
 
 var API = 'https://api.sumup.com';
 // transactions.history : historique et détail des transactions (accordé par
 // défaut, sans validation SumUp). user.profile_readonly : retrouver le
 // merchant_code du compte connecté.
 var SCOPES = 'transactions.history user.profile_readonly';
-
-export type Jetons = { access_token: string; refresh_token: string | null; expire_a: string | null };
-type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
+// Détails de tickets lus en même temps (un appel par ticket).
+var PARALLELE = 8;
 
 export function urlAutorisation(clientId: string, redirectUri: string, etat: string): string {
   return API + '/authorize?response_type=code'
@@ -24,25 +27,8 @@ export function urlAutorisation(clientId: string, redirectUri: string, etat: str
     + '&state=' + encodeURIComponent(etat);
 }
 
-async function demanderJetons(fetchFn: FetchFn, params: Record<string, string>): Promise<Jetons> {
-  var rep = await fetchFn(API + '/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(params).toString()
-  });
-  var corps = await rep.json().catch(function () { return {}; });
-  if (!rep.ok || !corps.access_token) {
-    throw new Error('SumUp a refusé l\'autorisation (' + rep.status + ' ' + (corps.error || '') + ')');
-  }
-  return {
-    access_token: corps.access_token,
-    refresh_token: corps.refresh_token || null,
-    expire_a: corps.expires_in ? new Date(Date.now() + corps.expires_in * 1000).toISOString() : null
-  };
-}
-
 export function echangerCode(fetchFn: FetchFn, clientId: string, clientSecret: string, redirectUri: string, code: string): Promise<Jetons> {
-  return demanderJetons(fetchFn, {
+  return demanderJetons(fetchFn, 'SumUp', API + '/token', {
     grant_type: 'authorization_code', code: code, redirect_uri: redirectUri,
     client_id: clientId, client_secret: clientSecret
   });
@@ -50,7 +36,7 @@ export function echangerCode(fetchFn: FetchFn, clientId: string, clientSecret: s
 
 // SumUp peut renvoyer un nouveau refresh_token : sinon on garde l'ancien.
 export async function rafraichir(fetchFn: FetchFn, clientId: string, clientSecret: string, refreshToken: string): Promise<Jetons> {
-  var jetons = await demanderJetons(fetchFn, {
+  var jetons = await demanderJetons(fetchFn, 'SumUp', API + '/token', {
     grant_type: 'refresh_token', refresh_token: refreshToken,
     client_id: clientId, client_secret: clientSecret
   });
@@ -58,21 +44,9 @@ export async function rafraichir(fetchFn: FetchFn, clientId: string, clientSecre
   return jetons;
 }
 
-async function lireJson(fetchFn: FetchFn, url: string, accessToken: string): Promise<any> {
-  for (var essai = 0; essai < 4; essai++) {
-    var rep = await fetchFn(url, { headers: { Authorization: 'Bearer ' + accessToken } });
-    if (rep.status === 429) {
-      await new Promise(function (r) { setTimeout(r, 1000 * (essai + 1)); });
-      continue;
-    }
-    if (rep.status === 401) throw new ErreurAutorisation('SumUp : accès refusé (401)');
-    if (!rep.ok) throw new Error('SumUp : erreur ' + rep.status + ' sur ' + url.replace(API, ''));
-    return rep.json();
-  }
-  throw new Error('SumUp : trop de requêtes (429), réessai plus tard');
+function lireJson(fetchFn: FetchFn, url: string, accessToken: string): Promise<any> {
+  return appelJson(fetchFn, 'SumUp', url, { headers: { Authorization: 'Bearer ' + accessToken } });
 }
-
-export class ErreurAutorisation extends Error {}
 
 export async function codeMarchand(fetchFn: FetchFn, accessToken: string): Promise<string> {
   var adhesions = await lireJson(fetchFn, API + '/v0.1/memberships?kind=merchant&status=accepted', accessToken);
@@ -103,7 +77,6 @@ export async function lignesVendues(fetchFn: FetchFn, accessToken: string, march
   }
 
   var lignes: LigneVente[] = [];
-  var PARALLELE = 5;
   for (var i = 0; i < ids.length; i += PARALLELE) {
     var details = await Promise.all(ids.slice(i, i + PARALLELE).map(function (id) {
       return lireJson(fetchFn, base + '?id=' + encodeURIComponent(id), accessToken);
