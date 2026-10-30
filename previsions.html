@@ -48,7 +48,7 @@
       </div>
     </section>
 
-    <a class="lien-brancher-caisse" id="lienBrancherCaisse" href="parametres.html#caisse" hidden>Branche ta caisse : tes ventes arrivent seules →</a>
+    <a class="lien-brancher-caisse" id="lienBrancherCaisse" href="caisse.html" hidden>Branche ta caisse : tes ventes arrivent seules →</a>
 
     <section class="claire-entete fournee-entete" aria-labelledby="titreFournee">
       <div class="fournee-entete-haut">
@@ -722,7 +722,7 @@
         choisirJour(maintenant.getHours() < 12 && aujourdhuiOuvert ? 'aujourdhui' : 'demain');
         afficherCarteSaisieHier();
         if (ctx.ventes.length === 0) {
-          listeEl.innerHTML = '<div class="carte-vide-claire">Pas encore de ventes : <a href="parametres.html#caisse">branche ta caisse</a> (tes 12 derniers mois arrivent d\'un coup) ou ajoute la journée d\'hier depuis <a href="parametres.html#donnees">Paramètres &gt; Mes données</a>.</div>';
+          listeEl.innerHTML = '<div class="carte-vide-claire">Pas encore de ventes : <a href="caisse.html">branche ta caisse</a> (tes 12 derniers mois arrivent d\'un coup) ou ajoute la journée d\'hier depuis <a href="parametres.html#donnees">Paramètres &gt; Mes données</a>.</div>';
           return;
         }
         actionsEl.hidden = false;

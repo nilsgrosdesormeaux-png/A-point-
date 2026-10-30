@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>À Point - Ma caisse</title>
+  <link rel="icon" href="logo.svg">
+  <link rel="stylesheet" href="style.css?v=20261101h">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="nav.js?v=20261102"></script>
+  <script src="caisse-utilisee.js?v=20261101e"></script>
+  <script src="supabase/functions/_shared/caisse/lecture-export.js?v=20261102"></script>
+  <script src="connecteur-caisse.js?v=20261102"></script>
+  <style>
+    .tableau-journal th, .tableau-journal td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--bordure); vertical-align: top; }
+    .tableau-journal td:nth-child(3) { font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+  <a class="lien-evitement" href="#contenu">Aller au contenu</a>
+  <header class="entete-site">
+    <a href="previsions.html" class="logo" aria-label="À Point, accueil">
+      <svg class="logo-marque" viewBox="0 0 100 100" width="24" height="24" aria-hidden="true">
+        <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <circle cx="50" cy="56" r="8" fill="currentColor"/>
+      </svg>
+      <span class="logo-texte">À Point</span>
+    </a>
+    <nav id="navPrincipale"></nav>
+  </header>
+
+  <div id="contenu" role="main" class="conteneur conteneur--moyen">
+    <div class="carte-page">
+      <div class="entete-page">
+        <div>
+          <h1>Ma caisse</h1>
+        </div>
+      </div>
+      <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
+
+      <div id="zoneCaisse" hidden>
+        <label for="selectCaisse">Ta caisse</label>
+        <select id="selectCaisse"></select>
+        <input type="text" id="autreCaisse" placeholder="Nom de ta caisse" aria-label="Nom de ta caisse" maxlength="60" hidden style="margin-top:8px;">
+
+        <!-- Rempli par connecteur-caisse.js : caisse branchée ou parcours de branchement. -->
+        <div id="blocCaisse" style="margin-top:18px;"></div>
+
+        <h2 class="section-titre" style="margin-top:28px;">Journal des réceptions</h2>
+        <p class="texte-aide">Chaque arrivée de ventes : quand, par quel chemin, combien, pour quels jours.</p>
+        <div id="journalCaisse"><p class="texte-aide">Chargement…</p></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var sbClient = window.supabase.createClient('https://eqvbksxfwlgbcxgqljqn.supabase.co', 'sb_publishable_Dlh12BadZ13vHrUR0o7O7Q_i3aN2VMc');
+      var statut = document.getElementById('statutConnexion');
+
+      sbClient.auth.getSession().then(function (result) {
+        var session = result.data.session;
+        if (!session) {
+          statut.innerHTML = "Tu n'es pas connecté. <a href='connexion.html'>Va sur la page de connexion →</a>";
+          return;
+        }
+        var commercantId = session.user.id;
+        var caisseCompte = (session.user.user_metadata && session.user.user_metadata.caisse) || null;
+        statut.hidden = true;
+        document.getElementById('zoneCaisse').hidden = false;
+
+        // La caisse choisie ici est la même que dans Paramètres : enregistrée
+        // tout de suite, et le parcours suit (connecteur-caisse.js écoute le
+        // même <select>).
+        window.CaisseUtilisee.brancher('selectCaisse', 'autreCaisse', caisseCompte);
+        sbClient.from('parametres_commercant').select('caisse').eq('commercant_id', commercantId).then(function (res) {
+          var p = res.data && res.data[0];
+          if (p && p.caisse) window.CaisseUtilisee.definir('selectCaisse', 'autreCaisse', p.caisse);
+        });
+        function enregistrerCaisse() {
+          sbClient.from('parametres_commercant').upsert({
+            commercant_id: commercantId,
+            caisse: window.CaisseUtilisee.lire('selectCaisse', 'autreCaisse'),
+            updated_at: new Date().toISOString()
+          }).then(function () {}, function () {});
+        }
+        document.getElementById('selectCaisse').addEventListener('change', enregistrerCaisse);
+        document.getElementById('autreCaisse').addEventListener('change', enregistrerCaisse);
+
+        window.ConnecteurCaisse.init(sbClient, commercantId, caisseCompte);
+      }, function () {
+        statut.textContent = "Impossible de vérifier ta connexion pour l'instant. Vérifie ta connexion et réessaie.";
+      });
+    })();
+  </script>
+</body>
+</html>

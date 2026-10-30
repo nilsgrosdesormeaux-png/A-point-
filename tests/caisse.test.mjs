@@ -119,13 +119,14 @@ test('SumUp : pagination, 429 réessayé, détail par ticket, échecs ignorés',
 
 // Faux client Supabase : juste ce que synchroniser.ts utilise.
 function fauxAdmin(secrets) {
-  var appels = { rpc: [], updates: [], upserts: [] };
+  var appels = { rpc: [], updates: [], upserts: [], journal: [] };
   function requete(table) {
     var q = {
       select: function () { return q; }, eq: function () { return q; },
       single: async function () { return { data: secrets, error: null }; },
       update: function (v) { appels.updates.push({ table: table, valeurs: v }); return q; },
       upsert: async function (v) { appels.upserts.push(v); return { error: null }; },
+      insert: async function (v) { appels.journal.push({ table: table, valeurs: v }); return { error: null }; },
       then: function (ok) { return Promise.resolve({ error: null }).then(ok); }
     };
     return q;
@@ -271,6 +272,9 @@ test('synchro Hiboutik via le registre : jour par jour, sans rafraîchissement',
   var r = await synchroniserConnexion(admin, connexion, ENV_VIDE, faux, new Date('2026-10-30T03:00:00Z'));
   assert.deepEqual(r, { ok: true, lignes: 2, du: '2026-10-28', au: '2026-10-29', complet: true });
   assert.deepEqual(admin.appels.rpc.map(function (a) { return a.params.p_lignes[0].date_vente; }), ['2026-10-28', '2026-10-29']);
+  // Une ligne de journal pour cette réception.
+  assert.deepEqual(admin.appels.journal, [{ table: 'journal_caisse', valeurs: {
+    commercant_id: 'c1', source: 'api', fournisseur: 'hiboutik', nb_ventes: 2, du: '2026-10-28', au: '2026-10-29', detail: null } }]);
 });
 
 test('export : en-tête après des lignes de titre, dates Excel, sous-total ignoré', function () {

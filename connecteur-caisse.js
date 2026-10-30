@@ -44,19 +44,39 @@
 
   // « Import de ton historique : 4 mois sur 12… » tant que les 12 mois ne
   // sont pas arrivés, puis l'état de la dernière synchro.
+  function pastille(classe, texte) {
+    return '<span class="' + classe + '" style="display:inline-block; padding:2px 8px; border-radius:6px; font-weight:600;">' + texte + '</span> ';
+  }
+
+  function formaterJour(iso) {
+    return iso ? new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
+  }
+
+  // État lisible : erreur, historique en cours, en retard ou à jour.
   function etatConnexion(cx) {
     var hier = jourParis(new Date(Date.now() - 86400000));
+    var avantHier = jourParis(new Date(Date.now() - 2 * 86400000));
     if (cx.statut === 'erreur') {
-      return '<span class="erreur" style="display:inline-block; padding:2px 8px; border-radius:6px;">À vérifier</span> ' + echapper(cx.derniere_erreur);
+      return pastille('erreur', 'Erreur') + echapper(cx.derniere_erreur);
     }
-    if (cx.debut_historique && (!cx.derniere_date_synchronisee || cx.derniere_date_synchronisee < hier)) {
+    if (cx.fournisseur === 'export_email') {
+      if (!cx.derniere_synchro) return 'En attente du premier e-mail de ta caisse.';
+      if (Date.now() - Date.parse(cx.derniere_synchro) > 36 * 3600000) {
+        return pastille('erreur', 'En retard') + 'Aucun export reçu depuis le ' + formaterDateHeure(cx.derniere_synchro) + '. Vérifie l\'envoi automatique dans ta caisse.';
+      }
+      return pastille('succes', 'À jour') + 'Dernier export reçu le ' + formaterDateHeure(cx.derniere_synchro) + '.';
+    }
+    if (cx.debut_historique && !cx.derniere_synchro) {
       var total = Math.max(1, joursEntre(cx.debut_historique, hier) + 1);
       var faits = cx.derniere_date_synchronisee ? joursEntre(cx.debut_historique, cx.derniere_date_synchronisee) + 1 : 0;
       var mois = Math.min(MOIS_HISTORIQUE, Math.floor(faits / total * MOIS_HISTORIQUE));
       return 'Import de ton historique : <strong>' + mois + ' mois sur ' + MOIS_HISTORIQUE + '</strong>… Ça continue tout seul, même page fermée.';
     }
     if (!cx.derniere_synchro) return 'Branchée. Les ventes arrivent dans quelques minutes.';
-    return 'À jour. Dernière synchro le ' + formaterDateHeure(cx.derniere_synchro) + '.';
+    if (cx.derniere_date_synchronisee && cx.derniere_date_synchronisee < avantHier) {
+      return pastille('erreur', 'En retard') + 'Dernières ventes reçues : ' + formaterJour(cx.derniere_date_synchronisee) + '. Ça repart tout seul ; sinon, appuie sur « Synchroniser maintenant ».';
+    }
+    return pastille('succes', 'À jour') + 'Ventes reçues jusqu\'au ' + formaterJour(cx.derniere_date_synchronisee || hier) + '. Dernière synchro le ' + formaterDateHeure(cx.derniere_synchro) + '.';
   }
 
   function chargerSheetJS() {
@@ -206,7 +226,7 @@
         } else if (choix === 'hiboutik') {
           html += formulaireHiboutik();
         } else if (!choix) {
-          html += '<p class="texte-aide">Indique ta caisse plus haut dans « Mon commerce » pour voir le bon parcours. Déjà branchables :</p>';
+          html += '<p class="texte-aide">Choisis ta caisse ci-dessus pour voir le bon parcours. Déjà branchables :</p>';
           OAUTH.forEach(function (nom) { if (disponibles[nom]) html += boutonBrancher(nom, false) + ' '; });
           html += '<button type="button" class="btnHiboutik" style="' + styleSecondaire() + '">J\'ai Hiboutik</button>';
         }
@@ -291,12 +311,16 @@
         return suite.then(function () {
           var jours = lu.lignes.map(function (l) { return l.date_vente; }).sort();
           progression.textContent = '';
+          sbClient.rpc('journaliser_import_fichier', { p_nb: total, p_du: jours[0], p_au: jours[jours.length - 1], p_erreur: null, p_detail: entree.files[0].name })
+            .then(chargerJournal, function () {});
           message('Historique importé : ' + nbMois + ' mois (du ' + new Date(jours[0]).toLocaleDateString('fr-FR') + ' au '
             + new Date(jours[jours.length - 1]).toLocaleDateString('fr-FR') + '), ' + total + ' ventes produit. Tes prévisions en tiennent compte dès maintenant.', false);
         });
       }).catch(function (e) {
         progression.textContent = '';
         message(e && e.message ? e.message : 'Import impossible, réessaie.', true);
+        sbClient.rpc('journaliser_import_fichier', { p_nb: 0, p_du: null, p_au: null, p_erreur: e && e.message ? e.message : 'Import impossible', p_detail: entree.files[0] ? entree.files[0].name : null })
+          .then(chargerJournal, function () {});
       }).then(function () { entree.disabled = false; entree.value = ''; });
     }
 
@@ -322,6 +346,7 @@
         // prévu par la page plutôt qu'une erreur.
         if (r[0].error) return;
         rendre(r[0].data || []);
+        chargerJournal();
         // Historique en cours d'import : l'avancement se met à jour seul.
         var enCours = (r[0].data || []).some(function (c) { return c.fournisseur !== 'export_email' && etatConnexion(c).indexOf('Import de ton historique') === 0; });
         clearTimeout(minuteur);
@@ -330,6 +355,30 @@
     }
     var minuteur = null;
 
+    // Journal de chaque réception (page « Ma caisse », #journalCaisse).
+    var SOURCES = { api: 'Caisse (automatique)', email: 'E-mail (automatique)', fichier: 'Fichier déposé', branchement: 'Branchement' };
+    function chargerJournal() {
+      var zone = document.getElementById('journalCaisse');
+      if (!zone) return Promise.resolve();
+      return sbClient.from('journal_caisse').select('*').eq('commercant_id', commercantId)
+        .order('cree_le', { ascending: false }).limit(50).then(function (res) {
+          if (res.error) { zone.innerHTML = ''; return; }
+          var lignes = res.data || [];
+          if (!lignes.length) {
+            zone.innerHTML = '<p class="texte-aide">Rien reçu pour l\'instant. Chaque arrivée de ventes s\'affichera ici.</p>';
+            return;
+          }
+          zone.innerHTML = '<div style="overflow-x:auto;"><table class="tableau-journal"><thead><tr><th>Quand</th><th>Source</th><th>Ventes reçues</th><th>Période</th><th>Résultat</th></tr></thead><tbody>'
+            + lignes.map(function (j) {
+              var periode = j.du ? (j.du === j.au ? formaterJour(j.du) : formaterJour(j.du) + ' → ' + formaterJour(j.au)) : '';
+              var source = SOURCES[j.source] || j.source;
+              if (j.fournisseur && j.fournisseur !== 'export_email') source += ' · ' + (LIBELLES[j.fournisseur] || j.fournisseur);
+              var resultat = j.erreur ? '<span class="erreur" style="padding:1px 6px; border-radius:4px;">' + echapper(j.erreur) + '</span>' : echapper(j.detail || 'OK');
+              return '<tr><td>' + formaterDateHeure(j.cree_le) + '</td><td>' + echapper(source) + '</td><td>' + (j.source === 'branchement' ? '' : j.nb_ventes) + '</td><td>' + periode + '</td><td>' + resultat + '</td></tr>';
+            }).join('') + '</tbody></table></div>';
+        });
+    }
+
     // La caisse choisie dans « Mon commerce » change le parcours tout de suite.
     var select = document.getElementById('selectCaisse');
     if (select) select.addEventListener('change', function () { caisseChoisie = select.value; choixSurLaPage = true; charger(); });
@@ -337,7 +386,7 @@
     charger().then(function () {
       var retour = new URLSearchParams(window.location.search).get('caisse');
       if (!retour || !document.getElementById('messageCaisse')) return;
-      window.history.replaceState(null, '', window.location.pathname + '#caisse');
+      window.history.replaceState(null, '', window.location.pathname);
       if (retour === 'connectee') {
         message('Caisse branchée ! Tes 12 derniers mois de ventes arrivent : suis la progression ci-dessus.', false);
       } else if (retour === 'refusee') message('Branchement annulé depuis ta caisse.', true);

@@ -1,6 +1,6 @@
 // Edge Function : connexion d'un commerçant à sa caisse (REFONTE.md § 4 bis).
 //
-// Appelée depuis parametres.html (connecteur-caisse.js) :
+// Appelée depuis caisse.html (connecteur-caisse.js) :
 //   POST { action: 'demarrer', fournisseur }            -> { url } de la page d'autorisation
 //        (sumup, zettle, square : caisses en OAuth)
 //   POST { action: 'synchroniser' }                     -> avance tout de suite les caisses branchées
@@ -25,7 +25,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { jourParis } from '../_shared/caisse/commun.ts';
 import { type Jetons } from '../_shared/caisse/http.ts';
 import { FOURNISSEURS, disponibles, identifiantsApp } from '../_shared/caisse/fournisseurs.ts';
-import { debutHistorique, enregistrerJetons, synchroniserConnexion } from '../_shared/caisse/synchroniser.ts';
+import { debutHistorique, enregistrerJetons, journaliser, synchroniserConnexion } from '../_shared/caisse/synchroniser.ts';
 
 var CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -33,7 +33,7 @@ var CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
-var URL_PARAMETRES = 'https://apointapp.fr/parametres.html';
+var URL_PAGE_CAISSE = 'https://apointapp.fr/caisse.html';
 var ADRESSE_IMPORT = Deno.env.get('ADRESSE_IMPORT') || '';
 var DUREE_ETAT_MS = 15 * 60000;
 
@@ -64,6 +64,10 @@ async function enregistrerConnexion(admin: any, commercantId: string, fournisseu
   });
   if (res.error) throw new Error(res.error.message);
   await enregistrerJetons(admin, commercantId, fournisseur, jetons, ENV.cleChiffrement);
+  await journaliser(admin, {
+    commercant_id: commercantId, source: 'branchement', fournisseur: fournisseur,
+    detail: 'Caisse branchée : import des 12 derniers mois lancé'
+  });
 }
 
 // Retour de la caisse après « Autoriser » (ou « Refuser »).
@@ -87,7 +91,7 @@ async function retourOAuth(admin: any, url: URL) {
   } else if (url.searchParams.get('error')) {
     resultat = 'refusee';
   }
-  return new Response(null, { status: 302, headers: { Location: URL_PARAMETRES + '?caisse=' + resultat + '#caisse' } });
+  return new Response(null, { status: 302, headers: { Location: URL_PAGE_CAISSE + '?caisse=' + resultat } });
 }
 
 Deno.serve(async (req) => {
@@ -158,6 +162,7 @@ Deno.serve(async (req) => {
 
     if (corps.action === 'deconnecter') {
       await admin.from('connexions_caisse').delete().eq('commercant_id', commercantId).eq('fournisseur', corps.fournisseur);
+      await journaliser(admin, { commercant_id: commercantId, source: 'branchement', fournisseur: corps.fournisseur, detail: 'Caisse débranchée' });
       return reponse({ ok: true });
     }
 
