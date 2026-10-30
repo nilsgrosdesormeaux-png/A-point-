@@ -161,7 +161,40 @@
     return null;
   }
 
+  // Fournées horaires (lot 4) : trois tranches par défaut, réparties selon le
+  // rayon (viennoiseries surtout à l'ouverture, snacking pour midi).
+  // Modifiables par produit dans la Fournée.
+  var TRANCHES = [
+    { heure: '5 h', libelle: 'Ouverture' },
+    { heure: '8 h', libelle: 'Coup de feu' },
+    { heure: '11 h', libelle: 'Midi' }
+  ];
+  var REPARTITION_PAR_RAYON = {
+    'Pains': [40, 35, 25],
+    'Viennoiseries': [60, 30, 10],
+    'Pâtisseries': [20, 40, 40],
+    'Snacking': [0, 30, 70]
+  };
+  function repartitionParDefaut(rayon) {
+    return (REPARTITION_PAR_RAYON[rayon] || [40, 35, 25]).slice();
+  }
+  // Découpe un total en pièces entières selon des parts (plus forts restes) :
+  // la somme des tranches est toujours égale au total.
+  function repartir(total, parts) {
+    var somme = parts.reduce(function (s, p) { return s + (p > 0 ? p : 0); }, 0) || 1;
+    var exacts = parts.map(function (p) { return total * (p > 0 ? p : 0) / somme; });
+    var entiers = exacts.map(Math.floor);
+    var manque = total - entiers.reduce(function (s, n) { return s + n; }, 0);
+    exacts.map(function (x, i) { return { i: i, reste: x - entiers[i] }; })
+      .sort(function (a, b) { return b.reste - a.reste; })
+      .slice(0, manque).forEach(function (x) { entiers[x.i]++; });
+    return entiers;
+  }
+
   window.Boulangerie = {
+    TRANCHES: TRANCHES,
+    repartitionParDefaut: repartitionParDefaut,
+    repartir: repartir,
     RAYONS: RAYONS,
     RAYONS_NON_CUITS: RAYONS_NON_CUITS,
     estCuit: estCuit,

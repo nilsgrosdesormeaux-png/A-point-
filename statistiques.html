@@ -7,10 +7,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Bilan</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261031h">
+  <link rel="stylesheet" href="style.css?v=20261101a">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="moteur-prevision.js?v=20261031h"></script>
-  <script src="boulangerie.js?v=20261031h"></script>
+  <script src="boulangerie.js?v=20261101a"></script>
   <script src="contexte.js?v=20261031h"></script>
   <script src="nav.js?v=20261030"></script>
 </head>
@@ -54,20 +54,21 @@
           </div>
         </div>
         <div class="grille-kpi grille-kpi--resultats">
-          <div class="carte-kpi carte-kpi--heros">
+          <!-- Lot 4 : un seul chiffre avant / après, au coût matière, sur tout l'assortiment. -->
+          <div class="carte-kpi carte-kpi--heros carte-kpi--gain">
+            <p class="carte-kpi-titre">Gagné avec À Point <span class="etiquette-mesure etiquette-mesure--estime" id="etiquetteSauve">estimé</span></p>
+            <p class="carte-kpi-valeur" id="kpiReelEuros">–</p>
+            <p class="carte-kpi-detail" id="kpiReelEurosDetail">Apparaît dès que ta fournée est cochée et tes ventes du jour connues.</p>
+          </div>
+          <div class="carte-kpi">
             <p class="carte-kpi-titre">Tes invendus <span class="etiquette-mesure">mesuré</span></p>
-            <p class="carte-kpi-valeur" id="kpiReelValeur">–</p>
+            <p class="carte-kpi-valeur carte-kpi-valeur--neutre" id="kpiReelValeur">–</p>
             <p class="carte-kpi-detail" id="kpiReelDetail">Coche ta fournée pour mesurer tes invendus.</p>
           </div>
           <div class="carte-kpi">
             <p class="carte-kpi-titre">Avant À Point <span class="etiquette-mesure etiquette-mesure--estime" id="etiquetteAvant">estimé</span></p>
             <p class="carte-kpi-valeur carte-kpi-valeur--neutre" id="kpiAvantValeur">–</p>
             <p class="carte-kpi-detail" id="kpiAvantDetail"></p>
-          </div>
-          <div class="carte-kpi">
-            <p class="carte-kpi-titre">Moins d'invendus qu'avant <span class="etiquette-mesure etiquette-mesure--estime" id="etiquetteSauve">estimé</span></p>
-            <p class="carte-kpi-valeur carte-kpi-valeur--neutre" id="kpiReelEuros">–</p>
-            <p class="carte-kpi-detail" id="kpiReelEurosDetail">Apparaît dès que ta fournée est cochée et tes ventes du jour connues.</p>
           </div>
           <div class="carte-kpi">
             <p class="carte-kpi-titre">Précision</p>
@@ -90,12 +91,30 @@
           <h3 class="tendance-titre" id="titreSimulation">Estimation (simulation)</h3>
           <p class="texte-aide" id="texteSimulation">Pas encore assez d'historique.</p>
           <p class="texte-aide texte-aide--discret">Ce que la prévision aurait évité par rapport à une production faite de mémoire (moyenne simple des mêmes jours). C'est un calcul, pas une mesure : seuls les invendus réels ci-dessus sont mesurés.</p>
-          <div class="graphique-colonnes graphique-colonnes--court" id="graphiqueTendance" aria-label="Invendus évités estimés, semaine après semaine"></div>
+          <div class="graphique-colonnes graphique-colonnes--court" id="graphiqueTendance" aria-label="Invendus évités estimés, en pièces, semaine après semaine"></div>
         </section>
       </section>
       <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
 
       <div id="zoneContenu" style="display:none;">
+
+        <!-- Affluence : tendance de l'activité globale (tous produits
+             confondus), agrégée par semaine, mois ou année selon l'onglet
+             choisi. Un seul graphique, jamais deux échelles superposées. -->
+        <section class="section-resultats carte">
+          <div class="entete-resultats">
+            <div>
+              <h2 class="titre-resultats">Pièces vendues dans le temps</h2>
+            </div>
+            <div class="selecteur-periode" id="selecteurGranulariteAffluence">
+              <button type="button" class="periode-bouton" data-granularite="semaine">Semaine</button>
+              <button type="button" class="periode-bouton actif" data-granularite="mois">Mois</button>
+              <button type="button" class="periode-bouton" data-granularite="annee">Année</button>
+            </div>
+          </div>
+          <p class="texte-aide texte-aide--discret" style="margin:0 0 14px;">En pièces vendues, tous produits confondus, par période.</p>
+          <div class="graphique-colonnes" id="graphiqueAffluence"></div>
+        </section>
 
         <!-- Jours records : pas de sélecteur, fenêtres fixes (mois en cours / année en cours), cohérent avec la demande pilote ("jour le plus chargé du mois/de l'année"). -->
         <section class="section-resultats carte">
@@ -149,23 +168,6 @@
           <div id="classementProduits"></div>
         </section>
 
-        <!-- Affluence : tendance de l'activité globale (tous produits
-             confondus), agrégée par semaine, mois ou année selon l'onglet
-             choisi. Un seul graphique, jamais deux échelles superposées. -->
-        <section class="section-resultats carte">
-          <div class="entete-resultats">
-            <div>
-              <h2 class="titre-resultats">Articles vendus dans le temps</h2>
-            </div>
-            <div class="selecteur-periode" id="selecteurGranulariteAffluence">
-              <button type="button" class="periode-bouton" data-granularite="semaine">Semaine</button>
-              <button type="button" class="periode-bouton actif" data-granularite="mois">Mois</button>
-              <button type="button" class="periode-bouton" data-granularite="annee">Année</button>
-            </div>
-          </div>
-          <p class="texte-aide texte-aide--discret" style="margin:0 0 14px;">Total des articles vendus (tous produits confondus), par période.</p>
-          <div class="graphique-colonnes" id="graphiqueAffluence"></div>
-        </section>
       </div>
     </div>
     <p class="pied-page"><a href="cgu.html">Conditions générales d'utilisation</a></p>
@@ -578,22 +580,29 @@
           sauveDetail.textContent = 'Après ta période d\'observation.';
           return;
         }
-        document.getElementById('etiquetteSauve').textContent = ref.nature === 'mesuré' ? 'mesuré' : 'estimé';
-        document.getElementById('etiquetteSauve').className = 'etiquette-mesure' + (ref.nature === 'mesuré' ? '' : ' etiquette-mesure--estime');
         var sauvees = Math.max(0, Math.round((ref.taux - taux) * cuit));
         // Correctif lot 2 : une pièce non jetée vaut son coût de revient
         // (matière d'après tes prix d'ingrédients, sinon ≈ 30 % du prix de
         // vente, estimé), jamais son prix de vente.
         var cout = coutMoyenPondere();
-        sauveEl.textContent = sauvees.toLocaleString('fr-FR') + ' pièce' + (sauvees > 1 ? 's' : '');
-        var texteEuros = '';
-        if (sauvees > 0 && cout) {
-          var estime = ref.nature !== 'mesuré' || cout.estime;
-          texteEuros = ', soit ≈ ' + euros(sauvees * cout.valeur) + ' de matière économisée (' + (estime ? 'estimé' : 'mesuré') + (cout.estime ? ', coût de revient ≈ 30 % du prix de vente' : ', d\'après tes prix d\'ingrédients') + ')';
+        var estime = ref.nature !== 'mesuré' || !cout || cout.estime;
+        document.getElementById('etiquetteSauve').textContent = estime ? 'estimé' : 'mesuré';
+        document.getElementById('etiquetteSauve').className = 'etiquette-mesure' + (estime ? ' etiquette-mesure--estime' : '');
+        var periodeTxt = periode === 'tout' ? 'depuis le début' : 'sur ' + periode + ' jours';
+        if (sauvees === 0) {
+          sauveEl.textContent = '0 €';
+          sauveDetail.textContent = 'Pas encore moins d\'invendus qu\'avant ' + periodeTxt + ' : ' + pourcent(taux) + ' contre ' + pourcent(ref.taux) + '.';
+          return;
         }
-        sauveDetail.textContent = (sauvees === 0 ? 'Pas encore moins d\'invendus qu\'avant.' : 'Environ ' + sauvees + ' pièces de moins qu\'avant' + texteEuros + '.') +
-          (sauvees > 0 && !cout ? ' Les euros apparaîtront avec tes prix de vente ou d\'ingrédients.' : '') +
-          ' Ventes récupérées : apparaîtront quand ta caisse donnera l\'heure des ventes.';
+        var pieces = sauvees.toLocaleString('fr-FR') + ' pièce' + (sauvees > 1 ? 's' : '') + ' de moins jetée' + (sauvees > 1 ? 's' : '');
+        if (cout) {
+          sauveEl.textContent = '+ ' + euros(sauvees * cout.valeur);
+          sauveDetail.textContent = 'De matière première économisée ' + periodeTxt + ' : ' + pieces + ' qu\'avant (' + pourcent(taux) + ' d\'invendus contre ' + pourcent(ref.taux) + '), ' +
+            (cout.estime ? 'coût matière ≈ 30 % du prix de vente.' : 'd\'après tes prix d\'ingrédients.');
+        } else {
+          sauveEl.textContent = pieces;
+          sauveDetail.textContent = 'Moins d\'invendus qu\'avant ' + periodeTxt + '. Le montant en euros apparaîtra avec tes prix de vente ou d\'ingrédients.';
+        }
       }
 
       // Coût de revient d'une pièce, par produit : fiche technique entièrement
@@ -685,13 +694,16 @@
       }
 
       function afficherFiabilite() {
-        var principal = Object.keys(ctx.parProduit).filter(B.estCuit).sort(function (a, b) {
+        // Précision donnée sur la baguette (le produit que tout boulanger
+        // connaît), sinon sur le produit le plus vendu.
+        var tries = Object.keys(ctx.parProduit).filter(B.estCuit).sort(function (a, b) {
           return ctx.parProduit[b].reduce(function (s, v) { return s + v.quantite; }, 0) - ctx.parProduit[a].reduce(function (s, v) { return s + v.quantite; }, 0);
-        })[0];
+        });
+        var principal = tries.filter(function (n) { return /^baguette/i.test(n); })[0] || tries[0];
         var ecart = principal ? MP.calculerEcartUnites(ctx.parProduit[principal]) : null;
         if (!ecart) return;
         document.getElementById('kpiFiabiliteValeur').textContent = '±' + ecart.ecart;
-        var texte = 'Pièces d\'écart habituel entre la prévision et la vente, sur ' + principal.toLowerCase() + '.';
+        var texte = 'Pièces d\'écart habituel par jour entre la prévision et la vente, sur ' + principal.toLowerCase() + '.';
         var fiab = MP.calculerFiabilite(ctx.ventes), naive = MP.calculerFiabiliteNaive(ctx.ventes);
         if (MP.comparaisonUtile(fiab, naive)) texte += ' ' + (fiab.valeur - naive.valeur) + ' points plus juste qu\'une simple moyenne.';
         document.getElementById('kpiFiabiliteDetail').textContent = texte;

@@ -1386,3 +1386,24 @@ body.ecran-fournil .ligne-fournee-cuit .valeur-cuite { width: 96px; min-height: 
 .recettes-actions { display: flex; align-items: center; gap: var(--espace-3); }
 .effet-affluence { width: 100%; margin: var(--espace-1) 0 0; }
 .ligne-commande-nom .texte-aide--discret + .texte-aide--discret { margin-top: 1px; }
+
+/* ---------- Lot 4 : saisie du soir et fournées horaires ---------- */
+.ligne-fournee-tranches { display: flex; gap: var(--espace-2); margin-top: 6px; font-size: var(--texte-xs); color: var(--couleur-texte-3); white-space: nowrap; }
+.ligne-fournee-tranches strong { color: var(--couleur-texte-2); font-weight: 600; }
+.ligne-fournee--faite .ligne-fournee-tranches { opacity: .6; }
+body.ecran-fournil .ligne-fournee-tranches { font-size: clamp(16px, 2vw, 22px); gap: var(--espace-4); }
+.tranches-reglage { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espace-2); }
+.tranches-reglage label { display: inline-flex; align-items: center; gap: 4px; margin: 0; font-weight: 500; }
+.tranches-reglage input { width: 58px; padding: 4px 6px; text-align: center; }
+.saisie-reste { margin-bottom: var(--espace-5); padding: var(--espace-4); background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md); box-shadow: var(--ombre-carte); }
+.saisie-reste h2 { margin: 0 0 var(--espace-1); font-size: var(--texte-lg); }
+.liste-reste { list-style: none; margin: var(--espace-3) 0; padding: 0; }
+.ligne-reste { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "nom stepper" "nom vendu"; align-items: center; column-gap: var(--espace-3); padding: var(--espace-2) 0; }
+.ligne-reste + .ligne-reste { border-top: 1px solid var(--couleur-bordure); }
+.ligne-reste-nom { grid-area: nom; display: flex; flex-direction: column; gap: 4px; font-weight: 500; }
+.ligne-reste-cuit { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: var(--texte-xs); font-weight: 400; color: var(--couleur-texte-3); }
+.ligne-reste-cuit input { width: 64px; padding: 4px 6px; }
+.ligne-reste .stepper { grid-area: stepper; }
+.ligne-reste .stepper-valeur { width: 56px; text-align: center; font-weight: 600; -moz-appearance: textfield; }
+.ligne-reste-vendu { grid-area: vendu; justify-self: end; font-size: var(--texte-xs); color: var(--couleur-texte-3); }
+.saisie-reste-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espace-3); }

@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Commande</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261031h">
+  <link rel="stylesheet" href="style.css?v=20261101a">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <script src="moteur-prevision.js?v=20261031h"></script>
-  <script src="boulangerie.js?v=20261031h"></script>
+  <script src="boulangerie.js?v=20261101a"></script>
   <script src="contexte.js?v=20261031h"></script>
   <script src="nav.js?v=20261031"></script>
 </head>
@@ -38,11 +38,7 @@
     <p id="statutConnexion" class="texte-aide">Chargement…</p>
 
     <div id="zoneCommande" hidden>
-      <div class="commande-periode">
-        <label for="selectJours">Couvrir</label>
-        <select id="selectJours"></select>
-        <span class="texte-aide" id="textePeriode"></span>
-      </div>
+      <p class="texte-aide" id="textePeriode">Chaque commande couvre de la livraison jusqu'à la suivante. Le stock se reprend d'une commande à l'autre.</p>
       <p class="texte-aide" id="noteRecettes" hidden></p>
       <div id="listeFournisseurs"></div>
     </div>
@@ -57,9 +53,7 @@
 
       var statutDiv = document.getElementById('statutConnexion');
       var listeEl = document.getElementById('listeFournisseurs');
-      var selectJours = document.getElementById('selectJours');
       var ctx = null;
-      var premierJour = null;
       var fournisseursInfos = {}; // { cle: { email, telephone, jours: [1,4] } }
       var derniereCommande = {};  // { cleFournisseur: [{ nom, texte }] } pour l'envoi
 
@@ -68,13 +62,6 @@
       }
       function lireLocal(cle, defaut) { try { return JSON.parse(localStorage.getItem(cle)) || defaut; } catch (e) { return defaut; } }
       function ecrireLocal(cle, val) { try { localStorage.setItem(cle, JSON.stringify(val)); } catch (e) {} }
-
-      // Jours couverts : les N prochains jours d'ouverture à partir du premier.
-      function joursCouverts(n) {
-        var jours = [premierJour];
-        while (jours.length < n) jours.push(MP.prochainJourOuvert(jours[jours.length - 1], ctx.joursFermeture));
-        return jours;
-      }
 
       // Production prévue (somme sur la période) → besoins par ingrédient :
       // fiche technique du boulanger si elle existe, sinon recette type.
@@ -107,10 +94,12 @@
       }
 
       // Jours couverts par la commande d'un fournisseur : de sa prochaine
-      // livraison jusqu'à la suivante (exclue). Sans jours renseignés : défaut proposé.
-      function joursPourFournisseur(infos, nDefaut) {
-        var jours = infos && infos.jours && infos.jours.length ? infos.jours : null;
-        if (!jours) return { jours: joursCouverts(nDefaut), parDefaut: true };
+      // livraison jusqu'à la suivante (exclue). Sans jours renseignés : mardi
+      // et vendredi proposés par défaut, sans bloquer la commande.
+      var LIVRAISONS_PAR_DEFAUT = [2, 5];
+      function joursPourFournisseur(infos) {
+        var parDefaut = !(infos && infos.jours && infos.jours.length);
+        var jours = parDefaut ? LIVRAISONS_PAR_DEFAUT : infos.jours;
         var d1 = null, d2 = null;
         for (var i = 1; i <= 14 && !d2; i++) {
           var d = MP.ajouterJours(new Date(), i);
@@ -121,7 +110,46 @@
         for (var x = new Date(d1); x < d2; x = MP.ajouterJours(x, 1)) {
           if (ctx.joursFermeture.indexOf(x.getDay()) === -1) liste.push(new Date(x));
         }
-        return { jours: liste.length ? liste : [d1], livraison: d1, suivante: d2, parDefaut: false };
+        return { jours: liste.length ? liste : [d1], livraison: d1, suivante: d2, parDefaut: parDefaut };
+      }
+
+      // Stock repris d'une commande à l'autre (lot 4), par ingrédient :
+      // { q, date, commande, livraison } dans parametres_commercant.fournisseurs._stock.
+      // Il me reste = stock compté + livré depuis − consommation prévue depuis.
+      function stocksEnregistres() {
+        if (!fournisseursInfos._stock) {
+          var ancien = lireLocal('apoint-stock:' + ctx.commercantId, {}), aujourdhui = MP.versISO(new Date());
+          fournisseursInfos._stock = {};
+          Object.keys(ancien).forEach(function (cle) { if (Number(ancien[cle])) fournisseursInfos._stock[cle] = { q: Number(ancien[cle]), date: aujourdhui }; });
+        }
+        return fournisseursInfos._stock;
+      }
+      function sauverStocks() {
+        ecrireLocal('apoint-fournisseurs:' + ctx.commercantId, fournisseursInfos);
+        ctx.sb.from('parametres_commercant').update({ fournisseurs: fournisseursInfos }).eq('commercant_id', ctx.commercantId).then(function () {}, function () {});
+      }
+      var cacheConso = {};
+      function consommationDuJour(d, fiches) {
+        var iso = MP.versISO(d);
+        if (!cacheConso[iso]) {
+          cacheConso[iso] = {};
+          B.FOURNISSEURS.forEach(function (f) {
+            var b = besoinsPour([d], fiches, f.cle);
+            Object.keys(b).forEach(function (cle) { cacheConso[iso][cle] = (cacheConso[iso][cle] || 0) + b[cle].quantite; });
+          });
+        }
+        return cacheConso[iso];
+      }
+      function stockEstime(cle, fiches) {
+        var e = stocksEnregistres()[cle];
+        if (!e) return { q: 0, estime: false };
+        var aujourdhui = MP.versISO(new Date());
+        var q = e.q + (e.commande && e.livraison && e.livraison <= aujourdhui ? e.commande : 0);
+        var estime = e.date < aujourdhui;
+        for (var d = new Date(e.date + 'T00:00:00'); MP.versISO(d) < aujourdhui; d = MP.ajouterJours(d, 1)) {
+          if (ctx.joursFermeture.indexOf(d.getDay()) === -1) q -= consommationDuJour(d, fiches)[cle] || 0;
+        }
+        return { q: Math.max(0, Math.round(q * 1000) / 1000), estime: estime };
       }
 
       function besoinsPour(jours, fiches, cleFournisseur) {
@@ -160,13 +188,15 @@
         var besoinTxt = B.formaterQuantite(b.quantite, b.unite, b.nom).replace(/ \(≈[^)]*\)/, '');
         var stockTxt = stock > 0 ? ' − ' + B.formaterQuantite(stock, b.unite, b.nom).replace(/ \(≈[^)]*\)/, '') + ' en stock' : '';
         var achat, achatTexte;
+        var commande = reste;
         if (reste === 0) { achat = 'En stock'; achatTexte = null; }
         else if (u) {
           var n = Math.ceil(reste / u.taille - 1e-9);
+          commande = n * u.taille;
           achat = n + ' ' + (n > 1 ? u.pluriel : u.libelle) + (u.detail ? ' ' + u.detail : '');
           achatTexte = achat;
         } else { achat = B.formaterQuantite(reste, b.unite, b.nom).replace(/ \(≈[^)]*\)/, ''); achatTexte = achat; }
-        return { reste: reste, achat: achat, achatTexte: achatTexte, explication: besoinTxt + stockTxt };
+        return { reste: reste, commande: commande, achat: achat, achatTexte: achatTexte, explication: besoinTxt + stockTxt };
       }
 
       function libelleRecette(lignes) {
@@ -179,11 +209,8 @@
 
       function afficher() {
         cacheProduction = {};
-        var nDefaut = parseInt(selectJours.value, 10);
-        var joursDefaut = joursCouverts(nDefaut);
-        document.getElementById('textePeriode').textContent = 'du ' + MP.formatDateLongue(joursDefaut[0]).toLowerCase() + ' au ' + MP.formatDateLongue(joursDefaut[joursDefaut.length - 1]).toLowerCase() + ' (fournisseurs sans jours de livraison)';
+        cacheConso = {};
         var fiches = fichesParProduit();
-        var stocks = lireLocal('apoint-stock:' + ctx.commercantId, {});
 
         // Recettes à voir et valider une fois (aucune recette appliquée en silence).
         var aValider = Object.keys(fiches).filter(function (n) { return !fiches[n].fiche; });
@@ -200,7 +227,7 @@
         derniereCommande = {};
         var sections = B.FOURNISSEURS.map(function (f) {
           var infos = fournisseursInfos[f.cle] || {};
-          var horizon = joursPourFournisseur(infos, nDefaut);
+          var horizon = joursPourFournisseur(infos);
           var besoins = besoinsPour(horizon.jours, fiches, f.cle);
           var cles = Object.keys(besoins).sort(function (a, b) { return besoins[a].nom.localeCompare(besoins[b].nom, 'fr'); });
           if (!cles.length) return '';
@@ -208,27 +235,27 @@
           derniereCommande[f.cle] = [];
           var html = cles.map(function (cle) {
             var b = besoins[cle];
-            var stock = Number(stocks[cle]) || 0;
+            var estimation = stockEstime(cle, fiches);
+            var stock = estimation.q;
             var l = ligneACommander(b, stock);
-            if (l.achatTexte) derniereCommande[f.cle].push({ nom: b.nom, texte: l.achatTexte });
+            derniereCommande[f.cle].push({ cle: cle, nom: b.nom, texte: l.achatTexte, stock: stock, commande: l.commande, livraison: MP.versISO(horizon.livraison) });
             // Stock dans l'unité de l'ingrédient : petites quantités en grammes.
             var enGrammes = b.unite === 'kg' && b.quantite < 2;
             var uniteStock = enGrammes ? 'g' : (b.unite === 'pièce' ? 'pièces' : b.unite);
-            var valeurStock = stock ? (enGrammes ? Math.round(stock * 1000) : stock) : '';
+            var valeurStock = stock ? (enGrammes ? Math.round(stock * 1000) : Math.round(stock * 10) / 10) : '';
             return '<li class="ligne-commande' + (l.reste === 0 ? ' ligne-commande--couverte' : '') + '">' +
               '<span class="ligne-commande-nom">' + echapper(b.nom) + '<span class="texte-aide--discret">' + l.explication + ' jusqu\'au ' + jusqua + '</span>' +
                 '<span class="texte-aide--discret">Pour ' + echapper(b.produits.slice(0, 3).join(', ')) + (b.produits.length > 3 ? '…' : '') + '</span></span>' +
               '<span class="ligne-commande-quantite">' + echapper(l.achat) + '</span>' +
-              '<label class="ligne-commande-stock">Il me reste <input type="number" min="0" step="any" inputmode="decimal" data-cle="' + echapper(cle) + '" data-grammes="' + (enGrammes ? '1' : '') + '" value="' + valeurStock + '" placeholder="0"> ' + uniteStock + '</label>' +
+              '<label class="ligne-commande-stock">Il me reste <input type="number" min="0" step="any" inputmode="decimal" data-cle="' + echapper(cle) + '" data-grammes="' + (enGrammes ? '1' : '') + '" value="' + valeurStock + '" placeholder="0"> ' + uniteStock + (estimation.estime ? ' <span class="texte-aide--discret">estimé</span>' : '') + '</label>' +
               '</li>';
           }).join('');
           var joursCases = [1, 2, 3, 4, 5, 6, 0].map(function (j) {
-            var coche = infos.jours && infos.jours.indexOf(j) !== -1;
+            var coche = (infos.jours && infos.jours.length ? infos.jours : LIVRAISONS_PAR_DEFAUT).indexOf(j) !== -1;
             return '<label class="case-jour"><input type="checkbox" data-jour="' + j + '"' + (coche ? ' checked' : '') + '> ' + JOURS_SEMAINE[j] + '</label>';
           }).join('');
-          var entete = horizon.parDefaut
-            ? 'Jours de livraison à renseigner : ' + horizon.jours.length + ' jour' + (horizon.jours.length > 1 ? 's' : '') + ' proposé' + (horizon.jours.length > 1 ? 's' : '') + ' par défaut'
-            : 'Livraison ' + MP.formatDateLongue(horizon.livraison).toLowerCase() + ', couvre jusqu\'au ' + jusqua;
+          var entete = 'Livraison ' + MP.formatDateLongue(horizon.livraison).toLowerCase() + ', couvre jusqu\'au ' + jusqua +
+            (horizon.parDefaut ? ' (mardi et vendredi par défaut)' : '');
           return '<section class="fournisseur" data-fournisseur="' + f.cle + '" aria-labelledby="f-' + f.cle + '">' +
             '<div class="fournisseur-entete"><h2 id="f-' + f.cle + '">' + f.nom + '</h2><span class="texte-aide">' + entete + '</span></div>' +
             '<ul class="liste-commande">' + html + '</ul>' +
@@ -237,7 +264,7 @@
               '<button type="button" class="bouton-secondaire" data-envoi="email">E-mail</button>' +
               '<button type="button" class="bouton-secondaire" data-envoi="whatsapp">WhatsApp</button>' +
             '</div>' +
-            '<details class="fournisseur-reglages"' + (horizon.parDefaut ? ' open' : '') + '><summary>Coordonnées et jours de livraison</summary>' +
+            '<details class="fournisseur-reglages"><summary>Coordonnées et jours de livraison</summary>' +
               '<div class="ligne-form">' +
                 '<div><label for="email-' + f.cle + '">E-mail</label><input type="email" id="email-' + f.cle + '" data-champ="email" value="' + echapper(infos.email || '') + '" placeholder="commandes@exemple.fr"></div>' +
                 '<div><label for="tel-' + f.cle + '">Téléphone (WhatsApp)</label><input type="tel" id="tel-' + f.cle + '" data-champ="telephone" value="' + echapper(infos.telephone || '') + '" placeholder="06 12 34 56 78"></div>' +
@@ -258,11 +285,26 @@
       function texteCommande(cle) {
         var f = B.FOURNISSEURS.filter(function (x) { return x.cle === cle; })[0];
         var nomCommerce = (ctx.parametres && ctx.parametres.nom_restaurant) || 'ma boulangerie';
-        var lignes = (derniereCommande[cle] || []).map(function (l) { return '- ' + l.nom + ' : ' + l.texte; });
+        var lignes = aCommander(cle).map(function (l) { return '- ' + l.nom + ' : ' + l.texte; });
         return 'Bonjour,\n\nCommande de ' + nomCommerce + ' :\n' + lignes.join('\n') + '\n\nMerci !';
       }
 
+      function aCommander(cle) {
+        return (derniereCommande[cle] || []).filter(function (l) { return l.texte; });
+      }
+
+      // Commande envoyée : le stock du moment et la quantité commandée sont
+      // gardés, la prochaine commande repart de là sans ressaisie.
+      function memoriserCommande(cle) {
+        var stocks = stocksEnregistres(), aujourdhui = MP.versISO(new Date());
+        (derniereCommande[cle] || []).forEach(function (l) {
+          stocks[l.cle] = { q: l.stock, date: aujourdhui, commande: l.commande, livraison: l.livraison };
+        });
+        sauverStocks();
+      }
+
       function envoyer(cle, mode) {
+        memoriserCommande(cle);
         var infos = fournisseursInfos[cle] || {};
         var texte = texteCommande(cle);
         if (mode === 'email') {
@@ -277,7 +319,7 @@
           doc.text(textePdf('Commande ' + f.nom + ' - ' + ((ctx.parametres && ctx.parametres.nom_restaurant) || '')), 14, 18);
           doc.setFontSize(10);
           doc.text(textePdf(document.getElementById('textePeriode').textContent), 14, 26);
-          doc.autoTable({ startY: 32, head: [['Article', 'Quantité']], body: (derniereCommande[cle] || []).map(function (l) { return [textePdf(l.nom), textePdf(l.texte)]; }), headStyles: { fillColor: [158, 76, 12] } });
+          doc.autoTable({ startY: 32, head: [['Article', 'Quantité']], body: aCommander(cle).map(function (l) { return [textePdf(l.nom), textePdf(l.texte)]; }), headStyles: { fillColor: [158, 76, 12] } });
           doc.save('commande-' + cle + '.pdf');
         }
       }
@@ -309,14 +351,16 @@
       listeEl.addEventListener('change', function (e) {
         var cle = e.target.getAttribute('data-cle');
         if (!cle) return;
-        var stocks = lireLocal('apoint-stock:' + ctx.commercantId, {});
+        // Stock compté à la main : il remplace l'estimation, la livraison à venir reste attendue.
+        var stocks = stocksEnregistres(), aujourdhui = MP.versISO(new Date());
         var v = Number(e.target.value) || 0;
-        stocks[cle] = e.target.getAttribute('data-grammes') ? v / 1000 : v;
-        ecrireLocal('apoint-stock:' + ctx.commercantId, stocks);
+        var ancien = stocks[cle] || {};
+        stocks[cle] = { q: e.target.getAttribute('data-grammes') ? v / 1000 : v, date: aujourdhui };
+        if (ancien.commande && ancien.livraison > aujourdhui) { stocks[cle].commande = ancien.commande; stocks[cle].livraison = ancien.livraison; }
+        sauverStocks();
         afficher();
       });
 
-      selectJours.addEventListener('change', afficher);
 
       // « C'est ma recette » : la recette type devient la fiche du produit.
       document.getElementById('noteRecettes').addEventListener('click', function (e) {
@@ -340,17 +384,6 @@
         ctx = c;
         statutDiv.textContent = '';
         fournisseursInfos = (ctx.parametres && ctx.parametres.fournisseurs) || lireLocal('apoint-fournisseurs:' + ctx.commercantId, {});
-        var demande = /[?&]jour=(\d{4}-\d{2}-\d{2})/.exec(window.location.search);
-        premierJour = demande ? new Date(demande[1] + 'T00:00:00') : C.prochainJourOuvert(ctx);
-        var parametreJours = /[?&]jours=(\d)/.exec(window.location.search);
-        var joursDemandes = parametreJours ? Math.min(7, Math.max(1, parseInt(parametreJours[1], 10))) : 2;
-        for (var i = 1; i <= 7; i++) {
-          var o = document.createElement('option');
-          o.value = i;
-          o.textContent = i === 1 ? '1 jour' : i + ' jours';
-          if (i === joursDemandes) o.selected = true;
-          selectJours.appendChild(o);
-        }
         if (ctx.ventes.length === 0) {
           statutDiv.innerHTML = 'Pas encore de ventes : la commande se calculera dès que ta caisse ou tes premières ventes seront là.';
           return;
