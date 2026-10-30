@@ -1361,3 +1361,20 @@ body.ecran-fournil .ligne-fournee-cuit .valeur-cuite { width: 96px; min-height: 
 .simulation .texte-aide { margin-bottom: var(--espace-2); }
 .repere-peu-sur { font-size: var(--texte-xs); font-weight: 400; color: var(--couleur-alerte); }
 .repere-peu-sur--global { margin: 0 0 var(--espace-3); font-size: var(--texte-sm); }
+.ligne-fournee-insuffisant { max-width: 9.5em; font-size: var(--texte-xs); line-height: 1.3; text-align: right; color: var(--couleur-texte-3); }
+.selecteur-jour { margin-top: var(--espace-3); background: color-mix(in srgb, var(--couleur-surface) 60%, transparent); }
+.selecteur-jour .periode-bouton:disabled { opacity: 0.45; }
+.ligne-prix-produit { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espace-2); margin-top: var(--espace-3); }
+.ligne-prix-produit input { width: 110px; }
+.etiquette-mesure { display: inline-block; margin-left: 4px; padding: 1px 7px; font-size: 11px; font-weight: 600; border-radius: var(--rayon-rond); background: var(--couleur-succes-doux); color: var(--couleur-succes); vertical-align: middle; }
+.etiquette-mesure--estime { background: var(--couleur-alerte-doux); color: var(--couleur-alerte); }
+.carte-kpi--heros .etiquette-mesure { background: color-mix(in srgb, var(--couleur-sur-inverse) 18%, transparent); color: var(--couleur-sur-inverse); }
+.grille-kpi--resultats { grid-template-columns: 1fr; }
+@media (min-width: 560px) { .grille-kpi--resultats { grid-template-columns: 1fr 1fr; } }
+.case-epuise { flex-basis: 100%; display: flex; align-items: center; gap: var(--espace-2); margin: var(--espace-1) 0 0; font-weight: 400; font-size: var(--texte-xs); color: var(--couleur-texte-2); }
+.case-epuise input { width: 18px; height: 18px; margin: 0; }
+.ligne-fournee-cuit { flex-wrap: wrap; }
+.lien-brancher-caisse { display: block; margin: 0 0 var(--espace-3); font-size: var(--texte-sm); font-weight: 600; }
+.bandeau-observation { margin: 0 0 var(--espace-3); padding: var(--espace-3) var(--espace-4); font-size: var(--texte-sm); background: var(--couleur-alerte-doux); color: var(--couleur-texte); border-radius: var(--rayon-sm); }
+.avant-inscription { margin-top: var(--espace-4); font-size: var(--texte-sm); }
+.avant-inscription summary { cursor: pointer; color: var(--couleur-texte-2); }

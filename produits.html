@@ -9,10 +9,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Produits</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261031e">
+  <link rel="stylesheet" href="style.css?v=20261031g">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261031c"></script>
-  <script src="boulangerie.js?v=20261031"></script>
+  <script src="moteur-prevision.js?v=20261031g"></script>
+  <script src="boulangerie.js?v=20261031g"></script>
   <script src="nav.js?v=20261031"></script>
   <style>
     /* Ventes du jour : même style de navigation par jour que ventes.html
@@ -127,6 +127,13 @@
             </div>
             <div id="messageRenommer"></div>
           </div>
+          <div class="ligne-prix-produit">
+            <label for="prixVenteProduit" style="margin:0;">Prix de vente (€)</label>
+            <input type="number" id="prixVenteProduit" min="0" step="0.05" inputmode="decimal" placeholder="Ex : 1,30">
+            <button type="button" id="btnPrixVente" class="bouton-secondaire">Enregistrer</button>
+            <span class="texte-aide" id="messagePrixVente" role="status"></span>
+          </div>
+          <p class="texte-aide" style="margin-top:4px;">Sert à chiffrer tes invendus en euros dans le Bilan.</p>
           <div id="listeIngredients"></div>
           <div class="ligne-form" style="margin-top:10px; flex-wrap:wrap; align-items:flex-end;">
             <div style="flex:2; min-width:160px;">
@@ -425,7 +432,9 @@
             return;
           }
 
-          var nb = produitsCourants.length;
+          var clesUniques = {};
+          produitsCourants.forEach(function (p) { clesUniques[MP.cleProduit(p.nom)] = true; });
+          var nb = Object.keys(clesUniques).length;
           badgeProduits.textContent = nb + (nb > 1 ? ' produits' : ' produit');
           badgeProduits.style.display = 'inline-block';
 
@@ -530,7 +539,14 @@
 
         // Plan v2 : rayon déduit du nom (boulangerie.js), plus de rangement à la main.
         var parCategorie = {};
-        produitsCourants.forEach(function (p) {
+        // Lot 2 : une seule ligne par produit (« Croissant » = « CROISSANT »).
+        var dejaVus = {};
+        produitsCourants.filter(function (p) {
+          var cleNom = MP.cleProduit(p.nom);
+          if (dejaVus[cleNom]) return false;
+          dejaVus[cleNom] = true;
+          return true;
+        }).forEach(function (p) {
           var cle = window.Boulangerie.deduireRayon(p.nom);
           if (!parCategorie[cle]) parCategorie[cle] = [];
           parCategorie[cle].push(p);
@@ -672,6 +688,8 @@
           ligneProduit.insertAdjacentElement('afterend', ficheTechniqueDiv);
         }
         ficheTechniqueDiv.style.display = 'block';
+        document.getElementById('prixVenteProduit').value = produit.prix_vente != null ? produit.prix_vente : '';
+        document.getElementById('messagePrixVente').textContent = '';
         chargerIngredients();
         ficheTechniqueDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
@@ -698,6 +716,20 @@
 
       document.getElementById('btnSuggestionFicheNon').addEventListener('click', function () {
         suggestionFicheDiv.style.display = 'none';
+      });
+
+      document.getElementById('btnPrixVente').addEventListener('click', function () {
+        if (!produitSelectionne) return;
+        var brut = document.getElementById('prixVenteProduit').value.replace(',', '.');
+        var prix = brut === '' ? null : Math.max(0, Number(brut));
+        var msg = document.getElementById('messagePrixVente');
+        if (brut !== '' && !isFinite(prix)) { msg.textContent = 'Prix invalide.'; return; }
+        var produit = produitSelectionne;
+        sbClient.from('produits').update({ prix_vente: prix }).eq('id', produit.id).then(function (r) {
+          if (r && r.error) { msg.textContent = 'Erreur : ' + r.error.message; return; }
+          produit.prix_vente = prix;
+          msg.textContent = 'Enregistré.';
+        }, function () { msg.textContent = 'Impossible d\'enregistrer, vérifie ta connexion.'; });
       });
 
       document.getElementById('btnFermerFiche').addEventListener('click', function () {
@@ -772,7 +804,10 @@
             if (type) {
               // Recette type pré-remplie en un geste : le boulanger n'ajuste
               // ensuite que ce qui diffère chez lui.
-              vide.textContent = "Sans fiche, la commande utilise une recette type de " + formatNomAffichage(produitSelectionne.nom).toLowerCase() + ". ";
+              // Lot 2 : la recette type s'affiche, plutôt qu'une fiche vide.
+              vide.innerHTML = '<strong>Recette type utilisée pour la commande</strong> (par pièce) :<br>' + type.ingredients.map(function (l) {
+                return formatNomAffichage(l[0]) + ' : ' + (l[2] === 'kg' && l[1] < 1 ? Math.round(l[1] * 1000) + ' g' : String(l[1]).replace('.', ',') + ' ' + l[2]);
+              }).join(' · ') + '<br>';
               var btnType = document.createElement('button');
               btnType.type = 'button';
               btnType.className = 'lien-discret';

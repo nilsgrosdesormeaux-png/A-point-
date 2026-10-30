@@ -54,13 +54,23 @@
           sb.from('parametres_commercant').upsert({ commercant_id: id, caisse: caisseInscription }).then(function () {}, function () {});
           if (parametres) parametres.caisse = caisseInscription;
         }
+        var avantInscription = session.user.user_metadata && session.user.user_metadata.reference_avant;
+        if (avantInscription && parametres && !parametres.reference_avant && 'observation_debut' in parametres) {
+          sb.from('parametres_commercant').upsert({ commercant_id: id, reference_avant: avantInscription }).then(function () {}, function () {});
+          parametres.reference_avant = avantInscription;
+        } else if (avantInscription && !parametres) {
+          parametres = { reference_avant: avantInscription };
+        } else if (avantInscription && parametres && !parametres.reference_avant) {
+          parametres.reference_avant = avantInscription; // colonne pas encore créée : lu depuis le compte
+        }
         var evenements = {};
         (r[4].data || []).forEach(function (e) { evenements[e.date_evenement] = e.direction; });
         var ctx = {
           sb: sb,
           session: session,
           commercantId: id,
-          ventes: r[0].data || [],
+          // Une ligne par produit et par jour (doublons de casse et imports relancés).
+          ventes: MP.dedoublonnerVentes(r[0].data || []),
           produits: r[1].data || [],
           ingredients: r[2].data || [],
           parametres: parametres,
@@ -114,6 +124,7 @@
   function raisonsDuJour(previsions) {
     var parCle = {};
     previsions.forEach(function (p) {
+      if (p.r.insuffisant) return;
       (p.r.signaux || []).forEach(function (s) {
         if (!parCle[s.cle]) parCle[s.cle] = { cle: s.cle, icone: s.icone, libelle: s.libelle, poids: 0, somme: 0 };
         if (s.ratio !== null) { parCle[s.cle].somme += s.ratio * p.r.quantite; parCle[s.cle].poids += p.r.quantite; }
@@ -130,6 +141,14 @@
     });
   }
 
+  // Ventes périmées : dernière date de vente, et vrai si plus de 3 jours.
+  function dernieresVentes(ctx) {
+    var derniere = ctx.ventes.reduce(function (m, v) { return v.date_vente > m ? v.date_vente : m; }, '');
+    if (!derniere) return null;
+    var ecart = Math.round((new Date(MP.versISO(new Date()) + 'T00:00:00') - new Date(derniere + 'T00:00:00')) / 86400000);
+    return { date: derniere, perimees: ecart > 3 };
+  }
+
   function prochainJourOuvert(ctx) {
     return MP.prochainJourOuvert(new Date(), ctx.joursFermeture);
   }
@@ -140,6 +159,7 @@
     enrichir: enrichir,
     prevoirJour: prevoirJour,
     raisonsDuJour: raisonsDuJour,
+    dernieresVentes: dernieresVentes,
     prochainJourOuvert: prochainJourOuvert
   };
 })();

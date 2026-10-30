@@ -41,6 +41,48 @@
     return propre.charAt(0).toUpperCase() + propre.slice(1).toLowerCase();
   }
 
+  // Clé d'un produit, même règle que normaliser_nom_produit (SQL) et que le
+  // connecteur caisse : minuscules, sans accents, sans « s »/« x » final.
+  function cleProduit(nom) {
+    var propre = (nom === null || nom === undefined ? '' : String(nom)).trim().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (propre.length > 3 && /[sx]$/.test(propre)) propre = propre.slice(0, -1);
+    return propre;
+  }
+
+  // Une seule ligne par produit et par jour (lot 2) : « Croissant »,
+  // « CROISSANT » et « croissants » sont le même produit, et un import
+  // relancé ne compte pas deux fois. On garde la saisie la plus récente
+  // (created_at, puis id) et on affiche le nom le plus fréquent.
+  function dedoublonnerVentes(ventes) {
+    var nomsParCle = {};
+    ventes.forEach(function (v) {
+      var cle = cleProduit(v.nom_produit);
+      var nom = formatNomAffichage(v.nom_produit);
+      if (!nomsParCle[cle]) nomsParCle[cle] = {};
+      nomsParCle[cle][nom] = (nomsParCle[cle][nom] || 0) + 1;
+    });
+    var nomRetenu = {};
+    Object.keys(nomsParCle).forEach(function (cle) {
+      nomRetenu[cle] = Object.keys(nomsParCle[cle]).sort(function (a, b) { return nomsParCle[cle][b] - nomsParCle[cle][a]; })[0];
+    });
+    var parJour = {};
+    ventes.forEach(function (v) {
+      var cle = cleProduit(v.nom_produit) + '|' + v.date_vente;
+      var actuel = parJour[cle];
+      var plusRecent = !actuel || String(v.created_at || '') > String(actuel.created_at || '') ||
+        (String(v.created_at || '') === String(actuel.created_at || '') && Number(v.id || 0) > Number(actuel.id || 0));
+      if (plusRecent) parJour[cle] = v;
+    });
+    return Object.keys(parJour).map(function (cle) {
+      var v = parJour[cle];
+      var copie = {};
+      Object.keys(v).forEach(function (k) { copie[k] = v[k]; });
+      copie.nom_produit = nomRetenu[cleProduit(v.nom_produit)];
+      return copie;
+    });
+  }
+
   // Poids donné aux ventes récentes par rapport aux anciennes dans la moyenne
   // pondérée (voir moyennePonderee ci-dessous). Plus proche de 1 = quasi plate,
   // plus proche de 0 = très sensible aux dernières occurrences.
@@ -637,10 +679,31 @@
     // Bug corrigé (audit sept. 2026) : new Date(iso) sans 'T00:00:00' parse
     // en UTC, ce qui peut décaler .getDay() d'un jour dans un fuseau à
     // l'ouest de l'UTC (Antilles/Guyane). Convention du projet respectée.
-    var ventesMemeJour = ventesDuProduit.filter(function (vente) {
-      var d = new Date(vente.date_vente + 'T00:00:00');
-      return d.getDay() === numeroJourCible && estJourOrdinaire(d, zoneVacances);
+    // Référence (lot 2) : d'abord le même jour de semaine dans la même
+    // situation (vacances ou non, hors férié/pont/fête), puis le même jour de
+    // semaine toutes situations confondues, puis seulement tous les jours.
+    // Un férié ou un dimanche ne prend jamais la moyenne de tous les jours.
+    // Moins de 3 ventes du même jour de semaine = historique insuffisant :
+    // le chiffre est calculé mais signalé (r.insuffisant) pour ne pas
+    // l'afficher ni le commander.
+    var cibleEnVacances = estEnVacances(jourCible, zoneVacances);
+    var memeJourTous = ventesDuProduit.filter(function (vente) {
+      return new Date(vente.date_vente + 'T00:00:00').getDay() === numeroJourCible;
     });
+    var memeJourSituation = memeJourTous.filter(function (vente) {
+      var d = new Date(vente.date_vente + 'T00:00:00');
+      return !estJourFerie(d) && !estPont(d) && !feteBoulangere(d) && estEnVacances(d, zoneVacances) === cibleEnVacances;
+    });
+    var memeJourHorsFerie = memeJourTous.filter(function (vente) {
+      return !estJourFerie(new Date(vente.date_vente + 'T00:00:00'));
+    });
+    var niveauReference;
+    var ventesMemeJour;
+    if (memeJourSituation.length >= 3) { ventesMemeJour = memeJourSituation; niveauReference = 1; }
+    else if (memeJourHorsFerie.length >= 3) { ventesMemeJour = memeJourHorsFerie; niveauReference = 2; }
+    else if (memeJourTous.length > 0) { ventesMemeJour = memeJourTous; niveauReference = 2; }
+    else { ventesMemeJour = []; niveauReference = 3; }
+    var insuffisant = memeJourTous.length < 3;
 
     var baseVentes = ventesMemeJour.length > 0 ? ventesMemeJour : ventesDuProduit;
     var baseTriee = baseVentes.slice().sort(function (a, b) {
@@ -705,7 +768,10 @@
           var f = feteBoulangere(d); return !!f && f.cle === feteCible.cle;
         }, zoneVacances), 1);
       }
-      if (cibleVacances) {
+      if (cibleVacances && niveauReference === 1) {
+        // Déjà comparé aux mêmes jours de vacances : pas d'effet en plus.
+        signaux.push({ cle: 'vacances', icone: '🏖️', libelle: 'Vacances scolaires', ratio: null, nb: 0, dejaPrisEnCompte: true });
+      } else if (cibleVacances) {
         ajouterSignal('vacances', '🏖️', 'Vacances scolaires', apprendreEffet(ventesDuProduit, function (d) {
           return d.getDay() === numeroJourCible && estEnVacances(d, zoneVacances) && !estJourFerie(d);
         }, zoneVacances), 2);
@@ -728,7 +794,7 @@
 
     var texteBase;
     if (ventesMemeJour.length > 0) {
-      texteBase = "Basé sur tes " + baseVentes.length + " derniers " + nomJourCible + "s";
+      texteBase = "Basé sur tes " + baseVentes.length + " derniers " + nomJourCible + "s" + (niveauReference === 1 ? (cibleEnVacances ? " de vacances" : " hors vacances") : "");
     } else {
       texteBase = "Basé sur tes " + baseVentes.length + " dernier(s) jour(s) de vente (pas encore de " + nomJourCible + " enregistré)";
     }
@@ -785,6 +851,9 @@
       vacancesScolaires: cibleVacances,
       evenement: evenementCible,
       signaux: signaux,
+      insuffisant: insuffisant,
+      nbMemeJour: memeJourTous.length,
+      niveauReference: niveauReference,
       // Dernière vente du même jour de semaine : « +8 vs samedi dernier ».
       dernierMemeJour: ventesMemeJour.length > 0 ? ventesMemeJour.slice().sort(function (a, b) {
         return new Date(b.date_vente) - new Date(a.date_vente);
@@ -1023,7 +1092,7 @@
       vendu[cle] = (vendu[cle] || 0) + v.quantite;
       joursVentes[v.date_vente] = true;
     });
-    var parProduit = {}, jours = {}, cuit = 0, total = 0;
+    var parProduit = {}, jours = {}, cuit = 0, total = 0, epuises = 0;
     fournees.forEach(function (f) {
       if (f.date_fournee < isoDebut || f.date_fournee >= isoFin || !joursVentes[f.date_fournee]) return;
       var nom = formatNomAffichage(f.nom_produit);
@@ -1032,8 +1101,33 @@
       cuit += f.quantite_cuite;
       total += reste;
       parProduit[nom] = (parProduit[nom] || 0) + reste;
+      if (f.epuise) epuises++;
     });
-    return { invendus: total, cuit: cuit, nbJours: Object.keys(jours).length, parProduit: parProduit };
+    return { invendus: total, cuit: cuit, nbJours: Object.keys(jours).length, parProduit: parProduit, epuises: epuises,
+      taux: cuit > 0 ? total / cuit : null };
+  }
+
+  // Référence « avant À Point » (lot 2, point 9), par ordre de fiabilité :
+  // (a) 2 semaines d'observation mesurées, (b) réponses du boulanger,
+  // (c) ordre de grandeur national. Jamais présentée comme mesurée sauf (a).
+  var TAUX_NATIONAL_ESTIME = 0.10;
+  function referenceAvant(parametres, fournees, ventes, aujourdhuiIso) {
+    var debut = parametres && parametres.observation_debut;
+    if (debut) {
+      var fin = versISO(ajouterJours(new Date(debut + 'T00:00:00'), 14));
+      var obs = calculerInvendusReels(fournees, ventes, debut, fin < aujourdhuiIso ? fin : aujourdhuiIso);
+      if (fin <= aujourdhuiIso && obs.nbJours >= 5 && obs.taux !== null) {
+        return { taux: obs.taux, nature: 'mesuré', libelle: 'mesuré pendant tes 2 semaines d\'observation', epuisesParJour: obs.epuises / obs.nbJours };
+      }
+      if (fin > aujourdhuiIso) {
+        return { enCours: true, jour: Math.min(14, Math.round((new Date(aujourdhuiIso + 'T00:00:00') - new Date(debut + 'T00:00:00')) / 86400000) + 1), fin: fin };
+      }
+    }
+    var rep = parametres && parametres.reference_avant;
+    if (rep && Number(rep.production) > 0 && rep.reste !== undefined && rep.reste !== null && rep.reste !== '') {
+      return { taux: Math.min(1, Math.max(0, Number(rep.reste) / Number(rep.production))), nature: 'estimé', libelle: 'estimé d\'après tes réponses' };
+    }
+    return { taux: TAUX_NATIONAL_ESTIME, nature: 'estimé', libelle: 'moyenne nationale estimée', source: 'ADEME 2016 : environ 10 % de la production des petites boulangeries part en invendus' };
   }
 
   // Comparaison avec la moyenne simple : seulement si l'écart dépasse 3 points
@@ -1118,6 +1212,8 @@
     capitaliser: capitaliser,
     formatDateLongue: formatDateLongue,
     formatNomAffichage: formatNomAffichage,
+    cleProduit: cleProduit,
+    dedoublonnerVentes: dedoublonnerVentes,
     exclureValeursAberrantes: exclureValeursAberrantes,
     moyennePonderee: moyennePonderee,
     regressionPonderee: regressionPonderee,
@@ -1154,6 +1250,7 @@
     calculerFiabiliteNaive: calculerFiabiliteNaive,
     calculerEcartUnites: calculerEcartUnites,
     calculerInvendusReels: calculerInvendusReels,
+    referenceAvant: referenceAvant,
     comparaisonUtile: comparaisonUtile,
     feteBoulangere: feteBoulangere,
     estPont: estPont,

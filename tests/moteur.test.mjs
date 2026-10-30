@@ -120,3 +120,75 @@ test('invendus réels : jour sans ventes ou sans fournée ignoré', () => {
   assert.equal(r.invendus, 0);
   assert.equal(MP.calculerInvendusReels([], ventes, '2026-10-01', '2026-10-31').nbJours, 0);
 });
+
+test('doublons : une ligne par produit et par jour, la plus récente', () => {
+  const v = MP.dedoublonnerVentes([
+    { id: 1, nom_produit: 'Croissant', date_vente: '2026-07-01', quantite: 26, created_at: '2026-09-09T20:56' },
+    { id: 2, nom_produit: 'CROISSANT', date_vente: '2026-07-01', quantite: 26, created_at: '2026-09-09T21:56' },
+    { id: 3, nom_produit: 'croissants', date_vente: '2026-07-02', quantite: 30, created_at: '2026-09-09T21:56' },
+    { id: 4, nom_produit: 'Croissant', date_vente: '2026-07-03', quantite: 20, created_at: '2026-09-09T21:56' }
+  ]);
+  assert.equal(v.length, 3);
+  assert.deepEqual([...new Set(v.map(x => x.nom_produit))], ['Croissant']);
+  assert.equal(v.find(x => x.date_vente === '2026-07-01').quantite, 26);
+});
+
+// Samedis d'été (vacances, zone A) à 120, samedis hors vacances à 80.
+function samedisEteEtHors() {
+  const ventes = [];
+  let d = jour('2026-05-02');
+  while (d < jour('2026-10-17')) {
+    if (d.getDay() === 6) {
+      ventes.push({ nom_produit: 'Baguette', date_vente: MP.versISO(d), quantite: MP.estEnVacances(d, 'A') ? 120 : 80 });
+    }
+    d = MP.ajouterJours(d, 1);
+  }
+  return ventes;
+}
+
+test('vacances : un samedi de vacances se compare aux samedis de vacances', () => {
+  const r = MP.calculerRecommandation(samedisEteEtHors(), jour('2026-10-24'), 'A', {}, {}, {});
+  assert.equal(r.niveauReference, 1);
+  assert.equal(r.quantite, Math.round(120 * MP.MARGE_PRODUCTION));
+  const hors = MP.calculerRecommandation(samedisEteEtHors(), jour('2026-11-14'), 'A', {}, {}, {});
+  assert.equal(hors.quantite, Math.round(80 * MP.MARGE_PRODUCTION));
+});
+
+test('historique insuffisant : moins de 3 mêmes jours de semaine', () => {
+  const ventes = [{ nom_produit: 'Galette bretonne', date_vente: '2026-09-22', quantite: 14 }];
+  const r = MP.calculerRecommandation(ventes, jour('2026-10-31'), null, {}, {}, {});
+  assert.equal(r.insuffisant, true);
+  assert.equal(r.nbMemeJour, 0);
+});
+
+test('un dimanche férié ne prend pas la moyenne de tous les jours', () => {
+  const ventes = [];
+  for (let d = jour('2026-09-01'); d < jour('2026-10-31'); d = MP.ajouterJours(d, 1)) {
+    if (d.getDay() !== 0) ventes.push({ nom_produit: 'Baguette', date_vente: MP.versISO(d), quantite: 70 });
+  }
+  const r = MP.calculerRecommandation(ventes, jour('2026-11-01'), null, {}, {}, {});
+  assert.equal(r.insuffisant, true);
+});
+
+test('recette : correspondance exacte d\'abord', () => {
+  assert.equal(B.recetteType('Galette bretonne'), null);
+  assert.equal(B.recetteType('Galette des rois').poids, 0.6);
+  assert.equal(B.deduireRayon('Café'), 'Boissons');
+});
+
+test('référence avant : nationale estimée, réponses, observation mesurée', () => {
+  const ventes = [], fournees = [];
+  for (let d = jour('2026-09-01'); d < jour('2026-09-15'); d = MP.ajouterJours(d, 1)) {
+    const iso = MP.versISO(d);
+    ventes.push({ nom_produit: 'Baguette', date_vente: iso, quantite: 89 });
+    fournees.push({ nom_produit: 'Baguette', date_fournee: iso, quantite_cuite: 100, epuise: false });
+  }
+  const nat = MP.referenceAvant(null, [], [], '2026-10-30');
+  assert.equal(nat.nature, 'estimé'); assert.equal(nat.taux, 0.10); assert.ok(nat.source);
+  const rep = MP.referenceAvant({ reference_avant: { production: 400, reste: 40 } }, [], [], '2026-10-30');
+  assert.equal(rep.nature, 'estimé'); assert.equal(rep.taux, 0.1);
+  const obs = MP.referenceAvant({ observation_debut: '2026-09-01' }, fournees, ventes, '2026-10-30');
+  assert.equal(obs.nature, 'mesuré'); assert.ok(Math.abs(obs.taux - 0.11) < 1e-9);
+  const enCours = MP.referenceAvant({ observation_debut: '2026-10-25' }, fournees, ventes, '2026-10-30');
+  assert.equal(enCours.enCours, true); assert.equal(enCours.jour, 6);
+});
