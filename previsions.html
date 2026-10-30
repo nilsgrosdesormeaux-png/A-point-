@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Fournée</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261031b">
+  <link rel="stylesheet" href="style.css?v=20261031c">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261031"></script>
+  <script src="moteur-prevision.js?v=20261031c"></script>
   <script src="boulangerie.js?v=20261031"></script>
-  <script src="contexte.js?v=20261031"></script>
+  <script src="contexte.js?v=20261031c"></script>
   <script src="nav.js?v=20261031"></script>
 </head>
 <body>
@@ -29,6 +29,11 @@
   <div id="contenu" role="main" class="conteneur conteneur--large">
     <p id="statutConnexion" class="texte-aide">Chargement…</p>
     <p class="texte-aide" id="bandeauReglages" hidden><a href="parametres.html">Complète tes réglages</a> (code postal, jours de fermeture) pour affiner la fournée.</p>
+
+    <a class="carte-saisie-hier" id="carteSaisieHier" href="ventes.html" hidden>
+      <span class="carte-saisie-hier-texte"><strong>Saisir les ventes d'hier</strong><span id="texteSaisieHier">Sans elles, la prochaine fournée ne peut pas apprendre.</span></span>
+      <span class="carte-saisie-hier-fleche" aria-hidden="true">→</span>
+    </a>
 
     <section class="claire-entete fournee-entete" aria-labelledby="titreFournee">
       <div class="fournee-entete-haut">
@@ -84,6 +89,11 @@
       var jourCible = null;
       var modificateur = null; // 'plus' | 'moins' | null : ajustement local, jamais enregistré
       var cocheCle = null;
+      // Quantités réellement cuites pour le jour affiché : { nom: quantite }.
+      // En base (table fournees) pour mesurer les vrais invendus dans le
+      // Bilan ; repli sur l'appareil si la base ne répond pas.
+      var cuites = {};
+      var enBase = true;
 
       document.getElementById('dateAujourdhui').textContent = "Aujourd'hui, " + MP.formatDateLongue(new Date()).toLowerCase();
 
@@ -92,11 +102,28 @@
       }
 
       // Cases « enfourné » gardées pour la journée, sur cet appareil.
-      function lireCoches() {
-        try { return JSON.parse(localStorage.getItem(cocheCle) || '{}'); } catch (e) { return {}; }
+      function sauverLocal() {
+        try { localStorage.setItem(cocheCle, JSON.stringify(cuites)); } catch (e) {}
       }
-      function ecrireCoches(c) {
-        try { localStorage.setItem(cocheCle, JSON.stringify(c)); } catch (e) {}
+      function chargerCuites() {
+        return ctx.sb.from('fournees').select('nom_produit, quantite_cuite').eq('commercant_id', ctx.commercantId).eq('date_fournee', MP.versISO(jourCible)).then(function (r) {
+          if (r.error) throw r.error;
+          cuites = {};
+          (r.data || []).forEach(function (l) { cuites[l.nom_produit] = l.quantite_cuite; });
+        }).catch(function () {
+          enBase = false;
+          try { cuites = JSON.parse(localStorage.getItem(cocheCle) || '{}'); } catch (e) { cuites = {}; }
+          Object.keys(cuites).forEach(function (n) { if (typeof cuites[n] !== 'number') delete cuites[n]; });
+        });
+      }
+      function enregistrerCuite(nom, quantite) {
+        if (quantite === null) delete cuites[nom]; else cuites[nom] = quantite;
+        sauverLocal();
+        if (!enBase) return;
+        var requete = quantite === null
+          ? ctx.sb.from('fournees').delete().eq('commercant_id', ctx.commercantId).eq('date_fournee', MP.versISO(jourCible)).eq('nom_produit', nom)
+          : ctx.sb.from('fournees').upsert({ commercant_id: ctx.commercantId, date_fournee: MP.versISO(jourCible), nom_produit: nom, quantite_cuite: quantite, maj: new Date().toISOString() });
+        requete.then(function (r) { if (r && r.error) enBase = false; }, function () { enBase = false; });
       }
 
       function texteDelta(p, quantite) {
@@ -152,7 +179,6 @@
       function afficher() {
         var previsions = C.prevoirJour(ctx, jourCible);
         var facteur = modificateur === 'plus' ? 1.15 : (modificateur === 'moins' ? 0.85 : 1);
-        var coches = lireCoches();
         afficherRaisons(previsions);
         afficherMeteo();
 
@@ -170,10 +196,18 @@
             total += q;
             var id = 'enf-' + B.normaliser(p.nom).replace(/ /g, '-');
             var four = p.r.fourchette ? '<span class="ligne-fournee-fourchette">' + Math.round(p.r.fourchette.bas * facteur) + ' à ' + Math.round(p.r.fourchette.haut * facteur) + '</span>' : '';
-            return '<li class="ligne-fournee' + (coches[p.nom] ? ' ligne-fournee--faite' : '') + '">' +
-              '<input type="checkbox" class="case-enfourne" id="' + id + '" data-nom="' + echapper(p.nom) + '"' + (coches[p.nom] ? ' checked' : '') + '>' +
+            var cuit = cuites[p.nom];
+            var fait = typeof cuit === 'number';
+            return '<li class="ligne-fournee' + (fait ? ' ligne-fournee--faite' : '') + '" data-nom="' + echapper(p.nom) + '" data-prevu="' + q + '">' +
+              '<input type="checkbox" class="case-enfourne" id="' + id + '"' + (fait ? ' checked' : '') + ' aria-describedby="' + id + '-cuit">' +
               '<label for="' + id + '" class="ligne-fournee-nom"><span>' + echapper(p.nom) + '</span>' + texteDelta(p, q) + '</label>' +
               '<span class="ligne-fournee-chiffre"><span class="ligne-fournee-quantite">' + q + '</span>' + four + '</span>' +
+              '<div class="ligne-fournee-cuit" id="' + id + '-cuit"' + (fait ? '' : ' hidden') + '>' +
+                '<span>Cuit</span>' +
+                '<button type="button" class="stepper-bouton" data-pas="-1" aria-label="Une pièce cuite de moins : ' + echapper(p.nom) + '">−</button>' +
+                '<input type="number" class="stepper-valeur valeur-cuite" min="0" inputmode="numeric" value="' + (fait ? cuit : q) + '" aria-label="Quantité cuite : ' + echapper(p.nom) + '">' +
+                '<button type="button" class="stepper-bouton" data-pas="1" aria-label="Une pièce cuite de plus : ' + echapper(p.nom) + '">+</button>' +
+              '</div>' +
               '<details class="ligne-fournee-pourquoi"><summary>Pourquoi ?</summary><ul>' + lignesPourquoi(p) + '</ul></details>' +
               '</li>';
           }).join('');
@@ -203,13 +237,29 @@
         fiabiliteEl.hidden = false;
       }
 
+      // Cocher « enfourné » enregistre la quantité cuite (la prévision par
+      // défaut), ajustable avec − / + ; décocher l'efface.
       listeEl.addEventListener('change', function (e) {
-        if (!e.target.classList.contains('case-enfourne')) return;
-        var coches = lireCoches();
-        coches[e.target.getAttribute('data-nom')] = e.target.checked;
-        ecrireCoches(coches);
-        e.target.closest('.ligne-fournee').classList.toggle('ligne-fournee--faite', e.target.checked);
-        majProgression();
+        var ligne = e.target.closest('.ligne-fournee');
+        if (!ligne) return;
+        var nom = ligne.getAttribute('data-nom');
+        var champ = ligne.querySelector('.valeur-cuite');
+        if (e.target.classList.contains('case-enfourne')) {
+          var coche = e.target.checked;
+          ligne.classList.toggle('ligne-fournee--faite', coche);
+          ligne.querySelector('.ligne-fournee-cuit').hidden = !coche;
+          enregistrerCuite(nom, coche ? Math.max(0, parseInt(champ.value, 10) || 0) : null);
+          majProgression();
+        } else if (e.target === champ && ligne.querySelector('.case-enfourne').checked) {
+          enregistrerCuite(nom, Math.max(0, parseInt(champ.value, 10) || 0));
+        }
+      });
+      listeEl.addEventListener('click', function (e) {
+        var pas = e.target.closest('[data-pas]');
+        if (!pas) return;
+        var champ = pas.parentNode.querySelector('.valeur-cuite');
+        champ.value = Math.max(0, (parseInt(champ.value, 10) || 0) + parseInt(pas.getAttribute('data-pas'), 10));
+        champ.dispatchEvent(new Event('change', { bubbles: true }));
       });
 
       actionsEl.addEventListener('click', function (e) {
@@ -240,22 +290,47 @@
         if (!document.fullscreenElement) basculerEcranFournil(false);
       });
 
+      // Tant qu'aucune caisse ne remonte les ventes, la saisie d'hier est à un
+      // tapotement. La carte disparaît dès qu'hier est saisi (ou jour fermé).
+      function afficherCarteSaisieHier() {
+        var hier = MP.ajouterJours(new Date(), -1);
+        var isoHier = MP.versISO(hier);
+        if (ctx.joursFermeture.indexOf(hier.getDay()) !== -1) return;
+        if (ctx.ventes.some(function (v) { return v.date_vente === isoHier; })) return;
+        ctx.sb.from('connexions_caisse').select('fournisseur, statut, derniere_synchro').eq('commercant_id', ctx.commercantId).then(function (r) {
+          var caisseActive = (r.data || []).some(function (cx) {
+            return cx.statut === 'active' && (cx.fournisseur === 'sumup' || !!cx.derniere_synchro);
+          });
+          if (caisseActive) return;
+          document.getElementById('texteSaisieHier').textContent = MP.formatDateLongue(hier) + ' : sans ces ventes, la prochaine fournée ne peut pas apprendre.';
+          document.getElementById('carteSaisieHier').hidden = false;
+        }, function () {});
+      }
+
       C.charger().then(function (c) {
         ctx = c;
         statutDiv.textContent = (ctx.parametres && ctx.parametres.nom_restaurant) || '';
         document.getElementById('bandeauReglages').hidden = !!(ctx.parametres && ctx.parametres.code_postal);
-        jourCible = C.prochainJourOuvert(ctx);
-        cocheCle = 'apoint-fournee:' + ctx.commercantId + ':' + MP.versISO(jourCible);
-        var dateTitre = MP.formatDateLongue(jourCible);
-        titreEl.textContent = 'À enfourner pour ' + dateTitre.charAt(0).toLowerCase() + dateTitre.slice(1);
+        // Avant midi, un jour d'ouverture, la fournée est celle du jour (on
+        // coche ce qu'on enfourne ce matin) ; ensuite, celle du lendemain.
+        var maintenant = new Date();
+        var aujourdhuiOuvert = ctx.joursFermeture.indexOf(maintenant.getDay()) === -1;
+        var cEstAujourdhui = maintenant.getHours() < 12 && aujourdhuiOuvert;
+        jourCible = cEstAujourdhui ? maintenant : C.prochainJourOuvert(ctx);
+        cocheCle = 'apoint-fournee-cuit:' + ctx.commercantId + ':' + MP.versISO(jourCible);
+        var dateTitre = MP.formatDateLongue(jourCible).toLowerCase();
+        titreEl.textContent = cEstAujourdhui ? 'À enfourner aujourd\'hui, ' + dateTitre : 'À enfourner pour ' + dateTitre;
+        afficherCarteSaisieHier();
 
         if (ctx.ventes.length === 0) {
           listeEl.innerHTML = '<div class="carte-vide-claire">Pas encore de ventes : branche ta caisse ou ajoute la journée d\'hier depuis <a href="parametres.html#donnees">Paramètres &gt; Mes données</a>.</div>';
           return;
         }
         actionsEl.hidden = false;
-        afficher();
-        C.enrichir(ctx).then(afficher);
+        chargerCuites().then(function () {
+          afficher();
+          C.enrichir(ctx).then(afficher);
+        });
       }).catch(function (err) {
         if (err && err.nonConnecte) {
           statutDiv.innerHTML = 'Non connecté. <a href="connexion.html">Se connecter</a>';

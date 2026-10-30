@@ -7,8 +7,9 @@
   <title>À Point - Connexion</title>
   <meta name="description" content="À Point prévoit ton activité de la semaine à venir à partir de tes propres ventes, pour savoir quoi produire ou commander et si tu auras besoin de renfort, sans jamais rien deviner à ta place.">
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261031b">
+  <link rel="stylesheet" href="style.css?v=20261031c">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="caisse-utilisee.js?v=20261031"></script>
   <style>
     body { display: flex; align-items: center; min-height: 100vh; }
     .conteneur { margin: auto; width: 100%; padding-top: 0; padding-bottom: 40px; }
@@ -44,6 +45,12 @@
       <a href="#" id="lienMotDePasseOublie">Mot de passe oublié ?</a>
     </p>
 
+    <div id="ligneCaisse" style="display:none;">
+      <label for="selectCaisse">Quelle caisse utilises-tu ? <span class="texte-aide--discret">(facultatif)</span></label>
+      <select id="selectCaisse"></select>
+      <input type="text" id="autreCaisse" placeholder="Nom de ta caisse" aria-label="Nom de ta caisse" maxlength="60" hidden style="margin-top:8px;">
+    </div>
+
     <label class="case-consentement" id="ligneCgu" style="display:none;">
       <input type="checkbox" id="caseCgu">
       <span>J'ai lu et j'accepte les <a href="cgu.html" target="_blank" rel="noopener">conditions générales d'utilisation</a>.</span>
@@ -72,6 +79,7 @@
       var btnAction = document.getElementById('btnAction');
       var messageDiv = document.getElementById('message');
       var ligneCgu = document.getElementById('ligneCgu');
+      window.CaisseUtilisee.brancher('selectCaisse', 'autreCaisse', null);
       var caseCgu = document.getElementById('caseCgu');
       var ligneMotDePasseOublie = document.getElementById('ligneMotDePasseOublie');
       var lienMotDePasseOublie = document.getElementById('lienMotDePasseOublie');
@@ -99,6 +107,7 @@
         btnAction.textContent = 'Se connecter';
         messageDiv.style.display = 'none';
         ligneCgu.style.display = 'none';
+        document.getElementById('ligneCaisse').style.display = 'none';
         ligneMotDePasseOublie.style.display = 'block';
       }
 
@@ -111,6 +120,7 @@
         btnAction.textContent = 'Créer mon compte';
         messageDiv.style.display = 'none';
         ligneCgu.style.display = 'flex';
+        document.getElementById('ligneCaisse').style.display = 'block';
         ligneMotDePasseOublie.style.display = 'none';
       }
 
@@ -199,7 +209,11 @@
             email: email,
             password: motdepasse,
             options: {
-              emailRedirectTo: window.location.origin + window.location.pathname
+              emailRedirectTo: window.location.origin + window.location.pathname,
+              // Gardée dans le compte, recopiée dans parametres_commercant au
+              // premier chargement (contexte.js) : à l'inscription, la session
+              // n'existe pas encore si l'e-mail doit être confirmé.
+              data: { caisse: window.CaisseUtilisee.lire('selectCaisse', 'autreCaisse') }
             }
           }).then(function (result) {
             btnAction.disabled = false;

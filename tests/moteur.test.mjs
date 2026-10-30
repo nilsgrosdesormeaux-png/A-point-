@@ -103,3 +103,20 @@ test('fournisseurs et unités lisibles', () => {
   assert.equal(B.formaterQuantite(37.2, 'kg', 'Farine T65'), '37,2 kg (≈ 1,5 sacs de 25 kg)');
   assert.equal(B.formaterQuantite(64, 'pièce', 'Œufs'), '64 œufs (≈ 2,5 plaques de 30)');
 });
+
+test('invendus réels : cuit 120, vendu 112 → 8', () => {
+  const fournees = [{ date_fournee: '2026-10-29', nom_produit: 'Baguette tradition', quantite_cuite: 120 }];
+  const ventes = [{ date_vente: '2026-10-29', nom_produit: 'baguette tradition', quantite: 100 }, { date_vente: '2026-10-29', nom_produit: 'Baguette tradition', quantite: 12 }];
+  const r = MP.calculerInvendusReels(fournees, ventes, '2026-10-01', '2026-10-30');
+  assert.equal(r.invendus, 8);
+  assert.equal(r.nbJours, 1);
+});
+
+test('invendus réels : jour sans ventes ou sans fournée ignoré', () => {
+  const fournees = [{ date_fournee: '2026-10-30', nom_produit: 'Croissant', quantite_cuite: 50 }];
+  const ventes = [{ date_vente: '2026-10-29', nom_produit: 'Croissant', quantite: 40 }];
+  const r = MP.calculerInvendusReels(fournees, ventes, '2026-10-01', '2026-10-31');
+  assert.equal(r.nbJours, 0);
+  assert.equal(r.invendus, 0);
+  assert.equal(MP.calculerInvendusReels([], ventes, '2026-10-01', '2026-10-31').nbJours, 0);
+});

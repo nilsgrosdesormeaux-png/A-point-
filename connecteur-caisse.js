@@ -77,7 +77,7 @@
           + '<p><strong>' + echapper(email.adresse_import) + '</strong></p>'
           + '<p class="texte-aide">' + (email.derniere_synchro ? etatSynchro(email) : 'Aucun export reçu pour l\'instant.') + '</p>';
       } else if (disponibles.email) {
-        html += '<p class="texte-aide" style="margin-top:14px;">Autre caisse (Bimedia, Crisalid, Toporder, Tactill…) ? Programme l\'envoi automatique de ton export des ventes (CSV) vers ton adresse d\'import personnelle.</p>'
+        html += '<p class="texte-aide" style="margin-top:14px;">Autre caisse ? Si elle sait envoyer son export des ventes par e-mail, programme l\'envoi automatique de ton export des ventes (CSV) vers ton adresse d\'import personnelle.</p>'
           + '<button type="button" id="btnAdresseImport" style="background-color: var(--surface); color: var(--texte); border: 1px solid var(--bordure);">Obtenir mon adresse d\'import</button>';
       }
       html += '<div id="messageCaisse" aria-live="polite"></div>';

@@ -1013,6 +1013,29 @@
     return { ecart: Math.max(1, Math.round(somme / ecarts.length)), nbPoints: ecarts.length };
   }
 
+  // Invendus réels (lot 1) : pour chaque produit d'un jour où la quantité
+  // cuite est connue (table fournees) et dont les ventes sont arrivées,
+  // max(0, cuit − vendu). Jours entre isoDebut (inclus) et isoFin (exclu).
+  function calculerInvendusReels(fournees, ventes, isoDebut, isoFin) {
+    var vendu = {}, joursVentes = {};
+    ventes.forEach(function (v) {
+      var cle = v.date_vente + '|' + formatNomAffichage(v.nom_produit);
+      vendu[cle] = (vendu[cle] || 0) + v.quantite;
+      joursVentes[v.date_vente] = true;
+    });
+    var parProduit = {}, jours = {}, cuit = 0, total = 0;
+    fournees.forEach(function (f) {
+      if (f.date_fournee < isoDebut || f.date_fournee >= isoFin || !joursVentes[f.date_fournee]) return;
+      var nom = formatNomAffichage(f.nom_produit);
+      var reste = Math.max(0, f.quantite_cuite - (vendu[f.date_fournee + '|' + nom] || 0));
+      jours[f.date_fournee] = true;
+      cuit += f.quantite_cuite;
+      total += reste;
+      parProduit[nom] = (parProduit[nom] || 0) + reste;
+    });
+    return { invendus: total, cuit: cuit, nbJours: Object.keys(jours).length, parProduit: parProduit };
+  }
+
   // Comparaison avec la moyenne simple : seulement si l'écart dépasse 3 points
   // (en dessous, elle n'apprend rien au boulanger et dessert l'outil).
   function comparaisonUtile(fiabilite, fiabiliteNaive) {
@@ -1130,6 +1153,7 @@
     calculerFiabilite: calculerFiabilite,
     calculerFiabiliteNaive: calculerFiabiliteNaive,
     calculerEcartUnites: calculerEcartUnites,
+    calculerInvendusReels: calculerInvendusReels,
     comparaisonUtile: comparaisonUtile,
     feteBoulangere: feteBoulangere,
     estPont: estPont,

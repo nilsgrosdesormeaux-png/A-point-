@@ -6,9 +6,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Paramètres</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261031b">
+  <link rel="stylesheet" href="style.css?v=20261031c">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="nav.js?v=20261031"></script>
+  <script src="caisse-utilisee.js?v=20261031"></script>
   <script src="connecteur-caisse.js?v=20261031"></script>
 </head>
 <body>
@@ -58,6 +59,11 @@
         </fieldset>
         <p class="texte-aide">Les jours cochés ne seront jamais recommandés à la production, et ne compteront pas comme des jours "ratés" dans le calcul de fiabilité.</p>
 
+        <label for="selectCaisse">Quelle caisse utilises-tu ?</label>
+        <select id="selectCaisse"></select>
+        <input type="text" id="autreCaisse" placeholder="Nom de ta caisse" aria-label="Nom de ta caisse" maxlength="60" hidden style="margin-top:8px;">
+        <p class="texte-aide" style="margin-top:4px;">Nous aide à brancher en priorité les caisses les plus utilisées.</p>
+
         <button id="btnEnregistrerCommerce" type="button">Enregistrer</button>
         <div id="messageCommerce" aria-live="polite"></div>
 
@@ -67,10 +73,10 @@
         <section class="bloc-caisse" aria-labelledby="titreCaisse">
           <h2 class="section-titre" id="titreCaisse">Connecter ma caisse <span class="badge-bientot">Bientôt disponible</span></h2>
           <p class="texte-aide">Tes ventes arriveront seules chaque nuit, sans rien saisir. En attendant, saisis la veille ou importe l'export de ta caisse depuis <a href="#donnees">Mes données</a>.</p>
-          <ul class="grille-caisses" aria-label="Caisses prévues">
-            <li>SumUp</li><li>Bimedia</li><li>Lightspeed</li><li>Zettle</li><li>Square</li><li>Hiboutik</li>
+          <ul class="grille-caisses" aria-label="Branchements prévus">
+            <li>SumUp<br><span class="texte-aide--discret">en premier</span></li><li>Zettle<br><span class="texte-aide--discret">ensuite</span></li><li>Autres caisses<br><span class="texte-aide--discret">export envoyé par e-mail</span></li>
           </ul>
-          <p class="texte-aide" style="margin-top:var(--espace-3);">Ta caisse n'est pas dans la liste ? <a href="aide.html">Dis-le nous</a>, on la prendra en compte.</p>
+          <p class="texte-aide" style="margin-top:var(--espace-3);">Indique ta caisse plus haut : on branche en priorité les plus utilisées.</p>
         </section>
         </div></div>
 
@@ -194,9 +200,12 @@
           grilleJoursFermetureEl.appendChild(label);
         });
 
+        var caisseCompte = session.user.user_metadata && session.user.user_metadata.caisse;
+        window.CaisseUtilisee.brancher('selectCaisse', 'autreCaisse', caisseCompte || null);
         sbClient.from('parametres_commercant').select('*').eq('commercant_id', commercantId).then(function (res) {
           var parametres = (res.data && res.data[0]) || null;
           if (!parametres) return;
+          if (parametres.caisse) window.CaisseUtilisee.definir('selectCaisse', 'autreCaisse', parametres.caisse);
           inputNomRestaurantEl.value = parametres.nom_restaurant || '';
           inputCodePostalEl.value = parametres.code_postal || '';
           inputVilleEl.value = parametres.ville || '';
@@ -240,6 +249,7 @@
           code_postal: cp || null,
           ville: nouvelleVille || null,
           jours_fermeture: joursFermeture,
+          caisse: window.CaisseUtilisee.lire('selectCaisse', 'autreCaisse'),
           updated_at: new Date().toISOString()
         };
         if (adresseAChange) {

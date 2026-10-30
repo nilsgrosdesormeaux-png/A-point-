@@ -48,6 +48,12 @@
         sb.from('evenements_commercant').select('*').eq('commercant_id', id)
       ]).then(function (r) {
         var parametres = (r[3].data && r[3].data[0]) || null;
+        // Caisse déclarée à l'inscription : recopiée une fois dans les réglages.
+        var caisseInscription = session.user.user_metadata && session.user.user_metadata.caisse;
+        if (caisseInscription && !(parametres && parametres.caisse)) {
+          sb.from('parametres_commercant').upsert({ commercant_id: id, caisse: caisseInscription }).then(function () {}, function () {});
+          if (parametres) parametres.caisse = caisseInscription;
+        }
         var evenements = {};
         (r[4].data || []).forEach(function (e) { evenements[e.date_evenement] = e.direction; });
         var ctx = {

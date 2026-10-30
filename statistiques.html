@@ -9,9 +9,9 @@
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="style.css?v=20261030">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261031"></script>
+  <script src="moteur-prevision.js?v=20261031c"></script>
   <script src="boulangerie.js?v=20261031"></script>
-  <script src="contexte.js?v=20261031"></script>
+  <script src="contexte.js?v=20261031c"></script>
   <script src="nav.js?v=20261030"></script>
 </head>
 <body>
@@ -33,7 +33,7 @@
       <div class="entete-page">
         <div>
           <h1>Bilan</h1>
-          <p class="texte-aide" style="margin:0;">Ce que les prévisions t'ont fait gagner, et ce que ton historique raconte.</p>
+          <p class="texte-aide" style="margin:0;">Tes invendus réels, et ce que ton historique raconte.</p>
         </div>
       </div>
 
@@ -41,7 +41,7 @@
            Hors de #zoneContenu, que le script des statistiques remplace quand l'historique est vide. -->
       <section class="section-resultats" style="margin-top:0;" aria-labelledby="titreResultats">
         <div class="entete-resultats">
-          <h2 class="titre-resultats" id="titreResultats">Ce que l'appli t'a fait gagner</h2>
+          <h2 class="titre-resultats" id="titreResultats">Tes invendus</h2>
           <div class="selecteur-periode" id="selecteurPeriode" role="group" aria-label="Période des résultats">
             <button type="button" class="periode-bouton actif" data-periode="7" aria-pressed="true">7 jours</button>
             <button type="button" class="periode-bouton" data-periode="30" aria-pressed="false">30 jours</button>
@@ -50,14 +50,14 @@
         </div>
         <div class="grille-kpi grille-kpi--resultats">
           <div class="carte-kpi carte-kpi--heros">
-            <p class="carte-kpi-titre" id="kpiGainTitre">Invendus évités</p>
-            <p class="carte-kpi-valeur" id="kpiGainValeur">–</p>
-            <p class="carte-kpi-detail" id="kpiGainDetail">Pas encore assez d'historique.</p>
+            <p class="carte-kpi-titre">Invendus réels</p>
+            <p class="carte-kpi-valeur" id="kpiReelValeur">–</p>
+            <p class="carte-kpi-detail" id="kpiReelDetail">Coche ta fournée pour mesurer tes invendus.</p>
           </div>
           <div class="carte-kpi">
-            <p class="carte-kpi-titre">Pain sauvé</p>
-            <p class="carte-kpi-valeur carte-kpi-valeur--neutre" id="kpiKilosValeur">–</p>
-            <p class="carte-kpi-detail" id="kpiKilosDetail">Poids estimé des pièces qui n'ont pas fini en invendus.</p>
+            <p class="carte-kpi-titre">Valeur des invendus</p>
+            <p class="carte-kpi-valeur carte-kpi-valeur--neutre" id="kpiReelEuros">–</p>
+            <p class="carte-kpi-detail" id="kpiReelEurosDetail">Au prix de vente, sur les jours où ta fournée est cochée.</p>
           </div>
           <div class="carte-kpi">
             <p class="carte-kpi-titre">Précision</p>
@@ -65,10 +65,12 @@
             <p class="carte-kpi-detail" id="kpiFiabiliteDetail">Pas encore assez d'historique.</p>
           </div>
         </div>
-        <div class="tendance" aria-labelledby="titreTendance">
-          <h3 class="tendance-titre" id="titreTendance">Invendus évités, semaine après semaine</h3>
-          <div class="graphique-colonnes graphique-colonnes--court" id="graphiqueTendance"></div>
-        </div>
+        <section class="simulation" aria-labelledby="titreSimulation">
+          <h3 class="tendance-titre" id="titreSimulation">Estimation (simulation)</h3>
+          <p class="texte-aide" id="texteSimulation">Pas encore assez d'historique.</p>
+          <p class="texte-aide texte-aide--discret">Ce que la prévision aurait évité par rapport à une production faite de mémoire (moyenne simple des mêmes jours). C'est un calcul, pas une mesure : seuls les invendus réels ci-dessus sont mesurés.</p>
+          <div class="graphique-colonnes graphique-colonnes--court" id="graphiqueTendance" aria-label="Invendus évités estimés, semaine après semaine"></div>
+        </section>
       </section>
       <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
 
@@ -484,6 +486,7 @@
       var B = window.Boulangerie;
       var C = window.ContexteBoulangerie;
       var ctx = null;
+      var fournees = []; // quantités cuites (table fournees), vide si inconnue
       var periodeActuelle = 7;
 
       function euros(n) { return Math.round(n).toLocaleString('fr-FR') + ' €'; }
@@ -514,11 +517,52 @@
         return prix;
       }
 
-      function afficherResultats(periode) {
+      // Invendus réels : pour chaque jour où la fournée a été cochée (quantité
+      // cuite connue) et dont les ventes sont arrivées, cuit − vendu par produit.
+      function afficherReels(periode) {
+        var aujourdhui = MP.versISO(new Date());
+        var limite = periode === 'tout' ? '0000-00-00' : MP.versISO(MP.ajouterJours(new Date(), -periode));
+        var mesure = MP.calculerInvendusReels(fournees, ctx.ventes, limite, aujourdhui);
+        var prix = prixParNom();
+        var invendus = mesure.invendus, cuit = mesure.cuit, kilos = 0, euros = 0, avecPrix = 0;
+        Object.keys(mesure.parProduit).forEach(function (nom) {
+          var reste = mesure.parProduit[nom];
+          var poids = B.poidsTypique(nom);
+          if (poids) kilos += reste * poids;
+          if (prix[nom]) { euros += reste * prix[nom]; avecPrix++; }
+        });
+        var nbJours = mesure.nbJours;
+        var valeur = document.getElementById('kpiReelValeur');
+        var detail = document.getElementById('kpiReelDetail');
+        var eurosEl = document.getElementById('kpiReelEuros');
+        var eurosDetail = document.getElementById('kpiReelEurosDetail');
+        if (nbJours === 0) {
+          valeur.textContent = '–';
+          detail.textContent = 'Coche ta fournée pour mesurer tes invendus.';
+          eurosEl.textContent = '–';
+          eurosDetail.textContent = 'Apparaît dès que ta fournée est cochée et tes ventes du jour connues.';
+          return;
+        }
+        valeur.textContent = invendus.toLocaleString('fr-FR') + ' pièce' + (invendus > 1 ? 's' : '');
+        detail.textContent = (kilos > 0 ? '≈ ' + (Math.round(kilos * 10) / 10).toLocaleString('fr-FR') + ' kg, ' : '') +
+          (cuit > 0 ? Math.round(invendus / cuit * 100) + ' % de ce que tu as cuit, ' : '') +
+          'sur ' + nbJours + ' jour' + (nbJours > 1 ? 's' : '') + ' mesuré' + (nbJours > 1 ? 's' : '') + ' (cuit − vendu).';
+        if (avecPrix > 0) {
+          eurosEl.textContent = euros.toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' €';
+          eurosDetail.textContent = 'Au prix de vente des produits dont le prix est connu.';
+        } else {
+          eurosEl.textContent = '–';
+          eurosDetail.textContent = 'Apparaît dès que tes prix de vente sont connus (caisse ou Mes données).';
+        }
+      }
+
+      // Estimation (simulation) : prévision rejouée face à une production
+      // « de mémoire ». Affichée sous les invendus réels, jamais à leur place.
+      function afficherSimulation(periode) {
         var jours = joursHistorique();
         if (jours.length === 0) return;
         var retenus = periode === 'tout' ? jours : jours.slice(Math.max(0, jours.length - periode));
-        var pieces = 0, kilos = 0, montant = 0, avecPrix = 0;
+        var pieces = 0, kilos = 0, montant = 0;
         var prix = prixParNom();
         retenus.forEach(function (iso) {
           var e = evitesDuJour(iso);
@@ -526,23 +570,16 @@
             pieces += e[nom];
             var poids = B.poidsTypique(nom);
             if (poids) kilos += e[nom] * poids;
-            if (prix[nom]) { montant += e[nom] * prix[nom]; avecPrix++; }
+            if (prix[nom]) montant += e[nom] * prix[nom];
           });
         });
-        var titre = document.getElementById('kpiGainTitre');
-        var valeur = document.getElementById('kpiGainValeur');
-        var detail = document.getElementById('kpiGainDetail');
-        var surJours = 'Sur ' + retenus.length + ' jour' + (retenus.length > 1 ? 's' : '') + ', par rapport à une production faite de mémoire.';
-        if (avecPrix > 0 && montant > 0) {
-          titre.textContent = 'Économisé en invendus';
-          valeur.textContent = euros(montant);
-          detail.textContent = Math.round(pieces).toLocaleString('fr-FR') + ' pièces évitées. ' + surJours;
-        } else {
-          titre.textContent = 'Invendus évités';
-          valeur.textContent = Math.round(pieces).toLocaleString('fr-FR') + ' pièce' + (pieces >= 2 ? 's' : '');
-          detail.textContent = surJours + ' Les euros apparaîtront dès que tes prix de vente seront connus.';
-        }
-        document.getElementById('kpiKilosValeur').textContent = kilos > 0 ? '≈ ' + (Math.round(kilos * 10) / 10).toLocaleString('fr-FR') + ' kg' : '–';
+        document.getElementById('texteSimulation').textContent = 'Sur ' + retenus.length + ' jour' + (retenus.length > 1 ? 's' : '') + ' : environ ' +
+          Math.round(pieces).toLocaleString('fr-FR') + ' pièces évitées' + (kilos > 0 ? ' (≈ ' + (Math.round(kilos * 10) / 10).toLocaleString('fr-FR') + ' kg' + (montant > 0 ? ', ≈ ' + euros(montant) : '') + ')' : '') + '.';
+      }
+
+      function afficherResultats(periode) {
+        afficherReels(periode);
+        afficherSimulation(periode);
       }
 
       function afficherFiabilite() {
@@ -594,7 +631,11 @@
 
       C.charger().then(function (c) {
         ctx = c;
-        if (ctx.ventes.length === 0) return;
+        return ctx.sb.from('fournees').select('date_fournee, nom_produit, quantite_cuite').eq('commercant_id', ctx.commercantId).then(function (r) {
+          fournees = (r && !r.error && r.data) || [];
+        }, function () { fournees = []; });
+      }).then(function () {
+        if (!ctx || ctx.ventes.length === 0) return;
         afficherResultats(periodeActuelle);
         afficherFiabilite();
         afficherTendance();

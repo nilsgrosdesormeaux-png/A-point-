@@ -1335,3 +1335,27 @@ body.ecran-fournil .bouton-quitter-fournil { display: flex; position: fixed; rig
   #listeFournisseurs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--espace-4); align-items: start; }
   .fournisseur + .fournisseur { margin-top: 0; }
 }
+
+/* ---------- Lot 1 : quantité cuite et saisie d'hier ---------- */
+.carte-saisie-hier {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--espace-3);
+  margin-bottom: var(--espace-4); padding: var(--espace-4);
+  color: var(--couleur-sur-accent); background: var(--couleur-accent);
+  border-radius: var(--rayon-md); box-shadow: 0 2px 8px color-mix(in srgb, var(--couleur-accent) 30%, transparent);
+}
+.carte-saisie-hier:hover { text-decoration: none; background: var(--couleur-accent-fort); }
+.carte-saisie-hier-texte { display: flex; flex-direction: column; gap: 2px; }
+.carte-saisie-hier-texte strong { font-size: var(--texte-md); }
+.carte-saisie-hier-texte span { font-size: var(--texte-sm); opacity: 0.9; }
+.carte-saisie-hier-fleche { font-size: var(--texte-lg); }
+.ligne-fournee { grid-template-areas: "case nom chiffre" "cuit cuit cuit" "pourquoi pourquoi pourquoi"; }
+.ligne-fournee-cuit { grid-area: cuit; display: flex; align-items: center; gap: var(--espace-2); margin-top: var(--espace-2); padding: var(--espace-2) var(--espace-3); background: var(--couleur-accent-doux); border-radius: var(--rayon-sm); font-size: var(--texte-sm); font-weight: 500; }
+.ligne-fournee-cuit > span { margin-right: auto; }
+.ligne-fournee-cuit .stepper-bouton { width: 36px; height: 36px; min-height: 36px; background: var(--couleur-surface); }
+.ligne-fournee-cuit .valeur-cuite { width: 64px; min-height: 36px; padding: 4px; text-align: center; font-weight: 600; -moz-appearance: textfield; }
+.ligne-fournee-cuit .valeur-cuite::-webkit-inner-spin-button, .ligne-fournee-cuit .valeur-cuite::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+body.ecran-fournil .ligne-fournee-cuit { font-size: var(--texte-lg); }
+body.ecran-fournil .ligne-fournee-cuit .stepper-bouton { width: 52px; height: 52px; }
+body.ecran-fournil .ligne-fournee-cuit .valeur-cuite { width: 96px; min-height: 52px; font-size: var(--texte-lg); }
+.simulation { margin-top: var(--espace-4); padding: var(--espace-4); background: var(--couleur-surface-2); border: 1px dashed var(--couleur-bordure-forte); border-radius: var(--rayon-md); }
+.simulation .texte-aide { margin-bottom: var(--espace-2); }
