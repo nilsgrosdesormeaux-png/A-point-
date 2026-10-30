@@ -9,7 +9,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Produits</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101c">
+  <link rel="stylesheet" href="style.css?v=20261101d">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="moteur-prevision.js?v=20261101b"></script>
   <script src="boulangerie.js?v=20261101b"></script>
@@ -101,7 +101,7 @@
           <h2 style="margin:0;">Ma gamme</h2>
           <a href="ventes.html?mode=fiches#importer" class="btn-gerer-postes">Importer des fiches techniques</a>
         </div>
-        <p class="texte-aide" style="margin-top:6px;">Tes produits se créent seuls à partir de tes ventes et se rangent par rayon d'après leur nom. Touche un produit pour ajuster sa recette (facultatif : sans recette, la commande utilise une recette type).</p>
+        <p class="texte-aide" style="margin-top:6px;">Tes produits se créent seuls à partir de tes ventes et se rangent par rayon d'après leur nom. Touche un produit pour voir ou ajuster sa recette. Quand tu n'en as pas écrit, À Point propose une recette type, à vérifier : elle ne compte dans la commande qu'une fois validée.</p>
         <div id="listeProduitsParCategorie" class="grille-produits-vendus"></div>
         <ul id="listeProduits" class="liste-produits" style="display:none;"></ul>
 
@@ -805,13 +805,13 @@
               // Recette type pré-remplie en un geste : le boulanger n'ajuste
               // ensuite que ce qui diffère chez lui.
               // Lot 2 : la recette type s'affiche, plutôt qu'une fiche vide.
-              vide.innerHTML = '<strong>Recette type utilisée pour la commande</strong> (par pièce) :<br>' + type.ingredients.map(function (l) {
+              vide.innerHTML = '<strong>Recette type proposée par À Point, à vérifier</strong> (quantités moyennes pour une pièce, pas ta recette) :<br>' + type.ingredients.map(function (l) {
                 return formatNomAffichage(l[0]) + ' : ' + (l[2] === 'kg' && l[1] < 1 ? Math.round(l[1] * 1000) + ' g' : String(l[1]).replace('.', ',') + ' ' + l[2]);
               }).join(' · ') + '<br>';
               var btnType = document.createElement('button');
               btnType.type = 'button';
               btnType.className = 'lien-discret';
-              btnType.textContent = 'La copier ici pour l\'ajuster';
+              btnType.textContent = 'C\'est ma recette (je pourrai la modifier)';
               btnType.addEventListener('click', function () {
                 var produitId = produitSelectionne.id;
                 sbClient.from('ingredients_produit').insert(type.ingredients.map(function (l) {

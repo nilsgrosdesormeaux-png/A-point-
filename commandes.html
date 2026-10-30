@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Commande</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101c">
+  <link rel="stylesheet" href="style.css?v=20261101d">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -43,6 +43,7 @@
       <div id="listeFournisseurs"></div>
       <h2 class="section-titre" id="titreRecettes">Tes recettes</h2>
       <p class="texte-aide">Ingrédients pour une pièce. Change une quantité, puis Enregistrer : la commande se met à jour.</p>
+      <p class="explication-recettes" id="explicationRecettes" hidden>Tu n'as écrit aucune de ces recettes : quand un produit n'a pas encore la sienne, À Point propose une <strong>recette type</strong> de boulangerie (quantités moyennes pour une pièce). Vérifie-la, ajuste ce qui diffère chez toi, puis touche « C'est ma recette ». Tant qu'elle n'est pas validée, ce produit ne compte pas dans la commande. <button type="button" class="lien-discret" id="btnCompris">Compris</button></p>
       <div id="listeRecettes"></div>
     </div>
   </div>
@@ -236,13 +237,14 @@
             ? f.fiche.map(function (l) { var a = versAffichage(Number(l.quantite) || 0, l.unite); return ligneIngredient(l.nom_ingredient, a.q, a.u); })
             : (f.type ? f.type.ingredients.map(function (l) { var a = versAffichage(Number(l[1]), l[2]); return ligneIngredient(l[0], a.q, a.u); }) : []);
           var etat = f.fiche ? '<span class="recette-etat recette-etat--ok">Ta recette, modifiable</span>'
-            : '<span class="recette-etat">' + (f.type ? 'Recette type à vérifier' : 'Recette à compléter') + ' : ne compte pas encore</span>';
+            : '<span class="recette-etat">' + (f.type ? 'Recette type proposée par À Point, à vérifier' : 'Recette à compléter : ne compte pas encore') + '</span>';
           return '<section class="recette" data-nom="' + echapper(nom) + '">' +
             '<div class="recette-entete"><h3>' + echapper(nom) + '</h3>' + etat + '</div>' +
             '<p class="texte-aide--discret recette-aide">Pour une pièce</p>' +
             '<ul class="recette-ingredients">' + lignes.join('') + '</ul>' +
             '<div class="recette-actions"><button type="button" class="lien-discret" data-ajouter>+ Ajouter un ingrédient</button>' +
-            '<button type="button" class="bouton-principal" data-enregistrer-recette>' + (f.fiche ? 'Enregistrer' : 'Enregistrer, c\'est ma recette') + '</button>' +
+            (f.fiche || !f.type ? '<button type="button" class="bouton-principal" data-enregistrer-recette>Enregistrer</button>'
+              : '<button type="button" class="bouton-principal" data-enregistrer-recette>C\'est ma recette</button><button type="button" class="bouton-secondaire" data-modifier>Modifier</button>') +
             '<span class="texte-aide" role="status"></span></div></section>';
         }).join('');
       }
@@ -256,6 +258,10 @@
         note.innerHTML = '<strong>' + aValider.length + ' recette' + (aValider.length > 1 ? 's' : '') + ' à vérifier</strong> : un produit compte dans la commande dès que sa recette est enregistrée. <a href="#titreRecettes">Voir les recettes</a>';
         note.hidden = aValider.length === 0;
         afficherRecettes(fiches);
+        // Explication des recettes types, jusqu'à « Compris ».
+        var dejaVu = false;
+        try { dejaVu = localStorage.getItem('apoint-recettes-types-compris') === '1'; } catch (e) {}
+        document.getElementById('explicationRecettes').hidden = dejaVu || !Object.keys(fiches).some(function (n) { return !fiches[n].fiche && fiches[n].type; });
 
         derniereCommande = {};
         var sections = B.FOURNISSEURS.map(function (f) {
@@ -402,6 +408,11 @@
         ouverts.forEach(function (c) { var d = listeEl.querySelector('[data-fournisseur="' + c + '"] details'); if (d) d.open = true; });
       });
 
+      document.getElementById('btnCompris').addEventListener('click', function () {
+        try { localStorage.setItem('apoint-recettes-types-compris', '1'); } catch (e) {}
+        document.getElementById('explicationRecettes').hidden = true;
+      });
+
       // Recettes : − / +, ajout, retrait, enregistrement.
       var recettesEl = document.getElementById('listeRecettes');
       recettesEl.addEventListener('click', function (e) {
@@ -412,6 +423,15 @@
           var li = pas.closest('.ingredient'), champ = li.querySelector('.ingredient-valeur');
           var p = pasPour(li.querySelector('.ingredient-unite').value);
           champ.value = Math.max(0, Math.round(((Number(champ.value) || 0) + p * parseInt(pas.getAttribute('data-pas-ing'), 10)) * 1000) / 1000);
+          return;
+        }
+        if (e.target.closest('[data-modifier]')) {
+          // Les quantités sont déjà modifiables : on y emmène, et le bouton
+          // principal redevient « Enregistrer ».
+          var champ = recette.querySelector('.ingredient-valeur');
+          if (champ) champ.focus();
+          recette.querySelector('[data-enregistrer-recette]').textContent = 'Enregistrer ma recette';
+          e.target.closest('[data-modifier]').remove();
           return;
         }
         if (e.target.closest('[data-retirer]')) { e.target.closest('.ingredient').remove(); return; }
