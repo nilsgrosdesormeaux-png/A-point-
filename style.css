@@ -1517,3 +1517,8 @@ body.ecran-fournil > :not(.vue-fournil):not(script) { display: none !important; 
 .source--saisi { background: var(--couleur-surface-2); color: var(--couleur-texte-2); }
 .source--estime { background: var(--couleur-alerte-doux); color: var(--couleur-alerte); }
 .source--test { background: var(--couleur-accent-doux); color: var(--couleur-accent-texte); }
+.gain-ligne { margin: 6px 0 0; font-size: var(--texte-sm); opacity: .92; }
+.gain-ligne .etiquette-mesure { margin: 0 6px 0 0; }
+.gain-alternative { margin: var(--espace-3) 0 0; padding: var(--espace-3) var(--espace-4); background: var(--couleur-surface-2); border-radius: var(--rayon-md); font-size: var(--texte-sm); }
+.gain-alternative .lien-discret { margin-left: 4px; }
+.carte-kpi--heros .gain-ligne { color: var(--couleur-sur-inverse); }

@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Commande</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101k">
+  <link rel="stylesheet" href="style.css?v=20261101m">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <script src="moteur-prevision.js?v=20261101j"></script>
-  <script src="boulangerie.js?v=20261101g"></script>
-  <script src="contexte.js?v=20261101g"></script>
+  <script src="moteur-prevision.js?v=20261101l"></script>
+  <script src="boulangerie.js?v=20261101l"></script>
+  <script src="contexte.js?v=20261101l"></script>
   <script src="nav.js?v=20261031"></script>
 </head>
 <body>
@@ -93,7 +93,7 @@
         Object.keys(ctx.parProduit).filter(function (nom) { return C.estCuitPour(ctx, nom); }).forEach(function (nom) {
           var produit = idParNom[MP.cleProduit(nom)];
           var fiche = produit ? lignesParId[String(produit.id)] : null;
-          resultat[nom] = { produit: produit || null, fiche: fiche && fiche.length ? fiche : null, type: B.recetteType(nom) };
+          resultat[nom] = { nom: nom, produit: produit || null, fiche: fiche && fiche.length ? fiche : null, type: B.recetteType(nom) };
         });
         return resultat;
       }
@@ -257,20 +257,26 @@
       }
       // Prix de vente et coût matière d'une pièce, visibles avec la recette :
       // ce sont eux qui font les euros du Bilan.
+      function coutsPerso() { return ((ctx.session.user.user_metadata || {}).couts) || {}; }
       function blocPrix(f) {
         var prix = f.produit && f.produit.prix_vente != null ? Number(f.produit.prix_vente) : null;
+        var nom = f.nom || '';
+        var perso = coutsPerso()[nom];
+        var champCout = '<label>Mon coût de revient <input type="number" min="0" step="0.01" inputmode="decimal" data-cout-perso value="' + (perso != null ? perso : '') + '" placeholder="0,45"> € <span class="texte-aide--discret">(matière + énergie, par pièce)</span></label>';
         var cout;
         var valeurFiche = f.fiche && f.fiche.every(function (l) { return l.cout_unitaire != null; })
           ? f.fiche.reduce(function (s, l) { return s + B.coutLigne(l.quantite, l.unite, l.cout_unitaire); }, 0) : null;
-        if (valeurFiche !== null && prix && valeurFiche > prix) {
+        if (perso != null) {
+          cout = 'Coût de revient : <strong>' + Number(perso).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €</strong> par pièce (le tien)';
+        } else if (valeurFiche !== null && prix && valeurFiche > prix) {
           cout = '<span class="recette-alerte">Coût matière (' + valeurFiche.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + ' €) plus cher que le prix de vente : vérifie les prix d\'ingrédients dans Produits.</span>';
         } else if (valeurFiche !== null) {
           cout = 'Coût matière : <strong>' + valeurFiche.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €</strong> par pièce';
         } else if (prix) {
           cout = 'Coût matière : <strong>≈ ' + (prix * 0.3).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €</strong> par pièce (estimé à 30 % du prix de vente)';
-        } else cout = 'Coût matière inconnu : indique le prix de vente';
+        } else cout = 'Coût inconnu : indique le prix de vente ou ton coût de revient';
         return '<div class="recette-prix"><label>Prix de vente <input type="number" min="0" step="0.05" inputmode="decimal" data-prix value="' + (prix != null ? prix : '') + '" placeholder="1,20"> €</label>' +
-          '<span class="texte-aide">' + cout + '</span></div>';
+          champCout + '<span class="texte-aide">' + cout + '</span></div>';
       }
       function afficherRecettes(fiches) {
         var validees = recettesValidees();
@@ -473,6 +479,19 @@
       // Recettes : − / +, ajout, retrait, enregistrement.
       var recettesEl = document.getElementById('listeRecettes');
       recettesEl.addEventListener('change', function (e) {
+        if (e.target.hasAttribute('data-cout-perso')) {
+          var rec = e.target.closest('.recette'), nomC = rec.getAttribute('data-nom');
+          var m = ctx.session.user.user_metadata = ctx.session.user.user_metadata || {};
+          var couts = {};
+          Object.keys(m.couts || {}).forEach(function (k) { couts[k] = m.couts[k]; });
+          if (e.target.value === '') delete couts[nomC]; else couts[nomC] = Math.max(0, Number(String(e.target.value).replace(',', '.')) || 0);
+          m.couts = couts;
+          ctx.sb.auth.updateUser({ data: { couts: couts } }).then(function () {}, function () {});
+          var fc = fichesParProduit()[nomC];
+          rec.querySelector('.recette-prix').outerHTML = blocPrix(fc);
+          rec.querySelector('[role="status"]').textContent = 'Coût de revient enregistré.';
+          return;
+        }
         if (!e.target.hasAttribute('data-prix')) return;
         var recette = e.target.closest('.recette');
         var f = fichesParProduit()[recette.getAttribute('data-nom')];

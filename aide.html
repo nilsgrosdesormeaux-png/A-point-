@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Aide</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101k">
+  <link rel="stylesheet" href="style.css?v=20261101m">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="nav.js?v=20261031"></script>
 </head>
@@ -79,7 +79,7 @@
 
           <details class="faq-item">
             <summary>Comment est calculée la quantité recommandée, en détail ?</summary>
-            <p>Pour chaque produit et chaque jour, l'outil part de tes ventes passées ce même jour de semaine (par exemple, tous tes jeudis), en moyenne pondérée : les ventes récentes comptent plus que les anciennes, pour suivre une tendance plutôt que rester bloqué sur une ancienne habitude. Un jour exceptionnel et isolé est écarté du calcul. Un seul ajustement est ensuite appliqué si la situation le justifie, jamais plusieurs à la fois, dans cet ordre : jour de fermeture connu, événement que tu as signalé, jour férié, vacances scolaires, puis météo prévue. Une marge de sécurité de 10 % est ajoutée pour ne pas manquer. Tu obtiens un seul chiffre par produit, à enfourner, réparti en tournées (5 h, 8 h, 11 h) ; « Pourquoi ? » sous chaque produit montre d'où il vient.</p>
+            <p>Pour chaque produit et chaque jour, l'outil part de tes ventes passées ce même jour de semaine (par exemple, tous tes jeudis), en moyenne pondérée : les ventes récentes comptent plus que les anciennes, pour suivre une tendance plutôt que rester bloqué sur une ancienne habitude. Un jour exceptionnel et isolé est écarté du calcul. Ensuite, les effets du jour sont pris en compte : jour férié, pont, vacances scolaires, météo prévue, événement local ou « plus de monde » que tu as signalé. Chaque effet est appris sur ton propre historique ; tant qu'il n'est pas encore appris, la quantité n'est pas modifiée. « Pourquoi ? » sous chaque produit montre ce qui a joué. Une marge de sécurité de 10 % est ajoutée pour ne pas manquer. Tu obtiens un seul chiffre par produit, à enfourner, réparti en tournées (5 h, 8 h, 11 h) ; « Pourquoi ? » sous chaque produit montre d'où il vient.</p>
           </details>
 
           <details class="faq-item">

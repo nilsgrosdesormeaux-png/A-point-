@@ -796,7 +796,7 @@
     if (ventesMemeJour.length > 0) {
       texteBase = "Basé sur tes " + baseVentes.length + " derniers " + nomJourCible + "s" + (niveauReference === 1 ? (cibleEnVacances ? " de vacances" : " hors vacances") : "");
     } else {
-      texteBase = "Basé sur tes " + baseVentes.length + " dernier(s) jour(s) de vente (pas encore de " + nomJourCible + " enregistré)";
+      texteBase = "Basé sur " + (baseVentes.length > 1 ? "tes " + baseVentes.length + " derniers jours" : "ton dernier jour") + " de vente (pas encore de " + nomJourCible + " enregistré)";
     }
     if (filtrage.nbExclus > 0) {
       texteBase += " (" + filtrage.nbExclus + " jour" + (filtrage.nbExclus > 1 ? "s" : "") + " atypique" + (filtrage.nbExclus > 1 ? "s" : "") + " écarté" + (filtrage.nbExclus > 1 ? "s" : "") + " du calcul)";
@@ -1116,19 +1116,25 @@
   // (c) moyenne nationale ADEME, signalée comme estimation.
   // farineVendue(debut, fin) : kg de farine contenus dans les ventes.
   var TAUX_NATIONAL_ESTIME = 0.10;
-  function referenceAvant(parametres, fournees, ventes, aujourdhuiIso, farineVendue) {
+  function referenceAchats(parametres, farineVendue) {
     var rep = parametres && parametres.reference_avant;
     var achats = rep && rep.achats;
-    if (achats && Number(achats.farine_kg) > 0 && achats.debut && achats.fin && typeof farineVendue === 'function') {
-      var vendue = farineVendue(achats.debut, achats.fin);
-      if (vendue > 0) {
-        return { taux: Math.min(0.6, Math.max(0, 1 - vendue / Number(achats.farine_kg))), nature: 'calculé',
-          libelle: 'calculé d\'après ta farine achetée et tes ventes', source: Math.round(Number(achats.farine_kg)) + ' kg achetés, ' + Math.round(vendue) + ' kg vendus du ' + achats.debut.split('-').reverse().join('/') + ' au ' + achats.fin.split('-').reverse().join('/') };
-      }
-    }
-    if (rep && Number(rep.production) > 0 && rep.reste !== undefined && rep.reste !== null && rep.reste !== '') {
-      return { taux: Math.min(1, Math.max(0, Number(rep.reste) / Number(rep.production))), nature: 'estimé', libelle: 'estimé d\'après tes réponses' };
-    }
+    if (!achats || !(Number(achats.farine_kg) > 0) || !achats.debut || !achats.fin || typeof farineVendue !== 'function') return null;
+    var vendue = farineVendue(achats.debut, achats.fin);
+    if (!(vendue > 0)) return null;
+    return { taux: Math.min(0.6, Math.max(0, 1 - vendue / Number(achats.farine_kg))), nature: 'calculé',
+      libelle: 'calculé d\'après ta farine achetée et tes ventes', source: Math.round(Number(achats.farine_kg)) + ' kg achetés, ' + Math.round(vendue) + ' kg vendus du ' + achats.debut.split('-').reverse().join('/') + ' au ' + achats.fin.split('-').reverse().join('/') };
+  }
+  // Le boulanger choisit entre ses réponses et ses achats de farine
+  // (reference_avant.choix) ; sans choix, les achats l'emportent sur les
+  // réponses seulement s'il n'y a pas de réponses.
+  function referenceAvant(parametres, fournees, ventes, aujourdhuiIso, farineVendue) {
+    var rep = parametres && parametres.reference_avant;
+    var achats = referenceAchats(parametres, farineVendue);
+    var reponses = rep && Number(rep.production) > 0 && rep.reste !== undefined && rep.reste !== null && rep.reste !== ''
+      ? { taux: Math.min(1, Math.max(0, Number(rep.reste) / Number(rep.production))), nature: 'estimé', libelle: 'estimé d\'après tes réponses' } : null;
+    if (achats && (!reponses || rep.choix === 'achats')) return achats;
+    if (reponses) return reponses;
     return { taux: TAUX_NATIONAL_ESTIME, nature: 'estimé', libelle: 'moyenne nationale estimée', source: 'ADEME 2016 : environ 10 % de la production des petites boulangeries part en invendus' };
   }
 
@@ -1253,6 +1259,7 @@
     calculerEcartUnites: calculerEcartUnites,
     calculerInvendusReels: calculerInvendusReels,
     referenceAvant: referenceAvant,
+    referenceAchats: referenceAchats,
     comparaisonUtile: comparaisonUtile,
     feteBoulangere: feteBoulangere,
     estPont: estPont,

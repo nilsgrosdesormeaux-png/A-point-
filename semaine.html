@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Semaine</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101k">
+  <link rel="stylesheet" href="style.css?v=20261101m">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261101j"></script>
-  <script src="boulangerie.js?v=20261101g"></script>
-  <script src="contexte.js?v=20261101g"></script>
+  <script src="moteur-prevision.js?v=20261101l"></script>
+  <script src="boulangerie.js?v=20261101l"></script>
+  <script src="contexte.js?v=20261101l"></script>
   <script src="nav.js?v=20261031"></script>
 </head>
 <body>
@@ -98,7 +98,9 @@
             var effet = MP.libelleEffet(r.ratio);
             raison = r.icone + ' ' + echapper(r.libelle) + (effet ? ' ' + effet : '');
           } else if (c.ratio !== null && Math.abs(c.ratio - 1) >= 0.08) {
-            raison = c.ratio > 1 ? 'Plus chargé que d\'habitude' : 'Plus calme que d\'habitude';
+            // L'écart est chiffré, pour qu'un changement d'un jour à l'autre s'explique.
+            var ecartPct = Math.round((c.ratio - 1) * 100);
+            raison = (c.ratio > 1 ? 'Plus chargé' : 'Plus calme') + ' : ' + (ecartPct > 0 ? '+' : '−') + Math.abs(ecartPct) + ' % vs tes ' + MP.nomsJours[c.date.getDay()] + 's habituels';
           } else raison = 'Jour habituel';
           var classe = c.ferme ? ' affluence-jour--ferme' : (c.ratio !== null && c.ratio >= 1.08 ? ' affluence-jour--charge' : '');
           return '<li class="affluence-jour' + classe + '">' +
