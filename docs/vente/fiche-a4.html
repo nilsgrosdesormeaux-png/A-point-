@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>À Point - Fiche de présentation</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,500..600,100&family=Inter:wght@400;500;600&display=swap">
+  <style>
+    /* Fiche A4 imprimable, une page, direction « Fournil » (DESIGN.md). Imprimer sans marges du navigateur. */
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    :root { --fond: #FBF5EA; --surface: #FFFDF8; --surface-2: #F3E8D6; --bordure: #EADBC4; --texte: #2B1D13; --texte-2: #6B5544; --texte-3: #76614F; --accent: #9E4C0C; --dore: #E2A23B; --inverse: #3A281B; --sur-inverse: #F4E9D8; --succes: #3F7A2E; --alerte: #94600A; }
+    html, body { margin: 0; background: #ddd; }
+    body { font-family: Inter, system-ui, Arial, sans-serif; color: var(--texte); font-size: 9.5pt; line-height: 1.35; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .page { width: 210mm; height: 297mm; margin: 0 auto; padding: 11mm 14mm 9mm; background: var(--fond); display: flex; flex-direction: column; gap: 4.5mm; overflow: hidden; }
+    @media print { html, body { background: var(--fond); } .page { margin: 0; } }
+    h1, h2, .serif { font-family: Fraunces, Georgia, serif; font-variation-settings: 'SOFT' 100; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+    p { margin: 0; }
+    .tete { display: flex; justify-content: space-between; align-items: center; }
+    .logo { display: flex; align-items: center; gap: 8px; font-family: Fraunces, Georgia, serif; font-variation-settings: 'SOFT' 100; font-weight: 600; font-size: 16pt; }
+    .logo svg { color: var(--accent); }
+    .site { color: var(--texte-2); font-weight: 500; }
+    .heros { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 8mm; align-items: center; }
+    h1 { font-size: 30pt; line-height: 1.02; letter-spacing: -0.025em; margin-bottom: 4mm; }
+    .chapo { font-size: 11pt; color: var(--texte-2); line-height: 1.45; }
+    .scene { padding: 5mm; border-radius: 18px; background: radial-gradient(120% 90% at 20% 10%, #F2C27A 0%, var(--dore) 45%, #C9862B 100%); }
+    .maquette { background: var(--surface); border-radius: 14px; padding: 4.5mm 5mm; box-shadow: 0 6px 18px rgba(80,50,20,.18); }
+    .maquette .leg { font-size: 7.5pt; color: var(--texte-3); }
+    .maquette .t { font-size: 14pt; margin: 1mm 0 2mm; }
+    .ligne { display: flex; justify-content: space-between; align-items: baseline; padding: 1.6mm 0; border-bottom: 1px solid var(--bordure); }
+    .ligne:last-child { border-bottom: 0; }
+    .ligne b { font-family: Fraunces, Georgia, serif; font-variation-settings: 'SOFT' 100; font-weight: 600; font-size: 18pt; line-height: 1; }
+    h2 { font-size: 13.5pt; margin-bottom: 2.5mm; }
+    .etapes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5mm; }
+    .etape { border-top: 2.5px solid var(--dore); padding-top: 2.5mm; }
+    .etape .n { font-family: Fraunces, Georgia, serif; font-weight: 600; font-size: 18pt; color: var(--accent); line-height: 1; }
+    .etape strong { display: block; margin: 1mm 0; font-size: 11pt; }
+    .etape p, .ecran p { color: var(--texte-2); }
+    .ecrans { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; }
+    .ecran { background: var(--surface); border: 1px solid var(--bordure); border-radius: 10px; padding: 2.5mm 3mm; font-size: 9pt; }
+    .ecran .nom { display: inline-block; font-size: 8pt; font-weight: 600; background: #F7E4C8; border-radius: 99px; padding: 0.5mm 2.5mm; margin-bottom: 1.5mm; }
+    .bas { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+    .carte { background: var(--surface); border: 1px solid var(--bordure); border-radius: 14px; padding: 4mm 4.5mm; }
+    .caisses p { padding: 0.9mm 0; border-bottom: 1px solid var(--bordure); color: var(--texte-2); }
+    .caisses p:last-child { border-bottom: 0; }
+    .caisses b { color: var(--texte); }
+    .ok, .bientot { font-weight: 600; white-space: nowrap; } .ok { color: var(--succes); } .bientot { color: var(--alerte); }
+    .prix { background: var(--inverse); color: var(--sur-inverse); border-color: var(--inverse); }
+    .prix h2 { color: var(--dore); }
+    .prix .montant { font-family: Fraunces, Georgia, serif; font-variation-settings: 'SOFT' 100; font-weight: 600; font-size: 19pt; line-height: 1.1; }
+    .prix .montant small { font-family: Inter, sans-serif; font-size: 9pt; font-weight: 500; white-space: nowrap; }
+    .prix p + p { margin-top: 2mm; }
+    .exemple { font-size: 8.5pt; color: var(--texte-3); }
+    .pied { margin-top: auto; display: flex; justify-content: space-between; align-items: center; padding-top: 4mm; border-top: 1px solid var(--bordure); }
+    .pied .cta { font-weight: 600; font-size: 12pt; }
+    .pied .cta span { color: var(--accent); }
+    .contact { color: var(--texte-2); text-align: right; font-size: 9.5pt; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="tete">
+      <div class="logo">
+        <svg viewBox="0 0 100 100" width="22" height="22" aria-hidden="true">
+          <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <circle cx="50" cy="56" r="8" fill="currentColor"/>
+        </svg>
+        À Point
+      </div>
+      <p class="site">apointapp.fr</p>
+    </div>
+
+    <div class="heros">
+      <div>
+        <h1>Enfournez juste.<br>Jetez moins.</h1>
+        <p class="chapo">Chaque soir, À Point vous dit combien enfourner demain, produit par produit, à partir de vos propres ventes. Moins d'invendus, moins de ruptures. Et chaque mois, le Bilan vous montre en euros ce que vous avez économisé.</p>
+      </div>
+      <div class="scene">
+        <div class="maquette">
+          <p class="leg">Exemple, données fictives</p>
+          <p class="t serif">Ta fournée de samedi</p>
+          <div class="ligne"><span>Baguette tradition</span><b>240</b></div>
+          <div class="ligne"><span>Croissant</span><b>155</b></div>
+          <div class="ligne"><span>Pain au chocolat</span><b>130</b></div>
+        </div>
+      </div>
+    </div>
+
+    <section>
+      <h2>Comment ça marche</h2>
+      <div class="etapes">
+        <div class="etape"><span class="n">1</span><strong>Vos ventes arrivent</strong><p>Depuis la caisse, par un fichier d'export, ou le soir en une minute : vous comptez ce qu'il reste.</p></div>
+        <div class="etape"><span class="n">2</span><strong>À Point prévoit</strong><p>Vos ventes des mêmes jours, les plus récentes d'abord, plus les fériés, les vacances scolaires et la météo.</p></div>
+        <div class="etape"><span class="n">3</span><strong>Vous enfournez</strong><p>Un chiffre par produit, réparti par fournée. «&nbsp;Pourquoi&nbsp;?&nbsp;» l'explique. Vous gardez le dernier mot.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Ce que vous voyez chaque jour</h2>
+      <div class="ecrans">
+        <div class="ecran"><span class="nom">Fournée</span><p>Combien enfourner, par produit et par fournée. Mode fournil près du four.</p></div>
+        <div class="ecran"><span class="nom">Commande</span><p>Farine, beurre, œufs par fournisseur, stock déduit. Envoi WhatsApp, e-mail, PDF.</p></div>
+        <div class="ecran"><span class="nom">Semaine</span><p>Les 7 jours qui viennent, jours chargés et calmes signalés.</p></div>
+        <div class="ecran"><span class="nom">Bilan</span><p>Les euros économisés ce mois-ci. Chaque chiffre marqué «&nbsp;mesuré&nbsp;» ou «&nbsp;estimé&nbsp;».</p></div>
+      </div>
+    </section>
+
+    <div class="bas">
+      <div class="carte caisses">
+        <h2>Votre caisse</h2>
+        <p><b>Hiboutik</b> : branchement direct. <span class="ok">Prêt</span></p>
+        <p><b>Toutes les caisses</b> : import du fichier d'export. <span class="ok">Prêt</span></p>
+        <p><b>Sans caisse</b> : saisie du soir, une minute. <span class="ok">Prêt</span></p>
+        <p><b>SumUp, Zettle, Square</b> : bouton «&nbsp;Brancher&nbsp;». <span class="bientot">En cours d'ouverture</span></p>
+        <p><b>Autres caisses</b> : envoi automatique par e&#8209;mail. <span class="bientot">En cours d'ouverture</span></p>
+      </div>
+      <!-- À VALIDER PAR LE FONDATEUR : prix HT/TTC et garantie. -->
+      <div class="carte prix">
+        <h2>Prix et garantie</h2>
+        <p class="montant">1 mois gratuit <small>sans carte</small></p>
+        <p class="montant">puis 29 € <small>HT / mois</small></p>
+        <p>Sans engagement, résiliable à tout moment.</p>
+        <p><strong>Pas d'économie, pas de facture&nbsp;:</strong> si votre Bilan n'affiche pas au moins 29 € économisés sur le mois, ce mois-là ne vous est pas facturé.</p>
+      </div>
+    </div>
+
+    <p class="exemple">Pour se faire une idée : 3 pièces de moins jetées par jour, à 0,40 € de matière (exemple), sur 26 jours d'ouverture, font environ 31 € par mois. Exemple de calcul, pas un résultat client.</p>
+
+    <div class="pied">
+      <p class="cta">Essayez un mois : <span>apointapp.fr</span></p>
+      <p class="contact">Votre contact :<br>____________________________</p>
+    </div>
+  </div>
+</body>
+</html>

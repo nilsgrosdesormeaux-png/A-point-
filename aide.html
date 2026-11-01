@@ -4,8 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Aide</title>
+  <meta name="description" content="Aide d'À Point : premier jour, branchement de la caisse, saisie du soir, lecture de la Fournée et du Bilan, abonnement et contact.">
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="style.css?v=20261101m">
+  <link rel="stylesheet" href="vente.css?v=20261101a">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="nav.js?v=20261031"></script>
 </head>
@@ -27,91 +29,150 @@
     <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
 
     <div id="zoneAide" style="display:none;">
-      <div class="carte-page">
-        <div class="entete-page">
-          <div>
-            <p class="eyebrow">Aide</p>
-            <h1>Questions fréquentes</h1>
-          </div>
-        </div>
-        <p class="texte-aide" style="margin-top:-4px;">Les réponses aux questions les plus courantes. Pour une présentation complète de l'outil, la <a href="index.html">page de présentation</a> reste aussi disponible.</p>
+      <p class="eyebrow">Aide</p>
+      <h1 class="v-aide-titre">Comment ça marche, au quotidien</h1>
+      <p class="texte-aide">Les vraies questions du fournil, avec des réponses courtes. Une question qui n'y est pas ? <a href="#contact">Écris-nous en bas de la page</a>.</p>
 
-        <div style="margin-top:20px;">
-          <details class="faq-item">
-            <summary>Est-ce que ça remplace mon propre jugement ?</summary>
-            <p>Non. C'est une aide à la décision : la recommandation te donne un repère basé sur tes vraies ventes passées, mais la décision finale (et la responsabilité) restent toujours les tiennes. Surtout les premières semaines, où l'historique est encore court.</p>
-          </details>
+      <ul class="v-aide-sommaire" aria-label="Rubriques">
+        <li><a href="#premier-jour">Premier jour</a></li>
+        <li><a href="#caisse">Ma caisse</a></li>
+        <li><a href="#soir">Le soir</a></li>
+        <li><a href="#fournee">La Fournée</a></li>
+        <li><a href="#bilan">Le Bilan</a></li>
+        <li><a href="#abonnement">Abonnement</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
 
-          <details class="faq-item">
-            <summary>Combien de temps avant que ce soit vraiment fiable ?</summary>
-            <p>Ça dépend de la régularité de ton historique, mais il faut au moins 4 mêmes jours de semaine connus (4 samedis, par exemple) pour qu'un produit ait un chiffre. Avant, la Fournée affiche « Pas assez d'historique » plutôt qu'un chiffre inventé, et signale les prévisions encore peu sûres. Avec une caisse branchée, tes 12 derniers mois arrivent d'un coup et c'est fiable dès le premier jour. Le Bilan donne l'écart habituel, par exemple « ±4 baguettes ».</p>
-          </details>
+      <h2 class="v-aide-rubrique" id="premier-jour">Premier jour</h2>
+      <details class="faq-item">
+        <summary>Par quoi je commence ?</summary>
+        <ol>
+          <li>Dans <a href="parametres.html">Paramètres</a>, indique ton code postal (pour la météo et les vacances de ta zone) et tes jours de fermeture.</li>
+          <li>Toujours dans Paramètres, règle tes fournées : de 1 à 5, à tes heures et à tes noms.</li>
+          <li>Fais arriver tes ventes : branche ta caisse (onglet <a href="caisse.html">Caisse</a>) ou importe un fichier de ventes. Tes produits sont créés à partir du fichier.</li>
+          <li>Ouvre la <a href="previsions.html">Fournée</a> : ta production de demain est là.</li>
+        </ol>
+      </details>
+      <details class="faq-item">
+        <summary>Pourquoi certains produits affichent « Pas assez d'historique » ?</summary>
+        <p>Il faut au moins 4 mêmes jours de semaine connus pour un produit (4 samedis, par exemple). Avant, À Point préfère ne rien dire plutôt que d'inventer un chiffre. Avec un export de caisse ou une caisse branchée, tes mois passés arrivent d'un coup et le problème disparaît.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Faut-il écrire mes recettes ?</summary>
+        <p>Non. Pour un produit sans recette, À Point propose une recette type, marquée « à vérifier ». Elle ne compte dans la commande qu'après « C'est ma recette ». Tu la modifies quand tu veux dans <a href="commandes.html">Commande</a>, rubrique « Tes recettes ».</p>
+      </details>
 
-          <details class="faq-item">
-            <summary>Je n'ai pas d'export de caisse, je peux quand même m'en servir ?</summary>
-            <p>Oui. Le soir, la Fournée te propose « Ce qu'il te reste » : tu comptes seulement ce qui reste sur les étagères, et les ventes se calculent seules (cuit − reste), en moins d'une minute. C'est une estimation, que tu peux corriger dans Paramètres, puis Ventes. Tu peux aussi importer un fichier de ventes.</p>
-          </details>
+      <h2 class="v-aide-rubrique" id="caisse">Brancher ma caisse</h2>
+      <details class="faq-item">
+        <summary>Ma caisse se branche-t-elle directement ?</summary>
+        <p><strong>Hiboutik</strong> : oui. Active l'API dans ton compte Hiboutik, puis colle ta clé dans l'onglet <a href="caisse.html">Caisse</a>. Tes ventes arrivent ensuite chaque nuit.</p>
+        <p><strong>SumUp, Zettle, Square</strong> : le bouton « Brancher ma caisse » ouvre très bientôt. En attendant, importe ton fichier d'export.</p>
+        <p><strong>Les autres caisses</strong> (Bimedia, Lightspeed, Tactill, Toporder, Crisalid…) : importe le fichier d'export de tes ventes. L'envoi automatique chaque jour par e-mail ouvre bientôt.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Comment importer un fichier de ventes ?</summary>
+        <p>Dans ta caisse, exporte tes ventes par article (CSV ou Excel), idéalement sur 12 mois. Dépose le fichier dans l'onglet <a href="caisse.html">Caisse</a> ou dans Paramètres, Mes données. À Point reconnaît les colonnes et te demande de confirmer. Un même jour importé deux fois n'est pas compté deux fois.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Comment savoir si mes ventes sont bien arrivées ?</summary>
+        <p>L'onglet <a href="caisse.html">Caisse</a> montre l'état (à jour, en retard, erreur) et le journal de chaque réception : quand, par quel chemin, combien de lignes, pour quels jours.</p>
+      </details>
 
-          <details class="faq-item">
-            <summary>C'est payant ?</summary>
-            <p>Non, pas pendant cette phase de test. Si l'outil devient un jour payant, ce sera annoncé clairement à l'avance : rien ne change sans que tu sois prévenu.</p>
-          </details>
+      <h2 class="v-aide-rubrique" id="soir">Le soir</h2>
+      <details class="faq-item">
+        <summary>Je n'ai pas de caisse branchée. Que faire le soir ?</summary>
+        <p>Ouvre la Fournée et touche « Ce qu'il te reste ». Pour chaque produit, compte ce qui reste sur les étagères avec les boutons + et −. Les ventes se calculent seules : cuit moins reste. Moins d'une minute.</p>
+        <p>C'est une estimation, marquée comme telle dans le Bilan. Tu peux la corriger ensuite dans Paramètres, Mes données.</p>
+      </details>
+      <details class="faq-item">
+        <summary>J'ai donné ou cassé des pièces. Je les compte où ?</summary>
+        <p>Sous chaque produit, « Dont donné ou cassé » : ces pièces sont sorties sans être vendues. Elles ne gonflent pas tes ventes.</p>
+      </details>
+      <details class="faq-item">
+        <summary>J'ai oublié un soir. C'est grave ?</summary>
+        <p>Non. Tu peux saisir une des 7 dernières journées dans Paramètres, Mes données. La prévision s'appuie sur plusieurs semaines : un jour manquant ne la fausse pas.</p>
+      </details>
 
-          <details class="faq-item">
-            <summary>Mes données de vente sont-elles vues par d'autres commerçants, ou revendues ?</summary>
-            <p>Non. Tes données sont hébergées de façon sécurisée et ne sont accessibles qu'à toi ; elles ne sont ni partagées avec d'autres commerçants, ni revendues à qui que ce soit.</p>
-          </details>
+      <h2 class="v-aide-rubrique" id="fournee">Lire la Fournée</h2>
+      <details class="faq-item">
+        <summary>Que veut dire le grand chiffre ?</summary>
+        <p>C'est la quantité à enfourner pour ce produit sur la journée, marge de sécurité comprise. En dessous, la part de chaque fournée, à tes heures. Les produits sont rangés par rayon.</p>
+      </details>
+      <details class="faq-item">
+        <summary>D'où vient ce chiffre ?</summary>
+        <p>Touche « Pourquoi ? » sous le produit. À Point part de tes ventes des mêmes jours de la semaine, compte davantage les plus récentes, écarte une journée exceptionnelle, puis tient compte des jours fériés, des ponts, des vacances scolaires et de la météo. Chaque effet est appris sur ton propre historique.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Demain sort de l'ordinaire (marché, fête, travaux).</summary>
+        <p>Touche « Plus de monde » ou « Moins de monde » : toute la fournée s'ajuste. Tu restes toujours libre de cuire autre chose : tu connais des choses qu'À Point ignore.</p>
+      </details>
+      <details class="faq-item">
+        <summary>C'est quoi le mode fournil ?</summary>
+        <p>Le bouton « Mode fournil » affiche la fournée dans l'ordre des cuissons, en très gros, pour la lire à un mètre près du four. Coche chaque fournée quand elle est faite : c'est ce qui permet au Bilan de mesurer tes invendus.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Et la commande de matières premières ?</summary>
+        <p>L'onglet <a href="commandes.html">Commande</a> calcule farine, beurre, œufs… à partir de la fournée prévue, classés par fournisseur, ton stock déduit. Tu l'envoies par WhatsApp, e-mail ou en PDF.</p>
+      </details>
 
-          <details class="faq-item">
-            <summary>Comment supprimer mon compte ou mes données ?</summary>
-            <p>Contacte-moi directement (voir les CGU pour l'adresse) et je m'en occupe.</p>
-          </details>
+      <h2 class="v-aide-rubrique" id="bilan">Le Bilan et d'où viennent les chiffres</h2>
+      <details class="faq-item">
+        <summary>Comment est calculé ce que je gagne ?</summary>
+        <p>On compare tes invendus d'avant à ceux d'aujourd'hui.</p>
+        <ul>
+          <li><strong>Aujourd'hui</strong>, c'est mesuré : ce que tu as enfourné moins ce que tu as vendu.</li>
+          <li><strong>Avant</strong>, ça vient de tes réponses à l'inscription ou de tes achats de farine (Paramètres, « Avant À Point ») ; sinon de la moyenne nationale (environ 10 %, ADEME), marquée « estimé ».</li>
+          <li>Chaque pièce évitée vaut son coût de matière : le prix de tes ingrédients si ta recette est connue, sinon environ 30 % du prix de vente (estimé).</li>
+        </ul>
+        <p>Le détail, avec tes vrais nombres, est dans le <a href="statistiques.html">Bilan</a>, sous « Le détail du calcul ».</p>
+      </details>
+      <details class="faq-item">
+        <summary>Que veulent dire « mesuré », « estimé », « automatique », « par toi » ?</summary>
+        <p>Chaque chiffre dit d'où il vient. <strong>Mesuré</strong> : compté sur tes fournées et tes ventes. <strong>Estimé</strong> : calculé faute de mieux, à affiner. <strong>Automatique</strong> : ventes venues de ta caisse ou d'un fichier. <strong>Par toi</strong> : ce que tu as saisi.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Mon Bilan est vide.</summary>
+        <p>Le Bilan mesure tes invendus à partir des jours où ta fournée est cochée (ou saisie le soir) et où tes ventes sont connues. Coche ta fournée quelques jours et le Bilan se remplit.</p>
+      </details>
 
-          <details class="faq-item">
-            <summary>J'ai oublié mon mot de passe, comment faire ?</summary>
-            <p>Sur la page de connexion, clique sur « Mot de passe oublié ? », renseigne ton email : un lien pour en choisir un nouveau t'est envoyé.</p>
-          </details>
+      <h2 class="v-aide-rubrique" id="abonnement">Abonnement, données, résiliation</h2>
+      <details class="faq-item">
+        <summary>Combien ça coûte ?</summary>
+        <p>Le premier mois est gratuit, sans carte bancaire. Ensuite, 29 € HT par mois, sans engagement. Si ton Bilan n'affiche pas au moins 29 € économisés sur le mois, ce mois-là ne t'est pas facturé. Le détail est dans les <a href="cgu.html#garantie">conditions générales</a>.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Comment résilier ?</summary>
+        <p>Écris-nous avec le formulaire ci-dessous, sujet « Résiliation ». Pas de frais, pas de préavis : l'abonnement s'arrête à la fin du mois en cours. Pendant le mois gratuit, il n'y a rien à faire. Tu peux demander l'export de tes données pendant 30 jours.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Qui voit mes ventes ?</summary>
+        <p>Toi seul. Elles sont hébergées dans l'Union européenne, ni revendues ni montrées à d'autres boulangeries. Tout est expliqué dans la <a href="confidentialite.html">politique de confidentialité</a>.</p>
+      </details>
+      <details class="faq-item">
+        <summary>J'ai oublié mon mot de passe.</summary>
+        <p>Sur la page de connexion, touche « Mot de passe oublié ? » et indique ton e-mail : tu reçois un lien pour en choisir un nouveau.</p>
+      </details>
 
-          <details class="faq-item">
-            <summary>Pourquoi pas juste continuer à l'estimer moi-même, à l'instinct ?</summary>
-            <p>Ça marche, mais avec des limites réelles : la mémoire retient surtout les jours extrêmes, pas la moyenne ; il est difficile de comparer mentalement un samedi de pluie à un samedi ensoleillé ; et ce calcul est à refaire chaque jour, pour chaque produit. À Point fait ce travail de façon systématique, à partir de tout ton historique réel, sans prendre plus de temps qu'avant.</p>
-          </details>
-
-          <details class="faq-item">
-            <summary>Comment est calculée la quantité recommandée, en détail ?</summary>
-            <p>Pour chaque produit et chaque jour, l'outil part de tes ventes passées ce même jour de semaine (par exemple, tous tes jeudis), en moyenne pondérée : les ventes récentes comptent plus que les anciennes, pour suivre une tendance plutôt que rester bloqué sur une ancienne habitude. Un jour exceptionnel et isolé est écarté du calcul. Ensuite, les effets du jour sont pris en compte : jour férié, pont, vacances scolaires, météo prévue, événement local ou « plus de monde » que tu as signalé. Chaque effet est appris sur ton propre historique ; tant qu'il n'est pas encore appris, la quantité n'est pas modifiée. « Pourquoi ? » sous chaque produit montre ce qui a joué. Une marge de sécurité de 10 % est ajoutée pour ne pas manquer. Tu obtiens un seul chiffre par produit, à enfourner, réparti en tournées (5 h, 8 h, 11 h) ; « Pourquoi ? » sous chaque produit montre d'où il vient.</p>
-          </details>
-
-          <details class="faq-item">
-            <summary>D'où viennent les recettes ? Je n'en ai jamais écrit.</summary>
-            <p>Quand un produit n'a pas encore ta recette, À Point propose une recette type de boulangerie (quantités moyennes pour une pièce), marquée « proposée par À Point, à vérifier ». Elle ne compte dans la commande qu'une fois que tu as touché « C'est ma recette ». Tu peux la modifier à tout moment dans Commande, puis Tes recettes.</p>
-          </details>
-
-          <details class="faq-item">
-            <summary>Comment est calculé ce que À Point me fait gagner ?</summary>
-            <p>On compare tes invendus d'avant à ceux d'après. Ceux d'avant viennent de ta farine achetée comparée à celle réellement vendue, si tu l'as indiquée dans Paramètres ; sinon, de la moyenne nationale (environ 10 %, ADEME), signalée comme une estimation. Ceux d'après sont mesurés : ce que tu as enfourné moins ce que tu as vendu. Chaque pièce de moins jetée vaut son coût matière : le prix de tes ingrédients, sinon environ 30 % du prix de vente. Le détail, avec tes vrais nombres, est dans le Bilan, sous « Le détail du calcul ».</p>
-          </details>
-
-          <details class="faq-item">
-            <summary>Est-ce que ça marche sur téléphone ?</summary>
-            <p>Oui, le site s'adapte à l'écran de ton téléphone, pratique pour consulter ton tableau de bord entre deux clients.</p>
-          </details>
-        </div>
-
-        <p class="section-titre" style="margin-top:28px;">Nous contacter</p>
-        <p class="texte-aide" style="margin-top:-4px;">Une question, un bug, un souci ? Écris-nous directement ici, on te répond au plus vite.</p>
+      <section class="v-contact" aria-labelledby="contact">
+        <h2 id="contact">Nous écrire</h2>
+        <p class="texte-aide">Une question, un chiffre qui t'étonne, une résiliation ? Écris ici, on te répond au plus vite par e-mail.</p>
 
         <label for="inputSujetContact">Sujet</label>
         <input type="text" id="inputSujetContact" placeholder="Ex : Un chiffre me semble faux">
 
         <label for="inputMessageContact" style="margin-top:14px;">Message</label>
-        <textarea id="inputMessageContact" rows="5" placeholder="Décris ton problème ou ta question en quelques mots"></textarea>
+        <textarea id="inputMessageContact" rows="5" placeholder="Décris ta question en quelques mots"></textarea>
 
         <button id="btnEnvoyerContact" type="button" style="margin-top:12px;">Envoyer</button>
         <div id="messageContact"></div>
+      </section>
 
-        <p class="pied-page" style="margin-top:20px;"><a href="cgu.html">Conditions générales d'utilisation</a></p>
-      </div>
+      <nav class="v-pied-liens texte-aide" aria-label="Liens utiles" style="margin:32px 0 16px;">
+        <a href="index.html">Présentation d'À Point</a>
+        <a href="cgu.html">Conditions générales</a>
+        <a href="mentions-legales.html">Mentions légales</a>
+        <a href="confidentialite.html">Confidentialité</a>
+      </nav>
     </div>
   </div>
 

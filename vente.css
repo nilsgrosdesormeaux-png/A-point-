@@ -1,0 +1,199 @@
+/* À Point — pages publiques : vente (index), Aide, CGU, mentions légales, confidentialité.
+   S'appuie uniquement sur les jetons de style.css (DESIGN.md, direction « Fournil »). */
+
+.v { --v-largeur: 1120px; }
+.v main { display: block; }
+
+/* ---------- En-tête ---------- */
+.v-entete {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; gap: var(--espace-4);
+  min-height: 60px;
+  padding: 0 max(var(--espace-4), calc((100% - var(--v-largeur)) / 2 + var(--espace-4)));
+  background: color-mix(in srgb, var(--couleur-fond) 92%, transparent);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--couleur-bordure);
+}
+.v-entete .logo { margin-right: auto; }
+.v-entete-liens { display: none; gap: var(--espace-5); font-size: var(--texte-sm); }
+.v-entete-liens a, .v-entete .v-connexion { color: var(--couleur-texte-2); font-size: var(--texte-sm); white-space: nowrap; }
+.v-entete-liens a:hover, .v-entete .v-connexion:hover { color: var(--couleur-texte); }
+.v-entete .bouton-principal { width: auto; margin: 0; min-height: 40px; padding: 6px 16px; font-size: var(--texte-sm); white-space: nowrap; }
+@media (min-width: 860px) { .v-entete-liens { display: flex; } }
+@media (max-width: 380px) { .v-entete .v-connexion { display: none; } }
+
+/* ---------- Blocs ---------- */
+.v-bloc { max-width: var(--v-largeur); margin: 0 auto; padding: var(--espace-8) var(--espace-4); }
+@media (min-width: 900px) { .v-bloc { padding: var(--espace-9) var(--espace-5); } }
+.v-bloc + .v-bloc { border-top: 1px solid var(--couleur-bordure); }
+.v-bloc h2 {
+  font-size: clamp(28px, 4.2vw, 42px); font-weight: 600; line-height: 1.08; letter-spacing: -0.02em;
+  margin: 0 0 var(--espace-4); max-width: 22ch;
+}
+.v-bloc h3 { font-size: var(--texte-lg); font-weight: 600; margin: 0 0 var(--espace-2); }
+.v-intro { color: var(--couleur-texte-2); font-size: 18px; line-height: 1.5; max-width: 56ch; margin: 0; }
+.v-bloc p { max-width: 65ch; }
+
+/* ---------- Héros ---------- */
+.v-heros { display: grid; gap: var(--espace-7); align-items: center; padding-top: var(--espace-6); }
+@media (min-width: 940px) { .v-heros { grid-template-columns: 1.1fr 0.9fr; padding-top: var(--espace-8); } }
+.v-pastille {
+  display: inline-flex; align-items: center; gap: var(--espace-2); flex-wrap: wrap;
+  margin: 0 0 var(--espace-5); padding: 4px 12px 4px 4px;
+  font-size: var(--texte-sm); color: var(--couleur-texte-2);
+  background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-rond);
+}
+.v-pastille b { padding: 2px 10px; font-size: var(--texte-xs); font-weight: 600; color: var(--couleur-texte); background: var(--couleur-accent-doux); border-radius: var(--rayon-rond); }
+.v-heros h1 {
+  font-size: var(--texte-3xl); font-weight: 600; line-height: 1.02; letter-spacing: -0.025em;
+  margin: 0 0 var(--espace-5); max-width: 14ch;
+}
+.v-heros-texte { font-size: var(--texte-lg); line-height: 1.45; color: var(--couleur-texte-2); max-width: 44ch; margin: 0 0 var(--espace-6); }
+.v-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espace-3) var(--espace-5); }
+.v-actions .bouton-principal { width: auto; margin: 0; min-height: 52px; padding: 12px 28px; }
+@media (max-width: 520px) { .v-actions .bouton-principal { width: 100%; } }
+.v-note { margin: var(--espace-4) 0 0; font-size: var(--texte-sm); color: var(--couleur-texte-3); }
+
+/* Maquette de l'écran Fournée (données fictives) */
+.v-scene {
+  padding: var(--espace-6) var(--espace-4);
+  background: radial-gradient(120% 90% at 20% 10%, #F2C27A 0%, var(--couleur-dore) 45%, #C9862B 100%);
+  border-radius: var(--rayon-lg);
+}
+@media (min-width: 940px) { .v-scene { padding: var(--espace-7) var(--espace-6); } }
+.v-maquette {
+  margin: 0 auto; max-width: 360px;
+  padding: var(--espace-5);
+  background: var(--couleur-surface); color: var(--couleur-texte);
+  border-radius: var(--rayon-lg); box-shadow: var(--ombre);
+}
+.v-maquette-legende { margin: 0 0 var(--espace-3); font-size: var(--texte-xs); color: var(--couleur-texte-3); }
+.v-maquette-titre { margin: 0; font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: 24px; font-weight: 600; }
+.v-maquette-sous { margin: 2px 0 var(--espace-4); font-size: var(--texte-sm); color: var(--couleur-texte-2); }
+.v-maquette-rayon { margin: var(--espace-4) 0 0; font-size: var(--texte-xs); font-weight: 600; color: var(--couleur-texte-3); }
+.v-ligne { display: flex; justify-content: space-between; align-items: baseline; gap: var(--espace-3); padding: 8px 0; border-bottom: 1px solid var(--couleur-bordure); }
+.v-ligne:last-of-type { border-bottom: 0; }
+.v-ligne span { font-size: var(--texte-md); }
+.v-ligne small { display: block; font-size: var(--texte-xs); color: var(--couleur-texte-3); }
+.v-ligne strong { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: 32px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
+.v-maquette-pied { margin: var(--espace-4) 0 0; padding: 10px; text-align: center; font-size: var(--texte-sm); font-weight: 600; color: var(--couleur-sur-accent); background: var(--couleur-accent); border-radius: var(--rayon-rond); }
+
+/* ---------- Le calcul en euros ---------- */
+.v-calcul { display: grid; gap: var(--espace-5); margin-top: var(--espace-6); }
+@media (min-width: 760px) { .v-calcul { grid-template-columns: repeat(3, 1fr); } }
+.v-chiffre {
+  padding: var(--espace-5); background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md);
+}
+.v-chiffre strong { display: block; font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: var(--texte-2xl); font-weight: 600; line-height: 1; margin-bottom: var(--espace-2); font-variant-numeric: tabular-nums; }
+.v-chiffre p { margin: 0; color: var(--couleur-texte-2); }
+.v-chiffre--fonce { background: var(--couleur-inverse); border-color: var(--couleur-inverse); color: var(--couleur-sur-inverse); }
+.v-chiffre--fonce strong { color: var(--couleur-dore); }
+.v-chiffre--fonce p { color: var(--couleur-sur-inverse); }
+.v-exemple { margin: var(--espace-4) 0 0; font-size: var(--texte-sm); color: var(--couleur-texte-3); }
+
+/* ---------- Étapes ---------- */
+.v-etapes { list-style: none; counter-reset: etape; display: grid; gap: var(--espace-5); margin: var(--espace-6) 0 0; padding: 0; }
+@media (min-width: 860px) { .v-etapes { grid-template-columns: repeat(3, 1fr); gap: var(--espace-6); } }
+.v-etapes li { counter-increment: etape; padding-top: var(--espace-4); border-top: 3px solid var(--couleur-dore); }
+.v-etapes li::before {
+  content: counter(etape); display: block; margin-bottom: var(--espace-2);
+  font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: 36px; font-weight: 600; color: var(--couleur-accent-texte); line-height: 1;
+}
+.v-etapes p { margin: 0; color: var(--couleur-texte-2); }
+
+/* ---------- Écrans ---------- */
+.v-ecrans { display: grid; gap: var(--espace-4); margin-top: var(--espace-6); }
+@media (min-width: 760px) { .v-ecrans { grid-template-columns: repeat(2, 1fr); gap: var(--espace-5); } }
+.v-ecran { padding: var(--espace-5); background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md); box-shadow: var(--ombre-carte); }
+.v-ecran-nom { display: inline-block; margin: 0 0 var(--espace-3); padding: 2px 10px; font-size: var(--texte-xs); font-weight: 600; background: var(--couleur-accent-doux); border-radius: var(--rayon-rond); }
+.v-ecran ul { margin: var(--espace-3) 0 0; padding-left: 1.1em; color: var(--couleur-texte-2); }
+.v-ecran li + li { margin-top: var(--espace-1); }
+.v-ecran p { margin: 0; color: var(--couleur-texte-2); }
+
+/* ---------- Caisses ---------- */
+.v-caisses { margin-top: var(--espace-6); display: grid; gap: var(--espace-3); }
+.v-caisse { display: grid; gap: var(--espace-2); padding: var(--espace-4) var(--espace-5); background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md); }
+@media (min-width: 760px) { .v-caisse { grid-template-columns: 220px 1fr auto; align-items: center; gap: var(--espace-5); } }
+.v-caisse b { font-weight: 600; }
+.v-caisse p { margin: 0; color: var(--couleur-texte-2); }
+.v-etat { justify-self: start; padding: 2px 10px; font-size: var(--texte-xs); font-weight: 600; border-radius: var(--rayon-rond); white-space: nowrap; }
+.v-etat--ok { color: var(--couleur-succes); background: var(--couleur-succes-doux); }
+.v-etat--bientot { color: var(--couleur-alerte); background: var(--couleur-alerte-doux); }
+
+/* ---------- Prix ---------- */
+.v-prix { display: grid; gap: var(--espace-5); margin-top: var(--espace-6); }
+@media (min-width: 860px) { .v-prix { grid-template-columns: 1.1fr 0.9fr; align-items: stretch; } }
+.v-prix-carte { padding: var(--espace-6) var(--espace-5); background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-lg); box-shadow: var(--ombre); }
+.v-prix-etape { margin: 0; font-size: var(--texte-sm); color: var(--couleur-texte-2); }
+.v-prix-montant { margin: 0 0 var(--espace-4); font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: 56px; font-weight: 600; line-height: 1.05; letter-spacing: -0.02em; }
+.v-prix-montant small { font-family: var(--police); font-size: var(--texte-md); font-weight: 500; color: var(--couleur-texte-2); letter-spacing: 0; }
+.v-prix-carte ul { list-style: none; margin: var(--espace-5) 0 0; padding: 0; }
+.v-prix-carte li { padding: 8px 0 8px 28px; border-top: 1px solid var(--couleur-bordure); position: relative; }
+.v-prix-carte li::before { content: ""; position: absolute; left: 4px; top: 15px; width: 12px; height: 7px; border-left: 2px solid var(--couleur-succes); border-bottom: 2px solid var(--couleur-succes); transform: rotate(-45deg); }
+.v-prix-carte .bouton-principal { margin-top: var(--espace-5); }
+.v-garantie { padding: var(--espace-6) var(--espace-5); background: var(--couleur-inverse); color: var(--couleur-sur-inverse); border-radius: var(--rayon-lg); }
+.v-garantie h3 { color: var(--couleur-dore); font-size: var(--texte-xl); line-height: 1.15; margin-bottom: var(--espace-4); }
+.v-garantie p { margin: 0 0 var(--espace-3); color: var(--couleur-sur-inverse); }
+.v-garantie a { color: var(--couleur-dore); text-decoration: underline; }
+
+/* ---------- FAQ ---------- */
+.v-faq { margin-top: var(--espace-5); max-width: 760px; border-top: 1px solid var(--couleur-bordure); }
+
+/* ---------- Appel final ---------- */
+.v-final { text-align: center; }
+.v-final h2, .v-final .v-intro { margin-left: auto; margin-right: auto; }
+.v-final .v-actions { justify-content: center; margin-top: var(--espace-6); }
+
+/* ---------- Pied de page ---------- */
+.v-pied {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--espace-3) var(--espace-5);
+  max-width: var(--v-largeur); margin: 0 auto; padding: var(--espace-6) var(--espace-4) var(--espace-7);
+  border-top: 1px solid var(--couleur-bordure); font-size: var(--texte-sm);
+}
+.v-pied .logo { margin-right: auto; }
+.v-pied a { color: var(--couleur-texte-2); }
+.v-pied a:hover { color: var(--couleur-texte); }
+.v-pied-liens { display: flex; flex-wrap: wrap; gap: var(--espace-2) var(--espace-5); }
+.v-pied-note { flex-basis: 100%; margin: 0; color: var(--couleur-texte-3); font-size: var(--texte-xs); }
+
+/* ---------- Pages légales ---------- */
+.v-legal { max-width: 760px; margin: 0 auto; padding: var(--espace-7) var(--espace-4) var(--espace-8); }
+.v-legal h1 { font-size: clamp(32px, 5vw, 44px); font-weight: 600; line-height: 1.08; margin: 0 0 var(--espace-3); }
+.v-legal h2 { font-size: var(--texte-lg); font-weight: 600; margin: var(--espace-7) 0 var(--espace-3); }
+.v-legal h3 { font-size: var(--texte-md); font-family: var(--police); font-weight: 600; margin: var(--espace-5) 0 var(--espace-2); }
+.v-legal p, .v-legal li { color: var(--couleur-texte-2); }
+.v-legal strong { color: var(--couleur-texte); }
+.v-legal ul { padding-left: 1.2em; }
+.v-legal li + li { margin-top: var(--espace-1); }
+.v-legal .v-maj { color: var(--couleur-texte-3); font-size: var(--texte-sm); margin: 0 0 var(--espace-6); }
+.v-legal table { width: 100%; border-collapse: collapse; font-size: var(--texte-sm); margin: var(--espace-3) 0; }
+.v-legal th, .v-legal td { text-align: left; vertical-align: top; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--couleur-bordure); color: var(--couleur-texte-2); }
+.v-legal th { color: var(--couleur-texte); font-weight: 600; }
+.v-tableau { overflow-x: auto; }
+.v-sommaire { padding: var(--espace-4) var(--espace-5); background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md); }
+.v-sommaire p { margin: 0 0 var(--espace-2); font-weight: 600; color: var(--couleur-texte); }
+.v-sommaire ol { margin: 0; padding-left: 1.3em; columns: 2 220px; font-size: var(--texte-sm); }
+.v-encadre { padding: var(--espace-4) var(--espace-5); background: var(--couleur-accent-doux); border-radius: var(--rayon-md); }
+.v-encadre p { color: var(--couleur-texte); margin: 0; }
+.v-encadre p + p { margin-top: var(--espace-2); }
+/* Zones que le fondateur doit remplir : visibles d'un coup d'œil. */
+.a-completer { padding: 1px 6px; color: var(--couleur-erreur); background: var(--couleur-erreur-doux); border: 1px dashed var(--couleur-erreur); border-radius: 6px; font-weight: 600; }
+
+/* ---------- Aide ---------- */
+.v-aide-titre { margin: 0 0 var(--espace-2); font-size: var(--texte-xl); }
+.v-aide-sommaire { display: flex; flex-wrap: wrap; gap: var(--espace-2); margin: var(--espace-5) 0 var(--espace-6); padding: 0; list-style: none; }
+.v-aide-sommaire a { display: inline-block; padding: 6px 12px; font-size: var(--texte-sm); color: var(--couleur-texte); background: var(--couleur-surface-2); border-radius: var(--rayon-rond); }
+.v-aide-sommaire a:hover { background: var(--couleur-accent-doux); }
+.v-aide-rubrique { margin: var(--espace-7) 0 var(--espace-2); font-size: var(--texte-lg); scroll-margin-top: 80px; }
+.v-aide-rubrique:first-of-type { margin-top: 0; }
+.faq-item ol, .faq-item ul { margin: 0 0 var(--espace-4); padding-left: 1.3em; color: var(--couleur-texte-2); max-width: 65ch; }
+.faq-item li + li { margin-top: var(--espace-1); }
+.v-contact { margin-top: var(--espace-7); padding: var(--espace-5); background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md); }
+.v-contact h2 { margin: 0 0 var(--espace-2); font-size: var(--texte-lg); }
+
+@media print {
+  .v-entete, .v-pied, .lien-evitement { display: none; }
+  .a-completer { border-style: solid; }
+}
+.v-bloc[id], .v-legal h2[id] { scroll-margin-top: 72px; }
