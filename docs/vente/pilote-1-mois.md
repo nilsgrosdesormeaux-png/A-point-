@@ -1,6 +1,6 @@
-# Le pilote d'un mois
+# Le premier mois d'une boulangerie test
 
-Un mois gratuit, sans carte bancaire. À la fin, le boulanger décide en regardant son propre Bilan.
+À Point est gratuit pendant la phase de test, sans carte bancaire. Ce mois sert à deux choses : vérifier dans le Bilan que la boulangerie y gagne, et apprendre ce qu'elle serait prête à payer. Rien n'est vendu.
 Rôle du fondateur : un appel court chaque semaine (5 minutes), le même jour, à une heure calme (14 h – 16 h).
 
 ## Avant le jour 1 (pendant la démo ou juste après)
@@ -45,18 +45,26 @@ Appel de bilan (10 minutes), Bilan ouvert à deux, « Le détail du calcul » d�
 |---|---|---|
 | Jours mesurés | Fournée et ventes enregistrées au moins un jour d'ouverture sur deux | Bilan, « Le détail du calcul » |
 | Invendus | Taux d'invendus mesuré inférieur au point de départ « Avant À Point » | Bilan, les deux lignes « mesuré » et « point de départ » |
-| Euros | Au moins 29 € économisés sur le mois | Bilan, montant du mois |
+| Euros | Un montant économisé positif sur le mois, en euros | Bilan, montant du mois |
 | Usage | La Fournée a été ouverte au moins 5 matins sur 6 en semaine 4 | Question au boulanger |
 | Ressenti | Le boulanger cite un moment où le chiffre l'a aidé | Question au boulanger |
 
-### Passage au payant
+### Après le premier mois
 
-- **Les 3 premiers critères sont atteints** : proposer l'abonnement, 29 € HT par mois, sans engagement, avec la garantie.
-  Il indique son moyen de paiement ; rien n'est prélevé sans son accord.
-- **Les euros n'y sont pas, mais les jours mesurés sont trop peu nombreux** : proposer de continuer, en rappelant que la garantie couvre le mois : s'il n'y a pas 29 € au Bilan, le mois n'est pas facturé.
-- **Il ne veut pas continuer** : demander pourquoi, en une phrase, et le noter. Rien à faire de son côté : sans carte, rien n'est prélevé. Ses données sont gardées 3 mois puis supprimées (ou tout de suite s'il le demande).
+- **Les critères sont atteints** : lui demander s'il continue (c'est gratuit), et ce qui l'a le plus aidé, en une phrase.
+- **Les jours mesurés sont trop peu nombreux** : chercher ensemble ce qui bloque (oubli du soir, caisse pas branchée) et repartir pour un mois.
+- **Il ne veut pas continuer** : demander pourquoi, en une phrase, et le noter. Rien à résilier. Ses données sont supprimées sous 30 jours s'il le demande.
 
-## Ce qu'on note pour chaque pilote
+### Sonder le prix (sans vendre)
 
-Boulangerie, caisse, date de début, point de départ « avant », taux mesuré en semaine 4, montant du Bilan, décision, raison en une phrase.
+En fin d'appel, Bilan sous les yeux, une seule fois :
+
+- « Votre Bilan affiche X € ce mois-ci. Si À Point devenait payant, combien vous paieriez par mois sans hésiter ? »
+- « Et à partir de quel prix vous arrêteriez ? »
+
+Ne proposez aucun chiffre. Rappelez : « Rien ne sera activé sans votre accord, vous serez prévenu avant. »
+
+## Ce qu'on note pour chaque boulangerie test
+
+Boulangerie, caisse, date de début, point de départ « avant », taux mesuré en semaine 4, montant du Bilan, continue ou non, raison en une phrase, prix « sans hésiter » et prix « j'arrête ».
 Ces notes ne sont jamais publiées avec le nom de la boulangerie sans son accord écrit.

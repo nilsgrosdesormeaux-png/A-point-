@@ -21,14 +21,24 @@ Ton : vouvoiement, phrases courtes, aucun mot technique. On montre, on ne récit
 | 2:45 – 3:30 | Commande | Onglet **Commande** : les matières par fournisseur, puis le bouton d'envoi (WhatsApp, e-mail, PDF). N'envoyez rien. | « Ce que vous allez enfourner, il faut l'acheter. Farine, beurre, œufs : calculés, votre stock déduit, prêts à envoyer au fournisseur. Les recettes de base sont déjà là, vous corrigez si les vôtres diffèrent. » |
 | 3:30 – 4:00 | Semaine | Onglet **Semaine** : faites défiler les 7 jours, montrez un jour chargé et un jour fermé. | « La semaine qui vient. Les jours chargés sont signalés : férié, vacances, météo. Vous voyez venir le samedi dès le mardi. » |
 | 4:00 – 4:45 | Bilan | Onglet **Bilan** : le montant du mois en grand, puis ouvrez **Le détail du calcul**. Montrez les étiquettes « mesuré » / « estimé ». | « Le seul chiffre qui compte : ce que vous avez économisé ce mois-ci, en euros. Ce que vous avez cuit, moins ce que vous avez vendu, comparé à avant. Chaque chiffre dit d'où il vient. » Précisez : « Ce compte est une démonstration, les chiffres sont fictifs. » |
-| 4:45 – 5:00 | Aucun | Rangez le téléphone. | « Un mois gratuit, sans carte bancaire. Ensuite 29 € HT par mois, sans engagement. Et si votre Bilan n'affiche pas 29 € économisés sur le mois, ce mois-là n'est pas facturé. On l'installe maintenant, ensemble ? » |
+| 4:45 – 5:00 | Aucun | Rangez le téléphone. | « C'est gratuit pendant la phase de test, sans carte bancaire. Si un abonnement arrive un jour, vous serez prévenu avant et rien ne sera activé sans votre accord. On l'installe maintenant, ensemble ? » |
 
 ## Après « oui »
 
 1. Inscription sur **son** téléphone, avec lui, dans la boutique.
 2. Choisir sa caisse, répondre aux 3 questions.
 3. Brancher la caisse ou déposer l'export. S'il n'a pas l'export sous la main : prendre rendez-vous le soir même pour la première saisie « Ce qu'il te reste ».
-4. Lui donner le déroulé du pilote (`pilote-1-mois.md`) et la fiche A4.
+4. Lui donner le déroulé du premier mois (`pilote-1-mois.md`) et la fiche A4.
+
+## Sonder le prix, sans vendre
+
+À poser seulement s'il a aimé la démo, jamais pour conclure. Noter la réponse mot pour mot.
+
+- « Si À Point vous faisait économiser 50 € de matière par mois, combien seriez-vous prêt à payer pour ça ? »
+- « À quel prix vous diriez : c'est trop cher, je n'essaie même pas ? »
+- « Vous payez quoi aujourd'hui pour votre caisse, chaque mois ? » (pour avoir un repère)
+
+Ne proposez aucun prix vous-même. Si on vous demande : « C'est gratuit pendant la phase de test. Votre avis m'aide justement à savoir ce qui serait juste. »
 
 ## Si quelque chose coince
 

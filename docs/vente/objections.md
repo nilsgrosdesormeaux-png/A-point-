@@ -3,10 +3,10 @@
 Règle : on répond court, on ne promet que ce qui existe, et on renvoie vers le Bilan ou la démo plutôt que vers des mots.
 
 **1. « Je sais très bien combien je dois cuire, ça fait 20 ans. »**
-Vous avez raison, et À Point ne vous remplace pas. Il fait le calcul que vous faites de tête, mais sur tous vos jours, tous vos produits, chaque soir, sans fatigue. Regardez le Bilan au bout d'un mois : s'il n'y a rien à gagner, vous ne payez pas.
+Vous avez raison, et À Point ne vous remplace pas. Il fait le calcul que vous faites de tête, mais sur tous vos jours, tous vos produits, chaque soir, sans fatigue. Essayez un mois, c'est gratuit, et regardez le Bilan : il dira s'il y avait quelque chose à gagner.
 
-**2. « 29 € par mois, c'est cher. »**
-C'est environ 3 pièces de moins à la poubelle par jour, à 0,40 € de matière. Et si votre Bilan n'affiche pas au moins 29 € économisés sur le mois, ce mois-là ne vous est pas facturé. Le premier mois est gratuit, sans carte bancaire.
+**2. « Ça coûte combien ? Il y a un piège ? »**
+Rien : c'est gratuit pendant la phase de test, sans carte bancaire. Si un abonnement est proposé un jour, il sera annoncé à l'avance et jamais activé sans votre accord. Vos données restent à vous. Puis sondez, sans vendre : « Si le Bilan vous montrait 50 € économisés par mois, combien ça vaudrait pour vous ? » Notez la réponse.
 
 **3. « Je n'ai pas le temps de saisir des chiffres. »**
 Avec une caisse branchée ou son export, il n'y a rien à saisir. Sans caisse, c'est une minute le soir : vous comptez ce qu'il reste sur les étagères, le reste se calcule.
@@ -30,10 +30,11 @@ C'est un site, sur votre téléphone, comme votre banque. Cinq onglets. On l'ins
 Très bien, continuez. Ce qui est donné reste de la matière achetée et du travail. À Point vise à moins en avoir à donner. Le soir, vous pouvez noter ce qui est donné à part, pour que vos ventes restent justes.
 
 **10. « Je vais réfléchir. »**
-Bien sûr. Le premier mois est gratuit, sans carte bancaire, sans engagement : réfléchir avec vos propres chiffres sous les yeux est plus facile. On fait l'inscription maintenant, et vous décidez dans un mois en regardant votre Bilan.
+Bien sûr. C'est gratuit, sans carte bancaire, sans engagement : réfléchir avec vos propres chiffres sous les yeux est plus facile. On fait l'inscription maintenant, et vous jugez dans un mois en regardant votre Bilan.
 
 ## Ce qu'il ne faut jamais dire
 
 - Un pourcentage de baisse des invendus « garanti » : aucun n'est prouvé à ce jour.
+- Un prix futur : aucun n'est décidé. On sonde (« combien vous paieriez si… »), on ne vend pas.
 - Qu'une caisse « se branche » si elle n'est pas marquée prête sur la page de vente.
 - Le nom d'une autre boulangerie cliente, ou ses chiffres.
