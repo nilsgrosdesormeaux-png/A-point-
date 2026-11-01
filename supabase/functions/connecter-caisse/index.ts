@@ -6,9 +6,11 @@
 //   POST { action: 'synchroniser' }                     -> avance tout de suite les caisses branchées
 //   POST { action: 'deconnecter', fournisseur }         -> supprime la connexion et ses jetons
 //   POST { action: 'activer_import_email' }             -> { adresse } pour l'export envoyé par e-mail
-//   POST { action: 'etat' }                             -> { sumup, zettle, square, hiboutik, email }
-//   POST { action: 'connecter_cle', fournisseur: 'hiboutik', compte, utilisateur, cle }
-//   POST { action: 'connecter_cle', fournisseur: 'sumup', cle: 'sup_sk_…' } (tests sans app OAuth)
+//   POST { action: 'etat' }                             -> { oauth: { sumup, zettle, square… }, cle: [...], email }
+//   POST { action: 'connecter_cle', fournisseur, cle [, compte, utilisateur] }
+//        clé personnelle créée par le commerçant : sumup (sup_sk_…), zettle
+//        (clé API, flux assertion), square (jeton d'accès personnel),
+//        loyverse (jeton d'accès), tactill (sk_live_…), hiboutik (compte + e-mail + clé)
 // Et par la caisse elle-même, au retour de l'autorisation :
 //   GET ?code=…&state=…  -> échange le code, enregistre la connexion, renvoie vers Paramètres
 //
@@ -24,7 +26,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { jourParis } from '../_shared/caisse/commun.ts';
 import { type Jetons } from '../_shared/caisse/http.ts';
-import { FOURNISSEURS, disponibles, identifiantsApp } from '../_shared/caisse/fournisseurs.ts';
+import { FOURNISSEURS, disponibles, identifiantsApp, jetonUtilisable } from '../_shared/caisse/fournisseurs.ts';
 import { debutHistorique, enregistrerJetons, journaliser, synchroniserConnexion } from '../_shared/caisse/synchroniser.ts';
 
 var CORS_HEADERS = {
@@ -55,7 +57,7 @@ var ENV = {
 // Vérifie l'accès (lecture du compte), puis enregistre la connexion : un
 // nouveau branchement repart pour 12 mois d'historique.
 async function enregistrerConnexion(admin: any, commercantId: string, fournisseur: string, jetons: Jetons) {
-  var compte = await FOURNISSEURS[fournisseur].identifiantCompte(fetch, jetons.access_token);
+  var compte = await FOURNISSEURS[fournisseur].identifiantCompte(fetch, await jetonUtilisable(fournisseur, fetch, jetons));
   var res = await admin.from('connexions_caisse').upsert({
     commercant_id: commercantId, fournisseur: fournisseur, statut: 'active',
     compte_caisse: compte, derniere_erreur: null, derniere_synchro: null,
@@ -124,23 +126,26 @@ Deno.serve(async (req) => {
     }
 
     if (corps.action === 'connecter_cle') {
+      // Clé personnelle créée par le commerçant dans SON compte de caisse :
+      // aucun compte développeur côté À Point. La clé n'est jamais renvoyée.
+      var fc = FOURNISSEURS[corps.fournisseur];
+      if (!fc || !fc.cle) return reponse({ error: 'Caisse non prise en charge' }, 400);
+      if (!ENV.cleChiffrement) return reponse({ error: 'Branchement pas encore ouvert' }, 503);
       var jeton = '';
-      if (corps.fournisseur === 'hiboutik') {
-        var compteH = String(corps.compte || '').trim().toLowerCase().replace(/\.hiboutik\.com.*$/, '').replace(/^https?:\/\//, '');
-        var utilisateurH = String(corps.utilisateur || '').trim();
-        var cleH = String(corps.cle || '').trim();
-        if (!/^[a-z0-9-]+$/.test(compteH) || !utilisateurH || !cleH) return reponse({ error: 'Renseigne le compte, l\'e-mail et la clé API Hiboutik' }, 400);
-        jeton = JSON.stringify({ compte: compteH, utilisateur: utilisateurH, cle: cleH });
-      } else if (corps.fournisseur === 'sumup') {
-        jeton = String(corps.cle || '').trim();
-        if (!/^sup_sk_/.test(jeton)) return reponse({ error: 'Clé API SumUp attendue (sup_sk_…)' }, 400);
-      } else {
-        return reponse({ error: 'Caisse non prise en charge' }, 400);
+      try {
+        jeton = fc.cle.lire(corps);
+      } catch (e) {
+        return reponse({ error: String((e as Error).message || e) }, 400);
       }
       try {
         await enregistrerConnexion(admin, commercantId, corps.fournisseur, { access_token: jeton, refresh_token: null, expire_a: null });
       } catch (e) {
-        return reponse({ error: 'La caisse a refusé ces accès. Vérifie-les et réessaie. (' + String((e as Error).message || e) + ')' }, 400);
+        var msg = String((e as Error).message || e);
+        // Contrainte connexions_caisse_fournisseur_check : migration v4 pas encore passée.
+        if (/fournisseur_check|violates check constraint/i.test(msg)) {
+          return reponse({ error: 'Le branchement ' + fc.libelle + ' ouvre très bientôt. En attendant, importe un fichier ci-dessous.' }, 503);
+        }
+        return reponse({ error: 'La caisse a refusé cette clé. Vérifie-la et réessaie. (' + msg.slice(0, 200) + ')' }, 400);
       }
       return reponse({ ok: true });
     }

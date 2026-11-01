@@ -80,7 +80,7 @@ curl -X POST "https://eqvbksxfwlgbcxgqljqn.supabase.co/functions/v1/import-expor
 - SumUp ne détaille les articles que pour les ventes encaissées avec le catalogue produits de l'app (pas en montant libre).
 - Un appel API par ticket : environ 300 à 600 appels par boulangerie et par nuit ; la synchro s'étale sur plusieurs passages pg_cron si besoin.
 - Seuls les paiements réussis sont comptés ; un remboursement après coup n'est pas déduit.
-- Le CSV est le seul format d'export lu (pas d'Excel `.xlsx`).
+- Formats d'export lus : CSV/TXT (UTF-8, Windows-1252, UTF-16) et Excel (toutes les feuilles).
 
 ## v2 (1er novembre 2026) : Zettle, Square, Hiboutik, historique 12 mois
 
@@ -88,3 +88,18 @@ curl -X POST "https://eqvbksxfwlgbcxgqljqn.supabase.co/functions/v1/import-expor
 - Ouvrir le bouton d'une caisse OAuth = créer son app développeur, URI de redirection `https://eqvbksxfwlgbcxgqljqn.supabase.co/functions/v1/connecter-caisse`, puis ajouter dans Supabase > Edge Functions > Secrets : `ZETTLE_CLIENT_ID` / `ZETTLE_CLIENT_SECRET` (developer.zettle.com) ou `SQUARE_CLIENT_ID` / `SQUARE_CLIENT_SECRET` (developer.squareup.com). Aucun redéploiement nécessaire.
 - Hiboutik : rien à configurer, le commerçant colle ses accès.
 - Import de fichier (toute caisse) : fonction SQL `importer_historique_ventes`, appelée depuis Paramètres.
+
+## v4 (1er novembre 2026) : clé personnelle, sans compte développeur
+
+Le boulanger crée une clé dans son compte de caisse et la colle dans Ma caisse : SumUp (`sup_sk_…`), Zettle (clé API, flux assertion), Square (jeton personnel), Loyverse (jeton d'accès), Tactill (`sk_live_…`), Hiboutik. Détail et sources : `docs/connecteurs-caisse.md`.
+
+À déployer, dans cet ordre (rien n'est encore appliqué) :
+
+1. `migration-connecteurs-caisse-v4.sql` (idempotente) : Loyverse et Tactill dans la contrainte, droits resserrés sur les tables caisse.
+2. `supabase functions deploy connecter-caisse --no-verify-jwt`, idem `synchro-caisse` et `import-export-caisse` (lecture de fichier élargie : UTF-16, Excel multi-feuilles, tableaux croisés…).
+3. Vérifier que le secret `CLE_CHIFFREMENT_CAISSE` existe (sinon l'action `connecter_cle` répond 503).
+4. Facultatif : relais e-mail gratuit `import-export-caisse/relais-gmail.gs` (Gmail + Apps Script, remplace Postmark), secret `ADRESSE_IMPORT` = l'adresse Gmail.
+
+Dégradation : tant que la fonction n'est pas redéployée, la page n'affiche que Hiboutik en clé et « bientôt » pour les autres ; tant que la migration manque, Loyverse et Tactill répondent « bientôt ».
+
+Tests : `node --test tests/caisse.test.mjs` (réponses d'API simulées d'après les docs officielles, exports de caisses, relais Gmail) et `tests/caisse-migration.test.mjs` (v1 à v4, deux passages, droits).

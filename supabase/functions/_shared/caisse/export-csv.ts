@@ -12,3 +12,6 @@ export var lireCsv: (texte: string) => string[][] = Lecture.lireCsv;
 export var lireDate: (valeur: unknown) => string | null = Lecture.lireDate;
 export var lignesDepuisTableau: (tableau: unknown[][], jourParDefaut: string) => Resultat = Lecture.lignesDepuisTableau;
 export var lignesDepuisExport: (texte: string, jourParDefaut: string) => Resultat = Lecture.lignesDepuisExport;
+export var lignesDepuisFeuilles: (feuilles: unknown[][][], jourParDefaut: string) => Resultat = Lecture.lignesDepuisFeuilles;
+export var decoderOctets: (octets: Uint8Array) => string = Lecture.decoderOctets;
+export var lireQuantite: (valeur: unknown) => number = Lecture.lireQuantite;

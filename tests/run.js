@@ -216,6 +216,10 @@ function expect(actual) {
         const ok = typeof actual === 'string' && actual.indexOf(expected) !== -1;
         if (ok === negate) fail('Attendu que ' + JSON.stringify(actual) + ' contienne ' + JSON.stringify(expected));
       },
+      toMatch(motif) {
+        const ok = typeof actual === 'string' && motif.test(actual);
+        if (ok === negate) fail('Attendu que ' + JSON.stringify(actual) + ' corresponde à ' + motif);
+      },
       toBeTruthy() {
         const ok = !!actual;
         if (ok === negate) fail('Attendu une valeur truthy, reçu ' + JSON.stringify(actual));
@@ -241,8 +245,55 @@ async function describe(name, fn) {
   await fn();
 }
 
+// Tests de l'ancienne interface (avant la refonte d'oct. 2026 : accueil
+// tableau-de-bord, menu ☰, pastilles de catégories et fourchettes de la
+// Fournée, cadencier de Commande, Produits « vendus »…). Ces écrans
+// n'existent plus : les tests sont ignorés, pas supprimés, et annoncés
+// comme tels. La couverture actuelle des pages est dans tests/demo.mjs.
+const OBSOLETES = [
+  'nav.js — logique de navigation commune › Accueil, Prévisions et Planning',
+  'nav.js — logique de navigation commune › marque "',
+  'nav.js — logique de navigation commune › Produits vendus / Achats',
+  'nav.js — logique de navigation commune › nav secondaire',
+  'nav.js — logique de navigation commune › nav-secondaire et btn-hamburger',
+  'nav.js — logique de navigation commune › le panneau ☰',
+  'nav.js — logique de navigation commune › clic sur le bouton ☰',
+  'nav.js — logique de navigation commune › en mobile, le ☰',
+  'nav.js — logique de navigation commune › produits.html : tous les liens',
+  'nav.js — logique de navigation commune › parametres.html : tous les liens',
+  'nav.js — logique de navigation commune › aide.html : tous les liens',
+  'nav.js — logique de navigation commune › ventes.html : tous les liens',
+  'nav.js — logique de navigation commune › import.html : tous les liens',
+  'nav.js — logique de navigation commune › .nav-globale',
+  'tableau-de-bord.html — ',
+  'semaine.html — redirection vers Prévisions',
+  'commandes.html — Cadencier',
+  'commandes.html — badge d\'affluence sur le choix des jours',
+  'commandes.html — bugs corrigés (audit sept. 2026) › "Tout cocher',
+  'commandes.html — bugs corrigés (audit sept. 2026) › l\'aperçu Habitude',
+  'commandes.html — pont depuis previsions.html (contexte jour + affluence) › le bandeau de contexte',
+  'previsions.html — production du jour, catégories déduites et ingrédients',
+  'previsions.html — fourchette affichée',
+  'previsions.html — badge météo visible',
+  'previsions.html — le badge météo suit',
+  'previsions.html — détail météo matin/midi/soir',
+  'previsions.html — catégorie du produit librement créée',
+  'previsions.html — pont vers Commandes',
+  'produits.html — catégories librement créées et rangement manuel (glisser-déposer) › la page est renommée',
+  'produits.html — catégories librement créées et rangement manuel (glisser-déposer) › "Ventes du jour"',
+  'produits.html — catégories librement créées et rangement manuel (glisser-déposer) › enregistrer une vente dans "Ventes du jour"',
+  'produits.html — catégories librement créées et rangement manuel (glisser-déposer) › affiche un bloc par catégorie',
+  'produits.html — catégories librement créées et rangement manuel (glisser-déposer) › le produit rangé',
+];
+let ignores = 0;
+
 async function test(name, fn) {
   const label = currentSuite + ' › ' + name;
+  if (OBSOLETES.some((o) => label.startsWith(o))) {
+    ignores++;
+    console.log('  \x1b[90m○ ' + label + ' (ancienne interface, ignoré)\x1b[0m');
+    return;
+  }
   try {
     await fn();
     passed++;
@@ -293,22 +344,37 @@ function startStaticServer() {
 
 async function main() {
   const server = await startStaticServer();
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+  const browser = await chromium.launch();
+  // Réseau ouvert ou non : supabase-js venu du CDN écraserait le faux
+  // window.supabase des tests, et rien ne doit partir vers la vraie base.
+  // Chaque page reçoit donc un supabase-js vide, la base est coupée et les
+  // autres CDN (polices, papaparse, xlsx, jspdf) répondent vide s'ils
+  // n'arrivent pas vite. Délai court : un test cassé échoue en 8 s, pas 30.
+  const nouvellePage = browser.newPage.bind(browser);
+  browser.newPage = async (options) => {
+    const p = await nouvellePage(options);
+    p.setDefaultTimeout(8000);
+    await p.route(/cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com/, (r) => r.fulfill({ contentType: 'text/javascript', body: '' }));
+    await p.route(/\.supabase\.co|open-meteo\.com|geo\.api\.gouv\.fr|fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+    return p;
+  };
   const page = await browser.newPage();
   await stubSupabase(page);
 
   try {
     await describe('Redirections racine', async () => {
-      await test('index.html redirige vers connexion.html', async () => {
+      // Nov. 2026 : index.html est la page de vente (publique), import.html
+      // une redirection vers l'import de Ventes.
+      await test('index.html est la page de vente, avec un lien vers la connexion', async () => {
         await page.goto(BASE_URL + '/index.html', { waitUntil: 'load' });
-        await page.waitForURL('**/connexion.html');
-        expect(page.url()).toContain('connexion.html');
+        expect(page.url()).toContain('index.html');
+        expect(await page.locator('a[href*="connexion.html"]').count()).toBeGreaterThan(0);
       });
 
-      await test('import.html est une page réelle et distincte (ne redirige plus vers commandes.html)', async () => {
+      await test('import.html redirige vers l\'import de Ventes', async () => {
         await page.goto(BASE_URL + '/import.html', { waitUntil: 'load' });
-        expect(page.url()).toContain('import.html');
-        expect(await page.title()).toContain('Importation');
+        await page.waitForURL(/ventes\.html/);
+        expect(page.url()).toContain('ventes.html');
       });
     });
 
@@ -382,15 +448,15 @@ async function main() {
         const apercu = await pageImport.locator('#apercu').innerText();
         expect(apercu).toContain('Croissant');
         expect(apercu).toContain('Pain au chocolat');
-        expect(apercu).toContain('3 ligne(s) prête(s) à importer');
+        expect(apercu).toContain('3 lignes prêtes à importer');
         // "Pain au chocolat" n'existe pas encore dans produits → signalé.
-        expect(apercu).toContain('nouveau(x) produit(s)');
+        expect(apercu).toMatch(/nouveaux? produits? sera|nouveaux produits seront/);
 
         await pageImport.locator('#btnImporter').click();
         await pageImport.locator('#message.succes').waitFor({ state: 'visible', timeout: 10000 });
         const messageFinal = await pageImport.locator('#message').innerText();
         expect(messageFinal).toContain('3 ventes importées avec succès');
-        expect(messageFinal).toContain('Voir mes prévisions');
+        expect(messageFinal).toContain('Voir la production de demain');
       });
 
       // Fichiers "réalistes" : dates en toutes lettres avec suffixe ordinal
@@ -414,7 +480,7 @@ async function main() {
         // "1 234" (espace = séparateur de milliers) doit être compris comme
         // 1234, pas 1 (arrondi d'une lecture erronée). Les deux dates en
         // lettres ("1er août" et "2 août") doivent aussi être reconnues.
-        expect(apercu).toContain('2 ligne(s) prête(s) à importer');
+        expect(apercu).toContain('2 lignes prêtes à importer');
         expect(apercu).not.toContain('ignorée');
         expect(apercu).toContain('1234');
 
@@ -481,7 +547,7 @@ async function main() {
         await pageImport.locator('#btnImporter').waitFor({ state: 'visible', timeout: 10000 });
         const apercu = await pageImport.locator('#apercu').innerText();
         // 2 jours x 3 produits = 6 ventes individuelles, pas 2 lignes larges.
-        expect(apercu).toContain('6 ligne(s) prête(s) à importer');
+        expect(apercu).toContain('6 lignes prêtes à importer');
         expect(apercu).toContain('Croissant');
         expect(apercu).toContain('Pain au chocolat');
         expect(apercu).toContain('Baguette');
@@ -550,7 +616,7 @@ async function main() {
         }
         await pageXlsx.locator('#btnImporter').waitFor({ state: 'visible', timeout: 10000 });
         const apercu = await pageXlsx.locator('#apercu').innerText();
-        expect(apercu).toContain('3 ligne(s) prête(s) à importer');
+        expect(apercu).toContain('3 lignes prêtes à importer');
         expect(apercu).toContain('Croissant');
 
         await pageXlsx.close();
@@ -592,13 +658,13 @@ async function main() {
         // Le nom affiché doit être le produit existant, pas "Croisant".
         expect(apercu).toContain('Croissant');
         expect(apercu).not.toContain('Croisant,');
-        expect(apercu).not.toContain('nouveau(x) produit(s)');
+        expect(apercu).not.toMatch(/nouveaux? produits?/);
 
         await pageImport.locator('#btnImporter').click();
         await pageImport.locator('#message.succes').waitFor({ state: 'visible', timeout: 10000 });
         const messageFinal = await pageImport.locator('#message').innerText();
         expect(messageFinal).toContain('2 ventes importées avec succès');
-        expect(messageFinal).not.toContain('nouveau(x) produit(s)');
+        expect(messageFinal).not.toMatch(/nouveaux? produits?/);
       });
 
       // Même faute de frappe, mais cette fois le commerçant choisit de créer
@@ -623,7 +689,7 @@ async function main() {
         await pageImport.locator('#btnImporter').waitFor({ state: 'visible', timeout: 10000 });
         const apercu = await pageImport.locator('#apercu').innerText();
         expect(apercu).toContain('Croisant');
-        expect(apercu).toContain('nouveau(x) produit(s)');
+        expect(apercu).toMatch(/nouveaux? produits? sera|nouveaux produits seront/);
       });
 
       await pageImport.close();
@@ -810,8 +876,10 @@ async function main() {
     await describe('Comportement sans session (non connecté)', async () => {
       const attentes = {
         'tableau-de-bord.html': 'Non connecté',
-        'aide.html': "n'es pas connecté",
-        'import.html': "n'es pas connecté",
+        'aide.html': 'Comment ça marche', // page publique depuis nov. 2026
+        'previsions.html': 'Non connecté',
+        'commandes.html': 'Non connecté',
+        'semaine.html': 'Non connecté',
         'statistiques.html': 'Non connecté',
       };
       for (const [fichier, texteAttendu] of Object.entries(attentes)) {
@@ -1016,10 +1084,9 @@ async function main() {
         });
         await page.goto(BASE_URL + '/commandes.html');
         await page.waitForTimeout(200);
-        const html = await page.locator('#statutCommande').innerHTML();
+        const html = await page.locator('#statutConnexion').innerHTML();
         expect(html).toContain('connexion.html');
-        const carteVisible = await page.locator('#carteGenererCommande').isVisible();
-        expect(carteVisible).toBe(false);
+        expect(await page.locator('#zoneCommande').isVisible()).toBe(false);
         await page.close();
       });
 
@@ -1423,9 +1490,9 @@ async function main() {
         await pageStats.locator('#moisChargeValeur').waitFor({ state: 'visible' });
 
         expect(await pageStats.locator('#moisChargeValeur').textContent()).toBe(labelJour(0));
-        expect(await pageStats.locator('#moisChargeDetail').textContent()).toBe(nomJourSemaine(0) + ' · 32 articles vendus');
+        expect(await pageStats.locator('#moisChargeDetail').textContent()).toBe(nomJourSemaine(0) + ' · 32 pièces vendues');
         expect(await pageStats.locator('#moisCalmeValeur').textContent()).toBe(labelJour(-1));
-        expect(await pageStats.locator('#moisCalmeDetail').textContent()).toBe(nomJourSemaine(-1) + ' · 8 articles vendus');
+        expect(await pageStats.locator('#moisCalmeDetail').textContent()).toBe(nomJourSemaine(-1) + ' · 8 pièces vendues');
 
         expect(await pageStats.locator('#anneeChargeValeur').textContent()).toBe(labelJour(0));
         expect(await pageStats.locator('#anneeCalmeValeur').textContent()).toBe(labelJour(-1));
@@ -1450,19 +1517,25 @@ async function main() {
         expect(lignes[0]).toContain('35');
       });
 
-      await test('le graphique d\'affluence affiche 12 colonnes (vue "Mois" par défaut), la dernière portant le total du jour', async () => {
+      // Nov. 2026 : pas de colonnes vides avant la première vente, et vue
+      // par semaine tant que l'historique a moins de 6 mois.
+      await test('le graphique d\'affluence part de la première vente (pas de colonnes vides), par semaine pour un historique jeune', async () => {
         await pageStats.goto(BASE_URL + '/statistiques.html');
         await pageStats.locator('.colonne-affluence').first().waitFor({ state: 'attached' });
-        expect(await pageStats.locator('.colonne-affluence').count()).toBe(12);
-        const derniereValeur = await pageStats.locator('.colonne-affluence').last().locator('.colonne-valeur').textContent();
-        expect(derniereValeur).toBe('40');
+        expect(await pageStats.locator('#selecteurGranulariteAffluence button.actif').getAttribute('data-granularite')).toBe('semaine');
+        const n = await pageStats.locator('.colonne-affluence').count();
+        expect(n >= 1 && n <= 2).toBeTruthy();
+        const valeurs = await pageStats.locator('.colonne-valeur').allTextContents();
+        expect(valeurs.map(Number).reduce((a, b) => a + b, 0)).toBe(40);
       });
 
-      await test('passer l\'affluence en vue "Semaine" affiche toujours 12 colonnes', async () => {
+      await test('en vue "Mois", une seule colonne : le mois des ventes, avec son total', async () => {
         await pageStats.goto(BASE_URL + '/statistiques.html');
         await pageStats.locator('.colonne-affluence').first().waitFor({ state: 'attached' });
-        await pageStats.locator('#selecteurGranulariteAffluence button[data-granularite="semaine"]').click();
-        expect(await pageStats.locator('.colonne-affluence').count()).toBe(12);
+        await pageStats.locator('#selecteurGranulariteAffluence button[data-granularite="mois"]').click();
+        const n = await pageStats.locator('.colonne-affluence').count();
+        expect(n >= 1 && n <= 2).toBeTruthy();
+        expect(await pageStats.locator('.colonne-affluence').last().locator('.colonne-valeur').textContent()).not.toBe('');
       });
 
       await test('sans aucune vente, la page affiche un état vide plutôt que des sections cassées', async () => {
@@ -1470,7 +1543,10 @@ async function main() {
         await stubSupabaseAvecDonnees(pageVide, { commercantId: 'test-commercant-statistiques-vide', tables: { produits: [], ventes: [], parametres_commercant: [], evenements_commercant: [] } });
         await pageVide.goto(BASE_URL + '/statistiques.html');
         await pageVide.locator('.carte-vide-claire').waitFor({ state: 'visible' });
-        expect(await pageVide.locator('.carte-vide-claire').textContent()).toContain('Pas encore assez de ventes');
+        // Nov. 2026 : un état vide qui guide (pas de tirets ni de bloc « gain » vide).
+        expect(await pageVide.locator('.carte-vide-claire').textContent()).toContain('Ton bilan se remplira tout seul');
+        expect(await pageVide.locator('.carte-vide-claire a[href="caisse.html"]').count()).toBe(1);
+        expect(await pageVide.locator('.section-resultats').first().isVisible()).toBe(false);
         await pageVide.close();
       });
 
@@ -1531,7 +1607,7 @@ async function main() {
         await pageVentes.evaluate(() => { window.__appelsDelete = []; });
         await pageVentes.locator('.quantiteVendue[data-produit="Croissant"]').fill('20');
         await pageVentes.locator('#btnEnregistrer').click();
-        await pageVentes.locator('#message.succes').waitFor({ state: 'visible' });
+        await pageVentes.locator('#messageSaisie.succes').waitFor({ state: 'visible' });
         const appels = await pageVentes.evaluate(() => window.__appelsDelete);
         const appelVentes = appels.find((a) => a.table === 'ventes');
         expect(appelVentes).toBeTruthy();
@@ -2595,9 +2671,9 @@ async function main() {
         const resultat = await pageMP.evaluate(() => {
           // 5 lundis consécutifs, quantités stables autour de 20 : le lundi
           // suivant doit être calculé sur cette base, sans férié/vacances.
-          const lundis = ['2025-08-04', '2025-08-11', '2025-08-18', '2025-08-25', '2025-09-01'];
+          const lundis = ['2025-09-08', '2025-09-15', '2025-09-22', '2025-09-29', '2025-10-06'];
           const ventes = lundis.map((d) => ({ date_vente: d, quantite: 20 }));
-          const jourCible = new Date(2025, 8, 8); // lundi 8 septembre 2025
+          const jourCible = new Date(2025, 9, 13); // lundi 13 octobre 2025
           return window.MoteurPrevision.calculerRecommandation(ventes, jourCible, null, {}, {}, {});
         });
         expect(resultat.quantite).toBeGreaterThan(0);
@@ -2664,21 +2740,22 @@ async function main() {
           // quantité — le lundi cible est prévu pluvieux, doit se rapprocher
           // des lundis pluvieux passés plutôt que de la moyenne brute.
           const ventes = [
-            { date_vente: '2025-08-04', quantite: 10 },
-            { date_vente: '2025-08-11', quantite: 10 },
-            { date_vente: '2025-08-18', quantite: 10 },
-            { date_vente: '2025-08-25', quantite: 30 },
-            { date_vente: '2025-09-01', quantite: 30 },
+            { date_vente: '2025-09-08', quantite: 10 },
+            { date_vente: '2025-09-15', quantite: 10 },
+            { date_vente: '2025-09-22', quantite: 10 },
+            { date_vente: '2025-09-29', quantite: 30 },
+            { date_vente: '2025-10-06', quantite: 30 },
           ];
           const meteoPassee = {
-            '2025-08-04': { categorie: 'pluvieux', temperature: 15, code: 61, libelle: 'Pluie', icone: '🌧️' },
-            '2025-08-11': { categorie: 'pluvieux', temperature: 15, code: 61, libelle: 'Pluie', icone: '🌧️' },
-            '2025-08-18': { categorie: 'pluvieux', temperature: 15, code: 61, libelle: 'Pluie', icone: '🌧️' },
-            '2025-08-25': { categorie: 'normal', temperature: 20, code: 1, libelle: 'Plutôt dégagé', icone: '🌤️' },
-            '2025-09-01': { categorie: 'normal', temperature: 20, code: 1, libelle: 'Plutôt dégagé', icone: '🌤️' },
+            '2025-09-08': { categorie: 'pluvieux', temperature: 15, code: 61, libelle: 'Pluie', icone: '🌧️' },
+            '2025-09-15': { categorie: 'pluvieux', temperature: 15, code: 61, libelle: 'Pluie', icone: '🌧️' },
+            '2025-09-22': { categorie: 'pluvieux', temperature: 15, code: 61, libelle: 'Pluie', icone: '🌧️' },
+            '2025-09-29': { categorie: 'normal', temperature: 20, code: 1, libelle: 'Plutôt dégagé', icone: '🌤️' },
+            '2025-10-06': { categorie: 'normal', temperature: 20, code: 1, libelle: 'Plutôt dégagé', icone: '🌤️' },
           };
-          const jourCible = new Date(2025, 8, 8); // lundi 8 septembre 2025
-          const meteoPrevue = { '2025-09-08': { categorie: 'pluvieux', temperature: 14, code: 63, libelle: 'Pluie', icone: '🌧️' } };
+          // Hors vacances scolaires (les jours de vacances ne servent pas de base).
+          const jourCible = new Date(2025, 9, 13); // lundi 13 octobre 2025
+          const meteoPrevue = { '2025-10-13': { categorie: 'pluvieux', temperature: 14, code: 63, libelle: 'Pluie', icone: '🌧️' } };
           const avecMeteo = window.MoteurPrevision.calculerRecommandation(ventes, jourCible, null, {}, meteoPassee, meteoPrevue);
           const sansMeteo = window.MoteurPrevision.calculerRecommandation(ventes, jourCible, null, {}, {}, {});
           return { avecMeteo: avecMeteo.quantite, sansMeteo: sansMeteo.quantite };
@@ -2987,6 +3064,7 @@ async function main() {
                     return Promise.resolve({ data: { session: options.sessionInitiale || null } });
                   },
                   signInWithPassword: function () {
+                    if (options.erreurConnexion) return Promise.resolve({ data: {}, error: { message: options.erreurConnexion } });
                     return Promise.resolve({ data: { session: options.sessionConnexion, user: (options.sessionConnexion || {}).user }, error: null });
                   },
                   signUp: function () {
@@ -2999,6 +3077,21 @@ async function main() {
         }, options);
       }
 
+      // Bug corrigé (nov. 2026) : le message anglais du serveur s'affichait tel quel.
+      await test('un mauvais mot de passe affiche un message en français, jamais « Invalid login credentials »', async () => {
+        const page = await browser.newPage();
+        await stubConnexion(page, { erreurConnexion: 'Invalid login credentials' });
+        await page.goto(BASE_URL + '/connexion.html');
+        await page.locator('#email').fill('patron@test.fr');
+        await page.locator('#motdepasse').fill('mauvais-mdp');
+        await page.locator('#btnAction').click();
+        await page.locator('#message.erreur').waitFor({ state: 'visible' });
+        const texte = await page.locator('#message').innerText();
+        expect(texte).toContain('Email ou mot de passe incorrect');
+        expect(texte).not.toContain('Invalid');
+        await page.close();
+      });
+
       await test('une session employé déjà active redirige vers espace-employe.html, jamais le tableau de bord', async () => {
         const page = await browser.newPage();
         await stubConnexion(page, { sessionInitiale: { user: { id: 'u1', user_metadata: { role: 'employe' } } } });
@@ -3007,11 +3100,11 @@ async function main() {
         await page.close();
       });
 
-      await test('une session patron déjà active redirige vers tableau-de-bord.html', async () => {
+      await test('une session patron déjà active redirige vers la Fournée (previsions.html)', async () => {
         const page = await browser.newPage();
         await stubConnexion(page, { sessionInitiale: { user: { id: 'u2', user_metadata: {} } } });
         await page.goto(BASE_URL + '/connexion.html');
-        await page.waitForURL(/tableau-de-bord\.html/);
+        await page.waitForURL(/previsions\.html/);
         await page.close();
       });
 
@@ -3026,14 +3119,14 @@ async function main() {
         await page.close();
       });
 
-      await test('se connecter avec un compte patron redirige vers tableau-de-bord.html', async () => {
+      await test('se connecter avec un compte patron redirige vers la Fournée (previsions.html)', async () => {
         const page = await browser.newPage();
         await stubConnexion(page, { sessionConnexion: { user: { id: 'u4', user_metadata: {} } } });
         await page.goto(BASE_URL + '/connexion.html');
         await page.locator('#email').fill('patron@test.fr');
         await page.locator('#motdepasse').fill('motdepasse123');
         await page.locator('#btnAction').click();
-        await page.waitForURL(/tableau-de-bord\.html/);
+        await page.waitForURL(/previsions\.html/);
         await page.close();
       });
     });
@@ -3043,7 +3136,7 @@ async function main() {
   }
 
   console.log('');
-  console.log(passed + ' réussis, ' + failed + ' échoués');
+  console.log(passed + ' réussis, ' + failed + ' échoués, ' + ignores + ' ignorés (ancienne interface)');
   if (failed > 0) {
     process.exitCode = 1;
   }

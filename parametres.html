@@ -6,11 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Paramètres</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101m">
+  <link rel="stylesheet" href="style.css?v=20261101q">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="nav.js?v=20261031"></script>
+  <script src="erreurs.js?v=20261101"></script>
+  <script src="nav.js?v=20261101q"></script>
   <script src="boulangerie.js?v=20261101l"></script>
-  <script src="caisse-utilisee.js?v=20261101e"></script>
+  <script src="caisse-utilisee.js?v=20261101q"></script>
 </head>
 <body>
   <a class="lien-evitement" href="#contenu">Aller au contenu</a>
@@ -57,17 +58,17 @@
           <legend style="font-weight:500; font-size:var(--texte-sm); padding:0;">Jours de fermeture habituels</legend>
           <div class="grille-jours" id="grilleJoursFermeture"></div>
         </fieldset>
-        <p class="texte-aide">Les jours cochés ne seront jamais recommandés à la production, et ne compteront pas comme des jours "ratés" dans le calcul de fiabilité.</p>
+        <p class="texte-aide">Les jours cochés n'auront jamais de fournée prévue, et ne compteront pas comme des jours sans vente.</p>
 
         <label for="selectCaisse">Quelle caisse utilises-tu ?</label>
         <select id="selectCaisse"></select>
         <input type="text" id="autreCaisse" placeholder="Nom de ta caisse" aria-label="Nom de ta caisse" maxlength="60" hidden style="margin-top:8px;">
-        <p class="texte-aide" style="margin-top:4px;">Nous aide à brancher en priorité les caisses les plus utilisées.</p>
+        <p class="texte-aide" style="margin-top:4px;">Sert à te montrer le bon parcours de branchement, et à nous dire quelles caisses brancher ensuite.</p>
 
         <button id="btnEnregistrerCommerce" type="button">Enregistrer</button>
         <div id="messageCommerce" aria-live="polite"></div>
 
-        <p class="texte-aide" id="caisse" style="margin-top:14px;">Branchement de ta caisse, état et journal des réceptions : page <a href="caisse.html">Ma caisse</a>.</p>
+        <p class="texte-aide" id="caisse" style="margin-top:14px;">Brancher ta caisse, voir son état et le journal des réceptions : page <a href="caisse.html">Ma caisse</a>. SumUp, Zettle, Square, Loyverse, Tactill et Hiboutik se branchent avec une clé que tu crées toi-même dans ta caisse ; les autres caisses, par leur fichier d'export.</p>
 
         <!-- Plan v2 : Ventes et Produits quittent la navigation. Ils restent ici,
              en secours, pour qui n'a pas encore de caisse branchée. -->
@@ -120,7 +121,7 @@
         <button id="btnChangerMdp" type="button">Enregistrer</button>
         <div id="messageMdp" aria-live="polite"></div>
 
-        <p class="section-titre">Session</p>
+        <p class="section-titre">Déconnexion</p>
         <button id="btnDeconnexion" type="button" class="bouton-secondaire">Se déconnecter</button>
       </div>
       <p class="pied-page"><a href="cgu.html">Conditions générales d'utilisation</a></p>
@@ -350,7 +351,7 @@
         sbClient.from('parametres_commercant').upsert(payloadCommerce).then(function (res) {
           btnEnregistrerCommerceEl.disabled = false;
           if (res.error) {
-            afficherMessage(messageCommerceEl, "Erreur : " + res.error.message, true);
+            afficherMessage(messageCommerceEl, window.messageErreur(res.error), true);
             return;
           }
           adresseChargee = { codePostal: cp || '', ville: nouvelleVille || '' };
@@ -382,7 +383,7 @@
         sbClient.auth.updateUser({ email: nouvelEmail }).then(function (res) {
           btnChangerEmailEl.disabled = false;
           if (res.error) {
-            afficherMessage(messageEmailEl, "Erreur : " + res.error.message, true);
+            afficherMessage(messageEmailEl, window.messageErreur(res.error), true);
             return;
           }
           afficherMessage(messageEmailEl, "Vérifie ta boîte mail (ancienne et nouvelle adresse) pour confirmer le changement.", false);
@@ -410,7 +411,7 @@
         sbClient.auth.updateUser({ password: nouveauMdp }).then(function (res) {
           btnChangerMdpEl.disabled = false;
           if (res.error) {
-            afficherMessage(messageMdpEl, "Erreur : " + res.error.message, true);
+            afficherMessage(messageMdpEl, window.messageErreur(res.error), true);
             return;
           }
           afficherMessage(messageMdpEl, "Mot de passe mis à jour.", false);

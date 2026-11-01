@@ -4,7 +4,8 @@
 // +<jeton>, voir connecter-caisse) ; le service d'e-mail entrant
 // (Postmark Inbound) transmet l'e-mail ici en JSON.
 //
-// Format attendu : webhook Postmark Inbound
+// Format attendu : webhook Postmark Inbound, ou le relais Gmail gratuit
+// (relais-gmail.gs, même format JSON)
 //   { MailboxHash: '<jeton>', Attachments: [{ Name, ContentType, Content (base64) }] }
 // MailboxHash est la partie après le « + » de l'adresse.
 //
@@ -19,7 +20,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { agregerLignes, ajouterJours, jourParis } from '../_shared/caisse/commun.ts';
 import { journaliser } from '../_shared/caisse/synchroniser.ts';
-import { lignesDepuisExport, lignesDepuisTableau } from '../_shared/caisse/export-csv.ts';
+import { decoderOctets, lignesDepuisExport, lignesDepuisFeuilles } from '../_shared/caisse/export-csv.ts';
 import * as XLSX from 'npm:xlsx@0.18.5';
 
 function octetsBase64(base64: string): Uint8Array {
@@ -29,20 +30,17 @@ function octetsBase64(base64: string): Uint8Array {
   return octets;
 }
 
-// Excel (.xlsx, .xls) : première feuille, lue comme un tableau.
-function tableauExcel(base64: string): unknown[][] {
+// Excel (.xlsx, .xls) : toutes les feuilles, la première qui contient des ventes est lue.
+function feuillesExcel(base64: string): unknown[][][] {
   var classeur = XLSX.read(octetsBase64(base64), { type: 'array' });
-  return XLSX.utils.sheet_to_json(classeur.Sheets[classeur.SheetNames[0]], { header: 1, raw: true }) as unknown[][];
+  return classeur.SheetNames.map(function (nom: string) {
+    return XLSX.utils.sheet_to_json(classeur.Sheets[nom], { header: 1, raw: true }) as unknown[][];
+  });
 }
 
+// UTF-8, Windows-1252 ou UTF-16 : voir lecture-export.js.
 function decoderPieceJointe(base64: string): string {
-  var octets = octetsBase64(base64);
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(octets);
-  } catch (_e) {
-    // Beaucoup de caisses françaises exportent encore en Windows-1252.
-    return new TextDecoder('windows-1252').decode(octets);
-  }
+  return decoderOctets(octetsBase64(base64));
 }
 
 // Export envoyé le matin : ventes de la veille. L'après-midi ou le soir
@@ -77,7 +75,7 @@ Deno.serve(async (req) => {
     var lu;
     try {
       lu = estExcel
-        ? lignesDepuisTableau(tableauExcel(pj.Content), jourParDefaut(new Date()))
+        ? lignesDepuisFeuilles(feuillesExcel(pj.Content), jourParDefaut(new Date()))
         : lignesDepuisExport(decoderPieceJointe(pj.Content), jourParDefaut(new Date()));
     } catch (e) {
       erreurs.push(pj.Name + ' : fichier illisible');

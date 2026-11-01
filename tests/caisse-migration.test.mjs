@@ -60,4 +60,18 @@ assert.equal((await q(`select has_function_privilege('service_role', 'enregistre
 const rls = await q(`select relname, relrowsecurity from pg_class where relname in ('connexions_caisse','connexions_caisse_secrets','etats_oauth_caisse')`);
 assert.ok(rls.every(r => r.relrowsecurity));
 assert.equal((await q(`select count(*)::int n from pg_policies where tablename in ('connexions_caisse_secrets','etats_oauth_caisse')`))[0].n, 0);
+
+// v2 à v4 par-dessus, deux fois (idempotence) : clé personnelle Loyverse / Tactill acceptée.
+for (let passage = 0; passage < 2; passage++) {
+  for (const f of ['v2', 'v3', 'v4']) await db.exec(fs.readFileSync(new URL(`../migration-connecteurs-caisse-${f}.sql`, import.meta.url), 'utf8'));
+}
+await q(`insert into connexions_caisse (commercant_id, fournisseur) values ($1, 'loyverse'), ($1, 'tactill')`, [C]);
+await assert.rejects(q(`insert into connexions_caisse (commercant_id, fournisseur) values ($1, 'inconnue')`, [C]));
+for (const role of ['anon', 'authenticated']) {
+  for (const [table, droit] of [['connexions_caisse_secrets', 'select'], ['connexions_caisse_secrets', 'insert'], ['etats_oauth_caisse', 'select'], ['connexions_caisse', 'insert'], ['connexions_caisse', 'update'], ['journal_caisse', 'insert']]) {
+    assert.equal((await q(`select has_table_privilege('${role}', '${table}', '${droit}') ok`))[0].ok, false, role + ' ' + droit + ' ' + table);
+  }
+}
+assert.equal((await q(`select has_table_privilege('authenticated', 'connexions_caisse', 'select') ok`))[0].ok, true);
+assert.equal((await q(`select count(*)::int n from pg_policies where tablename = 'connexions_caisse_secrets' or (tablename in ('connexions_caisse','journal_caisse') and cmd <> 'SELECT')`))[0].n, 0);
 console.log('migration OK');

@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Semaine</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101m">
+  <link rel="stylesheet" href="style.css?v=20261101q">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261101l"></script>
+  <script src="moteur-prevision.js?v=20261101q"></script>
   <script src="boulangerie.js?v=20261101l"></script>
   <script src="contexte.js?v=20261101l"></script>
-  <script src="nav.js?v=20261031"></script>
+  <script src="nav.js?v=20261101q"></script>
 </head>
 <body>
   <a class="lien-evitement" href="#contenu">Aller au contenu</a>
@@ -30,7 +30,7 @@
     <div class="entete-page">
       <div>
         <h1>Les 7 jours qui viennent</h1>
-        <p class="texte-aide" style="margin:0;">L'affluence attendue, ses raisons, et ce qu'il faudra produire.</p>
+        <p class="texte-aide" style="margin:0;">L'affluence attendue, ses raisons, et ce qu'il faudra produire. <strong>Estimé</strong> d'après tes ventes passées, comme la Fournée.</p>
       </div>
     </div>
     <p id="statutConnexion" class="texte-aide">Chargement…</p>
@@ -65,7 +65,12 @@
       // des mêmes jours ordinaires passés, avec la même marge de production.
       function volumeNormal(numeroJour) {
         var totaux = {};
-        ctx.ventes.forEach(function (v) { totaux[v.date_vente] = (totaux[v.date_vente] || 0) + v.quantite; });
+        // Mêmes produits que les totaux affichés : seulement ce qui passe au four
+        // (sinon les cafés gonflaient le « normal » et chaque jour semblait calme).
+        ctx.ventes.forEach(function (v) {
+          if (!C.estCuitPour(ctx, MP.formatNomAffichage(v.nom_produit))) return;
+          totaux[v.date_vente] = (totaux[v.date_vente] || 0) + v.quantite;
+        });
         var base = Object.keys(totaux).sort().filter(function (iso) {
           var d = new Date(iso + 'T00:00:00');
           return d.getDay() === numeroJour && MP.estJourOrdinaire(d, ctx.zoneVacances);
@@ -76,7 +81,9 @@
 
       function afficher() {
         var jours = [];
-        for (var i = 0; i < 7; i++) jours.push(MP.ajouterJours(new Date(), i));
+        // Comme la Fournée : après midi, la journée en cours est faite, on part de demain.
+        var depart = new Date().getHours() >= 12 ? 1 : 0;
+        for (var i = depart; i < depart + 7; i++) jours.push(MP.ajouterJours(new Date(), i));
         var colonnes = jours.map(function (d) {
           var ferme = ctx.joursFermeture.indexOf(d.getDay()) !== -1;
           var prev = ferme ? [] : C.prevoirJour(ctx, d);
@@ -96,17 +103,17 @@
           else if (c.raisons.length) {
             var r = c.raisons[0];
             var effet = MP.libelleEffet(r.ratio);
-            raison = r.icone + ' ' + echapper(r.libelle) + (effet ? ' ' + effet : '');
+            raison = echapper(r.libelle) + (effet ? ' ' + effet : ' : effet pas encore connu, compté comme un jour normal');
           } else if (c.ratio !== null && Math.abs(c.ratio - 1) >= 0.08) {
             // L'écart est chiffré, pour qu'un changement d'un jour à l'autre s'explique.
             var ecartPct = Math.round((c.ratio - 1) * 100);
-            raison = (c.ratio > 1 ? 'Plus chargé' : 'Plus calme') + ' : ' + (ecartPct > 0 ? '+' : '−') + Math.abs(ecartPct) + ' % vs tes ' + MP.nomsJours[c.date.getDay()] + 's habituels';
+            raison = (c.ratio > 1 ? 'Plus chargé' : 'Plus calme') + ' : ' + (ecartPct > 0 ? '+' : '−') + Math.abs(ecartPct) + ' % par rapport à tes ' + MP.nomsJours[c.date.getDay()] + 's habituels';
           } else raison = 'Jour habituel';
           var classe = c.ferme ? ' affluence-jour--ferme' : (c.ratio !== null && c.ratio >= 1.08 ? ' affluence-jour--charge' : '');
           return '<li class="affluence-jour' + classe + '">' +
             '<span class="affluence-barre" aria-hidden="true"><span style="--part:' + (c.ferme ? 0 : Math.max(6, c.total / max * 100)) + '%"></span></span>' +
             '<span class="affluence-nom">' + nomJour + ' ' + c.date.getDate() + '</span>' +
-            '<span class="affluence-total">' + (c.ferme ? '–' : c.total + ' pièces') + '</span>' +
+            '<span class="affluence-total">' + (c.ferme ? '–' : c.total.toLocaleString('fr-FR') + ' pièces') + '</span>' +
             '<span class="affluence-raison">' + raison + '</span></li>';
         }).join('');
 
@@ -127,14 +134,14 @@
               if (!p || p.r.insuffisant) return '<td title="Pas assez d\'historique">–</td>';
               var q = p.r.quantite;
               somme += q;
-              return '<td>' + q + '</td>';
+              return '<td>' + q.toLocaleString('fr-FR') + '</td>';
             }).join('');
             var aUnChiffre = ouverts.some(function (c) { var p = c.prev.filter(function (x) { return x.nom === nom; })[0]; return p && !p.r.insuffisant; });
-            return '<tr><th scope="row">' + echapper(nom) + '</th>' + cellules + '<td class="tableau-semaine-total">' + (aUnChiffre ? somme : '–') + '</td></tr>';
+            return '<tr><th scope="row">' + echapper(nom) + '</th>' + cellules + '<td class="tableau-semaine-total">' + (aUnChiffre ? somme.toLocaleString('fr-FR') : '–') + '</td></tr>';
           }).join('');
         }).join('');
         var totalSemaine = ouverts.reduce(function (s, c) { return s + c.total; }, 0);
-        var pied = '<tfoot><tr><th scope="row">Total</th>' + ouverts.map(function (c) { return '<td>' + c.total + '</td>'; }).join('') + '<td class="tableau-semaine-total">' + totalSemaine + '</td></tr></tfoot>';
+        var pied = '<tfoot><tr><th scope="row">Total</th>' + ouverts.map(function (c) { return '<td>' + c.total.toLocaleString('fr-FR') + '</td>'; }).join('') + '<td class="tableau-semaine-total">' + totalSemaine.toLocaleString('fr-FR') + '</td></tr></tfoot>';
         document.getElementById('tableauSemaine').innerHTML = entete + '<tbody>' + corps + '</tbody>' + pied;
       }
 
@@ -142,7 +149,7 @@
         ctx = c;
         statutDiv.textContent = '';
         if (ctx.ventes.length === 0) {
-          statutDiv.innerHTML = 'Pas encore de ventes : la semaine se remplira dès que ta caisse ou tes premières ventes seront là.';
+          statutDiv.innerHTML = 'Pas encore de ventes : la semaine se remplira dès que ta caisse ou tes premières ventes seront là. <a href="caisse.html">Brancher ma caisse →</a>';
           return;
         }
         document.getElementById('zoneSemaine').hidden = false;

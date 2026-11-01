@@ -8,12 +8,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Ventes</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101m">
+  <link rel="stylesheet" href="style.css?v=20261101q">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="erreurs.js?v=20261101"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="moteur-prevision.js?v=20261101l"></script>
-  <script src="nav.js?v=20261031"></script>
+  <script src="moteur-prevision.js?v=20261101q"></script>
+  <script src="nav.js?v=20261101q"></script>
   <style>
     .detail-colonne { font-size: 12px; margin: 4px 0 12px; min-height: 1em; }
     .detail-colonne.ok { color: var(--succes-texte); }
@@ -61,8 +62,8 @@
          Tant qu'aucune caisse n'est branchée, on l'indique et on renvoie vers Paramètres. -->
     <div class="etat-synchro" id="etatSynchroCaisse" aria-live="polite">
       <span class="etat-synchro-point" aria-hidden="true"></span>
-      <p class="etat-synchro-texte"><strong>Caisse non connectée.</strong> Bientôt, tes ventes arriveront seules chaque nuit.</p>
-      <a href="caisse.html" class="lien-discret">En savoir plus</a>
+      <p class="etat-synchro-texte" id="texteEtatCaisse">&nbsp;</p>
+      <a href="caisse.html" class="lien-discret" id="lienEtatCaisse">Ma caisse</a>
     </div>
 
     <section class="carte-page" aria-labelledby="titreSaisie">
@@ -103,7 +104,7 @@
 
         <div class="zone-upload">
           <p class="section-titre" style="margin-top:0;">Sélectionne ton fichier</p>
-          <input type="file" id="fichierImport" accept=".csv,.xlsx,.xls" aria-label="Fichier de ventes à importer (CSV ou Excel)">
+          <label class="choix-fichier"><input type="file" id="fichierImport" accept=".csv,.xlsx,.xls" aria-label="Fichier de ventes à importer (CSV ou Excel)"><span class="bouton-secondaire">Choisir le fichier</span> <span class="nom-fichier" data-nom-fichier>Aucun fichier choisi</span></label>
         </div>
 
         <div id="zoneChoixFeuille" style="display:none;" class="zone-mapping">
@@ -314,6 +315,20 @@
         if (session) {
           commercantId = session.user.id;
           statutDiv.textContent = '';
+          // Même état de caisse que la page Ma caisse (table connexions_caisse).
+          sbClient.from('connexions_caisse').select('fournisseur, statut, derniere_synchro').eq('commercant_id', commercantId).then(function (r) {
+            var noms = { sumup: 'SumUp', zettle: 'Zettle', square: 'Square', loyverse: 'Loyverse', tactill: 'Tactill', hiboutik: 'Hiboutik', export_email: 'par e-mail' };
+            var active = ((r && r.data) || []).filter(function (c) { return c.statut === 'active' && (c.fournisseur !== 'export_email' || c.derniere_synchro); })[0];
+            var texte = document.getElementById('texteEtatCaisse'), lien = document.getElementById('lienEtatCaisse');
+            document.getElementById('etatSynchroCaisse').classList.toggle('etat-synchro--ok', !!active);
+            if (active) {
+              texte.innerHTML = '<strong>Caisse ' + (noms[active.fournisseur] || '') + ' branchée.</strong> Tes ventes arrivent seules chaque nuit ; ici, tu peux corriger une journée.';
+              lien.textContent = 'Ma caisse';
+            } else {
+              texte.innerHTML = '<strong>Caisse pas encore branchée.</strong> Branche-la pour que tes ventes arrivent seules, ou saisis-les ici.';
+              lien.textContent = 'Brancher ma caisse';
+            }
+          }, function () {});
 
           sbClient.from('produits').select('*').eq('commercant_id', commercantId).then(function (result) {
             // Une seule ligne par produit, même si « Croissant » et
@@ -374,7 +389,7 @@
             messageDiv.style.display = 'block';
             if (result.error) {
               messageDiv.className = 'message erreur';
-              messageDiv.textContent = "Erreur : " + result.error.message;
+              messageDiv.textContent = "Ventes non enregistrées : vérifie ta connexion à internet et réessaie.";
             } else {
               messageDiv.className = 'message succes';
               messageDiv.textContent = "Ventes enregistrées !";
@@ -816,7 +831,7 @@
           }
         });
         if (noms.length === 0) return '';
-        return '<p class="note-produits-auto">' + noms.length + ' nouveau(x) produit(s) seront ajoutés automatiquement dans Produits : ' + noms.join(', ') + '.</p>';
+        return '<p class="note-produits-auto">' + noms.length + ' nouveau' + (noms.length > 1 ? 'x produits seront ajoutés' : ' produit sera ajouté') + ' automatiquement : ' + noms.join(', ') + '.</p>';
       }
 
       function parserDate(valeur) {
@@ -1118,7 +1133,7 @@
           el.textContent = '✓ ' + pct + '% des valeurs ressemblent à ' + libelleType + ' (ex. « ' + exempleValeur(colonne) + ' »).';
         } else {
           el.className = 'detail-colonne attention';
-          el.textContent = '⚠️ Cette colonne ne ressemble pas vraiment à ' + libelleType + ' (ex. « ' + exempleValeur(colonne) + ' »). Vérifie que c\'est la bonne.';
+          el.textContent = 'Attention : Cette colonne ne ressemble pas vraiment à ' + libelleType + ' (ex. « ' + exempleValeur(colonne) + ' »). Vérifie que c\'est la bonne.';
         }
       }
 
@@ -1142,7 +1157,7 @@
         if (toutBon) {
           banniereVerification.innerHTML = '<div class="banniere-verification ok">✓ Tout semble correct, tu peux continuer.</div>';
         } else if (auMoinsUnProbleme) {
-          banniereVerification.innerHTML = '<div class="banniere-verification attention">⚠️ Au moins une colonne ci-dessous ne correspond probablement pas. Regarde les détails avant de continuer.</div>';
+          banniereVerification.innerHTML = '<div class="banniere-verification attention">Attention : Au moins une colonne ci-dessous ne correspond probablement pas. Regarde les détails avant de continuer.</div>';
         } else {
           banniereVerification.innerHTML = '';
         }
@@ -1246,7 +1261,7 @@
         scores.forEach(function (s) {
           var option = document.createElement('option');
           option.value = s.nom;
-          option.textContent = s.nom + (s.lignes > 0 ? ' (' + s.lignes + ' ligne(s))' : ' (vide)');
+          option.textContent = s.nom + (s.lignes > 0 ? ' (' + s.lignes + ' ligne' + (s.lignes > 1 ? 's' : '') + ')' : ' (vide)');
           selectFeuille.appendChild(option);
         });
         zoneChoixFeuille.style.display = 'block';
@@ -1385,9 +1400,9 @@
         });
         tableau += '</table>';
 
-        var texteInfo = lignesAImporter.length + ' ligne(s) prête(s) à importer';
+        var texteInfo = lignesAImporter.length + (lignesAImporter.length > 1 ? ' lignes prêtes' : ' ligne prête') + ' à importer';
         if (lignesInvalides > 0) {
-          texteInfo += ' (' + lignesInvalides + ' ligne(s) ignorée(s) car incomplète(s) ou illisible(s))';
+          texteInfo += ' (' + lignesInvalides + (lignesInvalides > 1 ? ' lignes ignorées car incomplètes ou illisibles)' : ' ligne ignorée car incomplète ou illisible)');
         }
 
         apercuDiv.innerHTML = '<div class="info" style="padding:10px; border-radius:5px;">' + texteInfo + '</div>'
@@ -1420,7 +1435,7 @@
       // présenter un rapprochement incertain comme acquis.
       function afficherCorrespondancesFloues(suggestions, quandConfirme) {
         correspondancesEnAttente = {};
-        var html = '<div class="zone-correspondances"><p class="titre-correspondances">⚠️ Certains noms ressemblent à des produits déjà connus. Vérifie avant de continuer :</p>';
+        var html = '<div class="zone-correspondances"><p class="titre-correspondances">Attention : Certains noms ressemblent à des produits déjà connus. Vérifie avant de continuer :</p>';
         Object.keys(suggestions).forEach(function (nomImporte, index) {
           var nomExistant = suggestions[nomImporte];
           correspondancesEnAttente[nomImporte] = nomExistant; // "utiliser l'existant" par défaut, modifiable
@@ -1534,9 +1549,9 @@
         });
         tableau += '</table>';
 
-        var texteInfo = lignesFichesAImporter.length + ' ligne(s) prête(s) à importer';
+        var texteInfo = lignesFichesAImporter.length + (lignesFichesAImporter.length > 1 ? ' lignes prêtes' : ' ligne prête') + ' à importer';
         if (lignesInvalides > 0) {
-          texteInfo += ' (' + lignesInvalides + ' ligne(s) ignorée(s) car incomplète(s) ou illisible(s))';
+          texteInfo += ' (' + lignesInvalides + (lignesInvalides > 1 ? ' lignes ignorées car incomplètes ou illisibles)' : ' ligne ignorée car incomplète ou illisible)');
         }
 
         apercuDiv.innerHTML = '<div class="info" style="padding:10px; border-radius:5px;">' + texteInfo + '</div>'
@@ -1588,9 +1603,9 @@
         });
         tableau += '</table>';
 
-        var texteInfo = lignesPrixAImporter.length + ' ligne(s) prête(s) à importer';
+        var texteInfo = lignesPrixAImporter.length + (lignesPrixAImporter.length > 1 ? ' lignes prêtes' : ' ligne prête') + ' à importer';
         if (lignesInvalides > 0) {
-          texteInfo += ' (' + lignesInvalides + ' ligne(s) ignorée(s) car incomplète(s) ou illisible(s))';
+          texteInfo += ' (' + lignesInvalides + (lignesInvalides > 1 ? ' lignes ignorées car incomplètes ou illisibles)' : ' ligne ignorée car incomplète ou illisible)');
         }
 
         apercuDiv.innerHTML = '<div class="info" style="padding:10px; border-radius:5px;">' + texteInfo + '</div>' + tableau;
@@ -1641,12 +1656,12 @@
 
               if (result.error) {
                 messageDiv.className = 'erreur';
-                messageDiv.textContent = "Erreur : " + result.error.message;
+                messageDiv.textContent = window.messageErreur(result.error);
               } else {
                 messageDiv.className = 'succes';
                 var texte = lignesAImporter.length + " ventes importées avec succès !";
                 if (nouveauxProduits.length > 0) {
-                  texte += " " + nouveauxProduits.length + " nouveau(x) produit(s) ajouté(s) automatiquement dans Produits.";
+                  texte += " " + nouveauxProduits.length + (nouveauxProduits.length > 1 ? " nouveaux produits ajoutés" : " nouveau produit ajouté") + " automatiquement.";
                 }
                 messageDiv.innerHTML = texte + LIENS_APRES_IMPORT.ventes;
                 btnImporter.style.display = 'none';
@@ -1716,12 +1731,12 @@
 
               if (result.error) {
                 messageDiv.className = 'erreur';
-                messageDiv.textContent = "Erreur : " + result.error.message;
+                messageDiv.textContent = window.messageErreur(result.error);
               } else {
                 messageDiv.className = 'succes';
-                var texte = lignesIngredients.length + " ligne(s) de fiche technique importée(s) avec succès !";
+                var texte = lignesIngredients.length + (lignesIngredients.length > 1 ? " lignes de recettes importées !" : " ligne de recette importée !");
                 if (nouveauxProduits.length > 0) {
-                  texte += " " + nouveauxProduits.length + " nouveau(x) produit(s) ajouté(s) automatiquement dans Produits.";
+                  texte += " " + nouveauxProduits.length + (nouveauxProduits.length > 1 ? " nouveaux produits ajoutés" : " nouveau produit ajouté") + " automatiquement.";
                 }
                 messageDiv.innerHTML = texte + LIENS_APRES_IMPORT.fiches;
                 btnImporter.style.display = 'none';
@@ -1777,12 +1792,12 @@
             var erreur = resultats.find(function (r) { return r.error; });
             if (erreur) {
               messageDiv.className = 'erreur';
-              messageDiv.textContent = "Erreur : " + erreur.error.message;
+              messageDiv.textContent = window.messageErreur(erreur.error);
             } else {
               messageDiv.className = 'succes';
               var texte = misesAJour.length + " prix mis à jour avec succès !";
               if (nbIgnorees > 0) {
-                texte += " " + nbIgnorees + " ligne(s) ignorée(s) (ingrédient sans fiche technique correspondante).";
+                texte += " " + nbIgnorees + (nbIgnorees > 1 ? " lignes ignorées" : " ligne ignorée") + " (ingrédient sans recette correspondante).";
               }
               messageDiv.innerHTML = texte + LIENS_APRES_IMPORT.prix;
               btnImporter.style.display = 'none';

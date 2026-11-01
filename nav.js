@@ -60,7 +60,7 @@
     return LIENS_COMPTE.map(function (entree) {
       var actif = entree.href === courante || (entree.match || []).indexOf(courante) !== -1;
       return '<a href="' + entree.href + '"' + (actif ? ' class="actif" aria-current="page"' : '') + '>' + entree.label + '</a>';
-    }).join('') + '<hr><a href="cgu.html">Conditions d\'utilisation</a>';
+    }).join('') + '<hr><a href="cgu.html">Conditions d\'utilisation</a><a href="mentions-legales.html">Mentions légales</a><a href="confidentialite.html">Confidentialité</a>';
   }
 
   function activerMenuCompte(bouton, menu) {
@@ -103,6 +103,16 @@
 
     activerMenuCompte(compte.querySelector('.btn-compte'), compte.querySelector('.menu-compte'));
   }
+
+  // Champ fichier en français : le bouton natif (« Choose File ») est caché,
+  // un bouton « Choisir le fichier » et le nom du fichier le remplacent.
+  document.addEventListener('change', function (e) {
+    var champ = e.target;
+    if (!champ || champ.type !== 'file' || !champ.closest) return;
+    var cadre = champ.closest('.choix-fichier');
+    var nom = cadre && cadre.querySelector('[data-nom-fichier]');
+    if (nom) nom.textContent = champ.files && champ.files[0] ? champ.files[0].name : 'Aucun fichier choisi';
+  });
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initNav);

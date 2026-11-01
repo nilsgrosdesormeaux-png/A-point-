@@ -5,10 +5,14 @@
 // Convention du site : IIFE, ES5.
 (function () {
   var CAISSES = [
-    ['sumup', 'SumUp'], ['zettle', 'Zettle'], ['bimedia', 'Bimedia'], ['lightspeed', 'Lightspeed'],
+    ['sumup', 'SumUp (terminal et appli SumUp)'], ['zettle', 'Zettle'], ['bimedia', 'Bimedia'], ['lightspeed', 'Lightspeed'],
     ['hiboutik', 'Hiboutik'], ['tactill', 'Tactill'], ['toporder', 'Toporder'], ['crisalid', 'Crisalid'],
-    ['square', 'Square'], ['autre', 'Autre'], ['aucune', 'Pas de caisse']
+    ['square', 'Square'], ['loyverse', 'Loyverse'], ['tiller', 'SumUp Caisse Pro, ex-Tiller'], ['zelty', 'Zelty'],
+    ['laddition', 'L\'Addition'], ['cashpad', 'Cashpad'], ['cashmag', 'Cashmag'],
+    ['autre', 'Autre'], ['aucune', 'Pas de caisse']
   ];
+  // Branchables par une clé que le commerçant crée lui-même (connecteur-caisse.js).
+  var AVEC_CLE = ['sumup', 'zettle', 'square', 'loyverse', 'tactill', 'hiboutik'];
 
   // Remplit <select id> et branche le champ texte « Autre » (#idAutre).
   function brancher(idSelect, idAutre, valeur) {
@@ -16,9 +20,10 @@
     var autre = document.getElementById(idAutre);
     if (!select) return;
     select.innerHTML = '<option value="">Choisir (facultatif)</option>' + CAISSES.map(function (c) {
-      // Honnête sur le branchement : Hiboutik se branche directement, les
-      // autres passent par un fichier exporté de la caisse.
-      var mode = c[0] === 'hiboutik' ? ' (branchable)' : (c[0] === 'autre' || c[0] === 'aucune' ? '' : ' (par import de fichier)');
+      // Honnête sur le branchement : les caisses à clé personnelle se
+      // branchent directement (sous réserve de mise en service, la page
+      // Ma caisse dit « bientôt » sinon), les autres passent par un fichier.
+      var mode = AVEC_CLE.indexOf(c[0]) !== -1 ? '' : (c[0] === 'autre' || c[0] === 'aucune' ? '' : ' (par fichier)');
       return '<option value="' + c[0] + '">' + c[1] + mode + '</option>';
     }).join('');
     function maj() { autre.hidden = select.value !== 'autre'; }

@@ -8,7 +8,7 @@ Tout ce qu'il faut pour présenter À Point à une boulangerie et la faire déma
 | [objections.md](objections.md) | Les 10 objections les plus probables et une réponse honnête à chacune | Avant le premier rendez-vous, à relire |
 | [fiche-a4.html](fiche-a4.html) | La fiche à laisser au comptoir. Ouvrir dans le navigateur, Imprimer, format A4, marges « aucune », graphiques d'arrière-plan cochés | À imprimer avant la tournée |
 | [pilote-1-mois.md](pilote-1-mois.md) | Le premier mois semaine par semaine, les critères de succès lus dans le Bilan, comment sonder le prix sans vendre | Le jour du « oui » |
-| [guide-comptes-caisse.md](guide-comptes-caisse.md) | Les comptes à créer par le fondateur pour ouvrir SumUp, Zettle, Square et l'import par e-mail | Une fois, avant la tournée |
+| [guide-comptes-caisse.md](guide-comptes-caisse.md) | La mise en service des caisses par clé personnelle (aucun compte du fondateur) et de l'import par e-mail gratuit | Une fois, avant la tournée |
 
 ## Pages publiques liées
 
@@ -19,7 +19,7 @@ Tout ce qu'il faut pour présenter À Point à une boulangerie et la faire déma
 ## Avant de s'en servir
 
 1. **Remplir l'identité** : chercher `[À COMPLÉTER` dans `mentions-legales.html` et `confidentialite.html`.
-2. **Mettre à jour l'état des caisses** sur la page de vente, l'Aide et la fiche A4 dès que SumUp, Zettle, Square ou l'import par e-mail ouvrent.
+2. **Mettre à jour l'état des caisses** sur la page de vente, l'Aide et la fiche A4 dès que la clé personnelle (SumUp, Zettle, Square, Loyverse, Tactill) ou l'import par e-mail sont mis en service, puis confirmés avec un premier boulanger.
 
 ## Règles de discours
 

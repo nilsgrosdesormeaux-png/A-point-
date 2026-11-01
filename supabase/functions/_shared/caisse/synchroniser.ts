@@ -9,7 +9,7 @@
 import { agregerLignes, ajouterJours, jourParis } from './commun.ts';
 import { chiffrer, dechiffrer } from './chiffrement.ts';
 import { type FetchFn, type Jetons, ErreurAutorisation } from './http.ts';
-import { FOURNISSEURS, identifiantsApp } from './fournisseurs.ts';
+import { FOURNISSEURS, identifiantsApp, jetonUtilisable } from './fournisseurs.ts';
 
 // Une ligne par réception dans journal_caisse (page « Ma caisse »). Le
 // journal ne doit jamais faire échouer une synchro : erreurs ignorées.
@@ -58,7 +58,8 @@ async function jetonValide(admin: any, connexion: any, env: Env, fetchFn: FetchF
     jetons = await f.rafraichir(fetchFn, app.clientId, app.clientSecret, jetons.refresh_token);
     await enregistrerJetons(admin, connexion.commercant_id, connexion.fournisseur, jetons, env.cleChiffrement);
   }
-  return jetons.access_token;
+  // Clé personnelle Zettle : échangée contre un jeton de 2 h à chaque passage.
+  return jetonUtilisable(connexion.fournisseur, fetchFn, jetons);
 }
 
 // Jour par jour : chaque jour importé est acquis (derniere_date_synchronisee

@@ -493,7 +493,8 @@
         cle: moment.cle,
         libelle: moment.libelle,
         temperature: (temperature !== null && temperature !== undefined) ? Math.round(temperature) : null,
-        icone: infos.icone
+        icone: infos.icone,
+        ciel: infos.libelle
       });
     });
     return moments.length > 0 ? moments : null;
@@ -841,6 +842,9 @@
     return {
       quantite: quantite,
       quantiteInstinct: quantiteInstinct,
+      // Vente habituelle (moyenne pondérée de la base, avant marge et signaux) :
+      // la référence affichée à côté du chiffre à enfourner.
+      venteHabituelle: Math.round(moyenne),
       nbJoursUtilises: baseVentes.length,
       memeJourSemaine: ventesMemeJour.length > 0,
       nomJourCible: nomJourCible,
@@ -1128,8 +1132,27 @@
   // Le boulanger choisit entre ses réponses et ses achats de farine
   // (reference_avant.choix) ; sans choix, les achats l'emportent sur les
   // réponses seulement s'il n'y a pas de réponses.
+  // Point de départ mesuré (lot 9) : pendant 14 jours à partir de
+  // parametres.observation_debut, le boulanger cuit comme d'habitude et coche
+  // sa fournée ; ses invendus réels de cette période deviennent le « avant ».
+  var JOURS_OBSERVATION = 14;
+  function referenceMesuree(parametres, fournees, ventes, aujourdhuiIso) {
+    var debut = parametres && parametres.observation_debut;
+    if (!debut) return null;
+    var fin = versISO(ajouterJours(new Date(debut + 'T00:00:00'), JOURS_OBSERVATION));
+    var m = calculerInvendusReels(fournees || [], ventes || [], debut, fin);
+    var finie = (aujourdhuiIso || versISO(new Date())) >= fin;
+    if (finie && m.nbJours >= 8 && m.cuit > 0) {
+      return { taux: m.invendus / m.cuit, nature: 'mesuré', libelle: 'mesuré sur tes 2 semaines d\'observation', debut: debut, fin: fin,
+        source: m.invendus.toLocaleString('fr-FR') + ' invendus sur ' + m.cuit.toLocaleString('fr-FR') + ' pièces cuites, du ' + debut.split('-').reverse().join('/') + ' au ' + versISO(ajouterJours(new Date(fin + 'T00:00:00'), -1)).split('-').reverse().join('/') };
+    }
+    return { enCours: !finie, nbJours: m.nbJours, debut: debut, fin: fin };
+  }
+
   function referenceAvant(parametres, fournees, ventes, aujourdhuiIso, farineVendue) {
     var rep = parametres && parametres.reference_avant;
+    var mesuree = referenceMesuree(parametres, fournees, ventes, aujourdhuiIso);
+    if (mesuree && mesuree.nature && !(rep && (rep.choix === 'achats' || rep.choix === 'reponses'))) return mesuree;
     var achats = referenceAchats(parametres, farineVendue);
     var reponses = rep && Number(rep.production) > 0 && rep.reste !== undefined && rep.reste !== null && rep.reste !== ''
       ? { taux: Math.min(1, Math.max(0, Number(rep.reste) / Number(rep.production))), nature: 'estimé', libelle: 'estimé d\'après tes réponses' } : null;
@@ -1259,6 +1282,7 @@
     calculerEcartUnites: calculerEcartUnites,
     calculerInvendusReels: calculerInvendusReels,
     referenceAvant: referenceAvant,
+    referenceMesuree: referenceMesuree,
     referenceAchats: referenceAchats,
     comparaisonUtile: comparaisonUtile,
     feteBoulangere: feteBoulangere,

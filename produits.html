@@ -9,11 +9,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Produits</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101m">
+  <link rel="stylesheet" href="style.css?v=20261101q">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261101l"></script>
+  <script src="erreurs.js?v=20261101"></script>
+  <script src="moteur-prevision.js?v=20261101q"></script>
   <script src="boulangerie.js?v=20261101l"></script>
-  <script src="nav.js?v=20261031"></script>
+  <script src="nav.js?v=20261101q"></script>
   <style>
     /* Ventes du jour : même style de navigation par jour que ventes.html
        et espace-employe.html. Retour utilisateur, 23 sept. 2026 : "je ne
@@ -344,7 +345,7 @@
             messageVentesEl.style.display = 'block';
             if (result.error) {
               messageVentesEl.className = 'erreur';
-              messageVentesEl.textContent = "Erreur : " + result.error.message;
+              messageVentesEl.textContent = window.messageErreur(result.error);
             } else {
               messageVentesEl.className = 'succes';
               messageVentesEl.textContent = "Ventes enregistrées !";
@@ -726,7 +727,7 @@
         if (brut !== '' && !isFinite(prix)) { msg.textContent = 'Prix invalide.'; return; }
         var produit = produitSelectionne;
         sbClient.from('produits').update({ prix_vente: prix }).eq('id', produit.id).then(function (r) {
-          if (r && r.error) { msg.textContent = 'Erreur : ' + r.error.message; return; }
+          if (r && r.error) { msg.textContent = window.messageErreur(r.error); return; }
           produit.prix_vente = prix;
           msg.textContent = 'Enregistré.';
         }, function () { msg.textContent = 'Impossible d\'enregistrer, vérifie ta connexion.'; });
@@ -775,7 +776,7 @@
 
           sbClient.from('produits').update({ nom: nouveauNom }).eq('id', produit.id).then(function (result) {
             if (result.error) {
-              messageRenommerDiv.innerHTML = '<p class="erreur" style="padding:8px 10px; border-radius:6px; margin:8px 0 0;">Erreur : ' + result.error.message + '</p>';
+              messageRenommerDiv.innerHTML = '<p class="erreur" style="padding:8px 10px; border-radius:6px; margin:8px 0 0;">' + window.messageErreur(result.error) + '</p>';
             } else {
               document.getElementById('zoneRenommerProduit').style.display = 'none';
               chargerProduits(function () {
@@ -900,7 +901,7 @@
             messageDiv.style.display = 'block';
             if (result.error) {
               messageDiv.className = 'erreur';
-              messageDiv.textContent = "Erreur : " + result.error.message;
+              messageDiv.textContent = window.messageErreur(result.error);
             } else {
               messageDiv.className = 'succes';
               messageDiv.textContent = "Produit ajouté !";
@@ -957,7 +958,7 @@
           cout_unitaire: cout
         }).then(function (result) {
           if (result.error) {
-            messageIngredientDiv.innerHTML = '<p class="erreur" style="padding:8px 10px; border-radius:6px; margin:8px 0 0;">Erreur : ' + result.error.message + '</p>';
+            messageIngredientDiv.innerHTML = '<p class="erreur" style="padding:8px 10px; border-radius:6px; margin:8px 0 0;">' + window.messageErreur(result.error) + '</p>';
           } else {
             document.getElementById('nomIngredient').value = '';
             document.getElementById('quantiteIngredient').value = '';

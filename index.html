@@ -11,7 +11,7 @@
   <meta property="og:description" content="La fournée de demain calculée sur vos propres ventes. Moins d'invendus, moins de ruptures, et les euros économisés affichés chaque mois.">
   <meta property="og:url" content="https://apointapp.fr/">
   <meta property="og:type" content="website">
-  <link rel="stylesheet" href="style.css?v=20261101m">
+  <link rel="stylesheet" href="style.css?v=20261101q">
   <link rel="stylesheet" href="vente.css?v=20261101a">
 </head>
 <body class="v">
@@ -52,14 +52,14 @@
       <div class="v-scene">
         <figure class="v-maquette" aria-label="Exemple de l'écran Fournée, avec des données fictives" style="margin:0 auto;">
           <p class="v-maquette-legende">Exemple, données fictives</p>
-          <p class="v-maquette-titre">Ta fournée</p>
-          <p class="v-maquette-sous">Pour samedi, ensoleillé, veille de férié</p>
+          <p class="v-maquette-titre">À enfourner pour samedi</p>
+          <p class="v-maquette-sous">Beau temps annoncé, samedi chargé</p>
           <p class="v-maquette-rayon">Pains</p>
-          <div class="v-ligne"><span>Baguette tradition<small>5 h : 140 · 8 h : 70 · 11 h : 30</small></span><strong>240</strong></div>
-          <div class="v-ligne"><span>Pain de campagne<small>5 h : 18 · 8 h : 8</small></span><strong>26</strong></div>
+          <div class="v-ligne"><span>Baguette tradition<small>5 h 30 → 140 · 9 h 30 → 70 · 11 h 30 → 30</small></span><strong>240</strong></div>
+          <div class="v-ligne"><span>Pain de campagne<small>5 h 30 → 18 · 9 h 30 → 8</small></span><strong>26</strong></div>
           <p class="v-maquette-rayon">Viennoiseries</p>
-          <div class="v-ligne"><span>Croissant<small>5 h : 110 · 8 h : 45</small></span><strong>155</strong></div>
-          <div class="v-ligne"><span>Pain au chocolat<small>5 h : 90 · 8 h : 40</small></span><strong>130</strong></div>
+          <div class="v-ligne"><span>Croissant<small>5 h 30 → 110 · 9 h 30 → 45</small></span><strong>155</strong></div>
+          <div class="v-ligne"><span>Pain au chocolat<small>5 h 30 → 90 · 9 h 30 → 40</small></span><strong>130</strong></div>
           <p class="v-maquette-pied" aria-hidden="true">Mode fournil</p>
         </figure>
       </div>
@@ -71,15 +71,15 @@
       <p class="v-intro">À Point ne promet pas un chiffre au hasard : il compte. Voici le calcul, sur un exemple.</p>
       <div class="v-calcul">
         <div class="v-chiffre">
-          <strong>0,40 €</strong>
+          <strong>0,20 €</strong>
           <p>de matière dans une baguette ou un croissant (exemple). C'est ce que vous perdez à chaque pièce jetée.</p>
         </div>
         <div class="v-chiffre">
           <strong>3 pièces</strong>
-          <p>de moins jetées par jour, sur 26 jours d'ouverture, font environ 31 € de matière par mois.</p>
+          <p>de moins jetées par jour, sur 26 jours d'ouverture, font environ 16 € de matière par mois.</p>
         </div>
         <div class="v-chiffre v-chiffre--fonce">
-          <strong>≈ 31 €</strong>
+          <strong>≈ 16 €</strong>
           <p>par mois de matière qui ne part plus à la poubelle. Et chaque pièce de plus évitée s'ajoute.</p>
         </div>
       </div>
@@ -152,7 +152,8 @@
     </section>
 
     <!-- 5. Branchement caisse : état réel au 1er nov. 2026.
-         Mettre à jour quand les comptes SumUp / Zettle / Square / Postmark seront créés (docs/vente/guide-comptes-caisse.md). -->
+         « Clé personnelle » prête dans le code, en attente de mise en service (migration v4 + déploiement,
+         docs/vente/guide-comptes-caisse.md) : passer en « Prêt » une fois déployé et confirmé avec un premier boulanger. -->
     <section class="v-bloc" id="caisse" aria-labelledby="titreCaisse">
       <h2 id="titreCaisse">Votre caisse</h2>
       <p class="v-intro">Le mieux : vos ventes arrivent seules chaque nuit, vous ne saisissez rien. Voici où en est chaque caisse aujourd'hui.</p>
@@ -173,14 +174,14 @@
           <span class="v-etat v-etat--ok">Prêt</span>
         </div>
         <div class="v-caisse">
-          <b>SumUp, Zettle, Square</b>
-          <p>Bouton « Brancher ma caisse » : vos 12 derniers mois arrivent d'un coup, puis chaque nuit. En attendant l'ouverture, l'import de fichier fonctionne.</p>
-          <span class="v-etat v-etat--bientot">En cours d'ouverture</span>
+          <b>SumUp, Zettle, Square, Loyverse, Tactill</b>
+          <p>Branchement direct : vous créez une clé dans votre compte de caisse (5 minutes, on vous montre où cliquer) et vous la collez. Vos 12 derniers mois arrivent d'un coup, puis chaque nuit. En attendant, l'import de fichier fonctionne.</p>
+          <span class="v-etat v-etat--bientot">Mise en service en cours</span>
         </div>
         <div class="v-caisse">
-          <b>Bimedia, Lightspeed, Tactill, Toporder, Crisalid…</b>
-          <p>Votre caisse envoie chaque jour son export à votre adresse d'import À Point. Aujourd'hui : import du fichier à la main.</p>
-          <span class="v-etat v-etat--bientot">En cours d'ouverture</span>
+          <b>Bimedia, Crisalid, Toporder, Lightspeed, Cashmag, Zelty…</b>
+          <p>Votre caisse envoie chaque jour son export à votre adresse d'import À Point. Aujourd'hui : import du fichier, colonnes reconnues seules.</p>
+          <span class="v-etat v-etat--bientot">Mise en service en cours</span>
         </div>
       </div>
     </section>

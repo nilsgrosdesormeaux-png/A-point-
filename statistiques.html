@@ -7,12 +7,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Bilan</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101m">
+  <link rel="stylesheet" href="style.css?v=20261101q">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261101l"></script>
+  <script src="moteur-prevision.js?v=20261101q"></script>
   <script src="boulangerie.js?v=20261101l"></script>
   <script src="contexte.js?v=20261101l"></script>
-  <script src="nav.js?v=20261030"></script>
+  <script src="nav.js?v=20261101q"></script>
 </head>
 <body>
   <a class="lien-evitement" href="#contenu">Aller au contenu</a>
@@ -46,7 +46,7 @@
            Hors de #zoneContenu, que le script des statistiques remplace quand l'historique est vide. -->
       <section class="section-resultats" style="margin-top:0;" aria-labelledby="titreResultats">
         <div class="entete-resultats">
-          <h2 class="titre-resultats" id="titreResultats">Ce que tu gagnes</h2>
+          <h2 class="titre-resultats" id="titreResultats">Avant et maintenant</h2>
           <div class="selecteur-periode" id="selecteurPeriode" role="group" aria-label="Période des résultats">
             <button type="button" class="periode-bouton actif" data-periode="mois" aria-pressed="true">Ce mois-ci</button>
             <button type="button" class="periode-bouton" data-periode="tout" aria-pressed="false">Depuis le début</button>
@@ -54,20 +54,21 @@
         </div>
         <!-- Lot 4 : un seul chiffre, deux lignes d'explication, le détail replié. -->
         <div class="carte-kpi carte-kpi--heros carte-kpi--gain">
-          <p class="carte-kpi-titre"><span id="titreGain">Ce mois-ci, À Point t'a fait gagner</span> <span class="etiquette-mesure etiquette-mesure--estime" id="etiquetteSauve">estimé</span></p>
+          <p class="carte-kpi-titre"><span id="titreGain">Tes invendus</span> <span class="etiquette-mesure etiquette-mesure--estime" id="etiquetteSauve">estimé</span></p>
           <p class="carte-kpi-valeur" id="kpiReelEuros">–</p>
-          <p class="carte-kpi-detail" id="kpiReelEurosDetail">Coche ta fournée le matin : le gain se calcule seul avec tes ventes.</p>
+          <p class="carte-kpi-detail" id="kpiReelEurosDetail">Coche « enfourné » dans la Fournée chaque matin : tes invendus se mesurent seuls avec tes ventes.</p>
           <!-- Lot 8 : ce qui est mesuré et ce qui est estimé, séparés. -->
           <p class="gain-ligne" id="ligneMesure" hidden></p>
           <p class="gain-ligne" id="ligneDepart" hidden></p>
           <p class="gain-ligne" id="ligneReste" hidden></p>
-          <p class="carte-kpi-detail" id="ligneVentesRecuperees">Ventes récupérées : pas encore comptées, il faut l'heure des ventes de ta caisse.</p>
         </div>
         <p class="gain-alternative" id="gainAchats" hidden></p>
+        <div class="observation-depart" id="blocObservation" hidden></div>
         <div class="destination-reste">
-          <label for="destinationReste">Ton reste du soir part :</label>
+          <label for="destinationReste">Où part ton reste du soir ?</label>
+          <p class="texte-aide" style="margin:0 0 var(--espace-2);">Pour chiffrer ce qui finit vraiment à la poubelle, et le distinguer de ce que tu donnes ou revends.</p>
           <select id="destinationReste">
-            <option value="">Choisir</option>
+            <option value="">Je ne sais pas encore</option>
             <option value="jete">À la poubelle</option>
             <option value="don">En don (associations)</option>
             <option value="tgtg">Too Good To Go</option>
@@ -136,7 +137,7 @@
           <div class="grille-kpi grille-kpi--quatre" style="margin-bottom:22px;">
             <div class="carte-kpi">
               <p class="carte-kpi-titre">Jour le plus chargé</p>
-              <p class="carte-kpi-valeur carte-kpi-valeur--hausse" id="moisChargeValeur">-</p>
+              <p class="carte-kpi-valeur carte-kpi-valeur--neutre" id="moisChargeValeur">-</p>
               <p class="carte-kpi-detail" id="moisChargeDetail">Pas encore assez d'historique</p>
             </div>
             <div class="carte-kpi">
@@ -145,11 +146,11 @@
               <p class="carte-kpi-detail" id="moisCalmeDetail">Pas encore assez d'historique</p>
             </div>
           </div>
-          <p class="section-titre" style="margin-top:0;">Cette année</p>
-          <div class="grille-kpi grille-kpi--quatre">
+          <p class="section-titre" style="margin-top:0;" id="titreRecordsAnnee">Cette année</p>
+          <div class="grille-kpi grille-kpi--quatre" id="grilleRecordsAnnee">
             <div class="carte-kpi">
               <p class="carte-kpi-titre">Jour le plus chargé</p>
-              <p class="carte-kpi-valeur carte-kpi-valeur--hausse" id="anneeChargeValeur">-</p>
+              <p class="carte-kpi-valeur carte-kpi-valeur--neutre" id="anneeChargeValeur">-</p>
               <p class="carte-kpi-detail" id="anneeChargeDetail">Pas encore assez d'historique</p>
             </div>
             <div class="carte-kpi">
@@ -234,8 +235,8 @@
 
       function formatJourDetail(point) {
         var d = new Date(point.iso + 'T00:00:00');
-        var unite = point.total > 1 ? ' articles vendus' : ' article vendu';
-        return capitaliser(nomsJours[d.getDay()]) + ' · ' + point.total + unite;
+        var unite = point.total > 1 ? ' pièces vendues' : ' pièce vendue';
+        return capitaliser(nomsJours[d.getDay()]) + ' · ' + point.total.toLocaleString('fr-FR') + unite;
       }
 
       function rendreJoursRecords(prefixe, resultat) {
@@ -274,18 +275,23 @@
         var isoDebutMois = aujourdHui.getFullYear() + '-' + mm + '-01';
         var isoDebutAnnee = aujourdHui.getFullYear() + '-01-01';
 
-        // Début de mois sans vente encore : on montre les 30 derniers jours
+        // Début de mois (moins de 7 jours de vente) : on montre les 30 derniers jours
         // plutôt qu'un « pas encore de ventes » qui inquiète pour rien.
         var recordMois = calculerJourRecord(parJour, isoDebutMois, isoAujourdHui);
         var libelleMois = document.getElementById('libelleMois');
-        if (!recordMois) {
+        // Moins d'une semaine de ventes ce mois-ci : un record n'a pas de sens.
+        if (!recordMois || recordMois.nbJours < 7) {
           recordMois = calculerJourRecord(parJour, versISO(ajouterJours(aujourdHui, -30)), isoAujourdHui);
           libelleMois.textContent = '30 derniers jours';
         } else {
           libelleMois.textContent = 'Ce mois-ci';
         }
         rendreJoursRecords('mois', recordMois);
-        rendreJoursRecords('annee', calculerJourRecord(parJour, isoDebutAnnee, isoAujourdHui));
+        var recordAnnee = calculerJourRecord(parJour, isoDebutAnnee, isoAujourdHui);
+        rendreJoursRecords('annee', recordAnnee);
+        // « Cette année » identique à la période du dessus : on ne le répète pas.
+        var identique = recordAnnee && recordMois && recordAnnee.charge.iso === recordMois.charge.iso && recordAnnee.calme.iso === recordMois.calme.iso;
+        document.getElementById('titreRecordsAnnee').hidden = document.getElementById('grilleRecordsAnnee').hidden = !!identique;
       }
 
       // ---------- Classement produits ----------
@@ -318,7 +324,7 @@
             '<span class="classement-rang">#' + (i + 1) + '</span>' +
             '<span class="classement-nom">' + ligne.nom + '</span>' +
             '<div class="classement-piste"><div class="classement-remplissage" style="width:' + pct + '%;"></div></div>' +
-            '<span class="classement-valeur">' + ligne.total + '</span>';
+            '<span class="classement-valeur">' + ligne.total.toLocaleString('fr-FR') + '</span>';
           conteneur.appendChild(div);
         });
       }
@@ -425,6 +431,8 @@
       function rendreGraphiqueAffluence(cles, buckets, formatterEtiquette) {
         var conteneur = document.getElementById('graphiqueAffluence');
         conteneur.innerHTML = '';
+        // Pas de colonnes vides avant la première vente (historique jeune).
+        while (cles.length > 1 && !buckets[cles[0]]) cles = cles.slice(1);
         var valeurs = cles.map(function (cle) { return buckets[cle] || 0; });
         var max = Math.max.apply(null, valeurs.concat([0]));
         if (max === 0) {
@@ -433,13 +441,16 @@
         }
         cles.forEach(function (cle, i) {
           var valeur = valeurs[i];
-          var hauteurPct = valeur > 0 ? Math.max(4, Math.round((valeur / max) * 100)) : 0;
+          // 75 % au plus : la valeur et l'étiquette tiennent dans la colonne.
+          var hauteurPct = valeur > 0 ? Math.max(3, Math.round((valeur / max) * 75)) : 0;
           var colonne = document.createElement('div');
-          colonne.className = 'colonne-affluence';
+          // La dernière période est en cours : barre pâle, pour ne pas lire une baisse.
+          var enCours = i === cles.length - 1;
+          colonne.className = 'colonne-affluence' + (enCours ? ' colonne-affluence--en-cours' : '');
           colonne.innerHTML =
-            '<span class="colonne-valeur">' + (valeur > 0 ? valeur : '') + '</span>' +
+            '<span class="colonne-valeur">' + (valeur > 0 ? valeur.toLocaleString('fr-FR') : '') + '</span>' +
             '<div class="colonne-barre" style="height:' + hauteurPct + '%;"></div>' +
-            '<span class="colonne-etiquette">' + formatterEtiquette(cle) + '</span>';
+            '<span class="colonne-etiquette">' + formatterEtiquette(cle) + (enCours ? '<br>en cours' : '') + '</span>';
           conteneur.appendChild(colonne);
         });
         // Sur mobile, le graphique défile horizontalement (colonnes à
@@ -492,12 +503,23 @@
           zoneContenuEl.style.display = 'block';
 
           if (ventesToutes.length === 0) {
-            zoneContenuEl.innerHTML = '<p class="carte-vide-claire">Pas encore assez de ventes enregistrées pour construire des statistiques. <a href="ventes.html">Ajoute tes premières ventes</a></p>';
+            // Nouveau compte : un seul message qui guide, pas de tirets ni de « 0 ».
+            var resultats = document.querySelector('.section-resultats');
+            if (resultats) resultats.hidden = true;
+            zoneContenuEl.innerHTML = '<div class="carte-vide-claire etat-vide"><p><strong>Ton bilan se remplira tout seul.</strong> Dès que tes ventes arrivent, tu verras ici tes invendus, tes jours les plus chargés et ce que À Point te fait gagner, en euros.</p>' +
+              '<p><a class="bouton-principal" href="caisse.html">Brancher ma caisse</a></p><p class="texte-aide">Pas de caisse ? <a href="ventes.html">Saisis tes ventes d\'hier</a>.</p></div>';
             return;
           }
 
           rafraichirJoursRecords();
           rafraichirClassement();
+          // Moins de 6 mois d'historique : par semaine (les mois seraient
+          // presque tous vides ou incomplets).
+          var premiere = ventesToutes.reduce(function (m, v) { return v.date_vente < m ? v.date_vente : m; }, '9999');
+          if ((new Date() - new Date(premiere + 'T00:00:00')) / 86400000 < 180) {
+            granulariteActuelle = 'semaine';
+            document.querySelectorAll('#selecteurGranulariteAffluence .periode-bouton').forEach(function (b) { b.classList.toggle('actif', b.getAttribute('data-granularite') === 'semaine'); });
+          }
           rafraichirAffluence();
         }).catch(function () {
           // Bug corrigé (audit sept. 2026) : sans ce filet, un échec réseau
@@ -562,6 +584,9 @@
       function afficherReels(periode) {
         var aujourdhui = MP.versISO(new Date());
         var limite = limitePeriode(periode);
+        var ref = MP.referenceAvant(ctx.parametres, fournees, ctx.ventes, aujourdhui, function (d, f) { return C.farineVendue(ctx, d, f); });
+        // Point de départ mesuré : « maintenant » commence après les 2 semaines d'observation.
+        if (ref.nature === 'mesuré' && limite < ref.fin) limite = ref.fin;
         var mesure = MP.calculerInvendusReels(fournees, ctx.ventes, limite, aujourdhui);
         var prix = prixParNom();
         var invendus = mesure.invendus, cuit = mesure.cuit, kilos = 0, valeurInvendus = 0, avecPrix = 0;
@@ -572,8 +597,8 @@
           if (prix[nom]) { valeurInvendus += reste * prix[nom]; avecPrix++; }
         });
         var nbJours = mesure.nbJours;
-        var ref = MP.referenceAvant(ctx.parametres, fournees, ctx.ventes, aujourdhui, function (d, f) { return C.farineVendue(ctx, d, f); });
         afficherReference(ref);
+        afficherObservation();
         var valeur = document.getElementById('kpiReelValeur');
         var detail = document.getElementById('kpiReelDetail');
         var sauveEl = document.getElementById('kpiReelEuros');
@@ -582,7 +607,8 @@
           valeur.textContent = '–';
           detail.textContent = 'Coche ta fournée pour mesurer tes invendus.';
           sauveEl.textContent = '–';
-          sauveDetail.textContent = 'Coche ta fournée le matin : le gain se calcule seul avec tes ventes.';
+          sauveDetail.textContent = 'Coche « enfourné » dans la Fournée chaque matin : tes invendus se mesurent seuls avec tes ventes.';
+          ['ligneMesure', 'ligneDepart', 'ligneReste'].forEach(function (id) { document.getElementById(id).hidden = true; });
           return;
         }
         var taux = mesure.taux || 0;
@@ -593,32 +619,29 @@
         var gain = gainPour(mesure, ref);
         var lignesProduits = gain.lignes, sauvees = gain.sauvees, totalEuros = gain.euros, avecCout = gain.avecCout;
         taux = gain.taux === null ? taux : gain.taux;
-        var estime = ref.nature === 'estimé' || !avecCout.length || gain.coutEstime;
-        document.getElementById('etiquetteSauve').textContent = estime ? 'estimé' : 'mesuré';
-        document.getElementById('etiquetteSauve').className = 'etiquette-mesure' + (estime ? ' etiquette-mesure--estime' : '');
-        var periodeTxt = periode === 'tout' ? 'depuis le début' : 'ce mois-ci';
-        document.getElementById('titreGain').textContent = (periode === 'tout' ? 'Depuis le début' : 'Ce mois-ci') + ', À Point t\'a fait gagner';
         afficherDetailCalcul(lignesProduits, ref, limite, aujourdhui, sauvees, totalEuros);
-        // Mesuré et estimé, chacun sur sa ligne.
+        // Lot 9 : en tête, ce qui est mesuré (tes invendus) ; les euros en
+        // second, en une ligne, avec leur base dite simplement.
+        document.getElementById('titreGain').textContent = 'Tes invendus ' + (periode === 'tout' ? 'depuis le début' : 'ce mois-ci');
+        document.getElementById('etiquetteSauve').textContent = 'mesuré';
+        document.getElementById('etiquetteSauve').className = 'etiquette-mesure';
+        sauveEl.textContent = pourcent(taux);
+        sauveDetail.textContent = gain.invendus.toLocaleString('fr-FR') + ' pièce' + (gain.invendus > 1 ? 's' : '') + ' non vendue' + (gain.invendus > 1 ? 's' : '') + ' sur ' + gain.cuit.toLocaleString('fr-FR') + ' cuites, sur ' + nbJours + ' jour' + (nbJours > 1 ? 's' : '') + ' de fournée cochée.';
         var lm = document.getElementById('ligneMesure'), ld = document.getElementById('ligneDepart');
-        lm.innerHTML = '<span class="etiquette-mesure">mesuré</span> Tes invendus : <strong>' + pourcent(taux) + '</strong> (' + gain.invendus.toLocaleString('fr-FR') + ' sur ' + gain.cuit.toLocaleString('fr-FR') + ' pièces cuites)';
-        ld.innerHTML = '<span class="etiquette-mesure' + (ref.nature === 'estimé' ? ' etiquette-mesure--estime">estimé' : '">calculé') + '</span> Ton point de départ : <strong>' + pourcent(ref.taux) + '</strong> (' + ref.libelle + ')';
+        var origine = ref.nature === 'mesuré' ? 'mesuré sur tes 2 semaines d\'observation' : ref.nature === 'calculé' ? 'tes achats de farine' : ref.libelle === 'estimé d\'après tes réponses' ? 'tes réponses' : 'moyenne nationale';
+        lm.innerHTML = 'Avant À Point : <strong>' + pourcent(ref.taux) + '</strong> <span class="gain-origine">(' + origine + ')</span> → maintenant : <strong>' + pourcent(taux) + '</strong>' +
+          (sauvees > 0 ? ', soit <strong>' + sauvees.toLocaleString('fr-FR') + ' invendu' + (sauvees > 1 ? 's' : '') + ' en moins</strong>.' : '.');
+        var base = 'par rapport à ton point de départ de ' + pourcent(ref.taux) + ' (' + origine + ')';
+        if (sauvees > 0 && avecCout.length) {
+          ld.innerHTML = '<span class="etiquette-mesure etiquette-mesure--estime">estimé</span> ≈ <strong>' + euros(Math.max(0, totalEuros)) + '</strong> de matière économisée, ' + base + '.';
+        } else if (sauvees > 0) {
+          ld.innerHTML = 'Le montant en euros apparaîtra avec tes coûts de revient (Commande, Tes recettes).';
+        } else {
+          ld.innerHTML = 'Pas encore moins d\'invendus ' + base + '.';
+        }
         lm.hidden = ld.hidden = false;
         afficherReste(gain);
         afficherAlternative(mesure, ref, periode);
-        if (sauvees === 0) {
-          sauveEl.textContent = '0 €';
-          sauveDetail.textContent = 'Pas encore moins d\'invendus qu\'avant ' + periodeTxt + '.';
-          return;
-        }
-        var pieces = sauvees.toLocaleString('fr-FR') + ' pièce' + (sauvees > 1 ? 's' : '') + ' de moins jetée' + (sauvees > 1 ? 's' : '');
-        if (avecCout.length) {
-          sauveEl.textContent = (totalEuros >= 0 ? '+ ' : '− ') + euros(Math.abs(totalEuros));
-          sauveDetail.textContent = 'Matière économisée : ' + pieces + ' qu\'avant.';
-        } else {
-          sauveEl.textContent = pieces;
-          sauveDetail.textContent = 'Le montant en euros apparaîtra avec tes coûts de revient (Commande, Tes recettes).';
-        }
       }
 
       // Pièces évitées par produit = invendus attendus avant (taux avant ×
@@ -630,7 +653,10 @@
         var lignes = Object.keys(mesure.cuitParProduit).filter(function (nom) { return C.estCuitPour(ctx, nom); }).map(function (nom) {
           var c = mesure.cuitParProduit[nom], inv = mesure.parProduit[nom] || 0, attendus = Math.round(ref.taux * c);
           var ev = attendus - inv, ct = couts[nom] || null;
-          return { nom: nom, cuit: c, vendu: mesure.venduParProduit[nom] || 0, inv: inv, attendus: attendus, evitees: ev, cout: ct, euros: ct ? ev * ct.valeur : null };
+          // Coût arrondi au centime, celui qu'on affiche : la multiplication
+          // du détail tombe juste à la calculette.
+          var centimes = ct ? Math.round(ct.valeur * 100) / 100 : null;
+          return { nom: nom, cuit: c, vendu: mesure.venduParProduit[nom] || 0, inv: inv, attendus: attendus, evitees: ev, cout: ct, euros: ct ? Math.round(ev * centimes * 100) / 100 : null };
         }).sort(function (x, y) { return (y.euros || 0) - (x.euros || 0) || y.evitees - x.evitees; });
         var cuit = lignes.reduce(function (t, l) { return t + l.cuit; }, 0);
         var invendus = lignes.reduce(function (t, l) { return t + l.inv; }, 0);
@@ -650,9 +676,10 @@
         var dest = selectDestination.value;
         if (!gain.invendus) { el.hidden = true; return; }
         var n = gain.invendus.toLocaleString('fr-FR') + ' invendu' + (gain.invendus > 1 ? 's' : '');
-        el.innerHTML = !dest || dest === 'jete'
-          ? 'Perte : ' + n + ' jeté' + (gain.invendus > 1 ? 's' : '') + (gain.valeurInvendus ? ', soit ≈ ' + euros(gain.valeurInvendus) + ' de matière' : '') + (dest ? '' : ' (indique plus bas où part ton reste)') + '.'
-          : 'À part : ' + n + ' ' + LIBELLES_DESTINATION[dest] + ', pas comptés comme une perte.';
+        el.innerHTML = dest === 'jete'
+          ? 'À la poubelle : ' + n + (gain.valeurInvendus ? ', soit ≈ ' + euros(gain.valeurInvendus) + ' de matière perdue' : '') + '.'
+          : '';
+        if (!el.innerHTML) { el.hidden = true; return; }
         el.hidden = false;
       }
 
@@ -667,7 +694,7 @@
         else if (ref.nature === 'calculé' && Number(rep.production) > 0) { autre = MP.referenceAvant({ reference_avant: { production: rep.production, reste: rep.reste } }, [], [], ''); texte = 'Avec ton point de départ déclaré (' + pourcent(autre.taux) + ')'; }
         if (!autre) { el.hidden = true; return; }
         var g = gainPour(mesure, autre);
-        el.innerHTML = texte + ', ton gain serait de <strong>' + (g.avecCout.length ? (g.euros >= 0 ? '+ ' : '− ') + euros(Math.abs(g.euros)) : g.sauvees + ' pièces') + '</strong>. ' +
+        el.innerHTML = texte + ', ton gain serait de <strong>' + (g.avecCout.length ? (g.euros >= 0 ? '+ ' : '− ') + euros(Math.abs(g.euros)) : g.sauvees.toLocaleString('fr-FR') + ' invendus en moins') + '</strong>. ' +
           '<button type="button" class="lien-discret" data-choix="' + (autre.nature === 'calculé' ? 'achats' : 'reponses') + '">Prendre ce point de départ</button>';
         el.hidden = false;
       }
@@ -687,8 +714,8 @@
       // Détail vérifiable : d'où vient chaque donnée, puis le calcul produit
       // par produit, dont la somme est le chiffre affiché en tête.
       function etiquette(nature) {
-        var classes = { auto: 'source--auto', saisi: 'source--saisi', estime: 'source--estime', test: 'source--test' };
-        var libelles = { auto: 'automatique', saisi: 'par toi', estime: 'estimé', test: 'démonstration' };
+        var classes = { auto: 'source--auto', saisi: 'source--saisi', estime: 'source--estime', test: 'source--test', mesure: 'source--auto' };
+        var libelles = { auto: 'automatique', saisi: 'par toi', estime: 'estimé', test: 'démonstration', mesure: 'mesuré' };
         return '<span class="source ' + classes[nature] + '">' + libelles[nature] + '</span>';
       }
       function afficherDetailCalcul(lignes, ref, debut, fin, sauvees, totalEuros) {
@@ -702,7 +729,7 @@
         });
         var libSources = { auto: 'venues de ta caisse (branchement, e-mail ou fichier)', saisi: 'que tu as saisies ou importées', estime: 'déduites le soir (cuit − reste)', test: 'inventées pour le compte de démonstration' };
         var ventesTxt = Object.keys(sources).map(function (n) { return etiquette(n) + ' ' + sources[n] + ' ligne' + (sources[n] > 1 ? 's' : '') + ' ' + libSources[n]; }).join(' ; ') || 'aucune';
-        var refNature = ref.nature === 'estimé' ? 'estime' : 'saisi';
+        var refNature = ref.nature === 'estimé' ? 'estime' : ref.nature === 'mesuré' ? 'mesure' : 'saisi';
         var nbCoutsSaisis = lignes.filter(function (l) { return l.cout && !l.cout.estime; }).length, nbCoutsEstimes = lignes.filter(function (l) { return l.cout && l.cout.estime; }).length;
         var html = '<h3 class="detail-titre">D\'où viennent les chiffres</h3><ul class="detail-sources">' +
           '<li><strong>Ventes</strong> : ' + ventesTxt + '.</li>' +
@@ -714,7 +741,7 @@
             return '<li><strong>' + echapperTexte(l.nom) + '</strong>' +
               '<span>' + l.cuit.toLocaleString('fr-FR') + ' cuites − ' + l.vendu.toLocaleString('fr-FR') + ' vendues = <b>' + l.inv + ' invendus</b> (' + pourcent(l.cuit ? l.inv / l.cuit : 0) + ')</span>' +
               '<span>Avant : ' + pourcent(ref.taux) + ' × ' + l.cuit.toLocaleString('fr-FR') + ' = ' + l.attendus + ' invendus. Évités : ' + l.attendus + ' − ' + l.inv + ' = <b>' + signe(l.evitees) + '</b>' + (l.evitees < 0 ? ' (plus d\'invendus qu\'avant)' : '') + '</span>' +
-              '<span>' + (l.cout ? signe(l.evitees) + ' × ' + l.cout.valeur.toLocaleString('fr-FR', f2) + ' € de coût de revient = <b>' + signe(l.euros, f2) + ' €</b>' : 'Coût de revient inconnu : pas d\'euros pour ce produit') + '</span></li>';
+              '<span>' + (l.cout ? signe(l.evitees) + ' × ' + (Math.round(l.cout.valeur * 100) / 100).toLocaleString('fr-FR', f2) + ' € de coût de revient = <b>' + signe(l.euros, f2) + ' €</b>' : 'Coût de revient inconnu : pas d\'euros pour ce produit') + '</span></li>';
           }).join('') + '</ol>' +
           '<p class="detail-total">Total : ' + sauvees.toLocaleString('fr-FR') + ' pièces évitées, ' + signe(totalEuros, f2) + ' € (somme des lignes ci-dessus).</p>' +
           '<p class="texte-aide">Caisse branchée : les ventes arrivent seules chaque jour, il ne reste qu\'à cocher ce que tu enfournes, et ce calcul se refait sans rien saisir.</p>';
@@ -769,6 +796,48 @@
         });
         return poids > 0 ? somme / poids : null;
       }
+
+      // Lot 9 : mesurer le vrai point de départ (2 semaines cochées) plutôt
+      // que de croire une estimation. Réutilise des fournées déjà cochées
+      // s'il y en a deux semaines ; sinon, la mesure commence aujourd'hui.
+      function afficherObservation() {
+        var el = document.getElementById('blocObservation');
+        var aujourdhui = MP.versISO(new Date());
+        var p = ctx.parametres || {};
+        var obs = MP.referenceMesuree(p, fournees, ctx.ventes, aujourdhui);
+        var rep = p.reference_avant || {};
+        if (obs && obs.nature && rep.choix !== 'reponses' && rep.choix !== 'achats') { el.hidden = true; return; }
+        if (obs && obs.enCours) {
+          var jour = Math.min(14, Math.round((new Date(aujourdhui + 'T00:00:00') - new Date(obs.debut + 'T00:00:00')) / 86400000) + 1);
+          el.innerHTML = '<p><strong>Mesure de ton point de départ : jour ' + jour + ' sur 14.</strong> Cuis comme d\'habitude et coche « enfourné » chaque matin : dans ' + (14 - jour + 1) + ' jour' + (14 - jour + 1 > 1 ? 's' : '') + ', le « avant » sera mesuré, plus estimé.</p>';
+          el.hidden = false;
+          return;
+        }
+        var dates = fournees.map(function (f) { return f.date_fournee; }).sort();
+        var premiere = dates[0];
+        var essai = premiere ? MP.referenceMesuree({ observation_debut: premiere }, fournees, ctx.ventes, aujourdhui) : null;
+        var html = '<p><strong>Ton point de départ est une estimation.</strong> Pour le mesurer vraiment : pendant 2 semaines, cuis comme d\'habitude et coche « enfourné » chaque matin.</p>';
+        if (essai && essai.nature) {
+          html += '<p>Tu as déjà coché tes 2 premières semaines : elles donnent <strong>' + pourcent(essai.taux) + '</strong> d\'invendus (' + essai.source + ').</p>' +
+            '<p><button type="button" class="bouton-secondaire" data-observation="' + premiere + '">Prendre ces 2 semaines comme point de départ</button></p>';
+        } else {
+          html += '<p><button type="button" class="bouton-secondaire" data-observation="' + aujourdhui + '">Commencer la mesure aujourd\'hui</button></p>';
+        }
+        el.innerHTML = html;
+        el.hidden = false;
+      }
+      document.getElementById('blocObservation').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-observation]');
+        if (!b || !ctx) return;
+        ctx.parametres = ctx.parametres || {};
+        ctx.parametres.observation_debut = b.getAttribute('data-observation');
+        var rep = {};
+        var actuel = ctx.parametres.reference_avant || {};
+        Object.keys(actuel).forEach(function (k) { if (k !== 'choix') rep[k] = actuel[k]; });
+        ctx.parametres.reference_avant = rep;
+        ctx.sb.from('parametres_commercant').upsert({ commercant_id: ctx.commercantId, observation_debut: ctx.parametres.observation_debut, reference_avant: rep }).then(function () {}, function () {});
+        afficherResultats(periodeActuelle);
+      });
 
       function afficherReference(ref) {
         var v = document.getElementById('kpiAvantValeur'), d = document.getElementById('kpiAvantDetail'), e = document.getElementById('etiquetteAvant');
@@ -892,6 +961,15 @@
           var d = new Date(dernieres.date + 'T00:00:00');
           document.getElementById('textePerimees').textContent = 'Dernières ventes le ' + d.getDate() + ' ' + MP.nomsMoisCourts[d.getMonth()] + ' : saisis-les ou branche ta caisse';
           document.getElementById('bandeauPerimees').hidden = false;
+        }
+        // Début de mois (moins de 7 fournées cochées ce mois-ci) : on ouvre
+        // sur « Depuis le début » plutôt que sur un tiret.
+        var debutMois = limitePeriode('mois');
+        var joursMois = {};
+        fournees.forEach(function (f) { if (f.date_fournee >= debutMois) joursMois[f.date_fournee] = 1; });
+        if (Object.keys(joursMois).length < 7) {
+          periodeActuelle = 'tout';
+          boutons.forEach(function (b) { var actif = b.getAttribute('data-periode') === 'tout'; b.classList.toggle('actif', actif); b.setAttribute('aria-pressed', actif ? 'true' : 'false'); });
         }
         afficherResultats(periodeActuelle);
         afficherFiabilite();

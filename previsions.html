@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Fournée</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101m">
+  <link rel="stylesheet" href="style.css?v=20261101q">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261101l"></script>
+  <script src="moteur-prevision.js?v=20261101q"></script>
   <script src="boulangerie.js?v=20261101l"></script>
   <script src="contexte.js?v=20261101l"></script>
-  <script src="nav.js?v=20261031"></script>
+  <script src="nav.js?v=20261101q"></script>
 </head>
 <body>
   <a class="lien-evitement" href="#contenu">Aller au contenu</a>
@@ -55,6 +55,7 @@
         <div>
           <p class="claire-date" id="dateAujourdhui"></p>
           <h1 class="claire-titre" id="titreFournee">Ta fournée</h1>
+          <p class="raison-jour" id="raisonJour" hidden></p>
           <div class="selecteur-periode selecteur-jour" id="selecteurJour" role="group" aria-label="Jour de la fournée" hidden>
             <button type="button" class="periode-bouton" data-jour="aujourdhui" aria-pressed="false">Aujourd'hui</button>
             <button type="button" class="periode-bouton" data-jour="demain" aria-pressed="false">Demain</button>
@@ -81,9 +82,11 @@
       <span class="fournee-barre" aria-hidden="true"><span id="barreProgression"></span></span>
     </div>
 
-    <p class="texte-aide note-tranches" id="noteTranches" hidden><strong>Tes fournées</strong> : sous chaque total, les pièces à enfourner à chaque fournée (<span id="exempleTranche"></span>). <span id="noteHeuresModele">Ces heures sont un exemple : <a href="parametres.html#fournees">indique les tiennes dans Paramètres</a> (de 1 à 5 fournées, à tes noms). </span><span id="noteTranchesDefaut">Parts par défaut selon le rayon, réglables produit par produit dans « Pourquoi ? ».</span></p>
+    <p class="texte-aide note-cases" id="noteCases" hidden>Coche chaque produit une fois enfourné : avec tes ventes, c'est ce qui mesure tes invendus dans le Bilan.</p>
+    <p class="texte-aide note-tranches" id="noteTranches" hidden><strong>Tes fournées</strong> : sous chaque total, les pièces à enfourner à chaque fournée (<span id="exempleTranche"></span>). <span id="noteHeuresModele">Ces heures sont un exemple : <a href="parametres.html#fournees">indique les tiennes dans Paramètres</a> (de 1 à 5 fournées, à tes noms). </span><span id="noteTranchesDefaut">Parts par défaut selon le rayon, réglables produit par produit dans «&nbsp;Pourquoi&nbsp;?&nbsp;».</span></p>
     <details class="note-non-cuits" id="noteNonCuits" hidden><summary id="resumeNonCuits"></summary><ul id="listeNonCuits"></ul></details>
     <div id="listeRayons"></div>
+    <p class="texte-aide source-fournee" id="sourceFournee" hidden></p>
 
     <section class="fiabilite" id="blocFiabilite" hidden aria-label="Fiabilité">
       <p id="texteFiabilite"></p>
@@ -142,7 +145,7 @@
       }
       function formulaireTranches(p) {
         var parts = partsTranches(p);
-        return '<li class="tranches-reglage">🕔 Part de chaque fournée : ' + tournees().map(function (t, i) {
+        return '<li class="tranches-reglage">Part de chaque fournée : ' + tournees().map(function (t, i) {
           return '<label>' + echapper(t.nom) + ' (' + B.formaterHeure(t.heure) + ') <input type="number" class="valeur-tranche" data-i="' + i + '" min="0" max="100" inputmode="numeric" value="' + parts[i] + '" aria-label="Part de la fournée ' + echapper(t.nom) + ' en % : ' + echapper(p.nom) + '"> %</label>';
         }).join(' ') + '</li>';
       }
@@ -200,27 +203,42 @@
         requete.then(function (r) { if (r && r.error) enBase = false; }, function () { enBase = false; });
       }
 
+      // Lot 9 : la référence la plus parlante à côté du chiffre à enfourner,
+      // c'est la vente habituelle de ce jour-là (le chiffre = elle + la marge
+      // + les raisons du jour), pas une seule journée passée.
+      // Lot 9 : pas d'emoji à l'écran (DESIGN.md) ; le moteur en garde dans
+      // ses libellés, on les retire à l'affichage.
+      function sansEmoji(t) {
+        return String(t || '').replace(/(?:[\uD83C-\uD83E][\uDC00-\uDFFF]|[\u2600-\u27BF]|\uFE0F|\u200D)/g, '').replace(/^\s+/, '').replace(/\s{2,}/g, ' ');
+      }
+      // Icône météo en traits fins (SVG, currentColor), d'après le ciel.
+      function iconeCiel(ciel) {
+        var c = ciel || '';
+        var trace = /Pluie|Bruine|Orage/.test(c) ? '<path d="M7 15a4 4 0 0 1 .5-8 5 5 0 0 1 9.5 1.5A3.5 3.5 0 0 1 17 15z"/><path d="M9 18l-1 2M13 18l-1 2M17 18l-1 2"/>'
+          : /Neige/.test(c) ? '<path d="M7 15a4 4 0 0 1 .5-8 5 5 0 0 1 9.5 1.5A3.5 3.5 0 0 1 17 15z"/><path d="M9 19h.01M13 20h.01M16 19h.01"/>'
+          : /dégagé/.test(c) ? '<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/>'
+          : '<path d="M7 18a4 4 0 0 1 .5-8 5 5 0 0 1 9.5 1.5A3.5 3.5 0 0 1 17 18z"/>';
+        return '<svg class="icone-ciel" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + trace + '</svg>';
+      }
+
       function texteDelta(p, quantite) {
-        var ref = p.r.dernierMemeJour;
-        if (!ref) return '';
-        var ecart = quantite - ref.quantite;
-        var jour = MP.nomsJours[new Date(ref.date_vente + 'T00:00:00').getDay()];
-        if (ecart === 0) return '<span class="delta-texte">= ' + jour + ' dernier</span>';
-        return '<span class="delta-texte delta-texte--' + (ecart > 0 ? 'hausse' : 'baisse') + '">' + (ecart > 0 ? '↑ +' : '↓ −') + Math.abs(ecart) + ' vs ' + jour + ' dernier</span>';
+        if (!p.r.venteHabituelle) return '';
+        var jour = p.r.nomJourCible;
+        return '<span class="delta-texte">Vendu d\'habitude le ' + jour + ' : ' + p.r.venteHabituelle.toLocaleString('fr-FR') + '</span>';
       }
 
       function lignesPourquoi(p) {
         var items = (p.r.signaux || []).map(function (s) {
           var effet = MP.libelleEffet(s.ratio);
-          return '<li>' + s.icone + ' ' + echapper(s.libelle) + ' : ' + (effet
+          return '<li>' + echapper(sansEmoji(s.libelle)) + ' : ' + (effet
             ? '<strong>' + effet + '</strong> <span class="texte-aide--discret">(appris sur ' + s.nb + ' jour' + (s.nb > 1 ? 's' : '') + ')</span>'
             : '<span class="texte-aide--discret">' + (s.dejaPrisEnCompte ? 'déjà pris en compte : comparé à tes ' + p.r.nomJourCible + 's de vacances' : 'effet pas encore appris, quantité inchangée') + '</span>') + '</li>';
         });
-        items.push('<li>📈 ' + echapper(p.r.texteBase.replace(/^[^B]*Basé/, 'Basé')) + '</li>');
-        items.push('<li>🛟 Marge de sécurité de ' + Math.round((MP.MARGE_PRODUCTION - 1) * 100) + ' % pour ne pas manquer</li>');
+        items.push('<li>' + echapper(sansEmoji(p.r.texteBase.replace(/^[^B]*Basé/, 'Basé'))) + (p.r.venteHabituelle ? ' : vendu d\'habitude ' + p.r.venteHabituelle.toLocaleString('fr-FR') : '') + '</li>');
+        items.push('<li>Marge de sécurité de ' + Math.round((MP.MARGE_PRODUCTION - 1) * 100) + ' % pour ne pas manquer</li>');
         var fiab = fiabiliteProduit(p);
-        if (fiab.ecart) items.push('<li>🎯 D\'habitude, la prévision tombe à ±' + fiab.ecart.ecart + ' pièce' + (fiab.ecart.ecart > 1 ? 's' : '') + ' près</li>');
-        else items.push('<li>🎯 Pas encore assez d\'historique pour dire à combien de pièces près la prévision tombe</li>');
+        if (fiab.ecart) items.push('<li>D\'habitude, la prévision tombe à ±' + fiab.ecart.ecart + ' pièce' + (fiab.ecart.ecart > 1 ? 's' : '') + ' près</li>');
+        else items.push('<li>Pas encore assez d\'historique pour dire à combien de pièces près la prévision tombe</li>');
         return items.join('');
       }
 
@@ -245,7 +263,7 @@
         var raisons = C.raisonsDuJour(previsions).slice(0, 3);
         raisonsEl.innerHTML = raisons.map(function (r) {
           var effet = MP.libelleEffet(r.ratio);
-          return '<li class="raison">' + r.icone + ' ' + echapper(r.libelle) + (effet ? ' <strong>' + effet + '</strong>' : '') + '</li>';
+          return '<li class="raison">' + echapper(sansEmoji(r.libelle)) + (effet ? ' <strong>' + effet + '</strong>' : '') + '</li>';
         }).join('');
         raisonsEl.hidden = raisons.length === 0;
       }
@@ -254,7 +272,7 @@
         var m = ctx.meteoPrevue[MP.versISO(jourCible)];
         if (!m || !m.moments || m.moments.length === 0) { meteoEl.hidden = true; return; }
         meteoEl.innerHTML = m.moments.map(function (x) {
-          return '<span class="meteo-moment"><span class="meteo-moment-libelle">' + x.libelle + '</span> ' + x.icone +
+          return '<span class="meteo-moment" title="' + echapper(x.ciel || '') + '"><span class="meteo-moment-libelle">' + x.libelle + '</span> ' + iconeCiel(x.ciel) +
             ' <span class="meteo-moment-temperature">' + (x.temperature !== null ? x.temperature + '°' : '') + '</span></span>';
         }).join('');
         meteoEl.hidden = false;
@@ -264,7 +282,8 @@
         var cases = listeEl.querySelectorAll('.case-enfourne');
         var faites = listeEl.querySelectorAll('.case-enfourne:checked').length;
         progressionEl.hidden = cases.length === 0;
-        document.getElementById('texteProgression').textContent = faites + ' sur ' + cases.length + ' enfourné' + (faites > 1 ? 's' : '');
+        document.getElementById('noteCases').hidden = cases.length === 0 || faites > 0;
+        document.getElementById('texteProgression').textContent = faites + ' produit' + (faites > 1 ? 's' : '') + ' enfourné' + (faites > 1 ? 's' : '') + ' sur ' + cases.length;
         document.getElementById('barreProgression').style.width = (cases.length ? faites / cases.length * 100 : 0) + '%';
       }
 
@@ -307,7 +326,7 @@
                 (fiab.peuSur && !repereUnique ? '<span class="repere-peu-sur">' + fiab.peuSur + '</span>' : '') + '</label>' +
               (masque
                 ? '<span class="ligne-fournee-chiffre"><span class="ligne-fournee-insuffisant">' + 'Pas assez d\'historique (' + p.r.nbMemeJour + ' ' + p.r.nomJourCible + (p.r.nbMemeJour > 1 ? 's' : '') + ')' + '</span></span>'
-                : '<span class="ligne-fournee-chiffre"><span class="ligne-fournee-quantite">' + q + '</span></span>') +
+                : '<span class="ligne-fournee-chiffre"><span class="ligne-fournee-quantite">' + q.toLocaleString('fr-FR') + '</span></span>') +
               (masque ? '' : '<p class="ligne-fournee-tranches">' + texteTranches(p, q) + '</p>') +
               '<div class="ligne-fournee-cuit" id="' + id + '-cuit"' + (fait ? '' : ' hidden') + '>' +
                 '<span>Cuit</span>' +
@@ -321,7 +340,7 @@
               '</li>';
           }).join('');
           return '<section class="rayon" aria-labelledby="rayon-' + B.normaliser(rayon) + '">' +
-            '<h2 class="rayon-titre" id="rayon-' + B.normaliser(rayon) + '">' + rayon + ' <span class="rayon-total">' + total + ' pièces</span>' + '</h2>' +
+            '<h2 class="rayon-titre" id="rayon-' + B.normaliser(rayon) + '">' + rayon + ' <span class="rayon-total">' + total.toLocaleString('fr-FR') + ' pièces</span>' + '</h2>' +
             '<ul class="liste-fournee">' + html + '</ul></section>';
         }).join('');
         majProgression();
@@ -333,6 +352,7 @@
         var h0 = B.formaterHeure(tournees()[0].heure);
         document.getElementById('exempleTranche').textContent = '« ' + h0 + ' → 94 » = 94 pièces à enfourner à ' + h0;
         afficherFiabilite(previsions);
+        afficherSource();
 
         document.getElementById('blocCommande').innerHTML = '<a class="btn-cta-commandes" href="commandes.html?jour=' + MP.versISO(jourCible) + '">Voir la commande de matières premières</a>';
       }
@@ -366,11 +386,32 @@
 
       // « D'habitude, on tombe à ±4 baguettes près », sur le produit le plus
       // vendu ; la comparaison avec la moyenne simple seulement si elle parle.
+      // Critère « chaque chiffre dit d'où il vient » : les quantités sont des
+      // estimations, calculées sur des ventes dont on donne la provenance.
+      function afficherSource() {
+        var el = document.getElementById('sourceFournee');
+        var jours = {}, caisse = {}, saisi = {}, reste = {};
+        ctx.ventes.forEach(function (v) {
+          jours[v.date_vente] = 1;
+          if (v.source === 'manuel') saisi[v.date_vente] = 1; else if (v.source === 'reste') reste[v.date_vente] = 1; else if (v.source !== 'demo') caisse[v.date_vente] = 1;
+        });
+        var n = Object.keys(jours).length;
+        if (!n) { el.hidden = true; return; }
+        var morceaux = [];
+        var nc = Object.keys(caisse).length, ns = Object.keys(saisi).length, nr = Object.keys(reste).length;
+        if (nc) morceaux.push(nc + ' de ta caisse');
+        if (ns) morceaux.push(ns + ' saisi' + (ns > 1 ? 's' : '') + ' ou importé' + (ns > 1 ? 's' : ''));
+        if (nr) morceaux.push(nr + ' déduit' + (nr > 1 ? 's' : '') + ' de tes restes');
+        el.innerHTML = '<strong>Estimé</strong> d\'après ' + n.toLocaleString('fr-FR') + ' jour' + (n > 1 ? 's' : '') + ' de ventes' +
+          (morceaux.length ? ' (' + morceaux.join(', ') + ')' : '') + ', marge de ' + Math.round((MP.MARGE_PRODUCTION - 1) * 100) + '\u00a0% comprise.';
+        el.hidden = false;
+      }
+
       function afficherFiabilite(previsions) {
         var principal = previsions.filter(function (p) { return !p.r.insuffisant; }).sort(function (a, b) { return b.r.quantite - a.r.quantite; })[0];
         var ecart = principal ? MP.calculerEcartUnites(ctx.parProduit[principal.nom]) : null;
         if (!ecart) { fiabiliteEl.hidden = true; return; }
-        var texte = "D'habitude, la prévision tombe à <strong>±" + ecart.ecart + ' ' + echapper(principal.nom.toLowerCase()) + '</strong> près.';
+        var texte = "D'habitude, la prévision de " + echapper(principal.nom.toLowerCase()) + ' tombe à <strong>±' + ecart.ecart + ' pièce' + (ecart.ecart > 1 ? 's' : '') + '</strong> près (mesuré sur ' + ecart.nbPoints + ' jours : prévision comparée à tes vraies ventes).';
         var fiab = MP.calculerFiabilite(ctx.ventes);
         var naive = MP.calculerFiabiliteNaive(ctx.ventes);
         if (MP.comparaisonUtile(fiab, naive)) {
@@ -511,7 +552,7 @@
             return '<button type="button" class="fournil-pastille' + (i === fournilEtat.courante ? ' fournil-pastille--active' : '') + (trancheFinie(x) ? ' fournil-pastille--finie' : '') + '" data-aller="' + i + '"' + (i === fournilEtat.courante ? ' aria-current="step"' : '') + '>' + x.heure + '</button>';
           }).join('') + '</nav><button type="button" class="fournil-quitter" data-quitter>Quitter</button></header>' +
           '<div class="fournil-titre-bloc"><h2 class="fournil-heure">' + t.heure + '</h2><p class="fournil-nom-tranche">' + echapper(t.nom) + '</p>' +
-            '<p class="fournil-compte" role="status">' + piecesFaites + ' sur ' + pieces + ' pièces enfournées</p></div>' +
+            '<p class="fournil-compte" role="status">' + piecesFaites.toLocaleString('fr-FR') + ' sur ' + pieces.toLocaleString('fr-FR') + ' pièces enfournées</p></div>' +
           '<ul class="fournil-liste">' + t.lignes.map(function (l) {
             var fait = !!fournilEtat.faits[l.cle];
             return '<li class="fournil-ligne' + (fait ? ' fournil-ligne--faite' : '') + '"><label>' +
@@ -569,6 +610,17 @@
         cocheCle = 'apoint-fournee-cuit:' + ctx.commercantId + ':' + MP.versISO(jourCible);
         var dateTitre = MP.formatDateLongue(jourCible).toLowerCase();
         titreEl.textContent = estAujourdhui ? 'À enfourner aujourd\'hui, ' + dateTitre : 'À enfourner pour ' + dateTitre;
+        // Lot 9 : dire pourquoi on atterrit sur ce jour-là (jours fermés sautés).
+        var raisonEl = document.getElementById('raisonJour');
+        var fermes = [];
+        if (!estAujourdhui) {
+          for (var d = MP.ajouterJours(maintenant, 1); MP.versISO(d) < MP.versISO(jourCible); d = MP.ajouterJours(d, 1)) fermes.push(MP.capitaliser(MP.nomsJours[d.getDay()]));
+        }
+        var court = MP.nomsJours[jourCible.getDay()] + ' ' + jourCible.getDate() + ' ' + MP.nomsMoisCourts[jourCible.getMonth()];
+        var fin = /\.$/.test(court) ? '' : '.';
+        raisonEl.textContent = fermes.length ? fermes.join(', ') + ' fermé' + (fermes.length > 1 ? 's' : '') + ' : prochaine fournée ' + court + fin
+          : (!aujourdhuiOuvert && !estAujourdhui ? 'Fermé aujourd\'hui : prochaine fournée ' + court + fin : '');
+        raisonEl.hidden = !raisonEl.textContent;
         var selecteur = document.getElementById('selecteurJour');
         selecteur.hidden = false;
         selecteur.querySelectorAll('[data-jour]').forEach(function (b) {
@@ -589,6 +641,7 @@
       // tapotement. La carte disparaît dès qu'hier est saisi (ou jour fermé).
       function afficherCarteSaisieHier() {
         var carte = document.getElementById('carteSaisieHier');
+        if (ctx.ventes.length === 0) return;
         // Ventes périmées (plus de 3 jours sans vente) : toujours signalé, en
         // premier, avec le même bouton de saisie.
         var dernieres = C.dernieresVentes(ctx);
@@ -722,7 +775,15 @@
         choisirJour(maintenant.getHours() < 12 && aujourdhuiOuvert ? 'aujourdhui' : 'demain');
         afficherCarteSaisieHier();
         if (ctx.ventes.length === 0) {
-          listeEl.innerHTML = '<div class="carte-vide-claire">Pas encore de ventes : <a href="caisse.html">branche ta caisse</a> (tes 12 derniers mois arrivent d\'un coup) ou ajoute la journée d\'hier depuis <a href="parametres.html#donnees">Paramètres &gt; Mes données</a>.</div>';
+          // Nouveau compte : une seule marche à suivre, rien d'autre à l'écran
+          // (ni restes du soir, ni mode fournil, ni choix du jour).
+          ['carteSaisieHier', 'lienBrancherCaisse', 'selecteurJour', 'btnEcranFournil', 'meteoJour', 'raisonJour'].forEach(function (id) { document.getElementById(id).hidden = true; });
+          titreEl.textContent = 'Bienvenue' + (ctx.parametres && ctx.parametres.nom_restaurant ? ', ' + ctx.parametres.nom_restaurant : '') + ' !';
+          listeEl.innerHTML = '<div class="carte-vide-claire etat-vide"><p><strong>Pour calculer ta première fournée, À&nbsp;Point a besoin de tes ventes passées.</strong></p>' +
+            '<ol><li><strong>Branche ta caisse</strong> ou dépose son export : tes 12 derniers mois arrivent d\'un coup.</li>' +
+            '<li>Pas de caisse ? <a href="ventes.html">Saisis tes ventes d\'hier</a>, produit par produit.</li></ol>' +
+            '<p>Dès que tes ventes sont là, ta fournée s\'affiche ici, produit par produit, avec la raison de chaque chiffre.</p>' +
+            '<p><a class="bouton-principal" href="caisse.html">Brancher ma caisse</a></p></div>';
           return;
         }
         actionsEl.hidden = false;

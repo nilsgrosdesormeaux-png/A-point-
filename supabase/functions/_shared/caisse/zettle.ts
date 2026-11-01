@@ -63,3 +63,38 @@ export async function lignesVendues(fetchFn: FetchFn, accessToken: string, _comp
   }
   return lignes;
 }
+
+// Mode « clé personnelle » (assertion grant) : le commerçant crée une clé
+// API dans my.zettle.com/apps/api-keys, sans aucune app développeur de
+// notre côté. La clé est un JWT qui contient le client_id à renvoyer ; elle
+// ne donne pas de refresh token : on redemande un jeton (2 h) à chaque synchro.
+export var LIEN_CREATION_CLE = 'https://my.zettle.com/apps/api-keys?name=' + encodeURIComponent('A Point')
+  + '&scopes=' + encodeURIComponent('READ:PURCHASE READ:USERINFO');
+
+function base64UrlVersTexte(morceau: string): string {
+  var b64 = morceau.replace(/-/g, '+').replace(/_/g, '/');
+  while (b64.length % 4) b64 += '=';
+  var bin = atob(b64);
+  var octets = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) octets[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(octets);
+}
+
+export function clientIdDeCle(cle: string): string {
+  var morceaux = String(cle || '').trim().split('.');
+  if (morceaux.length !== 3) throw new Error('Zettle : clé API attendue (longue suite de caractères en trois parties séparées par des points)');
+  var charge: any;
+  try { charge = JSON.parse(base64UrlVersTexte(morceaux[1])); } catch (_e) { throw new Error('Zettle : clé API illisible'); }
+  var id = charge.client_id || charge.clientId || charge.cid || (typeof charge.aud === 'string' ? charge.aud : '') || charge.sub;
+  if (!id) throw new Error('Zettle : identifiant client introuvable dans la clé');
+  return String(id);
+}
+
+export async function jetonDepuisCle(fetchFn: FetchFn, cle: string): Promise<string> {
+  var jetons = await demanderJetons(fetchFn, 'Zettle', OAUTH + '/token', {
+    grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+    client_id: clientIdDeCle(cle),
+    assertion: String(cle).trim()
+  });
+  return jetons.access_token;
+}

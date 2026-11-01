@@ -187,6 +187,23 @@ test('référence avant : nationale estimée, réponses, farine achetée − ven
   assert.equal(MP.referenceAvant(achats, [], [], '2026-10-30', () => 0).nature, 'estimé');
 });
 
+test('lot 9 : point de départ mesuré sur 2 semaines cochées, prioritaire sur les réponses', () => {
+  const fournees = [], ventes = [];
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(2026, 9, 1 + i), iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    fournees.push({ date_fournee: iso, nom_produit: 'Baguette', quantite_cuite: 100 });
+    ventes.push({ date_vente: iso, nom_produit: 'Baguette', quantite: 85 });
+  }
+  const p = { observation_debut: '2026-10-01', reference_avant: { production: 400, reste: 40 } };
+  const ref = MP.referenceAvant(p, fournees, ventes, '2026-10-20');
+  assert.equal(ref.nature, 'mesuré'); assert.ok(Math.abs(ref.taux - 0.15) < 1e-9); assert.equal(ref.fin, '2026-10-15');
+  // Pendant la mesure : les réponses restent la référence, la mesure est « en cours ».
+  assert.equal(MP.referenceAvant(p, fournees, ventes, '2026-10-10').nature, 'estimé');
+  assert.equal(MP.referenceMesuree(p, fournees, ventes, '2026-10-10').enCours, true);
+  // Choix explicite des réponses : on le respecte.
+  assert.equal(MP.referenceAvant({ observation_debut: '2026-10-01', reference_avant: { production: 400, reste: 40, choix: 'reponses' } }, fournees, ventes, '2026-10-20').nature, 'estimé');
+});
+
 test('lot 3 : non cuits, sarrasin, farines fusionnées', () => {
   for (const n of ['Café', 'Menu du jour', 'Burger maison', 'Tiramisu', 'Salade césar']) assert.equal(B.estCuit(n), false, n);
   assert.equal(B.estCuit('Baguette tradition'), true);

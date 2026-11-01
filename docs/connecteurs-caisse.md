@@ -17,17 +17,44 @@ Objectif (REFONTE.md § 4 bis) : les ventes par article arrivent seules chaque n
 | **Crisalid** (ALIRIS) | **Aucune doc publique trouvée** | — | Logiciel installé en local (Windows + base Firebird) | Contact commercial nécessaire | Repli export e-mail |
 | **Bimedia** (groupe Orisha) | **Aucune doc publique trouvée** | — | — | Contact commercial / partenariat Orisha nécessaire | Plus grosse base en boulangerie (≈ 7 000 clients d'après les comparatifs) : **ouvrir la discussion partenariat dès maintenant**, repli export e-mail en attendant |
 
-## État au 1er novembre 2026
+## État au 1er novembre 2026 (soir) : « clé personnelle », sans aucun compte du fondateur
+
+Le fondateur n'a pas d'entreprise (SumUp exige un compte professionnel pour une app OAuth) ni de domaine e-mail. D'où le mode **clé personnelle** : le boulanger crée une clé dans SON compte de caisse et la colle sur la page Ma caisse. Aucun compte développeur côté À Point. La clé est chiffrée (AES-GCM, `CLE_CHIFFREMENT_CAISSE`) dans `connexions_caisse_secrets` (RLS sans policy, droits retirés à anon/authenticated), jamais renvoyée au navigateur. L'OAuth existant reste, caché tant que ses secrets manquent.
+
+| Caisse | Ce que la doc officielle confirme | Où clique le boulanger | Ventes lues | Statut |
+|---|---|---|---|---|
+| **SumUp** | Clé API secrète créée par le commerçant, « accès complet » à son compte, en-tête `Bearer` ([doc](https://developer.sumup.com/tools/authorization/api-keys/)) | me.sumup.com > profil > Paramètres > Pour les développeurs > Toolkit > Clés API > Créer ; copier `sup_sk_…` | Comme l'OAuth (historique + détail par ticket) | **À confirmer avec le premier boulanger** |
+| **Zettle** | « Assertion grant » pour une intégration privée : le titulaire crée une clé (JWT) sur my.zettle.com/apps/api-keys, lien pré-rempli possible ; jeton de 2 h obtenu avec `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer`, `client_id` lu dans la clé, pas de refresh token ([doc](https://github.com/iZettle/api-documentation/blob/master/authorization.md)) | Lien prêt sur la page (nom « A Point », droits `READ:PURCHASE READ:USERINFO`) > Créer > copier la clé | Purchase API v2, comme l'OAuth | **À confirmer avec le premier boulanger** (nom exact du champ `client_id` dans le JWT non documenté : on lit `client_id`, puis `cid`, `aud`, `sub`) |
+| **Square** | Jeton d'accès personnel de production, « accès illimité » au compte, adapté en production pour une intégration qui n'accède qu'à son propre compte ([doc](https://developer.squareup.com/docs/build-basics/access-tokens)) | developer.squareup.com/apps avec son compte Square > créer une application > Credentials > Production > Production Access token > Show | Orders API, comme l'OAuth | **À confirmer avec le premier boulanger** (un fil du forum Square signale un 403 Orders avec ce jeton, contredit par la doc) |
+| **Loyverse** | Jeton d'accès personnel créé dans le Back Office (r.loyverse.com/dashboard/#/integrations/tokens), « accès illimité », `Bearer` ; `GET /v1.0/receipts` filtré par `created_at_min/max`, 250 par page, curseur ; `line_items` (`item_name`, `variant_name`, `quantity`), `receipt_type` SALE/REFUND, `cancelled_at` ; 300 requêtes / 300 s ([doc](https://developer.loyverse.com/docs/)) | Back Office > Paramètres > Jetons d'accès > + Ajouter > copier | Tickets du jour, remboursements déduits, annulés ignorés | **À confirmer avec le premier boulanger** ; nécessite la migration v4 |
+| **Tactill** (v5) | API publique `https://api.tactill.com/pos/v0`, clé `sk_live_…` par commerce en `X-Api-Key`, portée `sale:read` ; `POST /sale/request` filtré sur `created_at`, pagination `next_token`, lignes `operation_type` SALE/REFUND. **Création de clé pas encore en libre-service** : la doc renvoie vers hello@tactill.com ([doc](https://documentation.api.tactill.com/)) | E-mail pré-rempli à hello@tactill.com, puis coller la clé reçue | Ventes du jour, retours déduits, ventes supprimées ignorées | **À confirmer avec le premier boulanger** ; nouvelle version de Tactill seulement ; migration v4 |
+| **Hiboutik** | Inchangé (déjà en service) | Compte + e-mail + clé API | Produits vendus par jour | En service |
+
+**Non retenues (pas de clé créée par le commerçant dans une doc officielle publique)** : Zelty (clé générée dans le back-office d'après des intégrateurs, mais documentation réservée aux partenaires), Tiller / SumUp Caisse Pro (portail développeur derrière connexion partenaire), L'Addition, Cashpad, Cashmag, Lightspeed K-Series (programme partenaire), Bimedia, Crisalid, Toporder (aucune API publique). Lightspeed X-Series a des « personal tokens » (Setup > Personal Tokens), mais seulement en formule Plus et très peu présente en boulangerie française : pas codée. Pour toutes celles-ci : import de fichier, puis envoi quotidien par e-mail.
+
+### Import de fichier : la solution universelle
+
+`supabase/functions/_shared/caisse/lecture-export.js` (même code pour la page, l'e-mail et les tests). Les éditeurs ne publient pas le détail colonne par colonne de leurs exports ; la lecture ne dépend donc pas d'un format précis mais reconnaît tout ce qui suit, testé dans `tests/caisse.test.mjs` :
+
+- en-têtes français et anglais (Article, Désignation, Libellé, Produit, Item, Product ; Qté, Quantité vendue, Qty, Items sold, Nombre de ventes ; Date, Jour, Date de vente, Created at…), avec exclusions (« Code article », « Catégorie produit », « Qté remboursée », « Prix », « CA »… ne sont jamais pris à la place) et contrôle sur les valeurs ;
+- variante ajoutée au nom comme pour les connecteurs (Square « Price Point Name », Loyverse et Zettle « Variant »), remboursements déduits (colonne type : Refund, Remboursement, Avoir), lignes annulées ignorées (Cancelled, Annulé) ;
+- encodages UTF-8, Windows-1252, UTF-16 ; séparateurs `;` `,` tabulation `|`, ligne `sep=;` ; Excel multi-feuilles (la première feuille qui contient des ventes) ;
+- dates françaises, ISO, avec fuseau (jour de Paris), en toutes lettres, américaines (mois/jour détecté sur le fichier), numéros Excel ; nombres `1 234,5`, `1.234,50`, `1,234.50`, `3 u`, `(2)` ;
+- tableaux croisés (articles × jours, jours × articles), jour unique lu dans le titre (« Période : du 29/10/2026 au 29/10/2026 »), lignes-titres de jour, en-têtes répétés, totaux et quantités vides ignorés ;
+- si rien n'est reconnu : le boulanger choisit lui-même les colonnes Article / Quantité / Date ; dans tous les cas, aperçu (jours, articles, période) avant d'importer.
+
+Exemples d'en-têtes visés (relevés sur des aides et forums publics, à confirmer sur un vrai fichier) : Square « Détails des articles » (`Date, Time, Category, Item, Qty, Price Point Name, …, Event Type`), Loyverse « Tickets par article » (`Date, Receipt type, Item, Variant, Quantity, …, Status`), Zettle « Ventes par produit » (Produit, Variante, Quantité…), exports français type Bimedia / Crisalid / Cashmag (`Code article; Désignation; Famille; Qté vendue; CA TTC`).
+
+### Export par e-mail sans compte payant ni domaine
+
+Postmark exigeait une adresse à un nom de domaine. Remplacement : une **boîte Gmail dédiée gratuite** (`apoint.ventes@gmail.com`) et un script Google Apps Script (`supabase/functions/import-export-caisse/relais-gmail.gs`) qui la relève toutes les 10 minutes et transmet les pièces jointes à `import-export-caisse` au format Postmark (la fonction ne change pas). Chaque boulangerie a son adresse `apoint.ventes+<jeton>@gmail.com` (Gmail livre les adresses « + » dans la même boîte). Limites : quotas gratuits Apps Script (largement suffisants), délai de 10 minutes au plus, e-mails sans pièce jointe non traités. Mise en service : `docs/vente/guide-comptes-caisse.md`.
 
 | Caisse | Branchement | Historique au branchement |
 |---|---|---|
-| SumUp | Bouton « Brancher » (OAuth) | 12 mois (un appel par ticket : quelques heures, en tâche de fond) |
-| Zettle | Bouton « Brancher » (OAuth) | 12 mois (jusqu'à 3 ans possibles), quelques minutes |
-| Square | Bouton « Brancher » (OAuth) | 12 mois, quelques minutes |
-| Hiboutik | Le commerçant colle sa clé API | 12 mois, limité au début de son abonnement Hiboutik |
-| Bimedia, Crisalid, Toporder, Tactill, autres | Import guidé du fichier d'export (CSV ou Excel, même gros), puis export quotidien par e-mail | Ce que contient le fichier |
-
-Chaque bouton n'apparaît qu'une fois l'app développeur de la caisse créée et ses codes ajoutés aux secrets Supabase.
+| SumUp, Zettle, Square | Clé personnelle (bouton OAuth en plus si l'app est configurée) | 12 mois |
+| Loyverse, Tactill | Clé personnelle (après migration v4) | 12 mois |
+| Hiboutik | Clé API | 12 mois, limité au début de son abonnement Hiboutik |
+| Toutes les autres | Import du fichier d'export, puis export quotidien par e-mail (relais Gmail) | Ce que contient le fichier |
 
 ## Agrégateur ou connecteurs maison ?
 
@@ -87,6 +114,12 @@ Mise en service et tests : voir `supabase/functions/README-caisse.md`.
 - Lightspeed K-Series — accès partenaire (intégrateur tiers) : https://docs.codat.io/integrations/commerce/lightspeed-k/commerce-lightspeed-k-setup
 - Hiboutik — page développeurs : https://www.hiboutik.com/en/api-developers/ ; librairie officielle (auth basic / OAuth) : https://github.com/hiboutik/hiboutikapi
 - Hiboutik — limite d'historique (intégrateur Chift) : https://docs.chift.eu/help/connectors/pos/hiboutik
+- SumUp — clés API : https://developer.sumup.com/tools/authorization/api-keys/
+- Square — jetons d'accès personnels : https://developer.squareup.com/docs/build-basics/access-tokens
+- Loyverse — API (jetons personnels, reçus) : https://developer.loyverse.com/docs/
+- Tactill — API v0 : https://documentation.api.tactill.com/
+- Lightspeed X-Series — personal tokens : https://x-series-api.lightspeedhq.com/docs/introduction
+- Zelty — intégrations (réservées partenaires) : https://zelty.notion.site/Integrating-with-Zelty-25c9c28d925180cb8851cfce5e17a8f7
 - Tactill — formules et API (comparatifs, non officiel) : https://tool-advisor.fr/logiciel-de-caisse/comparatif/tactill/ et https://independant.io/avis/tactill/
 - Toporder — intégrations : https://www.mypos.com/fr-fr/appmarket/application/26948 et https://www.lafabriquedunet.fr/logiciel/toporder-by-mypos
 - Crisalid — produit et installation locale : https://www.hellopro.fr/crisalid-167832-profil-fr-societe.html

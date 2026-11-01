@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Commande</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101m">
+  <link rel="stylesheet" href="style.css?v=20261101q">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <script src="moteur-prevision.js?v=20261101l"></script>
+  <script src="moteur-prevision.js?v=20261101q"></script>
   <script src="boulangerie.js?v=20261101l"></script>
   <script src="contexte.js?v=20261101l"></script>
-  <script src="nav.js?v=20261031"></script>
+  <script src="nav.js?v=20261101q"></script>
 </head>
 <body>
   <a class="lien-evitement" href="#contenu">Aller au contenu</a>
@@ -32,7 +32,7 @@
     <div class="entete-page">
       <div>
         <h1>Commande</h1>
-        <p class="texte-aide" style="margin:0;">Les matières premières dont ta fournée aura besoin, par fournisseur.</p>
+        <p class="texte-aide" style="margin:0;">Les matières premières dont ta fournée aura besoin, par fournisseur. <strong>Estimé</strong> : fournée prévue × tes recettes, moins ton stock.</p>
       </div>
     </div>
     <p id="statutConnexion" class="texte-aide">Chargement…</p>
@@ -198,7 +198,7 @@
         else if (u) {
           var n = Math.ceil(reste / u.taille - 1e-9);
           commande = n * u.taille;
-          achat = n + ' ' + (n > 1 ? u.pluriel : u.libelle) + (u.detail ? ' ' + u.detail : '');
+          achat = n.toLocaleString('fr-FR') + ' ' + (n > 1 ? u.pluriel : u.libelle) + (u.detail ? ' ' + u.detail : '');
           achatTexte = achat;
         } else { achat = B.formaterQuantite(reste, b.unite, b.nom).replace(/ \(≈[^)]*\)/, ''); achatTexte = achat; }
         return { reste: reste, commande: commande, achat: achat, achatTexte: achatTexte, explication: besoinTxt + stockTxt };
@@ -292,8 +292,11 @@
             B.versionsRecetteType(nom).some(function (t) { return identiqueAuType(f.fiche, t); });
           var etat = f.fiche && !proposee ? '<span class="recette-etat recette-etat--ok">Ta recette, modifiable</span>'
             : '<span class="recette-etat">' + (f.type ? 'Recette type proposée par À Point, à vérifier' : 'Recette à compléter : ne compte pas encore') + '</span>';
-          return '<section class="recette" data-nom="' + echapper(nom) + '">' +
-            '<div class="recette-entete"><h3>' + echapper(nom) + '</h3>' + etat + '</div>' +
+          // Lot 9 : les recettes validées sont repliées ; seules celles à
+          // vérifier restent ouvertes.
+          var aVerifier = !(f.fiche && !proposee);
+          return '<details class="recette" data-nom="' + echapper(nom) + '"' + (aVerifier ? ' open' : '') + '>' +
+            '<summary class="recette-entete"><h3>' + echapper(nom) + '</h3>' + etat + '</summary>' +
             '<p class="texte-aide--discret recette-aide">Pour une pièce</p>' + alerteFarine(f.fiche, f.type) +
             '<ul class="recette-ingredients">' + lignes.join('') + '</ul>' +
             '<div class="recette-actions"><button type="button" class="lien-discret" data-ajouter>+ Ajouter un ingrédient</button></div>' +
@@ -301,7 +304,7 @@
             '<div class="recette-actions">' +
             (!proposee && (f.fiche || !f.type) ? '<button type="button" class="bouton-principal" data-enregistrer-recette>Enregistrer</button>'
               : '<button type="button" class="bouton-principal" data-enregistrer-recette>C\'est ma recette</button><button type="button" class="bouton-secondaire" data-modifier>Modifier</button>') +
-            '<span class="texte-aide" role="status"></span></div></section>';
+            '<span class="texte-aide" role="status"></span></div></details>';
         }).join('');
       }
 
@@ -587,7 +590,7 @@
         statutDiv.textContent = '';
         fournisseursInfos = (ctx.parametres && ctx.parametres.fournisseurs) || lireLocal('apoint-fournisseurs:' + ctx.commercantId, {});
         if (ctx.ventes.length === 0) {
-          statutDiv.innerHTML = 'Pas encore de ventes : la commande se calculera dès que ta caisse ou tes premières ventes seront là.';
+          statutDiv.innerHTML = 'Pas encore de ventes : la commande se calculera dès que ta caisse ou tes premières ventes seront là. <a href="caisse.html">Brancher ma caisse →</a>';
           return;
         }
         document.getElementById('zoneCommande').hidden = false;
