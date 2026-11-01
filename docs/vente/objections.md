@@ -12,7 +12,7 @@ Rien : c'est gratuit pendant la phase de test, sans carte bancaire. Si un abonne
 Avec une caisse branchée ou son export, il n'y a rien à saisir. Sans caisse, c'est une minute le soir : vous comptez ce qu'il reste sur les étagères, le reste se calcule.
 
 **4. « Ma caisse ne se branche pas. »**
-Hiboutik se branche aujourd'hui. SumUp, Zettle, Square, Loyverse et Tactill : vous créerez vous-même une clé dans votre caisse (on vous guide, 5 minutes), branchement en cours de mise en service. Pour toutes les autres, on dépose l'export de vos ventes, ce qui suffit pour démarrer dès demain. Et sans caisse, la saisie du soir marche.
+SumUp, Zettle, Square, Loyverse, Tactill et Hiboutik : vous créez vous-même une clé dans votre caisse (on vous guide, 5 minutes) et vos ventes arrivent seules ; c'est nouveau, on le vérifie avec vous dès le premier jour. Pour toutes les autres, on dépose l'export de vos ventes, ce qui suffit pour démarrer dès demain. Et sans caisse, la saisie du soir marche.
 
 **5. « Vos chiffres sortent d'où ? Je ne fais pas confiance à une boîte noire. »**
 Sous chaque produit, le bouton « Pourquoi ? » explique le chiffre : vos ventes des mêmes jours, les plus récentes comptent plus, plus la météo et les fériés. Dans le Bilan, chaque chiffre est marqué « mesuré » ou « estimé ».

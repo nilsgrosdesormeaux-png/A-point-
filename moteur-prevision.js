@@ -1127,7 +1127,7 @@
     var vendue = farineVendue(achats.debut, achats.fin);
     if (!(vendue > 0)) return null;
     return { taux: Math.min(0.6, Math.max(0, 1 - vendue / Number(achats.farine_kg))), nature: 'calculé',
-      libelle: 'calculé d\'après ta farine achetée et tes ventes', source: Math.round(Number(achats.farine_kg)) + ' kg achetés, ' + Math.round(vendue) + ' kg vendus du ' + achats.debut.split('-').reverse().join('/') + ' au ' + achats.fin.split('-').reverse().join('/') };
+      libelle: 'calculé d\'après ta farine achetée et tes ventes', source: Math.round(Number(achats.farine_kg)) + ' kg achetés, ' + Math.round(vendue) + ' kg vendus du ' + (function (iso) { return new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }); })(achats.debut) + ' au ' + (function (iso) { return new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }); })(achats.fin) };
   }
   // Le boulanger choisit entre ses réponses et ses achats de farine
   // (reference_avant.choix) ; sans choix, les achats l'emportent sur les
@@ -1144,7 +1144,7 @@
     var finie = (aujourdhuiIso || versISO(new Date())) >= fin;
     if (finie && m.nbJours >= 8 && m.cuit > 0) {
       return { taux: m.invendus / m.cuit, nature: 'mesuré', libelle: 'mesuré sur tes 2 semaines d\'observation', debut: debut, fin: fin,
-        source: m.invendus.toLocaleString('fr-FR') + ' invendus sur ' + m.cuit.toLocaleString('fr-FR') + ' pièces cuites, du ' + debut.split('-').reverse().join('/') + ' au ' + versISO(ajouterJours(new Date(fin + 'T00:00:00'), -1)).split('-').reverse().join('/') };
+        source: m.invendus.toLocaleString('fr-FR') + ' invendus sur ' + m.cuit.toLocaleString('fr-FR') + ' pièces cuites, du ' + (function (iso) { return new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }); })(debut) + ' au ' + (function (iso) { return new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }); })(versISO(ajouterJours(new Date(fin + 'T00:00:00'), -1))) };
     }
     return { enCours: !finie, nbJours: m.nbJours, debut: debut, fin: fin };
   }
