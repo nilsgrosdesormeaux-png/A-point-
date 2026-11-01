@@ -59,7 +59,8 @@ Deno.serve(async (req) => {
   }
   var admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   var email = await req.json().catch(function () { return {}; });
-  var jeton = String(email.MailboxHash || '').trim();
+  // Partie après le « + » : « caisse-<jeton> » (adresses depuis la v4) ou « <jeton ».
+  var jeton = String(email.MailboxHash || '').trim().toLowerCase().replace(/^caisse-/, '');
   if (!jeton) return new Response(JSON.stringify({ ignore: 'adresse sans jeton' }), { status: 200 });
 
   var cx = await admin.from('connexions_caisse').select('*').eq('fournisseur', 'export_email').eq('jeton_import', jeton).maybeSingle();

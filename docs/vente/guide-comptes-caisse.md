@@ -10,34 +10,34 @@
 | Loyverse | Jeton d'accès créé dans son Back Office | Aucun |
 | Tactill (nouvelle version) | Clé demandée par e-mail à Tactill (message prêt) | Aucun |
 | Hiboutik | Clé API (déjà en service) | Aucun |
-| Toutes les autres | Fichier d'export déposé sur la page, ou envoyé chaque jour par e-mail | Une adresse Gmail gratuite (étape 2) |
+| Toutes les autres | Historique déposé une seule fois, puis envoi automatique chaque jour par e-mail depuis la caisse | Ta boîte apointapp.contact@gmail.com et un script de 10 minutes (étape 2) |
 
 Chaque nouvelle caisse reste **à confirmer avec le premier boulanger** qui l'utilise : je l'ai testée sur des réponses simulées conformes à la documentation officielle, pas sur un vrai compte.
 
 ---
 
-## 1. Mettre en service (avec moi, 15 minutes)
+## 1. Mettre en service (l'orchestrateur, avec ton accord)
 
-Rien n'est encore en ligne. Quand tu me donnes ton accord, dans cet ordre :
+Migration v4 et fonctions sont en ligne. Pour ce lot, il reste à redéployer `connecter-caisse`, `synchro-caisse` et `import-export-caisse` (aucune migration), puis à régler deux secrets dans Supabase > Edge Functions > Secrets :
 
-1. **Base de données** : Supabase > projet **anti-gaspi** > **SQL Editor** > coller `migration-connecteurs-caisse-v4.sql` > **Run**. Elle peut être relancée sans risque.
-2. **Les trois fonctions** (je peux le faire pour toi) :
-   `supabase functions deploy connecter-caisse --no-verify-jwt`, puis la même chose pour `synchro-caisse` et `import-export-caisse`.
-3. **Vérifier le secret `CLE_CHIFFREMENT_CAISSE`** dans Supabase > Edge Functions > Secrets. S'il manque : `openssl rand -base64 32`, et le garder précieusement (le changer oblige à rebrancher toutes les caisses).
+- `ADRESSE_IMPORT` = `apointapp.contact@gmail.com`
+- `CLE_IMPORT_EMAIL` : s'il n'existe pas encore, une suite au hasard (`openssl rand -hex 24`). L'orchestrateur te donne l'adresse complète à coller à l'étape 2.4.
 
-Tant que ce n'est pas fait, la page **Ma caisse** affiche « bientôt » pour les nouvelles caisses, et l'import de fichier marche normalement.
+## 2. L'envoi automatique par e-mail, gratuit (moins de 10 minutes)
 
-## 2. L'envoi automatique par e-mail, gratuit (10 minutes)
+Tu gardes ta boîte **apointapp.contact@gmail.com**. Chaque boulanger reçoit une adresse à lui, du type `apointapp.contact+caisse-3f9a…@gmail.com` : Gmail la livre dans ta boîte habituelle. Un petit script Google, installé une fois, relève ces e-mails toutes les 10 minutes, envoie les fichiers à À Point, puis les range sous l'étiquette « A Point ventes ». **Ton courrier normal n'est jamais touché** (ni lu, ni déplacé). Aucun filtre Gmail à créer.
 
-Remplace Postmark : une boîte Gmail ordinaire reçoit les exports, un petit script Google la relève toutes les 10 minutes.
+1. Sur un ordinateur, connecté à **apointapp.contact@gmail.com**, ouvre **script.google.com** et clique sur **Nouveau projet**.
+2. Efface tout le texte de l'éditeur, puis colle le contenu du fichier `supabase/functions/import-export-caisse/relais-gmail.gs` (je te l'envoie si besoin). Clique sur l'icône **disquette** pour enregistrer ; nomme le projet « A Point ventes ».
+3. À gauche, clique sur la **roue dentée** (Paramètres du projet), descends jusqu'à **Propriétés du script**, puis **Ajouter une propriété du script** :
+   - Propriété : `URL_IMPORT`
+   - Valeur : `https://eqvbksxfwlgbcxgqljqn.supabase.co/functions/v1/import-export-caisse?cle=` suivi de la valeur du secret `CLE_IMPORT_EMAIL`.
+   Clique sur **Enregistrer les propriétés du script**.
+4. À gauche, reviens sur **Éditeur** (icône `< >`). En haut, dans la liste des fonctions, choisis **installer**, puis clique sur **Exécuter**.
+5. Google demande une autorisation : **Examiner les autorisations** > choisis ton compte > « Google n'a pas validé cette application » : **Paramètres avancés** > **Accéder à A Point ventes (non sécurisé)** > **Autoriser**. C'est normal : c'est ton propre script.
+6. C'est fini. Pour vérifier : menu de gauche **Déclencheurs** (icône réveil), une ligne « relayer, toutes les 10 minutes » doit apparaître.
 
-1. Crée une adresse Gmail **dédiée**, par exemple `apoint.ventes@gmail.com` (pas ta boîte perso).
-2. Connecté avec elle, va sur **script.google.com** > **Nouveau projet**. Efface le contenu et colle le fichier `supabase/functions/import-export-caisse/relais-gmail.gs`.
-3. Roue dentée **Paramètres du projet** > **Propriétés du script** > ajoute `URL_IMPORT` avec pour valeur le contenu du fichier `adresse-webhook-postmark.txt` de ton Bureau (l'adresse de la fonction avec `?cle=…`).
-4. Reviens à l'éditeur, choisis la fonction **installer** et clique sur **Exécuter**. Accepte les autorisations Gmail (Google prévient que l'app n'est pas vérifiée : c'est ton propre script, clique sur « Paramètres avancés » puis « Accéder »).
-5. Dans Supabase > Edge Functions > Secrets, mets `ADRESSE_IMPORT` = `apoint.ventes@gmail.com`.
-
-Le bouton « Obtenir mon adresse d'import » apparaît alors pour les boulangers : chacun reçoit `apoint.ventes+<code>@gmail.com`.
+Pour l'arrêter un jour : **Déclencheurs** > les trois points > **Supprimer le déclencheur**.
 
 ## 3. Plus tard, en option : les boutons « Brancher » (OAuth)
 
@@ -54,5 +54,5 @@ Adresse de redirection, la même pour toutes : `https://eqvbksxfwlgbcxgqljqn.sup
 ## Ce que voit le boulanger
 
 - **SumUp, Zettle, Square, Loyverse, Tactill, Hiboutik** : la marche à suivre dans sa caisse, un champ pour coller sa clé, puis ses 12 derniers mois arrivent tout seuls, et chaque nuit les ventes de la veille.
-- **Toute autre caisse** : il dépose son fichier d'export ; les colonnes sont reconnues seules (il peut les choisir sinon) et il voit un aperçu avant d'importer. Puis, si sa caisse sait le faire, l'envoi quotidien vers son adresse d'import.
+- **Toute autre caisse** : il dépose une seule fois son historique (colonnes reconnues seules, aperçu avant d'importer), puis règle dans sa caisse l'envoi automatique quotidien vers son adresse (mode d'emploi pas à pas pour Lightspeed ; pour les autres caisses, un message prêt à envoyer à son éditeur). Plus jamais de fichier à déposer.
 - Dans tous les cas, la page **Ma caisse** montre l'état (à jour, en retard, erreur) et le journal de chaque réception. Sa clé est chiffrée sur nos serveurs et n'est jamais réaffichée.

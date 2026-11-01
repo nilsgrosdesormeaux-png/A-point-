@@ -165,3 +165,18 @@ export function disponibles(lireEnv: (cle: string) => string | undefined): Recor
   });
   return res;
 }
+
+// Caisse devinée d'après la forme de la clé collée : le boulanger n'a qu'un
+// champ à remplir, même s'il s'est trompé de caisse dans la liste.
+//   sup_sk_… SumUp · sk_live_ / sk_test_… Tactill · EAAA… Square ·
+//   JWT (eyJ….….…) Zettle · 20 à 64 lettres et chiffres : Loyverse.
+// Hiboutik (compte + e-mail + clé) a son propre formulaire.
+export function devinerFournisseur(cle: unknown): string | null {
+  var k = String(cle === null || cle === undefined ? '' : cle).trim();
+  if (/^sup_(sk|pk)_/.test(k)) return 'sumup';
+  if (/^sk_(live|test)_/.test(k)) return 'tactill';
+  if (/^EAAA[A-Za-z0-9_-]{20,}$/.test(k)) return 'square';
+  if (/^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/.test(k)) return 'zettle';
+  if (/^[A-Za-z0-9]{20,64}$/.test(k)) return 'loyverse';
+  return null;
+}

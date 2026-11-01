@@ -32,7 +32,8 @@
     <div class="entete-page">
       <div>
         <h1>Commande</h1>
-        <p class="texte-aide" style="margin:0;">Les matières premières dont ta fournée aura besoin, par fournisseur. <strong>Estimé</strong> : fournée prévue × tes recettes, moins ton stock.</p>
+        <p class="texte-aide" style="margin:0;">Pour ta prochaine livraison <span class="etiquette-mesure etiquette-mesure--estime">estimé</span></p>
+        <details class="repli"><summary>Comment c'est calculé</summary><p class="texte-aide">Fournée prévue pour chaque jour couvert × tes recettes, moins ton stock. Une commande couvre de la livraison jusqu'à la suivante.</p></details>
       </div>
     </div>
     <p id="statutConnexion" class="texte-aide">Chargement…</p>
@@ -40,11 +41,16 @@
     <div id="zoneCommande" hidden>
       <p class="texte-aide" id="textePeriode" hidden>Chaque commande couvre de la livraison jusqu'à la suivante. Le stock se reprend d'une commande à l'autre.</p>
       <p class="texte-aide" id="noteRecettes" hidden></p>
+      <p class="resume-commande" id="resumeCommande" hidden></p>
       <div id="listeFournisseurs"></div>
-      <h2 class="section-titre" id="titreRecettes">Tes recettes</h2>
+      <details class="bloc-recettes" id="blocRecettes">
+      <summary><h2 class="section-titre" id="titreRecettes">Tes recettes</h2></summary>
+      <details class="repli"><summary>Comment ça marche</summary>
       <p class="texte-aide">Ingrédients pour une pièce. Change une quantité, puis Enregistrer : la commande se met à jour.</p>
       <p class="explication-recettes" id="explicationRecettes" hidden>Tu n'as écrit aucune de ces recettes : quand un produit n'a pas encore la sienne, À Point propose une <strong>recette type</strong> de boulangerie (quantités moyennes pour une pièce). Vérifie-la, ajuste ce qui diffère chez toi, puis touche « C'est ma recette ». Tant qu'elle n'est pas validée, ce produit ne compte pas dans la commande. <button type="button" class="lien-discret" id="btnCompris">Compris</button></p>
+      </details>
       <div id="listeRecettes"></div>
+      </details>
       <datalist id="ingredientsCourants"></datalist>
     </div>
   </div>
@@ -273,7 +279,7 @@
         } else if (valeurFiche !== null) {
           cout = 'Coût matière : <strong>' + valeurFiche.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €</strong> par pièce';
         } else if (prix) {
-          cout = 'Coût matière : <strong>≈ ' + (prix * 0.3).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €</strong> par pièce (estimé à 30 % du prix de vente)';
+          cout = 'Coût matière : <strong>≈ ' + (prix * 0.3).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €</strong> par pièce (estimé)';
         } else cout = 'Coût inconnu : indique le prix de vente ou ton coût de revient';
         return '<div class="recette-prix"><label>Prix de vente <input type="number" min="0" step="0.05" inputmode="decimal" data-prix value="' + (prix != null ? prix : '') + '" placeholder="1,20"> €</label>' +
           champCout + '<span class="texte-aide">' + cout + '</span></div>';
@@ -295,7 +301,7 @@
           // Lot 9 : les recettes validées sont repliées ; seules celles à
           // vérifier restent ouvertes.
           var aVerifier = !(f.fiche && !proposee);
-          return '<details class="recette" data-nom="' + echapper(nom) + '"' + (aVerifier ? ' open' : '') + '>' +
+          return '<details class="recette' + (aVerifier ? ' recette--a-verifier' : '') + '" data-nom="' + echapper(nom) + '">' +
             '<summary class="recette-entete"><h3>' + echapper(nom) + '</h3>' + etat + '</summary>' +
             '<p class="texte-aide--discret recette-aide">Pour une pièce</p>' + alerteFarine(f.fiche, f.type) +
             '<ul class="recette-ingredients">' + lignes.join('') + '</ul>' +
@@ -314,8 +320,13 @@
         var fiches = fichesParProduit();
         var aValider = Object.keys(fiches).filter(function (n) { return !fiches[n].fiche; });
         var note = document.getElementById('noteRecettes');
-        note.innerHTML = '<strong>' + aValider.length + ' recette' + (aValider.length > 1 ? 's' : '') + ' à vérifier</strong> : un produit compte dans la commande dès que sa recette est enregistrée. <a href="#titreRecettes">Voir les recettes</a>';
+        note.innerHTML = '<a href="#titreRecettes"><strong>' + aValider.length + ' recette' + (aValider.length > 1 ? 's' : '') + ' à vérifier</strong></a> : pas encore comptée' + (aValider.length > 1 ? 's' : '') + '.';
         note.hidden = aValider.length === 0;
+        var lienNote = note.querySelector('a');
+        if (lienNote) lienNote.addEventListener('click', function () {
+          document.getElementById('blocRecettes').open = true;
+          document.querySelectorAll('.recette--a-verifier').forEach(function (r) { r.open = true; });
+        });
         afficherRecettes(fiches);
         // Explication des recettes types, jusqu'à « Compris ».
         var dejaVu = false;
@@ -323,6 +334,7 @@
         document.getElementById('explicationRecettes').hidden = dejaVu || !document.querySelector('[data-modifier]');
 
         derniereCommande = {};
+        var resume = [];
         var sections = B.FOURNISSEURS.map(function (f) {
           var infos = fournisseursInfos[f.cle] || {};
           var horizon = joursPourFournisseur(infos);
@@ -355,16 +367,26 @@
             return '<label class="case-jour"><input type="checkbox" data-jour="' + j + '"' + (coche ? ' checked' : '') + '> ' + JOURS_SEMAINE[j] + '</label>';
           }).join('');
           var moyen = infos.telephone ? 'par WhatsApp' : (infos.email ? 'par e-mail' : '');
-          return '<section class="fournisseur" data-fournisseur="' + f.cle + '" aria-labelledby="f-' + f.cle + '">' +
-            '<div class="fournisseur-entete"><h2 id="f-' + f.cle + '">' + f.nom + '</h2>' +
-              '<p class="fournisseur-livraison">Livraison ' + MP.formatDateLongue(horizon.livraison).toLowerCase() + '<small>couvre jusqu\'au ' + jusqua + (horizon.parDefaut ? ', jours par défaut' : '') + '</small></p></div>' +
+          // Lot 10 : le boulanger peut nommer son fournisseur (« Moulins Dupont »).
+          var nomAffiche = infos.nom || f.nom;
+          // Lot 10b : une carte repliée par fournisseur ; le titre dit tout
+          // (nom, livraison, nombre d'articles) et porte le bouton d'envoi.
+          var nbArticles = (articles.match(/<li>/g) || []).length;
+          var livraisonCourte = MP.nomsJours[horizon.livraison.getDay()] + ' ' + horizon.livraison.getDate() + ' ' + MP.nomsMoisCourts[horizon.livraison.getMonth()];
+          var libelleEnvoi = 'Envoyer ' + (infos.nom ? 'à ' + infos.nom : ({ epicerie: 'à l\'épicerie' }[f.cle] || 'au ' + f.nom.toLowerCase())) + (moyen ? ' ' + moyen : '');
+          resume.push({ livraison: MP.versISO(horizon.livraison), jour: MP.nomsJours[horizon.livraison.getDay()], n: nbArticles });
+          return '<details class="fournisseur" data-fournisseur="' + f.cle + '" data-livraison="' + MP.versISO(horizon.livraison) + '">' +
+            '<summary class="fournisseur-entete"><span class="fournisseur-titre"><h2 id="f-' + f.cle + '">' + echapper(nomAffiche) + (infos.nom ? ' <small class="fournisseur-type">' + f.nom + '</small>' : '') + '</h2>' +
+              '<span class="fournisseur-resume">' + livraisonCourte + ' · ' + (nbArticles ? nbArticles + ' article' + (nbArticles > 1 ? 's' : '') : 'rien à commander') + '</span></span>' +
+              (articles ? '<button type="button" class="bouton-principal fournisseur-envoyer" data-envoyer aria-label="' + echapper(libelleEnvoi) + '">Envoyer</button>' : '') + '</summary>' +
+            '<p class="fournisseur-livraison"><small>Couvre jusqu\'au ' + jusqua + (horizon.parDefaut ? ', jours par défaut' : '') + '</small></p>' +
             (articles ? '<ul class="commande-articles">' + articles + '</ul>' : '<p class="commande-rien">Rien à commander : ton stock suffit.</p>') +
             (enStock.length ? '<p class="texte-aide--discret commande-en-stock">En stock : ' + echapper(enStock.join(', ')) + '</p>' : '') +
-            (articles ? '<button type="button" class="bouton-principal fournisseur-envoyer" data-envoyer>Envoyer ' + ({ epicerie: 'à l\'épicerie' }[f.cle] || 'au ' + f.nom.toLowerCase()) + (moyen ? ' ' + moyen : '') + '</button>' : '') +
             '<details class="fournisseur-reglages"><summary>Il me reste (stock)</summary>' +
               '<fieldset class="fournisseur-stock"><legend class="visuellement-cache">Il me reste</legend>' + stocksHtml + '</fieldset>' +
             '</details>' +
-            '<details class="fournisseur-reglages"><summary>Coordonnées et jours de livraison</summary>' +
+            '<details class="fournisseur-reglages"><summary>Nom, coordonnées, livraisons</summary>' +
+              '<div><label for="nom-' + f.cle + '">Nom</label><input type="text" id="nom-' + f.cle + '" data-champ="nom" value="' + echapper(infos.nom || '') + '" placeholder="' + (f.cle === 'meunier' ? 'Moulins Dupont' : f.nom) + '"></div>' +
               '<div class="ligne-form">' +
                 '<div><label for="tel-' + f.cle + '">Téléphone (WhatsApp)</label><input type="tel" id="tel-' + f.cle + '" data-champ="telephone" value="' + echapper(infos.telephone || '') + '" placeholder="06 12 34 56 78"></div>' +
                 '<div><label for="email-' + f.cle + '">E-mail</label><input type="email" id="email-' + f.cle + '" data-champ="email" value="' + echapper(infos.email || '') + '" placeholder="commandes@exemple.fr"></div>' +
@@ -373,9 +395,19 @@
               '<button type="button" class="bouton-secondaire" data-action="enregistrer">Enregistrer</button> <span class="texte-aide" role="status"></span>' +
               '<button type="button" class="lien-discret" data-envoi="pdf">Télécharger le bon en PDF</button>' +
             '</details>' +
-            '</section>';
+            '</details>';
         }).join('');
         listeEl.innerHTML = sections || '<div class="carte-vide-claire">Rien à commander : enregistre d\'abord les recettes de tes produits plus bas.</div>';
+        // Résumé en tête, et la première livraison ouverte.
+        var resumeEl = document.getElementById('resumeCommande');
+        if (resume.length) {
+          var premiere = resume.slice().sort(function (a, b) { return a.livraison < b.livraison ? -1 : 1; })[0];
+          var total = resume.reduce(function (t, r) { return t + r.n; }, 0);
+          resumeEl.textContent = resume.length + ' fournisseur' + (resume.length > 1 ? 's' : '') + ' · ' + total + ' article' + (total > 1 ? 's' : '') + ' · livraison ' + premiere.jour;
+          var carte = listeEl.querySelector('.fournisseur[data-livraison="' + premiere.livraison + '"]');
+          if (carte) carte.open = true;
+        }
+        resumeEl.hidden = !resume.length;
       }
 
       function textePdf(t) {
@@ -417,7 +449,7 @@
           var doc = new window.jspdf.jsPDF();
           var f = B.FOURNISSEURS.filter(function (x) { return x.cle === cle; })[0];
           doc.setFontSize(16);
-          doc.text(textePdf('Commande ' + f.nom + ' - ' + ((ctx.parametres && ctx.parametres.nom_restaurant) || '')), 14, 18);
+          doc.text(textePdf('Commande ' + ((fournisseursInfos[cle] || {}).nom || f.nom) + ' - ' + ((ctx.parametres && ctx.parametres.nom_restaurant) || '')), 14, 18);
           doc.setFontSize(10);
           doc.text(textePdf(document.getElementById('textePeriode').textContent), 14, 26);
           doc.autoTable({ startY: 32, head: [['Article', 'Quantité']], body: aCommander(cle).map(function (l) { return [textePdf(l.nom), textePdf(l.texte)]; }), headStyles: { fillColor: [158, 76, 12] } });
@@ -428,6 +460,7 @@
       function enregistrerFournisseur(section) {
         var cle = section.getAttribute('data-fournisseur');
         var infos = {
+          nom: section.querySelector('[data-champ="nom"]').value.trim().slice(0, 60),
           email: section.querySelector('[data-champ="email"]').value.trim(),
           telephone: section.querySelector('[data-champ="telephone"]').value.trim(),
           jours: Array.prototype.map.call(section.querySelectorAll('[data-jour]:checked'), function (c) { return parseInt(c.getAttribute('data-jour'), 10); })
@@ -448,6 +481,7 @@
         var envoi = e.target.closest('[data-envoi]');
         if (envoi) envoyer(cle, envoi.getAttribute('data-envoi'));
         if (e.target.closest('[data-envoyer]')) {
+          e.preventDefault(); // le bouton est dans le titre de la carte : ne pas la replier
           // Un seul bouton : WhatsApp si un numéro est connu, sinon e-mail,
           // sinon le partage du téléphone, sinon le bon en PDF.
           var infos = fournisseursInfos[cle] || {};

@@ -64,14 +64,27 @@ export async function codeMarchand(fetchFn: FetchFn, accessToken: string): Promi
 export async function lignesVendues(fetchFn: FetchFn, accessToken: string, marchand: string, debutISO: string, finISO: string): Promise<LigneVente[]> {
   var base = API + '/v2.1/merchants/' + encodeURIComponent(marchand) + '/transactions';
   var ids: string[] = [];
-  var requete = 'limit=100&order=ascending&statuses[]=SUCCESSFUL&types[]=PAYMENT'
+  // Ventes encaissées (SUCCESSFUL), et ventes remboursées en partie
+  // seulement (REFUNDED avec refunded_amount < amount) : les articles ont
+  // bien été vendus. Remboursement total : ignoré.
+  var requete = 'limit=100&order=ascending&statuses[]=SUCCESSFUL&statuses[]=REFUNDED&types[]=PAYMENT'
     + '&oldest_time=' + encodeURIComponent(debutISO) + '&newest_time=' + encodeURIComponent(finISO);
+  var debut = Date.parse(debutISO), fin = Date.parse(finISO);
 
   for (var pages = 0; pages < 200 && requete; pages++) {
     var page = await lireJson(fetchFn, base + '/history?' + requete, accessToken);
+    var auDela = false;
     (page.items || []).forEach(function (t: any) {
-      if (t.status === 'SUCCESSFUL' && (!t.type || t.type === 'PAYMENT')) ids.push(t.id || t.transaction_id);
+      // Le lien « next » ne garantit pas de reprendre newest_time : on borne nous-mêmes.
+      var instant = t.timestamp ? Date.parse(t.timestamp) : NaN;
+      if (!isNaN(instant) && instant >= fin) { auDela = true; return; }
+      if (!isNaN(instant) && instant < debut) return;
+      if (t.type && t.type !== 'PAYMENT') return;
+      var vendue = t.status === 'SUCCESSFUL'
+        || (t.status === 'REFUNDED' && Number(t.refunded_amount || 0) < Number(t.amount || 0));
+      if (vendue) ids.push(t.id || t.transaction_id);
     });
+    if (auDela) break;
     var suivant = (page.links || []).filter(function (l: any) { return l.rel === 'next'; })[0];
     requete = suivant ? suivant.href : '';
   }

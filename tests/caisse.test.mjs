@@ -12,7 +12,7 @@ import { synchroniserConnexion } from '../supabase/functions/_shared/caisse/sync
 import * as zettle from '../supabase/functions/_shared/caisse/zettle.ts';
 import * as square from '../supabase/functions/_shared/caisse/square.ts';
 import * as hiboutik from '../supabase/functions/_shared/caisse/hiboutik.ts';
-import { FOURNISSEURS, disponibles } from '../supabase/functions/_shared/caisse/fournisseurs.ts';
+import { FOURNISSEURS, devinerFournisseur, disponibles } from '../supabase/functions/_shared/caisse/fournisseurs.ts';
 import { lignesDepuisTableau } from '../supabase/functions/_shared/caisse/export-csv.ts';
 import * as loyverse from '../supabase/functions/_shared/caisse/loyverse.ts';
 import * as tactill from '../supabase/functions/_shared/caisse/tactill.ts';
@@ -557,11 +557,10 @@ test('colonnes choisies à la main quand la détection échoue, et classeur à p
   assert.deepEqual(classeur.lignes, [{ nom_produit: 'Pain', quantite: 3, date_vente: '2026-10-29' }]);
 });
 
-test('relais Gmail gratuit : jeton lu dans l\'adresse, pièce jointe transmise au format Postmark, message marqué lu', async function () {
+test('relais Gmail sur la boîte partagée : seuls les e-mails « +caisse- » sont transmis, lus et rangés', async function () {
   var vm = await import('node:vm');
   var fs = await import('node:fs');
-  var envois = [];
-  var lus = [];
+  var envois = [], lus = [], etiquetes = [], archives = [];
   function message(id, to, pieces, nonLu) {
     return {
       isUnread: function () { return nonLu; }, markRead: function () { lus.push(id); },
@@ -569,21 +568,63 @@ test('relais Gmail gratuit : jeton lu dans l\'adresse, pièce jointe transmise a
       getAttachments: function () { return pieces; }
     };
   }
+  function fil(nom, messages) {
+    return { getMessages: function () { return messages; }, addLabel: function () { etiquetes.push(nom); }, moveToArchive: function () { archives.push(nom); } };
+  }
   var pj = { getName: function () { return 'ventes.csv'; }, getContentType: function () { return 'text/csv'; }, getBytes: function () { return [65, 66]; } };
   var image = { getName: function () { return 'logo.png'; }, getContentType: function () { return 'image/png'; }, getBytes: function () { return [1]; } };
   var ctx = {
-    console: console,
+    console: { error: function () {} },
     PropertiesService: { getScriptProperties: function () { return { getProperty: function () { return 'https://x/functions/v1/import-export-caisse?cle=K'; } }; } },
-    GmailApp: { search: function () { return [{ getMessages: function () { return [
-      message('ancien', 'apoint.ventes+0123456789abcdef@gmail.com', [pj], false),
-      message('nouveau', 'Boulangerie <apoint.ventes+0123456789ABCDEF@gmail.com>', [pj, image], true),
-      message('pub', 'apoint.ventes@gmail.com', [pj], true)
-    ]; } }]; } },
+    GmailApp: {
+      getUserLabelByName: function () { return null; }, createLabel: function (n) { return n; },
+      search: function () { return [
+        fil('caisse', [
+          message('ancien', 'apointapp.contact+caisse-0123456789abcdef@gmail.com', [pj], false),
+          message('nouveau', 'Boulangerie <apointapp.contact+caisse-0123456789ABCDEF@gmail.com>', [pj, image], true)
+        ]),
+        fil('perso', [message('perso', 'apointapp.contact@gmail.com', [pj], true), message('autre-plus', 'apointapp.contact+newsletter@gmail.com', [pj], true)])
+      ]; }
+    },
     Utilities: { base64Encode: function (b) { return Buffer.from(b).toString('base64'); } },
     UrlFetchApp: { fetch: function (url, o) { envois.push({ url: url, corps: JSON.parse(o.payload) }); return { getResponseCode: function () { return 200; }, getContentText: function () { return ''; } }; } }
   };
   vm.runInNewContext(fs.readFileSync(new URL('../supabase/functions/import-export-caisse/relais-gmail.gs', import.meta.url), 'utf8') + '\nrelayer();', ctx);
   assert.deepEqual(envois, [{ url: 'https://x/functions/v1/import-export-caisse?cle=K',
-    corps: { MailboxHash: '0123456789abcdef', Attachments: [{ Name: 'ventes.csv', ContentType: 'text/csv', Content: 'QUI=' }] } }]);
-  assert.deepEqual(lus, ['nouveau', 'pub']);
+    corps: { MailboxHash: 'caisse-0123456789abcdef', Attachments: [{ Name: 'ventes.csv', ContentType: 'text/csv', Content: 'QUI=' }] } }]);
+  assert.deepEqual(lus, ['nouveau']); // le courrier du fondateur reste non lu
+  assert.deepEqual(etiquetes, ['caisse']);
+  assert.deepEqual(archives, ['caisse']);
+});
+
+test('clé collée : la caisse est devinée d\'après sa forme', function () {
+  assert.equal(devinerFournisseur(' sup_sk_abc123456789 '), 'sumup');
+  assert.equal(devinerFournisseur('sk_live_abcdefgh'), 'tactill');
+  assert.equal(devinerFournisseur('EAAAl' + 'x'.repeat(60)), 'square');
+  assert.equal(devinerFournisseur(jwt({ client_id: 'c' })), 'zettle');
+  assert.equal(devinerFournisseur('fMYgxHEYtcyT8cvtvgi1Za5DRs4vArSyvydlnd9f'), 'loyverse');
+  assert.equal(devinerFournisseur('ma clé'), null);
+  assert.equal(devinerFournisseur(''), null);
+});
+
+test('SumUp : bornes du jour tenues même si le lien « next » perd newest_time ; remboursement partiel compté, total ignoré', async function () {
+  var detailsLus = [];
+  var faux = async function (url) {
+    if (url.includes('/history')) {
+      assert.ok(url.includes('statuses[]=SUCCESSFUL&statuses[]=REFUNDED') || url.includes('oldest_ref'));
+      if (!url.includes('oldest_ref')) {
+        return json({ items: [
+          { id: 'a', status: 'SUCCESSFUL', type: 'PAYMENT', timestamp: '2026-10-29T07:00:00Z', amount: 5 },
+          { id: 'b', status: 'REFUNDED', type: 'PAYMENT', timestamp: '2026-10-29T08:00:00Z', amount: 10, refunded_amount: 2 },
+          { id: 'c', status: 'REFUNDED', type: 'PAYMENT', timestamp: '2026-10-29T09:00:00Z', amount: 3, refunded_amount: 3 }
+        ], links: [{ rel: 'next', href: 'limit=100&oldest_ref=r2&order=ascending' }] });
+      }
+      return json({ items: [{ id: 'd', status: 'SUCCESSFUL', type: 'PAYMENT', timestamp: '2026-10-30T07:00:00Z', amount: 9 }], links: [{ rel: 'next', href: 'limit=100&oldest_ref=r3' }] });
+    }
+    var id = new URL(url).searchParams.get('id');
+    detailsLus.push(id);
+    return json({ timestamp: '2026-10-29T08:00:00Z', products: [{ name: 'Pain', quantity: 1 }] });
+  };
+  await sumup.lignesVendues(faux, 'tok', 'M', '2026-10-28T23:00:00.000Z', '2026-10-29T23:00:00.000Z');
+  assert.deepEqual(detailsLus, ['a', 'b']);
 });

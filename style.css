@@ -1581,3 +1581,66 @@ details.recette[open] > summary.recette-entete h3::before { transform: rotate(90
   .tableau-journal td::before { content: attr(data-label); color: var(--couleur-texte-3); font-size: var(--texte-sm); text-align: left; }
 }
 @media (max-width: 600px) { table.tableau-journal tr > td { border: 0; padding: 2px 0; } table.tableau-journal tr { border-bottom: 1px solid var(--couleur-bordure); } }
+
+/* Lot 10 : fournisseurs en colonnes équilibrées (plus de trous ni de chevauchement). */
+#listeFournisseurs { display: block; columns: 2 380px; column-gap: var(--espace-4); }
+@media (min-width: 900px) { #listeFournisseurs { display: block; } }
+#listeFournisseurs > .fournisseur { break-inside: avoid; display: inline-block; width: 100%; margin: 0 0 var(--espace-4); min-width: 0; overflow-wrap: anywhere; }
+#listeFournisseurs > .fournisseur + .fournisseur { margin-top: 0; }
+.fournisseur-type { font-family: var(--police); font-size: var(--texte-xs); font-weight: 500; color: var(--couleur-texte-3); }
+
+/* Lot 10 : repli discret pour les explications (fermé par défaut, petite flèche). */
+details.repli { margin: var(--espace-2) 0; }
+details.repli > summary { min-height: 44px; padding-block: 10px; display: inline-flex; align-items: center; gap: 6px; list-style: none; cursor: pointer; font-size: var(--texte-sm); color: var(--couleur-texte-3); }
+details.repli > summary::-webkit-details-marker { display: none; }
+details.repli > summary::before { content: '▸'; display: inline-block; transition: transform .15s; }
+details.repli[open] > summary::before { transform: rotate(90deg); }
+details.repli > :not(summary) { margin-top: 0; }
+
+/* Lot 10 : la bande des 7 jours en couleur, selon l'affluence prévue (DESIGN.md). */
+.affluence-niveau { display: inline-block; padding: 2px 10px; border-radius: var(--rayon-rond); font-size: var(--texte-xs); font-weight: 600; background: var(--couleur-surface-2); color: var(--couleur-texte-2); }
+.affluence-jour--calme { background: var(--couleur-surface); }
+.affluence-jour--calme .affluence-barre span { background: color-mix(in srgb, var(--couleur-dore) 45%, var(--couleur-surface)); }
+.affluence-jour--habituel { background: color-mix(in srgb, var(--couleur-accent-doux) 45%, var(--couleur-surface)); }
+.affluence-jour--habituel .affluence-barre span { background: var(--couleur-dore); }
+.affluence-jour--habituel .affluence-niveau { background: var(--couleur-accent-doux); color: var(--couleur-texte); }
+.affluence-jour--charge { background: var(--couleur-accent-doux); border-color: color-mix(in srgb, var(--couleur-accent) 45%, var(--couleur-bordure)); }
+.affluence-jour--charge .affluence-barre { background: color-mix(in srgb, var(--couleur-accent) 15%, var(--couleur-surface)); }
+.affluence-jour--charge .affluence-barre span { background: var(--couleur-accent); }
+.affluence-jour--charge .affluence-niveau { background: var(--couleur-accent); color: var(--couleur-sur-accent); }
+.affluence-jour--charge .affluence-nom { color: var(--couleur-accent-texte); }
+.affluence-jour--charge .affluence-total, .affluence-jour--habituel .affluence-total { color: var(--couleur-texte); font-weight: 600; }
+@media (max-width: 640px) {
+  .affluence-jour { grid-template-areas: "nom barre total" "nom niveau raison"; grid-template-columns: 64px 1fr auto; row-gap: 4px; }
+  .affluence-niveau { grid-area: niveau; justify-self: start; }
+  .affluence-raison { grid-area: raison; }
+}
+/* Intensité continue selon le volume du jour (--i de 0 à 1). */
+.affluence-jour:not(.affluence-jour--ferme) { background: color-mix(in srgb, var(--couleur-dore) calc(var(--i, .5) * 40%), var(--couleur-surface)); }
+.affluence-jour:not(.affluence-jour--ferme) .affluence-barre span { background: color-mix(in srgb, var(--couleur-accent) calc(var(--i, .5) * 85%), var(--couleur-dore)); }
+.affluence-jour--charge:not(.affluence-jour--ferme) { border-color: var(--couleur-accent); }
+
+/* Lot 10b : Commande compacte, une carte repliée par fournisseur. */
+#listeFournisseurs { columns: auto; }
+#listeFournisseurs > .fournisseur { display: block; }
+.resume-commande { margin: var(--espace-3) 0; font-weight: 600; font-size: var(--texte-md); }
+details.fournisseur > summary.fournisseur-entete { display: flex; align-items: center; justify-content: space-between; gap: var(--espace-3); margin: 0; list-style: none; cursor: pointer; min-height: 44px; padding-block: 0; }
+details.fournisseur > summary.fournisseur-entete::-webkit-details-marker { display: none; }
+.fournisseur-titre { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fournisseur-titre h2 { margin: 0; font-size: var(--texte-lg); }
+.fournisseur-titre h2::before { content: '▸'; display: inline-block; width: 1em; color: var(--couleur-texte-3); transition: transform .15s; }
+details.fournisseur[open] .fournisseur-titre h2::before { transform: rotate(90deg); }
+.fournisseur-resume { font-size: var(--texte-sm); color: var(--couleur-texte-2); padding-left: 1em; }
+details.fournisseur > summary .fournisseur-envoyer { width: auto; flex-shrink: 0; margin: 0; padding: 8px 18px; min-height: 44px; }
+details.fournisseur[open] > summary { margin-bottom: var(--espace-2); }
+.fournisseur-livraison { margin: 0 0 var(--espace-2); }
+
+/* Lot 10b : Semaine, pastille lisible même sur les cartes les plus foncées. */
+.affluence-jour:not(.affluence-jour--ferme) .affluence-niveau { background: var(--couleur-surface); color: var(--couleur-texte); border: 1px solid color-mix(in srgb, var(--couleur-accent) 35%, var(--couleur-bordure)); }
+.affluence-jour--charge:not(.affluence-jour--ferme) .affluence-niveau { background: var(--couleur-accent); color: var(--couleur-sur-accent); border-color: var(--couleur-accent); }
+details.bloc-recettes { margin-top: var(--espace-5); }
+details.bloc-recettes > summary { list-style: none; cursor: pointer; min-height: 44px; display: flex; align-items: center; padding-block: 0; }
+details.bloc-recettes > summary::-webkit-details-marker { display: none; }
+details.bloc-recettes > summary h2 { margin: 0; }
+details.bloc-recettes > summary h2::before { content: '▸ '; color: var(--couleur-texte-3); }
+details.bloc-recettes[open] > summary h2::before { content: '▾ '; }

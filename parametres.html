@@ -44,11 +44,11 @@
 
         <label for="inputCodePostal">Code postal</label>
         <input type="text" id="inputCodePostal" placeholder="Ex : 35400" maxlength="5" inputmode="numeric">
-        <p class="texte-aide" style="margin-top:-4px;">Sert à déduire automatiquement ta zone de vacances scolaires (A, B ou C), pour que les prévisions en tiennent compte.</p>
+        <p class="texte-aide" style="margin-top:-4px;">Pour les vacances scolaires de ta zone.</p>
 
         <label for="inputVille" style="margin-top:14px;">Ville</label>
         <input type="text" id="inputVille" placeholder="Ex : Rennes">
-        <p class="texte-aide" style="margin-top:-4px;">Un même code postal peut couvrir plusieurs communes voisines : précise le nom de ta ville pour que la météo soit bien celle de ton emplacement exact, pas celle d'une commune à côté.</p>
+        <p class="texte-aide" style="margin-top:-4px;">Pour la météo de ta boulangerie.</p>
 
         <!-- Bug corrigé (audit sept. 2026) : un <label> isolé ne peut pas
              regrouper plusieurs cases à cocher pour un lecteur d'écran ;
@@ -58,7 +58,7 @@
           <legend style="font-weight:500; font-size:var(--texte-sm); padding:0;">Jours de fermeture habituels</legend>
           <div class="grille-jours" id="grilleJoursFermeture"></div>
         </fieldset>
-        <p class="texte-aide">Les jours cochés n'auront jamais de fournée prévue, et ne compteront pas comme des jours sans vente.</p>
+        <p class="texte-aide">Aucune fournée prévue ces jours-là.</p>
 
         <label for="selectCaisse">Quelle caisse utilises-tu ?</label>
         <select id="selectCaisse"></select>
@@ -75,7 +75,7 @@
         <!-- Lot 2 point 9 : référence « avant À Point » pour mesurer honnêtement le gaspillage. -->
         <section id="fournees" aria-labelledby="titreFournees">
           <h2 class="section-titre" id="titreFournees">Tes fournées</h2>
-          <p class="texte-aide">Tes heures à toi : elles dépendent de ton ouverture, de tes fours, de ta pousse. De 1 à 5 fournées, renomme-les comme tu veux. La Fournée et le mode fournil les reprennent.</p>
+          <p class="texte-aide">De 1 à 5 fournées, à tes heures et à tes noms.</p>
           <div class="ligne-form"><div><label for="heureOuverture">Ouverture de la boutique</label><input type="time" id="heureOuverture" step="300"></div></div>
           <ol class="liste-tournees" id="listeTournees"></ol>
           <button type="button" class="lien-discret" id="btnAjouterTournee">+ Ajouter une fournée</button>
@@ -84,8 +84,8 @@
 
         <section id="avant" aria-labelledby="titreAvant">
           <h2 class="section-titre" id="titreAvant">Avant À Point</h2>
-          <p class="texte-aide">Pour savoir ce que l'appli te fait gagner, il faut ton point de départ. Rien à saisir chaque jour : on compare la farine que tu as achetée sur une période à celle réellement vendue (tes ventes × tes recettes). L'écart, c'est ta surproduction d'avant. Sans ces chiffres, on prend la moyenne nationale (environ 10 %), signalée comme estimation.</p>
-          <p class="texte-aide">Prends tes factures de meunier d'une période passée (idéalement 12 mois) :</p>
+          <p class="texte-aide">Tes achats de farine recalent ton point de départ.</p>
+          <p class="texte-aide">Factures du meunier, idéalement sur 12 mois :</p>
           <div class="ligne-form">
             <div><label for="achatFarine">Farine achetée (kg)</label><input type="number" id="achatFarine" min="0" inputmode="numeric" placeholder="Ex : 12000"></div>
             <div><label for="achatDebut">Du</label><input type="date" id="achatDebut"></div>
@@ -97,10 +97,10 @@
 
         <section id="donnees" aria-labelledby="titreDonnees">
           <h2 class="section-titre" id="titreDonnees">Mes données</h2>
-          <p class="texte-aide">Quand ta caisse est branchée, tout arrive seul. Sinon, ou pour corriger :</p>
+          <p class="texte-aide">Pour corriger, ou sans caisse branchée :</p>
           <div class="liens-donnees">
             <a class="lien-donnees" href="ventes.html"><strong>Ventes</strong><span>Saisir une journée ou importer un fichier</span></a>
-            <a class="lien-donnees" href="produits.html"><strong>Produits et recettes</strong><span>Créés seuls depuis tes ventes ; ajuste une recette si besoin</span></a>
+            <a class="lien-donnees" href="produits.html"><strong>Produits et recettes</strong><span>Créés seuls depuis tes ventes</span></a>
           </div>
         </section>
 

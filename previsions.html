@@ -28,7 +28,7 @@
 
   <div id="contenu" role="main" class="conteneur conteneur--large">
     <p id="statutConnexion" class="texte-aide">Chargement…</p>
-    <p class="texte-aide" id="bandeauReglages" hidden><a href="parametres.html">Complète tes réglages</a> (code postal, jours de fermeture) pour affiner la fournée.</p>
+    <p class="texte-aide" id="bandeauReglages" hidden><a href="parametres.html">Complète tes réglages</a> pour une fournée plus juste.</p>
 
     <a class="carte-saisie-hier" id="carteSaisieHier" href="ventes.html" hidden>
       <span class="carte-saisie-hier-texte"><strong>Saisir les ventes d'hier</strong><span id="texteSaisieHier">Sans elles, la prochaine fournée ne peut pas apprendre.</span></span>
@@ -68,11 +68,17 @@
       </div>
       <div class="meteo-moments-jour" id="meteoJour" hidden></div>
       <ul class="raisons" id="raisonsJour" aria-label="Ce qui change la fournée"></ul>
-      <div class="actions-jour" id="actionsAffluence" hidden>
-        <button type="button" class="btn-mini" data-modificateur="plus" aria-pressed="false">+ Plus de monde</button>
-        <button type="button" class="btn-mini" data-modificateur="moins" aria-pressed="false">− Moins de monde</button>
+      <!-- Lot 10 : l'appli prévoit l'affluence ; ce repli ne sert qu'à ce
+           qu'elle ne peut pas savoir, pour ce jour seulement (gardé en base). -->
+      <details class="repli repli-affluence" id="actionsAffluence" hidden>
+        <summary>Je sais quelque chose que l'appli ne sait pas</summary>
+        <p class="texte-aide">Mariage, commande de groupe, travaux ? Pour ce jour seulement :</p>
+        <div class="actions-jour">
+          <button type="button" class="btn-mini" data-modificateur="plus" aria-pressed="false">Plus de monde (+15 %)</button>
+          <button type="button" class="btn-mini" data-modificateur="moins" aria-pressed="false">Moins de monde (−15 %)</button>
+        </div>
         <p class="texte-aide effet-affluence" id="effetAffluence" role="status"></p>
-      </div>
+      </details>
     </section>
 
     <p class="repere-peu-sur repere-peu-sur--global" id="repereGlobal" hidden></p>
@@ -82,15 +88,17 @@
       <span class="fournee-barre" aria-hidden="true"><span id="barreProgression"></span></span>
     </div>
 
-    <p class="texte-aide note-cases" id="noteCases" hidden>Coche chaque produit une fois enfourné : avec tes ventes, c'est ce qui mesure tes invendus dans le Bilan.</p>
-    <p class="texte-aide note-tranches" id="noteTranches" hidden><strong>Tes fournées</strong> : sous chaque total, les pièces à enfourner à chaque fournée (<span id="exempleTranche"></span>). <span id="noteHeuresModele">Ces heures sont un exemple : <a href="parametres.html#fournees">indique les tiennes dans Paramètres</a> (de 1 à 5 fournées, à tes noms). </span><span id="noteTranchesDefaut">Parts par défaut selon le rayon, réglables produit par produit dans «&nbsp;Pourquoi&nbsp;?&nbsp;».</span></p>
-    <details class="note-non-cuits" id="noteNonCuits" hidden><summary id="resumeNonCuits"></summary><ul id="listeNonCuits"></ul></details>
+    <p class="texte-aide note-cases" id="noteCases" hidden>Coche chaque produit enfourné : le Bilan s'en sert.</p>
     <div id="listeRayons"></div>
+    <details class="repli" id="repliFournee" hidden>
+    <summary>D'où viennent ces chiffres ?</summary>
     <p class="texte-aide source-fournee" id="sourceFournee" hidden></p>
-
     <section class="fiabilite" id="blocFiabilite" hidden aria-label="Fiabilité">
       <p id="texteFiabilite"></p>
     </section>
+    <p class="texte-aide note-tranches" id="noteTranches" hidden><strong>Tes fournées</strong> : sous chaque total, les pièces à enfourner à chaque fournée (<span id="exempleTranche"></span>). <span id="noteHeuresModele">Ces heures sont un exemple : <a href="parametres.html#fournees">indique les tiennes dans Paramètres</a> (de 1 à 5 fournées, à tes noms). </span><span id="noteTranchesDefaut">Parts par défaut selon le rayon, réglables produit par produit dans «&nbsp;Pourquoi&nbsp;?&nbsp;».</span></p>
+    <details class="note-non-cuits" id="noteNonCuits" hidden><summary id="resumeNonCuits"></summary><ul id="listeNonCuits"></ul></details>
+    </details>
 
     <div class="bloc-pont-commandes" id="blocCommande"></div>
 
@@ -231,7 +239,7 @@
         var items = (p.r.signaux || []).map(function (s) {
           var effet = MP.libelleEffet(s.ratio);
           return '<li>' + echapper(sansEmoji(s.libelle)) + ' : ' + (effet
-            ? '<strong>' + effet + '</strong> <span class="texte-aide--discret">(appris sur ' + s.nb + ' jour' + (s.nb > 1 ? 's' : '') + ')</span>'
+            ? '<strong>' + effet + '</strong> <span class="texte-aide--discret">(' + (s.detail ? echapper(s.detail) : 'appris sur ' + s.nb + ' jour' + (s.nb > 1 ? 's' : '')) + ')</span>'
             : '<span class="texte-aide--discret">' + (s.dejaPrisEnCompte ? 'déjà pris en compte : comparé à tes ' + p.r.nomJourCible + 's de vacances' : 'effet pas encore appris, quantité inchangée') + '</span>') + '</li>';
         });
         items.push('<li>' + echapper(sansEmoji(p.r.texteBase.replace(/^[^B]*Basé/, 'Basé'))) + (p.r.venteHabituelle ? ' : vendu d\'habitude ' + p.r.venteHabituelle.toLocaleString('fr-FR') : '') + '</li>');
@@ -353,6 +361,7 @@
         document.getElementById('exempleTranche').textContent = '« ' + h0 + ' → 94 » = 94 pièces à enfourner à ' + h0;
         afficherFiabilite(previsions);
         afficherSource();
+        document.getElementById('repliFournee').hidden = chiffres.length === 0;
 
         document.getElementById('blocCommande').innerHTML = '<a class="btn-cta-commandes" href="commandes.html?jour=' + MP.versISO(jourCible) + '">Voir la commande de matières premières</a>';
       }
@@ -492,6 +501,7 @@
       // Boutons et effet chiffré : « +15 % sur la fournée, soit +32 pièces ».
       function majBoutonsAffluence(totalAvant) {
         modificateur = ctx.evenements[MP.versISO(jourCible)] || null;
+        if (modificateur) document.getElementById('actionsAffluence').open = true;
         actionsEl.querySelectorAll('.btn-mini').forEach(function (b) {
           var actif = b.getAttribute('data-modificateur') === modificateur;
           b.classList.toggle('actif', actif);

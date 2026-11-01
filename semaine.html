@@ -30,7 +30,7 @@
     <div class="entete-page">
       <div>
         <h1>Les 7 jours qui viennent</h1>
-        <p class="texte-aide" style="margin:0;">L'affluence attendue, ses raisons, et ce qu'il faudra produire. <strong>Estimé</strong> d'après tes ventes passées, comme la Fournée.</p>
+        <p class="texte-aide" style="margin:0;">Affluence et production prévues <span class="etiquette-mesure etiquette-mesure--estime">estimé</span></p>
       </div>
     </div>
     <p id="statutConnexion" class="texte-aide">Chargement…</p>
@@ -96,6 +96,8 @@
 
         // Affluence : une barre par jour, hauteur relative au jour le plus fort.
         var max = Math.max.apply(null, colonnes.map(function (c) { return c.total; })) || 1;
+        var ouvertsTotaux = colonnes.filter(function (c) { return !c.ferme; }).map(function (c) { return c.total; });
+        var min = ouvertsTotaux.length ? Math.min.apply(null, ouvertsTotaux) : 0;
         document.getElementById('affluence').innerHTML = colonnes.map(function (c) {
           var nomJour = MP.versISO(c.date) === MP.versISO(new Date()) ? 'Auj.' : MP.capitaliser(MP.nomsJoursCourts[c.date.getDay()]);
           var raison;
@@ -107,14 +109,21 @@
           } else if (c.ratio !== null && Math.abs(c.ratio - 1) >= 0.08) {
             // L'écart est chiffré, pour qu'un changement d'un jour à l'autre s'explique.
             var ecartPct = Math.round((c.ratio - 1) * 100);
-            raison = (c.ratio > 1 ? 'Plus chargé' : 'Plus calme') + ' : ' + (ecartPct > 0 ? '+' : '−') + Math.abs(ecartPct) + ' % par rapport à tes ' + MP.nomsJours[c.date.getDay()] + 's habituels';
-          } else raison = 'Jour habituel';
-          var classe = c.ferme ? ' affluence-jour--ferme' : (c.ratio !== null && c.ratio >= 1.08 ? ' affluence-jour--charge' : '');
-          return '<li class="affluence-jour' + classe + '">' +
+            raison = (ecartPct > 0 ? '+' : '−') + Math.abs(ecartPct) + ' % par rapport à d\'habitude';
+          } else raison = '';
+          // Lot 10 : intensité de couleur selon l'affluence prévue.
+          var niveau = c.ferme ? 'ferme' : (c.ratio !== null && c.ratio >= 1.08 ? 'charge' : c.ratio !== null && c.ratio <= 0.92 ? 'calme' : 'habituel');
+          var libelleNiveau = { ferme: 'Fermé', charge: 'Chargé', calme: 'Calme', habituel: 'Habituel' }[niveau];
+          if (c.ferme) raison = '';
+          var classe = ' affluence-jour--' + niveau;
+          // Intensité de couleur : volume du jour dans la semaine (le plus calme pâle, le plus fort croûte).
+          var intensite = c.ferme ? 0 : (max > min ? 0.15 + 0.85 * (c.total - min) / (max - min) : 0.5);
+          return '<li class="affluence-jour' + classe + '" style="--i:' + intensite.toFixed(2) + '">' +
             '<span class="affluence-barre" aria-hidden="true"><span style="--part:' + (c.ferme ? 0 : Math.max(6, c.total / max * 100)) + '%"></span></span>' +
             '<span class="affluence-nom">' + nomJour + ' ' + c.date.getDate() + '</span>' +
             '<span class="affluence-total">' + (c.ferme ? '–' : c.total.toLocaleString('fr-FR') + ' pièces') + '</span>' +
-            '<span class="affluence-raison">' + raison + '</span></li>';
+            '<span class="affluence-niveau">' + libelleNiveau + '</span>' +
+            (raison ? '<span class="affluence-raison">' + raison + '</span>' : '') + '</li>';
         }).join('');
 
         // Tableau produits × jours, groupé par rayon, avec totaux.

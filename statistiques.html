@@ -62,11 +62,15 @@
           <p class="gain-ligne" id="ligneDepart" hidden></p>
           <p class="gain-ligne" id="ligneReste" hidden></p>
         </div>
-        <p class="gain-alternative" id="gainAchats" hidden></p>
-        <div class="observation-depart" id="blocObservation" hidden></div>
+        <!-- Lot 10 : changer de point de départ, replié, jamais imposé. -->
+        <details class="repli" id="repliDepart">
+          <summary>Mesurer mon vrai point de départ</summary>
+          <p class="gain-alternative" id="gainAchats" hidden></p>
+          <div class="observation-depart" id="blocObservation" hidden></div>
+        </details>
         <div class="destination-reste">
           <label for="destinationReste">Où part ton reste du soir ?</label>
-          <p class="texte-aide" style="margin:0 0 var(--espace-2);">Pour chiffrer ce qui finit vraiment à la poubelle, et le distinguer de ce que tu donnes ou revends.</p>
+          <p class="texte-aide" style="margin:0 0 var(--espace-2);">Pour chiffrer ce qui part à la poubelle.</p>
           <select id="destinationReste">
             <option value="">Je ne sais pas encore</option>
             <option value="jete">À la poubelle</option>
@@ -122,7 +126,7 @@
               <button type="button" class="periode-bouton" data-granularite="annee">Année</button>
             </div>
           </div>
-          <p class="texte-aide texte-aide--discret" style="margin:0 0 14px;">En pièces vendues par période, produits cuits seulement (sans cafés, boissons ni produits non cuits).</p>
+          <p class="texte-aide texte-aide--discret" style="margin:0 0 14px;">Pièces vendues, sans les boissons.</p>
           <div class="graphique-colonnes" id="graphiqueAffluence"></div>
         </section>
 
@@ -584,7 +588,7 @@
       function afficherReels(periode) {
         var aujourdhui = MP.versISO(new Date());
         var limite = limitePeriode(periode);
-        var ref = MP.referenceAvant(ctx.parametres, fournees, ctx.ventes, aujourdhui, function (d, f) { return C.farineVendue(ctx, d, f); });
+        var ref = referenceChoisie(aujourdhui);
         // Point de départ mesuré : « maintenant » commence après les 2 semaines d'observation.
         if (ref.nature === 'mesuré' && limite < ref.fin) limite = ref.fin;
         var mesure = MP.calculerInvendusReels(fournees, ctx.ventes, limite, aujourdhui);
@@ -626,7 +630,7 @@
         document.getElementById('etiquetteSauve').textContent = 'mesuré';
         document.getElementById('etiquetteSauve').className = 'etiquette-mesure';
         sauveEl.textContent = pourcent(taux);
-        sauveDetail.textContent = gain.invendus.toLocaleString('fr-FR') + ' pièce' + (gain.invendus > 1 ? 's' : '') + ' non vendue' + (gain.invendus > 1 ? 's' : '') + ' sur ' + gain.cuit.toLocaleString('fr-FR') + ' cuites, sur ' + nbJours + ' jour' + (nbJours > 1 ? 's' : '') + ' de fournée cochée.';
+        sauveDetail.textContent = gain.invendus.toLocaleString('fr-FR') + ' invendu' + (gain.invendus > 1 ? 's' : '') + ' sur ' + gain.cuit.toLocaleString('fr-FR') + ' pièces cuites (' + nbJours + ' jour' + (nbJours > 1 ? 's' : '') + ').';
         var lm = document.getElementById('ligneMesure'), ld = document.getElementById('ligneDepart');
         var origine = ref.nature === 'mesuré' ? 'mesuré sur tes 2 semaines d\'observation' : ref.nature === 'calculé' ? 'tes achats de farine' : ref.libelle === 'estimé d\'après tes réponses' ? 'tes réponses' : 'moyenne nationale';
         lm.innerHTML = 'Avant À Point : <strong>' + pourcent(ref.taux) + '</strong> <span class="gain-origine">(' + origine + ')</span> → maintenant : <strong>' + pourcent(taux) + '</strong>' +
@@ -797,6 +801,21 @@
         return poids > 0 ? somme / poids : null;
       }
 
+      // Lot 10 : point de départ par défaut = celui déclaré à l'inscription,
+      // recalé par les achats de farine s'il y en a ; la mesure sur 2 semaines
+      // ne compte que si le boulanger l'a choisie (reference_avant.choix).
+      function farine(d, f) { return C.farineVendue(ctx, d, f); }
+      function referenceChoisie(aujourdhui) {
+        var p = {};
+        Object.keys(ctx.parametres || {}).forEach(function (k) { p[k] = ctx.parametres[k]; });
+        var rep = {};
+        Object.keys(p.reference_avant || {}).forEach(function (k) { rep[k] = p.reference_avant[k]; });
+        if (rep.choix !== 'mesure') p.observation_debut = null;
+        if (!rep.choix && MP.referenceAchats(p, farine)) rep.choix = 'achats';
+        p.reference_avant = rep;
+        return MP.referenceAvant(p, fournees, ctx.ventes, aujourdhui, farine);
+      }
+
       // Lot 9 : mesurer le vrai point de départ (2 semaines cochées) plutôt
       // que de croire une estimation. Réutilise des fournées déjà cochées
       // s'il y en a deux semaines ; sinon, la mesure commence aujourd'hui.
@@ -804,9 +823,13 @@
         var el = document.getElementById('blocObservation');
         var aujourdhui = MP.versISO(new Date());
         var p = ctx.parametres || {};
-        var obs = MP.referenceMesuree(p, fournees, ctx.ventes, aujourdhui);
         var rep = p.reference_avant || {};
-        if (obs && obs.nature && rep.choix !== 'reponses' && rep.choix !== 'achats') { el.hidden = true; return; }
+        var obs = rep.choix === 'mesure' ? MP.referenceMesuree(p, fournees, ctx.ventes, aujourdhui) : null;
+        if (obs && obs.nature) {
+          el.innerHTML = '<p>Ton point de départ est mesuré (' + obs.source + ').</p>';
+          el.hidden = false;
+          return;
+        }
         if (obs && obs.enCours) {
           var jour = Math.min(14, Math.round((new Date(aujourdhui + 'T00:00:00') - new Date(obs.debut + 'T00:00:00')) / 86400000) + 1);
           el.innerHTML = '<p><strong>Mesure de ton point de départ : jour ' + jour + ' sur 14.</strong> Cuis comme d\'habitude et coche « enfourné » chaque matin : dans ' + (14 - jour + 1) + ' jour' + (14 - jour + 1 > 1 ? 's' : '') + ', le « avant » sera mesuré, plus estimé.</p>';
@@ -816,7 +839,7 @@
         var dates = fournees.map(function (f) { return f.date_fournee; }).sort();
         var premiere = dates[0];
         var essai = premiere ? MP.referenceMesuree({ observation_debut: premiere }, fournees, ctx.ventes, aujourdhui) : null;
-        var html = '<p><strong>Ton point de départ est une estimation.</strong> Pour le mesurer vraiment : pendant 2 semaines, cuis comme d\'habitude et coche « enfourné » chaque matin.</p>';
+        var html = '<p>Pendant 2 semaines, cuis comme d\'habitude et coche « enfourné » chaque matin : tes vrais invendus d\'avant seront mesurés.</p>';
         if (essai && essai.nature) {
           html += '<p>Tu as déjà coché tes 2 premières semaines : elles donnent <strong>' + pourcent(essai.taux) + '</strong> d\'invendus (' + essai.source + ').</p>' +
             '<p><button type="button" class="bouton-secondaire" data-observation="' + premiere + '">Prendre ces 2 semaines comme point de départ</button></p>';
@@ -833,7 +856,8 @@
         ctx.parametres.observation_debut = b.getAttribute('data-observation');
         var rep = {};
         var actuel = ctx.parametres.reference_avant || {};
-        Object.keys(actuel).forEach(function (k) { if (k !== 'choix') rep[k] = actuel[k]; });
+        Object.keys(actuel).forEach(function (k) { rep[k] = actuel[k]; });
+        rep.choix = 'mesure';
         ctx.parametres.reference_avant = rep;
         ctx.sb.from('parametres_commercant').upsert({ commercant_id: ctx.commercantId, observation_debut: ctx.parametres.observation_debut, reference_avant: rep }).then(function () {}, function () {});
         afficherResultats(periodeActuelle);

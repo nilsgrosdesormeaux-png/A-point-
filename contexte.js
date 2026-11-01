@@ -45,7 +45,11 @@
         sb.from('produits').select('*').eq('commercant_id', id),
         sb.from('ingredients_produit').select('*').eq('commercant_id', id),
         sb.from('parametres_commercant').select('*').eq('commercant_id', id),
-        sb.from('evenements_commercant').select('*').eq('commercant_id', id)
+        sb.from('evenements_commercant').select('*').eq('commercant_id', id),
+        // Fournées cochées : les jours « épuisé » ou tout vendu révèlent une
+        // demande cachée (ruptures, corrigées par le moteur). Facultatif.
+        sb.from('fournees').select('date_fournee, nom_produit, quantite_cuite, epuise').eq('commercant_id', id)
+          .then(function (x) { return x; }, function () { return { data: [] }; })
       ]).then(function (r) {
         var parametres = (r[3].data && r[3].data[0]) || null;
         // Caisse déclarée à l'inscription : recopiée une fois dans les réglages.
@@ -87,6 +91,17 @@
           if (!ctx.parProduit[nom]) ctx.parProduit[nom] = [];
           ctx.parProduit[nom].push(v);
         });
+        // Pour prévoir seulement : demande estimée les jours de rupture, et
+        // totaux de la boutique (effets appris prudemment pour un produit
+        // qui n'a jamais connu un signal). ctx.parProduit reste les vraies ventes.
+        var demandes = MP.corrigerRuptures(ctx.ventes, (r[5] && r[5].data) || []);
+        ctx.demandeParProduit = {};
+        demandes.forEach(function (v) {
+          var nom = MP.formatNomAffichage(v.nom_produit);
+          if (!ctx.demandeParProduit[nom]) ctx.demandeParProduit[nom] = [];
+          ctx.demandeParProduit[nom].push(v);
+        });
+        ctx.optionsPrevision = { totauxBoutique: MP.totauxParJour(demandes.filter(function (v) { return estCuitPour(ctx, MP.formatNomAffichage(v.nom_produit)); })) };
         return ctx;
       });
     });
@@ -123,7 +138,7 @@
 
   function prevoirJour(ctx, date) {
     return Object.keys(ctx.parProduit).filter(function (nom) { return estCuitPour(ctx, nom); }).map(function (nom) {
-      var r = MP.calculerRecommandation(ctx.parProduit[nom], date, ctx.zoneVacances, ctx.evenements, ctx.meteoPassee, ctx.meteoPrevue, ctx.signauxExternes);
+      var r = MP.calculerRecommandation((ctx.demandeParProduit && ctx.demandeParProduit[nom]) || ctx.parProduit[nom], date, ctx.zoneVacances, ctx.evenements, ctx.meteoPassee, ctx.meteoPrevue, ctx.signauxExternes, ctx.optionsPrevision);
       return { nom: nom, rayon: B.deduireRayon(nom), r: r };
     });
   }

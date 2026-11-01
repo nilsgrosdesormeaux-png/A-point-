@@ -8,9 +8,9 @@
   <link rel="stylesheet" href="style.css?v=20261101q">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="nav.js?v=20261101q"></script>
-  <script src="caisse-utilisee.js?v=20261101q"></script>
-  <script src="supabase/functions/_shared/caisse/lecture-export.js?v=20261103"></script>
-  <script src="connecteur-caisse.js?v=20261101q"></script>
+  <script src="caisse-utilisee.js?v=20261104c"></script>
+  <script src="supabase/functions/_shared/caisse/lecture-export.js?v=20261104c"></script>
+  <script src="connecteur-caisse.js?v=20261104c"></script>
   <style>
     .tableau-journal th, .tableau-journal td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--bordure); vertical-align: top; }
     .tableau-journal td:nth-child(3) { font-variant-numeric: tabular-nums; }
@@ -41,7 +41,7 @@
       <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
 
       <div id="zoneCaisse" hidden>
-        <p class="texte-aide">Tes ventes arrivent seules dans À Point, de deux façons : <strong>brancher ta caisse</strong> avec une clé que tu crées toi-même dans ton compte de caisse (SumUp, Zettle, Square, Loyverse, Tactill, Hiboutik), ou <strong>déposer le fichier d'export</strong> de ta caisse (toutes les caisses : Bimedia, Crisalid, Toporder, Lightspeed, Cashmag, Zelty…). Choisis ta caisse : on te montre le bon chemin, pas à pas.</p>
+        <p class="texte-aide">Tes ventes arrivent seules dans À Point, de deux façons : <strong>brancher ta caisse</strong> avec une clé que tu crées toi-même dans ton compte de caisse (SumUp, Zettle, Square, Loyverse, Tactill, Hiboutik), ou, pour toutes les autres caisses (Bimedia, Crisalid, Toporder, Lightspeed, Cashmag, Zelty…), <strong>déposer une seule fois ton historique</strong> puis laisser ta caisse <strong>envoyer seule ses ventes chaque jour par e-mail</strong>. Choisis ta caisse : on te montre le bon chemin, pas à pas.</p>
         <label for="selectCaisse">Ta caisse</label>
         <select id="selectCaisse"></select>
         <input type="text" id="autreCaisse" placeholder="Nom de ta caisse" aria-label="Nom de ta caisse" maxlength="60" hidden style="margin-top:8px;">

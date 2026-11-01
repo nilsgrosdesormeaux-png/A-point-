@@ -30,6 +30,7 @@ const BASE = 'http://127.0.0.1:' + PORT;
 // ---------- Arguments ----------
 const args = process.argv.slice(2);
 const filtrePage = args.includes('--page') ? args[args.indexOf('--page') + 1] : null;
+const evaluer = args.includes('--eval') ? args[args.indexOf('--eval') + 1] : null;
 const formats = args.includes('--mobile') ? ['mobile'] : args.includes('--ordi') ? ['ordi'] : ['mobile', 'ordi'];
 const VIEWPORTS = {
   mobile: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
@@ -454,6 +455,7 @@ async function lancer(browser, sc, format, rapport) {
     } else {
       await attendreCalme(page);
       if (sc.action) await sc.action(page);
+      if (evaluer) console.log(sc.nom + ' [' + format + '] ', JSON.stringify(await page.evaluate(evaluer)));
       await capturer(sc.nom);
     }
   } catch (e) {

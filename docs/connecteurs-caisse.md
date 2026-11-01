@@ -32,6 +32,40 @@ Le fondateur n'a pas d'entreprise (SumUp exige un compte professionnel pour une 
 
 **Non retenues (pas de clé créée par le commerçant dans une doc officielle publique)** : Zelty (clé générée dans le back-office d'après des intégrateurs, mais documentation réservée aux partenaires), Tiller / SumUp Caisse Pro (portail développeur derrière connexion partenaire), L'Addition, Cashpad, Cashmag, Lightspeed K-Series (programme partenaire), Bimedia, Crisalid, Toporder (aucune API publique). Lightspeed X-Series a des « personal tokens » (Setup > Personal Tokens), mais seulement en formule Plus et très peu présente en boulangerie française : pas codée. Pour toutes celles-ci : import de fichier, puis envoi quotidien par e-mail.
 
+### Vérification réelle (lot 10, 1er novembre 2026)
+
+Appels aux vraies API avec une fausse clé (curl), docs officielles relues champ par champ, et chemin complet des Edge Functions rejoué sous Node avec des réponses simulées (`tests/caisse-fonctions.test.mjs`). La fonction déployée `connecter-caisse` répond bien `401 Non authentifie` sans session ; aller plus loin exigerait de créer un compte dans la vraie base, ce qui n'a pas été fait.
+
+| Caisse | Vérifié pour de vrai | Ne se vérifiera qu'avec un vrai compte |
+|---|---|---|
+| SumUp | URL `api.sumup.com/v0.1/me`, `/v0.1/memberships`, `/v2.1/merchants/{code}/transactions/history` : 401 JSON sur fausse clé (traité comme « clé refusée ») ; doc relue : `statuses[]`, `types[]`, `oldest_time`/`newest_time`, liens `next`, détail `?id=` avec `products[].name/quantity`. **Corrigé** : les pages suivantes ne garantissent pas `newest_time` (on borne nous-mêmes) ; ventes partiellement remboursées désormais comptées | Qu'une clé `sup_sk_` lit bien l'historique ; présence des articles (catalogue SumUp obligatoire) |
+| Zettle | `oauth.zettle.com/token` en assertion : `400 invalid_grant` sur fausse clé (traité) ; `users/self` et `purchases/v2` : 401 JSON ; doc : `startDate`/`endDate` UTC, `limit` ≤ 1000, `lastPurchaseHash`, `products[].name/variantName/quantity` (négatif si remboursement), `type` GIFTCARD | Nom exact du champ client_id dans la clé (on essaie `client_id`, `cid`, `aud`, `sub`) |
+| Square | `connect.squareup.com/v2/locations` et `/v2/orders/search` (en-tête `Square-Version: 2025-01-23` accepté) : 401 JSON ; champs vérifiés dans le SDK officiel `square` 46.0.0 : `location_ids`, `date_time_filter.closed_at`, `state_filter`, `sort_field`, `line_items[].name/variation_name/quantity` | Que le jeton personnel a bien le droit de lire les commandes (contradiction doc / forum) |
+| Loyverse | `api.loyverse.com/v1.0/merchant/` et `/receipts` : 401 JSON ; doc OpenAPI officielle : tous les champs lus existent | Rien d'autre que la clé elle-même |
+| Tactill | `api.tactill.com/pos/v0/me` et `/sale/request` : 401 JSON `acc-051/052` ; collection Postman officielle : champs `items`, `next_token`, `lines[].details.name`, `operation_type`, `state` | Obtention de la clé auprès de Tactill (manuelle aujourd'hui) |
+| Hiboutik | Inchangé (`test.hiboutik.com/api` répond, redirection sans compte) | Comme avant |
+
+Aucun éditeur ne propose de bac à sable public sans inscription (Square et Zettle en ont, mais avec un compte développeur).
+
+### Chemin automatique de chaque caisse sans clé (sans dépôt de fichier quotidien)
+
+Principe : historique déposé **une seule fois**, puis la caisse envoie elle-même chaque jour son export à `apointapp.contact+caisse-<jeton>@gmail.com`, relevé par `relais-gmail.gs`.
+
+| Caisse | Envoi quotidien programmable (doc éditeur) | API / agrégateur | Ce qu'affiche l'app |
+|---|---|---|---|
+| Lightspeed (Restaurant K) | **Oui, documenté** : Rapports > Planifications de rapports > Créer, rapport au format CSV, quotidien, envoyé à 5 h pour la veille ([doc](https://k-series-support.lightspeedhq.com/hc/en-us/articles/1260804606090-Understanding-report-schedules)) | API partenaire (dossier), Chift (« Private ») | Étapes pas à pas |
+| Zelty | Pas de doc publique | Clé générée par le commerçant dans la Marketplace Zelty pour l'appli d'un intégrateur ; doc API réservée ; Chift sans accord de l'éditeur ([doc Chift](https://docs.chift.eu/help/connectors/pos/zelty)) | Message prêt pour l'éditeur |
+| Tiller / SumUp Caisse Pro | Pas de doc publique | Clé générée dans l'App Market Tiller pour une appli partenaire ; Chift (accord éditeur) | Message prêt |
+| Cashpad | Pas de doc publique | Chift : identifiant d'installation à demander à support@cashpad.fr | Message prêt (support@cashpad.fr) |
+| Popina | Pas de doc publique | Chift : clé API fournie par Popina, option de l'abonnement | Message prêt |
+| L'Addition | Pas de doc publique | Chift (accord éditeur) | Message prêt |
+| Cashmag | Pas de doc publique | Chift : option API payante chez Cashmag ([doc Chift](https://docs.chift.eu/help/connectors/pos/cashmag)) | Message prêt |
+| Bimedia, Crisalid, Toporder | Pas de doc publique | Aucune API publique, absents de Chift (Toporder : groupe myPOS, Chift couvre myPOS mais pas Toporder) | Message prêt |
+
+**Chift** : 39 caisses ([liste](https://docs.chift.eu/connectors/pos)), tarif uniquement sur devis (rien de public, G2 le confirme), facturé à la connexion active ; exige un contrat, donc une structure côté À Point. À reconsidérer quand l'entreprise existe : il couvrirait Zelty, Tiller, Cashpad, Popina, L'Addition, Cashmag et Lightspeed d'un coup.
+
+**Synchronisation comptable** (Pennylane, Tiime…) : ne transmet que des totaux par jour et par taux de TVA, jamais les quantités par article. Inutile pour prévoir les fournées.
+
 ### Import de fichier : la solution universelle
 
 `supabase/functions/_shared/caisse/lecture-export.js` (même code pour la page, l'e-mail et les tests). Les éditeurs ne publient pas le détail colonne par colonne de leurs exports ; la lecture ne dépend donc pas d'un format précis mais reconnaît tout ce qui suit, testé dans `tests/caisse.test.mjs` :
@@ -47,7 +81,7 @@ Exemples d'en-têtes visés (relevés sur des aides et forums publics, à confir
 
 ### Export par e-mail sans compte payant ni domaine
 
-Postmark exigeait une adresse à un nom de domaine. Remplacement : une **boîte Gmail dédiée gratuite** (`apoint.ventes@gmail.com`) et un script Google Apps Script (`supabase/functions/import-export-caisse/relais-gmail.gs`) qui la relève toutes les 10 minutes et transmet les pièces jointes à `import-export-caisse` au format Postmark (la fonction ne change pas). Chaque boulangerie a son adresse `apoint.ventes+<jeton>@gmail.com` (Gmail livre les adresses « + » dans la même boîte). Limites : quotas gratuits Apps Script (largement suffisants), délai de 10 minutes au plus, e-mails sans pièce jointe non traités. Mise en service : `docs/vente/guide-comptes-caisse.md`.
+Postmark exigeait une adresse à un nom de domaine. Remplacement : la **boîte Gmail existante** `apointapp.contact@gmail.com` et un script Google Apps Script (`supabase/functions/import-export-caisse/relais-gmail.gs`) qui la relève toutes les 10 minutes et transmet les pièces jointes à `import-export-caisse` au format Postmark (la fonction ne change pas). Chaque boulangerie a son adresse `apointapp.contact+caisse-<jeton>@gmail.com` (boîte existante du fondateur ; le script ne touche qu'aux e-mails « +caisse- ») (Gmail livre les adresses « + » dans la même boîte). Limites : quotas gratuits Apps Script (largement suffisants), délai de 10 minutes au plus, e-mails sans pièce jointe non traités. Mise en service : `docs/vente/guide-comptes-caisse.md`.
 
 | Caisse | Branchement | Historique au branchement |
 |---|---|---|

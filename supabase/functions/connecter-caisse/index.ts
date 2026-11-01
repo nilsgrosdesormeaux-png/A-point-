@@ -26,7 +26,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { jourParis } from '../_shared/caisse/commun.ts';
 import { type Jetons } from '../_shared/caisse/http.ts';
-import { FOURNISSEURS, disponibles, identifiantsApp, jetonUtilisable } from '../_shared/caisse/fournisseurs.ts';
+import { FOURNISSEURS, devinerFournisseur, disponibles, identifiantsApp, jetonUtilisable } from '../_shared/caisse/fournisseurs.ts';
 import { debutHistorique, enregistrerJetons, journaliser, synchroniserConnexion } from '../_shared/caisse/synchroniser.ts';
 
 var CORS_HEADERS = {
@@ -128,8 +128,12 @@ Deno.serve(async (req) => {
     if (corps.action === 'connecter_cle') {
       // Clé personnelle créée par le commerçant dans SON compte de caisse :
       // aucun compte développeur côté À Point. La clé n'est jamais renvoyée.
+      // Caisse absente, ou clé d'une autre caisse que celle choisie : on se
+      // fie à la forme de la clé (sup_sk_ = SumUp, sk_live_ = Tactill…).
+      var devinee = devinerFournisseur(corps.cle);
+      if (corps.fournisseur !== 'hiboutik' && devinee && devinee !== corps.fournisseur) corps.fournisseur = devinee;
       var fc = FOURNISSEURS[corps.fournisseur];
-      if (!fc || !fc.cle) return reponse({ error: 'Caisse non prise en charge' }, 400);
+      if (!fc || !fc.cle) return reponse({ error: 'Cette clé ne ressemble à aucune caisse connue. Vérifie que tu as copié toute la clé, sans espace.' }, 400);
       if (!ENV.cleChiffrement) return reponse({ error: 'Branchement pas encore ouvert' }, 503);
       var jeton = '';
       try {
@@ -147,7 +151,7 @@ Deno.serve(async (req) => {
         }
         return reponse({ error: 'La caisse a refusé cette clé. Vérifie-la et réessaie. (' + msg.slice(0, 200) + ')' }, 400);
       }
-      return reponse({ ok: true });
+      return reponse({ ok: true, fournisseur: corps.fournisseur });
     }
 
     if (corps.action === 'synchroniser') {
@@ -183,7 +187,9 @@ Deno.serve(async (req) => {
       if (existante.data) return reponse({ adresse: existante.data.adresse_import });
       var jeton = aleatoire(8);
       var morceaux = ADRESSE_IMPORT.split('@');
-      var adresse = morceaux[0] + '+' + jeton + '@' + morceaux[1];
+      // « +caisse-<jeton> » : le relais Gmail ne touche qu'à ces e-mails, même
+      // dans une boîte partagée avec le courrier du fondateur.
+      var adresse = morceaux[0] + '+caisse-' + jeton + '@' + morceaux[1];
       var cree = await admin.from('connexions_caisse').insert({ commercant_id: commercantId, fournisseur: 'export_email', jeton_import: jeton, adresse_import: adresse });
       if (cree.error) return reponse({ error: cree.error.message }, 400);
       return reponse({ adresse: adresse });

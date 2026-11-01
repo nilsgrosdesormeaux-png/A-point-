@@ -54,7 +54,7 @@
     <div class="entete-page">
       <div>
         <h1>Ventes</h1>
-        <p class="texte-aide" style="margin:0;">Ce que tu as vendu nourrit les prévisions. Saisis la veille ou importe un fichier.</p>
+        <p class="texte-aide" style="margin:0;">Corrige une journée ou importe un fichier.</p>
       </div>
     </div>
 
@@ -90,7 +90,7 @@
 
     <section class="carte-page" id="importer" aria-labelledby="titreImport" style="margin-top:var(--espace-4);">
       <h2 id="titreImport" style="margin-top:0;">Importer un fichier</h2>
-      <p class="texte-aide">Export de ta caisse ou tableur (CSV, Excel). Les doublons d'un même jour sont remplacés.</p>
+      <p class="texte-aide">Fichier de ta caisse ou tableur (Excel, CSV).</p>
       <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
 
       <div id="zoneFormulaire" style="display:none;">
@@ -148,7 +148,7 @@
           <div id="champCout">
             <label for="selectCout">Colonne pour le coût unitaire en € (optionnelle)</label>
             <select id="selectCout"></select>
-            <p class="texte-aide" style="margin-top:-4px;">Utile si ton fichier vient d'une facture fournisseur : le coût est alors mémorisé automatiquement et n'a plus besoin d'être ressaisi.</p>
+            <p class="texte-aide" style="margin-top:-4px;">Le coût de l'ingrédient est alors mémorisé.</p>
           </div>
 
           <div id="apercuBrut"></div>
@@ -322,10 +322,10 @@
             var texte = document.getElementById('texteEtatCaisse'), lien = document.getElementById('lienEtatCaisse');
             document.getElementById('etatSynchroCaisse').classList.toggle('etat-synchro--ok', !!active);
             if (active) {
-              texte.innerHTML = '<strong>Caisse ' + (noms[active.fournisseur] || '') + ' branchée.</strong> Tes ventes arrivent seules chaque nuit ; ici, tu peux corriger une journée.';
+              texte.innerHTML = '<strong>Caisse ' + (noms[active.fournisseur] || '') + ' branchée</strong> : tes ventes arrivent seules.';
               lien.textContent = 'Ma caisse';
             } else {
-              texte.innerHTML = '<strong>Caisse pas encore branchée.</strong> Branche-la pour que tes ventes arrivent seules, ou saisis-les ici.';
+              texte.innerHTML = '<strong>Caisse pas encore branchée.</strong>';
               lien.textContent = 'Brancher ma caisse';
             }
           }, function () {});
@@ -472,21 +472,21 @@
       var TEXTES = {
         ventes: {
           titre: "Importer un fichier de ventes",
-          explication: "Dépose un fichier CSV ou Excel (.csv, .xlsx, .xls) contenant tes ventes : une colonne pour la date, une pour le produit, une pour la quantité vendue. Peu importe l'ordre ou le nom exact des colonnes : on essaie de les reconnaître automatiquement, et tu pourras vérifier avant d'importer.",
+          explication: "Une colonne date, une produit, une quantité.",
           labelProduit: "Colonne pour le produit",
           labelQuantite: "Colonne pour la quantité vendue",
           boutonImporter: "Importer ces ventes"
         },
         fiches: {
           titre: "Importer des fiches techniques",
-          explication: "Dépose un fichier CSV ou Excel listant les ingrédients de tes recettes : une ligne par ingrédient, avec le nom du produit (ex. baguette tradition), le nom de l'ingrédient, la quantité utilisée pour une unité vendue, et si besoin l'unité (g, kg, ml...). Un produit qui n'existe pas encore dans Produits est créé automatiquement.",
+          explication: "Une ligne par ingrédient : produit, ingrédient, quantité.",
           labelProduit: "Colonne pour le produit",
           labelQuantite: "Colonne pour la quantité (par unité vendue)",
           boutonImporter: "Importer ces fiches techniques"
         },
         prix: {
           titre: "Importer des prix",
-          explication: "Dépose un fichier CSV ou Excel listant le coût unitaire de tes ingrédients : une colonne pour le nom de l'ingrédient, une pour le prix. Seuls les ingrédients déjà présents dans une fiche technique sont mis à jour ; les autres lignes sont ignorées (pas de fiche technique orpheline créée pour un ingrédient inconnu).",
+          explication: "Une colonne ingrédient, une colonne prix.",
           labelProduit: "Colonne pour l'ingrédient",
           labelQuantite: "Colonne pour le prix (€)",
           boutonImporter: "Importer ces prix"

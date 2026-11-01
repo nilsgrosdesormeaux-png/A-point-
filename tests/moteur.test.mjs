@@ -213,3 +213,136 @@ test('lot 3 : non cuits, sarrasin, farines fusionnées', () => {
   assert.equal(B.cleIngredient('Farine de tradition'), 'farine tradition');
   assert.equal(B.uniteAchat('Farine T65', 'kg').taille, 25);
 });
+
+// ---------- Nov. 2026 : ruptures, veille de férié, saison, apprentissage boutique ----------
+
+test('veille de férié : la veille seulement, pas le férié', () => {
+  assert.equal(MP.estVeilleFerie(jour('2026-05-13')), true);  // Ascension jeudi 14 mai
+  assert.equal(MP.estVeilleFerie(jour('2026-05-14')), false);
+  assert.equal(MP.estVeilleFerie(jour('2026-12-24')), true);
+  assert.equal(MP.estJourOrdinaire(jour('2026-12-24'), null), false);
+});
+
+test('ruptures : demande estimée sur les jours comparables, l\'heure, sinon prudente', () => {
+  const ventes = [
+    { nom_produit: 'Baguette', date_vente: '2026-09-05', quantite: 110 },
+    { nom_produit: 'Baguette', date_vente: '2026-09-12', quantite: 120 },
+    { nom_produit: 'Baguette', date_vente: '2026-09-19', quantite: 100 },  // épuisé, comparables 110 et 120
+    { nom_produit: 'Baguette', date_vente: '2026-09-26', quantite: 130 },  // tout vendu, aucun comparable ≥ 130
+    { nom_produit: 'Baguette', date_vente: '2026-10-03', quantite: 100, heure_derniere_vente: '12:00' }
+  ];
+  const fournees = [
+    { date_fournee: '2026-09-19', nom_produit: 'baguette', quantite_cuite: 100, epuise: true },
+    { date_fournee: '2026-09-26', nom_produit: 'Baguette', quantite_cuite: 130 },
+    { date_fournee: '2026-10-03', nom_produit: 'Baguette', quantite_cuite: 100, epuise: true },
+    { date_fournee: '2026-09-12', nom_produit: 'Baguette', quantite_cuite: 140 }
+  ];
+  const c = Object.fromEntries(MP.corrigerRuptures(ventes, fournees).map(v => [v.date_vente, v]));
+  assert.equal(c['2026-09-12'].rupture, undefined);
+  assert.equal(c['2026-09-19'].quantite, 115);
+  assert.equal(c['2026-09-19'].quantiteVendue, 100);
+  assert.equal(c['2026-09-26'].quantite, Math.round(130 * 1.03));
+  assert.equal(c['2026-10-03'].rupture, 'heure');
+  assert.equal(c['2026-10-03'].quantite, 140);  // 100 ÷ 55 % = 182, plafonné à +40 %
+  assert.equal(MP.corrigerRuptures(ventes, []), ventes);
+});
+
+test('ruptures : la prévision remonte et « Pourquoi ? » le dit sans compter deux fois', () => {
+  const ventes = historiqueSamedis('Baguette', 100, 100, () => false).filter(v => v.date_vente >= '2026-09-01' && v.date_vente < '2026-11-01');
+  const fournees = ventes.map(v => ({ date_fournee: v.date_vente, nom_produit: v.nom_produit, quantite_cuite: 100, epuise: true }));
+  const r0 = MP.calculerRecommandation(ventes, jour('2026-11-07'), null, {}, {}, {});
+  const r1 = MP.calculerRecommandation(MP.corrigerRuptures(ventes, fournees), jour('2026-11-07'), null, {}, {}, {});
+  const sig = r1.signaux.find(s => s.cle === 'rupture');
+  assert.ok(sig && sig.dejaPrisEnCompte && sig.detail);
+  assert.equal(r1.quantite, Math.round(110 * MP.MARGE_PRODUCTION));
+  assert.ok(r1.quantite > r0.quantite);
+});
+
+test('signal jamais vu par le produit : moitié de l\'effet appris sur la boutique', () => {
+  const estGalette = d => { const f = MP.feteBoulangere(d); return !!f && f.cle === 'epiphanie'; };
+  const boutique = MP.totauxParJour(historiqueSamedis('Baguette', 100, 150, estGalette).filter(v => v.date_vente < '2026-12-01'));
+  const nouveau = historiqueSamedis('Pain nordique', 40, 40, () => false).filter(v => v.date_vente >= '2026-10-01' && v.date_vente < '2027-01-09');
+  const r = MP.calculerRecommandation(nouveau, jour('2027-01-09'), null, {}, {}, {}, undefined, { totauxBoutique: boutique });
+  const sig = r.signaux.find(s => s.cle === 'epiphanie');
+  assert.ok(sig.detail && sig.ratio > 1.1 && sig.ratio < 1.3, 'ratio ' + sig.ratio);
+  const sans = MP.calculerRecommandation(nouveau, jour('2027-01-09'), null, {}, {}, {});
+  assert.ok(r.quantite > sans.quantite);
+});
+
+test('saison : le creux d\'août appris sur l\'an dernier', () => {
+  const ventes = [];
+  for (let d = jour('2025-05-01'); d < jour('2026-08-10'); d = MP.ajouterJours(d, 1)) {
+    const iso = MP.versISO(d);
+    const aout = iso.slice(5, 7) === '08' && iso.slice(8) >= '05';
+    ventes.push({ nom_produit: 'Baguette', date_vente: iso, quantite: aout ? 80 : 100 });
+  }
+  const s = MP.effetSaison(ventes, jour('2026-08-18'), null);
+  assert.ok(s && s.ratio < 0.95, JSON.stringify(s));
+  assert.equal(MP.effetSaison(ventes.filter(v => v.date_vente >= '2026-01-01'), jour('2026-08-18'), null), null);
+});
+
+// Boulangerie simulée sur 22 mois (zone C) : 5 produits, jour de semaine,
+// tendance, creux d'août, vacances, fériés, ponts, veilles de férié, Noël,
+// bruit de 8 %. Le boulanger cuit « à l'instinct » (moyenne de ses 4 derniers
+// mêmes jours vendus +5 %) : quand la demande dépasse, il ne vend que ce
+// qu'il a cuit (rupture) et coche « Épuisé » 7 fois sur 10 (fournées notées
+// depuis mars 2026). On mesure l'écart moyen entre la prévision (sans la
+// marge) et la VRAIE demande, de mai à octobre 2026.
+function simulerBoulangerie(graine) {
+  let x = graine; const alea = () => (x = (x * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const gauss = () => Math.sqrt(-2 * Math.log(alea() + 1e-12)) * Math.cos(2 * Math.PI * alea());
+  const produits = [['Baguette', 250, 'pains'], ['Tradition', 120, 'pains'], ['Croissant', 90, 'viennoiseries'], ['Pain au chocolat', 80, 'viennoiseries'], ['Sandwich jambon beurre', 40, 'snacking']];
+  const ventes = [], fournees = [], demandes = {}, histo = {};
+  const debut = jour('2025-01-06');
+  for (let d = debut; d < jour('2026-11-01'); d = MP.ajouterJours(d, 1)) {
+    const iso = MP.versISO(d);
+    if (['01-01', '05-01', '12-25'].includes(iso.slice(5))) continue;
+    const t = (d - debut) / 86400000, doy = Math.floor((d - new Date(d.getFullYear(), 0, 1)) / 86400000), j = d.getDay(), fete = MP.feteBoulangere(d);
+    for (const [nom, base, rayon] of produits) {
+      const v = rayon === 'viennoiseries';
+      let m = base * (1 + 0.06 * t / 365) * (iso >= '2026-03-01' ? 1.08 : 1);
+      m *= j === 0 ? (v ? 1.5 : 1.25) : j === 6 ? 1.15 : j === 1 ? 0.9 : 1;
+      if (rayon === 'snacking' && (j === 0 || j === 6)) m *= 0.5;
+      m *= 1 - 0.14 * Math.exp(-Math.pow((doy - 222) / 18, 2)) + 0.07 * Math.exp(-Math.pow((doy - 352) / 8, 2));
+      if (MP.estEnVacances(d, 'C')) m *= rayon === 'snacking' ? 0.7 : 0.93;
+      if (MP.estJourFerie(d)) m *= 0.75;
+      if (MP.estPont(d)) m *= 0.88;
+      if (MP.estVeilleFerie(d) && rayon === 'pains') m *= 1.25;
+      if (fete && fete.cle === 'noel' && rayon === 'pains') m *= 1.2;
+      if (fete && fete.cle === 'paques' && v) m *= 1.15;
+      const dem = Math.max(0, Math.round(m * Math.exp(0.08 * gauss())));
+      const h = histo[nom + j] || (histo[nom + j] = []);
+      const cuit = h.length < 2 ? Math.round(m) : Math.round(h.slice(-4).reduce((a, b) => a + b, 0) / Math.min(4, h.length) * 1.05);
+      const vendu = Math.min(dem, cuit); h.push(vendu);
+      ventes.push({ nom_produit: nom, date_vente: iso, quantite: vendu });
+      demandes[iso + '|' + nom] = dem;
+      if (iso >= '2026-03-01') fournees.push({ date_fournee: iso, nom_produit: nom, quantite_cuite: cuit, epuise: dem > cuit && alea() < 0.7 });
+    }
+  }
+  return { ventes, fournees, demandes };
+}
+
+function erreurMoyenne(sim, apres) {
+  const ventes = apres ? MP.corrigerRuptures(sim.ventes, sim.fournees) : sim.ventes;
+  const sans = apres ? {} : { tendance: true, saison: true, veille: true, boutique: true };
+  let somme = 0, n = 0;
+  for (let d = jour('2026-05-01'); d < jour('2026-11-01'); d = MP.ajouterJours(d, 1)) {
+    const iso = MP.versISO(d);
+    const histo = ventes.filter(v => v.date_vente < iso);
+    const options = { totauxBoutique: MP.totauxParJour(histo), sans };
+    for (const nom of ['Baguette', 'Tradition', 'Croissant', 'Pain au chocolat', 'Sandwich jambon beurre']) {
+      const dem = sim.demandes[iso + '|' + nom];
+      if (dem === undefined) continue;
+      const r = MP.calculerRecommandation(histo.filter(v => v.nom_produit === nom), d, 'C', {}, {}, {}, undefined, options);
+      somme += Math.abs(r.quantite / MP.MARGE_PRODUCTION - dem); n++;
+    }
+  }
+  return somme / n;
+}
+
+test('boulangerie simulée : écart moyen à la vraie demande, avant / après', (t) => {
+  const sim = simulerBoulangerie(7);
+  const avant = erreurMoyenne(sim, false), apres = erreurMoyenne(sim, true);
+  t.diagnostic('écart moyen par produit et par jour : avant ' + avant.toFixed(1) + ' pièces, après ' + apres.toFixed(1) + ' (' + Math.round((apres / avant - 1) * 100) + ' %)');
+  assert.ok(apres < avant * 0.95, 'avant ' + avant + ', après ' + apres);
+});

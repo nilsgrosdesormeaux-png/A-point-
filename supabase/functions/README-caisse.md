@@ -103,3 +103,12 @@ Le boulanger crée une clé dans son compte de caisse et la colle dans Ma caisse
 Dégradation : tant que la fonction n'est pas redéployée, la page n'affiche que Hiboutik en clé et « bientôt » pour les autres ; tant que la migration manque, Loyverse et Tactill répondent « bientôt ».
 
 Tests : `node --test tests/caisse.test.mjs` (réponses d'API simulées d'après les docs officielles, exports de caisses, relais Gmail) et `tests/caisse-migration.test.mjs` (v1 à v4, deux passages, droits).
+
+## Lot 10 : vérifications réelles, clé devinée, envoi automatique Gmail
+
+- `connecter-caisse` : caisse devinée d'après la forme de la clé (`devinerFournisseur`), adresses d'import `…+caisse-<jeton>@…`.
+- `import-export-caisse` : accepte `MailboxHash` = `caisse-<jeton>` (et l'ancien `<jeton>`).
+- `_shared/caisse/sumup.ts` : bornes du jour tenues sur toutes les pages, remboursements partiels comptés.
+- `relais-gmail.gs` : boîte partagée `apointapp.contact@gmail.com`, ne touche qu'aux e-mails « +caisse- ».
+- À redéployer : les trois fonctions. Aucune migration. Secrets : `ADRESSE_IMPORT=apointapp.contact@gmail.com`, `CLE_IMPORT_EMAIL` (s'il manque).
+- Tests : `node --test tests/caisse.test.mjs tests/caisse-fonctions.test.mjs` (40 tests, chemin complet des fonctions sous Node).

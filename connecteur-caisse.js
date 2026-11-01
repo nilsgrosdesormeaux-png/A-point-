@@ -23,27 +23,51 @@
   var AVEC_CLE = ['sumup', 'zettle', 'square', 'loyverse', 'tactill', 'hiboutik'];
   var LIEN_ZETTLE = 'https://my.zettle.com/apps/api-keys?name=' + encodeURIComponent('A Point') + '&scopes=' + encodeURIComponent('READ:PURCHASE READ:USERINFO');
 
+  // Même règle que devinerFournisseur (supabase/functions/_shared/caisse/fournisseurs.ts).
+  function devinerCaisse(cle) {
+    var k = String(cle || '').trim();
+    if (/^sup_(sk|pk)_/.test(k)) return 'sumup';
+    if (/^sk_(live|test)_/.test(k)) return 'tactill';
+    if (/^EAAA[A-Za-z0-9_-]{20,}$/.test(k)) return 'square';
+    if (/^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/.test(k)) return 'zettle';
+    if (/^[A-Za-z0-9]{20,64}$/.test(k)) return 'loyverse';
+    return null;
+  }
+
+  // Envoi quotidien automatique, caisses sans clé (docs/connecteurs-caisse.md).
+  // etapes : mode d'emploi publié par l'éditeur ; sinon message prêt pour l'éditeur.
+  var AUTO = {
+    lightspeed: { nom: 'Lightspeed (Restaurant K)', etapes: [
+      'Connecte-toi à ton Back Office Lightspeed.',
+      'Menu <strong>Rapports</strong> &gt; <strong>Planifications de rapports</strong> (« Report schedules ») &gt; <strong>Créer</strong>.',
+      'Destinataire : colle ton adresse d\'envoi ci-dessus, puis <strong>Ajouter</strong>.',
+      'Rapport : <strong>Mix produits</strong> (« Product Mix »). Format : <strong>CSV</strong>. Fréquence : <strong>Quotidienne</strong>, tous les jours cochés.',
+      '<strong>Enregistre</strong>. Chaque matin vers 5 h, les ventes de la veille arrivent seules.'] },
+    cashpad: { support: 'support@cashpad.fr' },
+    tactill: { support: 'hello@tactill.com' },
+    zelty: { texte: 'Zelty ne publie pas de mode d\'emploi pour cet envoi. Demande-le à Zelty, le message est prêt. (Un branchement direct Zelty est à l\'étude.)' },
+    tiller: { texte: 'SumUp Caisse Pro (Tiller) ne publie pas de mode d\'emploi pour cet envoi. Demande-le au support, le message est prêt. (Un branchement direct est à l\'étude.)' },
+    autre: {}
+  };
+
   // Marche à suivre dans le compte de caisse du boulanger (sources : docs
   // officielles, voir docs/connecteurs-caisse.md). HTML statique.
   var GUIDES = {
     sumup: {
-      etapes: ['Sur un ordinateur, connecte-toi à <a href="https://me.sumup.com" target="_blank" rel="noopener">me.sumup.com</a> avec ton compte SumUp habituel.',
-        'Clique sur ton profil, puis sur <strong>Paramètres</strong>.',
-        'Ouvre <strong>Pour les développeurs</strong> &gt; <strong>Toolkit</strong>, puis <strong>Clés API</strong>.',
-        'Clique sur <strong>Créer</strong> et nomme la clé « À Point ».',
+      etapes: ['Ouvre <a href="https://me.sumup.com/settings/api-keys" target="_blank" rel="noopener">tes clés API SumUp</a> (sur téléphone ou ordinateur, dans le navigateur, pas dans l\'appli) et connecte-toi comme d\'habitude. Si la page ne s\'ouvre pas : profil &gt; <strong>Paramètres</strong> &gt; <strong>Pour les développeurs</strong> &gt; <strong>Toolkit</strong> &gt; <strong>Clés API</strong>.',
+        'Appuie sur <strong>Créer</strong> et nomme la clé « À Point ».',
         'Copie la clé qui commence par <strong>sup_sk_</strong> (SumUp ne la remontre plus jamais) et colle-la ci-dessous.'],
       note: 'Les articles n\'arrivent que pour les ventes encaissées avec ton catalogue de produits SumUp (pas en « montant libre »).',
       champ: 'Clé API SumUp (sup_sk_…)'
     },
     zettle: {
-      etapes: ['Sur un ordinateur, connecte-toi à <a href="https://my.zettle.com" target="_blank" rel="noopener">my.zettle.com</a>.',
-        'Ouvre ce lien, qui prépare la clé pour toi : <a href="' + LIEN_ZETTLE + '" target="_blank" rel="noopener">créer ma clé Zettle pour À Point</a>.',
+      etapes: ['Ouvre ce lien, qui prépare la clé pour toi (sur téléphone ou ordinateur, dans le navigateur) : <a href="' + LIEN_ZETTLE + '" target="_blank" rel="noopener">créer ma clé Zettle pour À Point</a>. Connecte-toi comme d\'habitude si on te le demande.',
         'Vérifie le nom « A Point » et le droit de lecture des achats, puis valide la création.',
         'Copie la <strong>clé API</strong> (une très longue suite de caractères) et colle-la ci-dessous. L\'identifiant client n\'est pas utile.'],
       champ: 'Clé API Zettle'
     },
     square: {
-      etapes: ['Sur un ordinateur, va sur <a href="https://developer.squareup.com/apps" target="_blank" rel="noopener">developer.squareup.com/apps</a> et connecte-toi avec ton compte Square habituel (gratuit).',
+      etapes: ['Ouvre <a href="https://developer.squareup.com/apps" target="_blank" rel="noopener">developer.squareup.com/apps</a> et connecte-toi avec ton compte Square habituel (gratuit). Possible sur téléphone, plus simple sur ordinateur.',
         'Crée une application (bouton <strong>+</strong>) et nomme-la « À Point ».',
         'Dans l\'application, ouvre <strong>Credentials</strong> dans le menu de gauche.',
         'En haut de la page, choisis <strong>Production</strong> (pas « Sandbox »).',
@@ -52,8 +76,7 @@
       champ: 'Jeton d\'accès Square (Production)'
     },
     loyverse: {
-      etapes: ['Connecte-toi à ton Back Office Loyverse sur <a href="https://r.loyverse.com" target="_blank" rel="noopener">r.loyverse.com</a>.',
-        'Ouvre la page des jetons d\'accès : <a href="https://r.loyverse.com/dashboard/#/integrations/tokens" target="_blank" rel="noopener">Jetons d\'accès</a> (menu Paramètres).',
+      etapes: ['Ouvre <a href="https://r.loyverse.com/dashboard/#/integrations/tokens" target="_blank" rel="noopener">tes jetons d\'accès Loyverse</a> (sur téléphone ou ordinateur, dans le navigateur) et connecte-toi comme d\'habitude. Sinon : Back Office &gt; Paramètres &gt; Jetons d\'accès.',
         'Clique sur <strong>+ Ajouter un jeton d\'accès</strong>, nomme-le « À Point », sans date d\'expiration, puis enregistre.',
         'Copie le jeton (il ne s\'affiche qu\'une fois) et colle-le ci-dessous.'],
       champ: 'Jeton d\'accès Loyverse'
@@ -234,7 +257,7 @@
     function formulaireCle(nom) {
       if (nom === 'hiboutik') return formulaireHiboutik();
       var g = GUIDES[nom];
-      return '<p class="texte-aide"><strong>Brancher ' + LIBELLES[nom] + ' en 5 minutes</strong>, avec une clé que tu crées toi-même dans ton compte :</p>'
+      return '<p class="texte-aide"><strong>Brancher ' + LIBELLES[nom] + ' en 5 minutes</strong>, avec une clé que tu crées toi-même dans ton compte. Astuce téléphone : garde cette page ouverte, fais les étapes dans un autre onglet, puis reviens coller la clé.</p>'
         + '<ol class="texte-aide" style="padding-left:20px;">' + g.etapes.map(function (e) { return '<li style="margin-bottom:4px;">' + e + '</li>'; }).join('') + '</ol>'
         + (g.note ? '<p class="texte-aide">' + g.note + '</p>' : '')
         + '<label for="cleCaisse">' + g.champ + '</label><input type="password" id="cleCaisse" autocomplete="off" spellcheck="false">'
@@ -258,17 +281,40 @@
         + '<p class="texte-aide" id="progressionFichier" aria-live="polite"></p>';
     }
 
-    function sectionEmail(email) {
-      if (email) {
-        return '<p class="section-titre" style="margin-top:18px;">Chaque jour, automatiquement</p>'
-          + '<p class="texte-aide">Programme dans ta caisse l\'envoi quotidien de l\'export des ventes vers ton adresse d\'import :</p>'
-          + '<p><strong>' + echapper(email.adresse_import) + '</strong></p>'
-          + '<p class="texte-aide">' + (email.derniere_synchro ? etatConnexion(email) : 'Aucun export reçu pour l\'instant.') + '</p>';
+    // Étape 2 des caisses sans clé : l'envoi quotidien automatique de
+    // l'export vers l'adresse d'import, réglé une fois dans la caisse.
+    var adresseDemandee = false;
+    function sectionEmail(email, choix) {
+      var titre = '<p class="section-titre" style="margin-top:18px;">Étape 2 : chaque jour, automatiquement</p>';
+      if (!email) {
+        if (!disponibles.email) {
+          return titre + '<p class="texte-aide">L\'envoi automatique de tes ventes chaque jour ouvre très bientôt. Ton historique suffit pour démarrer.</p>';
+        }
+        // Adresse créée d'office : le boulanger n'a pas de bouton de plus à trouver.
+        if (!adresseDemandee) {
+          adresseDemandee = true;
+          setTimeout(function () { appeler({ action: 'activer_import_email' }).then(charger, function () {}); }, 0);
+        }
+        return titre + '<p class="texte-aide">Préparation de ton adresse d\'envoi…</p>';
       }
-      if (!disponibles.email) return '';
-      return '<p class="section-titre" style="margin-top:18px;">Chaque jour, automatiquement</p>'
-        + '<p class="texte-aide">Si ta caisse sait envoyer son export des ventes par e-mail, programme cet envoi chaque jour : tes ventes arriveront seules.</p>'
-        + '<button type="button" id="btnAdresseImport" style="' + styleSecondaire() + '">Obtenir mon adresse d\'import</button>';
+      var guide = AUTO[choix] || AUTO.autre;
+      var adresse = echapper(email.adresse_import);
+      var html = titre
+        + '<p class="texte-aide">Ton adresse d\'envoi personnelle (à ne donner qu\'à ta caisse) :</p>'
+        + '<p style="word-break:break-all;"><strong id="adresseImport">' + adresse + '</strong> '
+        + '<button type="button" id="btnCopierAdresse" style="' + styleSecondaire() + ' padding:4px 10px;">Copier</button></p>';
+      if (guide.etapes) {
+        html += '<p class="texte-aide"><strong>Dans ta caisse ' + echapper(guide.nom || '') + '</strong>, une seule fois :</p>'
+          + '<ol class="texte-aide" style="padding-left:20px;">' + guide.etapes.map(function (e) { return '<li style="margin-bottom:4px;">' + e + '</li>'; }).join('') + '</ol>';
+      } else {
+        var corps = 'Bonjour,\n\nJe souhaite recevoir automatiquement, chaque jour, l\'export des ventes par article de la veille (fichier CSV ou Excel, avec la date, l\'article et la quantité), envoyé à cette adresse : '
+          + email.adresse_import + '\n\nPouvez-vous me dire comment le programmer dans ma caisse, ou le régler pour moi ?\n\nMerci !';
+        html += '<p class="texte-aide">' + (guide.texte || 'Ta caisse ne publie pas de mode d\'emploi pour cet envoi automatique. Le plus simple : demande-le à ton éditeur ou à ton revendeur, le message est prêt.') + '</p>'
+          + '<p><a href="mailto:' + (guide.support || '') + '?subject=' + encodeURIComponent('Envoi automatique quotidien de l\'export des ventes')
+          + '&body=' + encodeURIComponent(corps) + '">Écrire à mon éditeur de caisse</a></p>';
+      }
+      html += '<p class="texte-aide">' + (email.derniere_synchro ? etatConnexion(email) : 'Aucun envoi reçu pour l\'instant : le premier apparaîtra dans le journal ci-dessous.') + '</p>';
+      return html;
     }
 
     function rendre(connexions) {
@@ -289,7 +335,7 @@
         var choix = (caisseChoisie || '').indexOf('autre') === 0 ? 'autre' : caisseChoisie;
         html += !choix || AVEC_CLE.indexOf(choix) !== -1
           ? '<p class="texte-aide">Branche ta caisse : tes 12 derniers mois de ventes arrivent d\'un coup, puis chaque nuit les ventes de la veille. Tu n\'as plus rien à saisir.</p>'
-          : '<p class="texte-aide">Ta caisse ne propose pas de branchement direct : dépose son fichier d\'export ci-dessous (les colonnes sont reconnues seules), tes prévisions sont justes dès demain.</p>';
+          : '<p class="texte-aide">Ta caisse se règle en deux temps : tu déposes une seule fois ton historique, puis ta caisse envoie seule ses ventes chaque jour. Rien à refaire ensuite.</p>';
         var branchable = false;
         if (AVEC_CLE.indexOf(choix) !== -1) {
           if (oauthOuvert(choix)) {
@@ -308,10 +354,11 @@
             if (cleOuverte(nom) || oauthOuvert(nom)) html += '<button type="button" class="btnChoixCaisse" data-caisse="' + nom + '" style="' + styleSecondaire() + ' margin:0 6px 6px 0;">J\'ai ' + LIBELLES[nom] + '</button>';
           });
         }
-        var titre = branchable ? 'Ou bien : importer un fichier' : 'Importer ton historique';
+        var sansCle = !branchable && choix && choix !== 'aucune' && AVEC_CLE.indexOf(choix) === -1;
+        var titre = branchable ? 'Ou bien : importer un fichier' : (sansCle ? 'Étape 1 : ton historique, une seule fois' : 'Importer ton historique');
         html += sectionFichier(titre);
+        if (sansCle) html += sectionEmail(email, choix);
       }
-      if (!branchees.length) html += sectionEmail(email);
       html += '<div id="messageCaisse" aria-live="polite"></div>';
       bloc.innerHTML = html;
       brancherEvenements();
@@ -338,11 +385,16 @@
         var champ = document.getElementById('cleCaisse');
         var cle = champ.value.trim();
         if (!cle) return Promise.reject(new Error('Colle d\'abord ta clé dans le champ.'));
-        return appeler({ action: 'connecter_cle', fournisseur: btnCle.getAttribute('data-caisse'), cle: cle }).then(function () {
+        var prevue = btnCle.getAttribute('data-caisse');
+        var devinee = devinerCaisse(cle);
+        if (!devinee) return Promise.reject(new Error('Cette clé ne ressemble pas à une clé ' + LIBELLES[prevue] + '. Copie-la en entier (bouton « Copier » de ta caisse si tu en as un), sans espace.'));
+        return appeler({ action: 'connecter_cle', fournisseur: devinee, cle: cle }).then(function (r) {
           champ.value = '';
-          return charger();
-        }).then(function () {
-          message('Caisse branchée ! Tes 12 derniers mois de ventes arrivent : suis la progression ci-dessus.', false);
+          var nom = (r && r.fournisseur) || devinee;
+          return charger().then(function () {
+            message('Caisse ' + (LIBELLES[nom] || '') + ' branchée ! Tes 12 derniers mois de ventes arrivent : suis la progression ci-dessus.'
+              + (nom !== prevue ? ' (C\'était une clé ' + LIBELLES[nom] + ', pas ' + LIBELLES[prevue] + ' : c\'est corrigé.)' : ''), false);
+          });
         });
       });
       var btnHib = document.getElementById('btnBrancherHiboutik');
@@ -372,8 +424,13 @@
           return appeler({ action: 'deconnecter', fournisseur: btn.getAttribute('data-caisse') }).then(charger);
         });
       });
-      var btnAdresse = document.getElementById('btnAdresseImport');
-      if (btnAdresse) surClic(btnAdresse, function () { return appeler({ action: 'activer_import_email' }).then(charger); });
+      var btnCopier = document.getElementById('btnCopierAdresse');
+      if (btnCopier) btnCopier.addEventListener('click', function () {
+        var texte = document.getElementById('adresseImport').textContent;
+        var fait = function () { btnCopier.textContent = 'Copié !'; };
+        if (navigator.clipboard) navigator.clipboard.writeText(texte).then(fait, function () {});
+        else { var r = document.createRange(); r.selectNodeContents(document.getElementById('adresseImport')); getSelection().removeAllRanges(); getSelection().addRange(r); }
+      });
       var entree = document.getElementById('fichierHistorique');
       if (entree) entree.addEventListener('change', function () { if (entree.files[0]) importerFichier(entree); });
     }

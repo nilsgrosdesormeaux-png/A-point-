@@ -295,6 +295,16 @@
   // 2026-2027 (sources : education.gouv.fr, vérifiées le 9 septembre 2026) ;
   // à compléter à la main chaque année scolaire suivante.
   var PERIODES_VACANCES = [
+    // 2024-2025 (sert à apprendre sur l'historique importé de la caisse)
+    { debut: '2024-10-19', fin: '2024-11-04', zones: 'toutes' },   // Toussaint
+    { debut: '2024-12-21', fin: '2025-01-06', zones: 'toutes' },   // Noël
+    { debut: '2025-02-22', fin: '2025-03-10', zones: ['A'] },      // Hiver A
+    { debut: '2025-02-08', fin: '2025-02-24', zones: ['B'] },      // Hiver B
+    { debut: '2025-02-15', fin: '2025-03-03', zones: ['C'] },      // Hiver C
+    { debut: '2025-04-19', fin: '2025-05-05', zones: ['A'] },      // Printemps A
+    { debut: '2025-04-05', fin: '2025-04-22', zones: ['B'] },      // Printemps B
+    { debut: '2025-04-12', fin: '2025-04-28', zones: ['C'] },      // Printemps C
+    { debut: '2025-07-05', fin: '2025-09-01', zones: 'toutes' },   // Été 2025
     // 2025-2026
     { debut: '2025-10-18', fin: '2025-11-03', zones: 'toutes' },   // Toussaint
     { debut: '2025-12-20', fin: '2026-01-05', zones: 'toutes' },   // Noël
@@ -595,6 +605,7 @@
     var paques = datePaques(annee);
     plage(new Date(annee, 0, 2), 14, 'epiphanie', 'Galettes des rois', '👑');
     plage(new Date(annee, 1, 2), 1, 'chandeleur', 'Chandeleur', '🥞');
+    plage(new Date(annee, 1, 14), 1, 'saint-valentin', 'Saint-Valentin', '❤️');
     plage(ajouterJours(paques, -47), 1, 'mardi-gras', 'Mardi gras', '🍩');
     plage(ajouterJours(paques, -1), 2, 'paques', 'Pâques', '🐣');
     plage(dateFeteDesMeres(annee), 1, 'fete-meres', 'Fête des mères', '💐');
@@ -618,10 +629,16 @@
     return false;
   }
 
+  // Veille de férié : les clients font leurs réserves (boulangerie souvent
+  // fermée le lendemain).
+  function estVeilleFerie(date) {
+    return !estJourFerie(date) && estJourFerie(ajouterJours(date, 1));
+  }
+
   // Un jour « ordinaire » sert de référence : ni férié, ni vacances, ni pont,
-  // ni fête boulangère.
+  // ni veille de férié, ni fête boulangère.
   function estJourOrdinaire(date, zoneVacances) {
-    return !estJourFerie(date) && !estEnVacances(date, zoneVacances) && !estPont(date) && !feteBoulangere(date);
+    return !estJourFerie(date) && !estEnVacances(date, zoneVacances) && !estPont(date) && !estVeilleFerie(date) && !feteBoulangere(date);
   }
 
   // Apprend l'effet d'un signal sur un produit : pour chaque jour passé où le
@@ -658,12 +675,159 @@
     return (pourcent > 0 ? '+' : '−') + Math.abs(pourcent) + ' %';
   }
 
+  // ---------- Ruptures : la demande cachée (nov. 2026) ----------
+  // Un jour où tout est parti (case « Épuisé » cochée, ou vendu ≥ cuit), la
+  // vente n'est que le plancher de la demande : sans correction, le moteur
+  // apprend à refaire la même rupture. On estime la demande réelle :
+  // 1. heure de la dernière vente connue (caisse, heure_derniere_vente
+  //    « HH:MM ») : vendu ÷ part de la journée déjà écoulée (courbe type du
+  //    rayon) ;
+  // 2. sinon, la moyenne des jours comparables non épuisés qui ont vendu au
+  //    moins autant (même jour de semaine, ±10 semaines) ;
+  // 3. sinon, prudence : +10 % si « Épuisé » est coché, +3 % sinon.
+  // Toujours plafonné à +40 % de la vente.
+  var PLAFOND_RUPTURE = 1.4;
+  // Part cumulée des ventes de la journée à chaque heure (courbes types de
+  // boulangerie de quartier, à remplacer par celle apprise sur les tickets).
+  var COURBES_HORAIRES = {
+    pains: [[7, 0.05], [8, 0.15], [9, 0.25], [10, 0.33], [11, 0.42], [12, 0.55], [13, 0.65], [14, 0.68], [15, 0.70], [16, 0.73], [17, 0.80], [18, 0.90], [19, 0.97], [20, 1]],
+    viennoiseries: [[7, 0.10], [8, 0.30], [9, 0.50], [10, 0.65], [11, 0.75], [12, 0.82], [13, 0.86], [14, 0.88], [15, 0.90], [16, 0.93], [17, 0.96], [18, 0.98], [19, 1]],
+    snacking: [[11, 0.10], [12, 0.50], [13, 0.80], [14, 0.90], [15, 0.92], [17, 0.95], [19, 1]]
+  };
+
+  function rayonCourbe(nom) {
+    var n = cleProduit(nom);
+    if (/croissant|chocolat|brioche|viennois|chausson|raisin|suisse/.test(n)) return 'viennoiseries';
+    if (/sandwich|panini|quiche|pizza|formule|menu|wrap|croque|salade/.test(n)) return 'snacking';
+    return 'pains';
+  }
+
+  function partJourneeEcoulee(rayon, heure) {
+    var m = /^(\d{1,2}):?(\d{2})?/.exec(String(heure || ''));
+    if (!m) return null;
+    var h = Number(m[1]) + (Number(m[2]) || 0) / 60;
+    var courbe = COURBES_HORAIRES[rayon] || COURBES_HORAIRES.pains;
+    if (h <= courbe[0][0]) return courbe[0][1];
+    for (var i = 1; i < courbe.length; i++) {
+      if (h <= courbe[i][0]) {
+        var a = courbe[i - 1], b = courbe[i];
+        return a[1] + (b[1] - a[1]) * (h - a[0]) / (b[0] - a[0]);
+      }
+    }
+    return 1;
+  }
+
+  // ventes : lignes { nom_produit, date_vente, quantite[, heure_derniere_vente] } ;
+  // fournees : lignes { date_fournee, nom_produit, quantite_cuite[, epuise] }.
+  // Renvoie de nouvelles lignes : quantite = demande estimée, quantiteVendue
+  // = vente réelle, rupture = 'heure' | 'comparable' | 'prudent'.
+  function corrigerRuptures(ventes, fournees) {
+    if (!fournees || !fournees.length) return ventes;
+    var parCle = {};
+    fournees.forEach(function (f) { parCle[f.date_fournee + '|' + formatNomAffichage(f.nom_produit)] = f; });
+    var estRupture = function (v) {
+      var f = parCle[v.date_vente + '|' + formatNomAffichage(v.nom_produit)];
+      if (!f || !(v.quantite > 0)) return null;
+      if (f.epuise || (f.quantite_cuite > 0 && v.quantite >= f.quantite_cuite)) return f;
+      return null;
+    };
+    var normales = {}; // nom|jour de semaine → [{ t, q }]
+    ventes.forEach(function (v) {
+      if (estRupture(v)) return;
+      var d = new Date(v.date_vente + 'T00:00:00');
+      var cle = formatNomAffichage(v.nom_produit) + '|' + d.getDay();
+      (normales[cle] = normales[cle] || []).push({ t: d.getTime(), q: v.quantite });
+    });
+    return ventes.map(function (v) {
+      var f = estRupture(v);
+      if (!f) return v;
+      var c = v.quantite, demande = null, methode;
+      var part = v.heure_derniere_vente ? partJourneeEcoulee(rayonCourbe(v.nom_produit), v.heure_derniere_vente) : null;
+      if (part !== null && part > 0) {
+        demande = c / part; methode = 'heure';
+      } else {
+        var d = new Date(v.date_vente + 'T00:00:00');
+        var proches = (normales[formatNomAffichage(v.nom_produit) + '|' + d.getDay()] || []).filter(function (x) {
+          return Math.abs(x.t - d.getTime()) <= 70 * 86400000 && x.q >= c;
+        });
+        if (proches.length >= 2) {
+          demande = proches.reduce(function (s, x) { return s + x.q; }, 0) / proches.length; methode = 'comparable';
+        } else {
+          demande = c * (f.epuise ? 1.10 : 1.03); methode = 'prudent';
+        }
+      }
+      var copie = {};
+      Object.keys(v).forEach(function (k) { copie[k] = v[k]; });
+      copie.quantiteVendue = c;
+      copie.quantite = Math.round(Math.max(c, Math.min(c * PLAFOND_RUPTURE, demande)));
+      copie.rupture = methode;
+      return copie;
+    });
+  }
+
+  // Totaux de toute la boutique par jour : sert à apprendre, prudemment,
+  // l'effet d'un signal pour un produit qui ne l'a encore jamais connu.
+  function totauxParJour(ventes) {
+    var parDate = {};
+    ventes.forEach(function (v) { parDate[v.date_vente] = (parDate[v.date_vente] || 0) + v.quantite; });
+    return Object.keys(parDate).map(function (iso) { return { date_vente: iso, quantite: parDate[iso] }; });
+  }
+
+  // Tendance récente : les jours ordinaires des 3 dernières semaines
+  // comparés aux mêmes jours de semaine des 8 semaines d'avant. La moyenne
+  // pondérée suit déjà en partie : on n'applique que la moitié de l'écart,
+  // plafonnée à ±12 %, et seulement à partir de 6 jours observés.
+  function effetTendance(ventesDuProduit, jourCible, zoneVacances) {
+    var isoCible = versISO(jourCible), isoDebut = versISO(ajouterJours(jourCible, -21));
+    var a = apprendreEffet(ventesDuProduit, function (d, iso) {
+      return iso >= isoDebut && iso < isoCible && estJourOrdinaire(d, zoneVacances);
+    }, zoneVacances);
+    if (!a || a.nb < 6) return null;
+    var ratio = Math.max(0.88, Math.min(1.12, 1 + (a.ratio - 1) * 0.5));
+    return Math.abs(ratio - 1) >= 0.03 ? { ratio: ratio, nb: a.nb } : null;
+  }
+
+  // Saison : ce qui s'est passé l'an dernier entre « il y a 4 semaines » et
+  // « ce jour-là » (été qui creuse, décembre qui monte). Comparaison jour de
+  // semaine par jour de semaine, jours ordinaires seulement, sur 3 semaines
+  // de chaque côté. 70 % de l'écart, plafonné à ±20 %.
+  function effetSaison(ventesDuProduit, jourCible, zoneVacances) {
+    var parDate = {};
+    ventesDuProduit.forEach(function (v) { parDate[v.date_vente] = (parDate[v.date_vente] || 0) + v.quantite; });
+    function moyennesParJour(centre) {
+      var m = {};
+      for (var k = -10; k <= 10; k++) {
+        var d = ajouterJours(centre, k), q = parDate[versISO(d)];
+        if (q === undefined || !estJourOrdinaire(d, zoneVacances)) continue;
+        var j = d.getDay();
+        if (!m[j]) m[j] = { s: 0, n: 0 };
+        m[j].s += q; m[j].n++;
+      }
+      return m;
+    }
+    var avant = moyennesParJour(ajouterJours(jourCible, -364 - 28));
+    var pendant = moyennesParJour(ajouterJours(jourCible, -364));
+    var ratios = [];
+    Object.keys(pendant).forEach(function (j) {
+      if (avant[j] && avant[j].s > 0) ratios.push((pendant[j].s / pendant[j].n) / (avant[j].s / avant[j].n));
+    });
+    if (ratios.length < 4) return null;
+    var moyenne = ratios.reduce(function (x, y) { return x + y; }, 0) / ratios.length;
+    var ratio = Math.max(0.8, Math.min(1.2, 1 + (moyenne - 1) * 0.7));
+    return Math.abs(ratio - 1) >= 0.04 ? { ratio: ratio, nb: ratios.length } : null;
+  }
+
   // Calcule la recommandation pour un produit et un jour cible donnés, avec
   // la comparaison ("delta") par rapport à la dernière vente réelle du même
   // jour de la semaine.
   // signauxExternes (optionnel) : { iso: [{ type: 'evenement'|'match', libelle }] },
   // fournis par les Edge Functions OpenAgenda / football-data ; absent = ignoré.
-  function calculerRecommandation(ventesDuProduit, jourCible, zoneVacances, evenements, meteoPassee, meteoPrevue, signauxExternes) {
+  // options (facultatif) : { totauxBoutique: totauxParJour(toutes les ventes),
+  // sans: { tendance, saison, veille, boutique } } (sans = pour mesurer).
+  // Les ventes peuvent sortir de corrigerRuptures (demande estimée).
+  function calculerRecommandation(ventesDuProduit, jourCible, zoneVacances, evenements, meteoPassee, meteoPrevue, signauxExternes, options) {
+    options = options || {};
+    var sans = options.sans || {};
     var numeroJourCible = jourCible.getDay();
     var nomJourCible = nomsJours[numeroJourCible];
     var isoCible = versISO(jourCible);
@@ -693,7 +857,7 @@
     });
     var memeJourSituation = memeJourTous.filter(function (vente) {
       var d = new Date(vente.date_vente + 'T00:00:00');
-      return !estJourFerie(d) && !estPont(d) && !feteBoulangere(d) && estEnVacances(d, zoneVacances) === cibleEnVacances;
+      return !estJourFerie(d) && !estPont(d) && !estVeilleFerie(d) && !feteBoulangere(d) && estEnVacances(d, zoneVacances) === cibleEnVacances;
     });
     var memeJourHorsFerie = memeJourTous.filter(function (vente) {
       return !estJourFerie(new Date(vente.date_vente + 'T00:00:00'));
@@ -751,38 +915,72 @@
     // apprendre ») et ne change pas la quantité.
     var signaux = [];
     var ratioSignaux = 1;
-    function ajouterSignal(cle, icone, libelle, apprentissage, minOccurrences) {
-      var appris = apprentissage && apprentissage.nb >= minOccurrences ? apprentissage : null;
+    // Effet appris sur ce produit ; à défaut, sur toute la boutique, mais
+    // seulement la moitié de l'écart (prudence) ; à défaut, aucun effet.
+    function ajouterSignal(cle, icone, libelle, test, minOccurrences) {
+      var a = apprendreEffet(ventesDuProduit, test, zoneVacances);
+      var appris = a && a.nb >= minOccurrences ? a : null, detail;
+      if (!appris && options.totauxBoutique && !sans.boutique) {
+        var b = apprendreEffet(options.totauxBoutique, test, zoneVacances);
+        if (b && b.nb >= minOccurrences) {
+          appris = { ratio: 1 + (b.ratio - 1) / 2, nb: b.nb };
+          detail = 'appris sur toute la boutique, appliqué à moitié';
+        }
+      }
       if (appris) ratioSignaux *= appris.ratio;
-      signaux.push({ cle: cle, icone: icone, libelle: libelle, ratio: appris ? appris.ratio : null, nb: appris ? appris.nb : 0 });
+      signaux.push({ cle: cle, icone: icone, libelle: libelle, ratio: appris ? appris.ratio : null, nb: appris ? appris.nb : 0, detail: detail });
     }
     if (!evenementCible) {
       var feteCible = feteBoulangere(jourCible);
       if (cibleFeriee) {
-        ajouterSignal('ferie', '📅', 'Jour férié', apprendreEffet(ventesDuProduit, function (d) { return estJourFerie(d); }, zoneVacances), 1);
+        ajouterSignal('ferie', '📅', 'Jour férié', function (d) { return estJourFerie(d); }, 1);
       }
       if (estPont(jourCible)) {
-        ajouterSignal('pont', '🌉', 'Pont', apprendreEffet(ventesDuProduit, function (d) { return estPont(d); }, zoneVacances), 1);
+        ajouterSignal('pont', '🌉', 'Pont', function (d) { return estPont(d); }, 1);
+      }
+      if (!sans.veille && estVeilleFerie(jourCible)) {
+        ajouterSignal('veille-ferie', '🛒', 'Veille de jour férié', function (d) { return estVeilleFerie(d); }, 1);
       }
       if (feteCible) {
-        ajouterSignal(feteCible.cle, feteCible.icone, feteCible.libelle, apprendreEffet(ventesDuProduit, function (d) {
+        ajouterSignal(feteCible.cle, feteCible.icone, feteCible.libelle, function (d) {
           var f = feteBoulangere(d); return !!f && f.cle === feteCible.cle;
-        }, zoneVacances), 1);
+        }, 1);
       }
       if (cibleVacances && niveauReference === 1) {
         // Déjà comparé aux mêmes jours de vacances : pas d'effet en plus.
         signaux.push({ cle: 'vacances', icone: '🏖️', libelle: 'Vacances scolaires', ratio: null, nb: 0, dejaPrisEnCompte: true });
       } else if (cibleVacances) {
-        ajouterSignal('vacances', '🏖️', 'Vacances scolaires', apprendreEffet(ventesDuProduit, function (d) {
+        ajouterSignal('vacances', '🏖️', 'Vacances scolaires', function (d) {
           return d.getDay() === numeroJourCible && estEnVacances(d, zoneVacances) && !estJourFerie(d);
-        }, zoneVacances), 2);
+        }, 2);
       }
       var externesCible = (signauxExternes && signauxExternes[isoCible]) || [];
       externesCible.forEach(function (sig) {
-        ajouterSignal(sig.type, sig.type === 'match' ? '⚽' : '🎉', sig.libelle, apprendreEffet(ventesDuProduit, function (d, iso) {
+        ajouterSignal(sig.type, sig.type === 'match' ? '⚽' : '🎉', sig.libelle, function (d, iso) {
           return (signauxExternes[iso] || []).some(function (x) { return x.type === sig.type; });
-        }, zoneVacances), 2);
+        }, 2);
       });
+      // Tendance et saison : seulement un jour sans autre signal de calendrier.
+      if (!cibleFeriee && !cibleVacances && !feteCible && !estPont(jourCible) && !estVeilleFerie(jourCible)) {
+        var saison = sans.saison ? null : effetSaison(ventesDuProduit, jourCible, zoneVacances);
+        if (saison) {
+          ratioSignaux *= saison.ratio;
+          signaux.push({ cle: 'saison', icone: '📆', libelle: saison.ratio > 1 ? 'Saison qui monte' : 'Saison qui baisse', ratio: saison.ratio, nb: saison.nb, detail: 'comme l\'an dernier à la même époque' });
+        }
+        var tendance = sans.tendance ? null : effetTendance(ventesDuProduit, jourCible, zoneVacances);
+        if (tendance) {
+          ratioSignaux *= tendance.ratio;
+          signaux.push({ cle: 'tendance', icone: tendance.ratio > 1 ? '📈' : '📉', libelle: tendance.ratio > 1 ? 'Ventes en hausse ces 3 semaines' : 'Ventes en baisse ces 3 semaines', ratio: tendance.ratio, nb: tendance.nb });
+        }
+      }
+    }
+    // Ruptures corrigées (corrigerRuptures) : déjà dans la base, affichées
+    // seulement, sans être appliquées une seconde fois.
+    var nbRuptures = baseFinale.filter(function (v) { return v.rupture; }).length;
+    if (nbRuptures > 0) {
+      var moyenneVendue = moyennePonderee(baseFinale.map(function (v) { return { quantite: v.rupture ? v.quantiteVendue : v.quantite }; }));
+      signaux.push({ cle: 'rupture', icone: '📦', libelle: 'Ruptures corrigées', ratio: moyenneVendue > 0 ? moyenne / moyenneVendue : null, nb: nbRuptures,
+        dejaPrisEnCompte: true, detail: nbRuptures + ' jour' + (nbRuptures > 1 ? 's' : '') + ' épuisé' + (nbRuptures > 1 ? 's' : '') + ' : la demande était plus haute que la vente' });
     }
     if (ajustementMeteo) {
       var meteoPluie = ajustementMeteo.categorie === 'pluvieux';
@@ -1288,6 +1486,12 @@
     feteBoulangere: feteBoulangere,
     estPont: estPont,
     estJourOrdinaire: estJourOrdinaire,
+    estVeilleFerie: estVeilleFerie,
+    corrigerRuptures: corrigerRuptures,
+    partJourneeEcoulee: partJourneeEcoulee,
+    totauxParJour: totauxParJour,
+    effetTendance: effetTendance,
+    effetSaison: effetSaison,
     apprendreEffet: apprendreEffet,
     libelleEffet: libelleEffet,
     MARGE_PRODUCTION: MARGE_PRODUCTION,

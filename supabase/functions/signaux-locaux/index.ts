@@ -88,6 +88,35 @@ async function evenementsOpenAgenda(cle: string, lat: number, lng: number, debut
   return Object.keys(parJour).map(function (jour) { return { date: jour, type: 'evenement' as const, libelle: parJour[jour] }; });
 }
 
+// ---------- Sans compte : agendas publics OpenAgenda republiés en données
+// ouvertes (Opendatasoft, jeu « evenements-publics-openagenda », Licence
+// Ouverte). Pas de clé. On ne garde que ce qui fait venir du monde dans la
+// rue (marché, brocante, fête, festival, concert…) et dure 3 jours au plus :
+// une exposition de 2 mois n'est pas un pic d'affluence.
+// À vérifier au premier déploiement (le réseau de développement ne joignait
+// pas public.opendatasoft.com) : nom des champs et syntaxe within_distance.
+var MOTS_AFFLUENCE = /march[eé]|brocante|vide[- ]grenier|braderie|f[eê]te|festival|foire|carnaval|concert|course|marathon|feu d.artifice|salon|kermesse|d[eé]fil[eé]/i;
+async function evenementsOuverts(lat: number, lng: number, debut: string, fin: string): Promise<Signal[]> {
+  var where = "within_distance(location_coordinates, geom'POINT(" + lng + ' ' + lat + ")', 2km)"
+    + " and firstdate_begin < date'" + ajouterJours(fin, 1) + "' and lastdate_end >= date'" + debut + "'";
+  var url = 'https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/evenements-publics-openagenda/records?limit=100'
+    + '&select=title_fr,firstdate_begin,lastdate_end&where=' + encodeURIComponent(where);
+  var res = await fetch(url);
+  if (!res.ok) throw new Error('opendatasoft ' + res.status);
+  var json = await res.json();
+  var parJour: Record<string, string> = {};
+  (json.results || []).forEach(function (ev: any) {
+    var titre = String(ev.title_fr || '');
+    if (!MOTS_AFFLUENCE.test(titre) || !ev.firstdate_begin || !ev.lastdate_end) return;
+    var j1 = jourParis(ev.firstdate_begin), j2 = jourParis(ev.lastdate_end);
+    if (j2 > ajouterJours(j1, 2)) return;
+    for (var j = j1; j <= j2; j = ajouterJours(j, 1)) {
+      if (j >= debut && j <= fin && !parJour[j]) parJour[j] = titre.slice(0, 60);
+    }
+  });
+  return Object.keys(parJour).map(function (jour) { return { date: jour, type: 'evenement' as const, libelle: parJour[jour] }; });
+}
+
 // ---------- football-data.org : matchs de l'équipe de France ----------
 // L'offre gratuite limite chaque requête à 10 jours : on découpe la période.
 async function matchsFrance(cle: string, debut: string, fin: string): Promise<Signal[]> {
@@ -133,6 +162,17 @@ Deno.serve(async (req) => {
         var f = ajouterJours(d, 29) < fin ? ajouterJours(d, 29) : fin;
         signaux = signaux.concat(await avecCache(admin, 'agenda:' + la + ',' + lo + ':' + d, f, function () {
           return evenementsOpenAgenda(cleAgenda, Number(la), Number(lo), d, f);
+        }));
+      }
+    }
+    if (!cleAgenda) {
+      // Pas de compte OpenAgenda : données ouvertes, mêmes fenêtres de 30 jours.
+      var la2 = lat.toFixed(2), lo2 = lng.toFixed(2);
+      var depart2 = ajouterJours(debut, -((new Date(debut + 'T12:00:00Z').getTime() / 86400000) % 30 | 0));
+      for (var d2 = depart2; d2 <= fin; d2 = ajouterJours(d2, 30)) {
+        var f2 = ajouterJours(d2, 29) < fin ? ajouterJours(d2, 29) : fin;
+        signaux = signaux.concat(await avecCache(admin, 'ouvert:' + la2 + ',' + lo2 + ':' + d2, f2, function () {
+          return evenementsOuverts(Number(la2), Number(lo2), d2, f2);
         }));
       }
     }
