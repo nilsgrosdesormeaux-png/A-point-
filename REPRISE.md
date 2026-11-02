@@ -12,11 +12,11 @@ Publié sur main : jusqu'à f809f6c (lot 10). Tout le reste est sur la branche `
 
 ## Interrompu (limite hebdo) — à reprendre
 1. Agent caisse lot 12 : Lightspeed Retail (clé), photo du rapport (Edge Function `lire-ticket`, Claude vision, secret ANTHROPIC_API_KEY), table `ventes_horaires` + synchro horaire 6 h-20 h, boîte e-mail universelle (CSV/Excel/PDF/photo/corps) relevée toutes les 30 min 12 h-23 h + 4 h, rapports « à confirmer ». En était à la migration v6. Tests caisse : 3 échecs dans caisse.test.mjs, 1 dans caisse-fonctions.test.mjs (en cours de modif).
-2. Agent commandes clients : employés qui chargent la boutique du patron dans contexte.charger() ; Commande matières qui compte les pièces réservées.
+2. Commandes clients : FAIT et vérifié le 2 nov. (code de main, aucun changement nécessaire). Employé (vendeuse) : `contexte.charger()` passe par `boutiqueDe()` et charge la boutique du patron (nom, 10 produits, onglets et invitations caisse masqués) ; Commande matières : `productionDuJour()` ajoute les pièces réservées (3 × 100 baguettes tradition : farine T65 de 92,2 kg à 140,2 kg, soit 4 sacs → 6). Vérifié avec un faux Supabase ; la vraie base (RLS) n'est pas vérifiée tant que migration-commandes-clients.sql n'est pas appliquée. Tests : tests/commandes-clients.test.mjs et caisse-migration.test.mjs n'ont pas pu tourner ici (playwright et @electric-sql/pglite absents).
 3. Vérification finale : boulanger sur une année entière (patron/vendeuse/apprenti) + testeur UX complet, puis corrections.
 
 ## À déployer avec l'accord du fondateur (rien n'est appliqué)
-- Migrations : migration-commandes-clients.sql, migration-parametres-v3.sql, migration-connecteurs-caisse-v5.sql (+ v6 caisse à finir).
+- Migrations : migration-commandes-clients.sql (tables commandes_clients, historique, catalogue ; colonne personnel.acces_app ; fonctions role_boutique et commandes_production ; policies vendeuse / apprenti / associé ; sans elle, les employés ne voient pas la boutique du patron et les commandes restent en file sur l'appareil), migration-parametres-v3.sql, migration-connecteurs-caisse-v5.sql (+ v6 caisse à finir).
 - Fonctions : connecter-caisse, synchro-caisse, import-export-caisse (+ lire-ticket, signaux-locaux).
 - Secrets : ADRESSE_IMPORT=apointapp.contact@gmail.com seulement APRÈS installation du script Gmail ; CLE_IMPORT_EMAIL ; ANTHROPIC_API_KEY.
 - Compte démo : observation_debut remis à null (fait).
