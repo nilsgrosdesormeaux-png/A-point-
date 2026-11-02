@@ -112,3 +112,9 @@ Tests : `node --test tests/caisse.test.mjs` (réponses d'API simulées d'après 
 - `relais-gmail.gs` : boîte partagée `apointapp.contact@gmail.com`, ne touche qu'aux e-mails « +caisse- ».
 - À redéployer : les trois fonctions. Aucune migration. Secrets : `ADRESSE_IMPORT=apointapp.contact@gmail.com`, `CLE_IMPORT_EMAIL` (s'il manque).
 - Tests : `node --test tests/caisse.test.mjs tests/caisse-fonctions.test.mjs` (40 tests, chemin complet des fonctions sous Node).
+
+## Lot 11 : Zelty et Popina, liste sans doublon
+
+- `_shared/caisse/zelty.ts`, `popina.ts` + registre ; Zelty deviné d'après sa clé (base64 de « id:… »), Popina choisi dans la liste (forme de clé ambiguë jamais prise pour Loyverse).
+- `migration-connecteurs-caisse-v5.sql` (idempotente) : Zelty et Popina dans la contrainte. Sans elle, ces deux caisses répondent « bientôt ».
+- À déployer : v5, puis `connecter-caisse`, `synchro-caisse`, `import-export-caisse`.

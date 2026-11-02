@@ -5,13 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Commande</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101q">
+  <link rel="stylesheet" href="style.css?v=20261101r">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <script src="moteur-prevision.js?v=20261101r"></script>
   <script src="boulangerie.js?v=20261101l"></script>
-  <script src="contexte.js?v=20261101l"></script>
+  <script src="commandes-clients.js?v=20261101a"></script>
+  <script src="contexte.js?v=20261101s"></script>
   <script src="nav.js?v=20261101q"></script>
 </head>
 <body>
@@ -84,8 +85,27 @@
         if (!cacheProduction[iso]) {
           cacheProduction[iso] = {};
           C.prevoirJour(ctx, d).forEach(function (p) { if (!p.r.insuffisant) cacheProduction[iso][p.nom] = p.r.quantite; });
+          // Commandes clients : les pièces réservées ce jour-là s'ajoutent à la boutique.
+          var res = window.CommandesClients ? window.CommandesClients.reserveesParCle(ctx.commandesClients || [], iso) : {};
+          Object.keys(res).forEach(function (k) {
+            var nom = nomsConnus().filter(function (n) { return MP.cleProduit(n) === k; })[0] || res[k].nom;
+            cacheProduction[iso][nom] = (cacheProduction[iso][nom] || 0) + res[k].quantite;
+          });
         }
         return cacheProduction[iso];
+      }
+
+      // Produits vendus, plus ceux de la liste Produits pris en commande client
+      // (bûche, pièce montée…) : leur recette compte aussi dans la commande.
+      function nomsConnus() {
+        var noms = Object.keys(ctx.parProduit).filter(function (nom) { return C.estCuitPour(ctx, nom); });
+        var cles = {};
+        (ctx.commandesClients || []).forEach(function (c) { if (c.statut === 'active') cles[MP.cleProduit(c.produit)] = 1; });
+        ctx.produits.forEach(function (p) {
+          var nom = MP.formatNomAffichage(p.nom);
+          if (cles[MP.cleProduit(nom)] && !noms.some(function (n) { return MP.cleProduit(n) === MP.cleProduit(nom); })) noms.push(nom);
+        });
+        return noms;
       }
 
       // Recettes : seule une fiche vue et validée par le boulanger sert à la
@@ -96,7 +116,7 @@
         var lignesParId = {};
         ctx.ingredients.forEach(function (l) { (lignesParId[String(l.produit_id)] = lignesParId[String(l.produit_id)] || []).push(l); });
         var resultat = {};
-        Object.keys(ctx.parProduit).filter(function (nom) { return C.estCuitPour(ctx, nom); }).forEach(function (nom) {
+        nomsConnus().forEach(function (nom) {
           var produit = idParNom[MP.cleProduit(nom)];
           var fiche = produit ? lignesParId[String(produit.id)] : null;
           resultat[nom] = { nom: nom, produit: produit || null, fiche: fiche && fiche.length ? fiche : null, type: B.recetteType(nom) };

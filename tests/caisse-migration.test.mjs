@@ -63,9 +63,9 @@ assert.equal((await q(`select count(*)::int n from pg_policies where tablename i
 
 // v2 à v4 par-dessus, deux fois (idempotence) : clé personnelle Loyverse / Tactill acceptée.
 for (let passage = 0; passage < 2; passage++) {
-  for (const f of ['v2', 'v3', 'v4']) await db.exec(fs.readFileSync(new URL(`../migration-connecteurs-caisse-${f}.sql`, import.meta.url), 'utf8'));
+  for (const f of ['v2', 'v3', 'v4', 'v5', 'v6']) await db.exec(fs.readFileSync(new URL(`../migration-connecteurs-caisse-${f}.sql`, import.meta.url), 'utf8'));
 }
-await q(`insert into connexions_caisse (commercant_id, fournisseur) values ($1, 'loyverse'), ($1, 'tactill')`, [C]);
+await q(`insert into connexions_caisse (commercant_id, fournisseur) values ($1, 'loyverse'), ($1, 'tactill'), ($1, 'zelty'), ($1, 'popina')`, [C]);
 await assert.rejects(q(`insert into connexions_caisse (commercant_id, fournisseur) values ($1, 'inconnue')`, [C]));
 for (const role of ['anon', 'authenticated']) {
   for (const [table, droit] of [['connexions_caisse_secrets', 'select'], ['connexions_caisse_secrets', 'insert'], ['etats_oauth_caisse', 'select'], ['connexions_caisse', 'insert'], ['connexions_caisse', 'update'], ['journal_caisse', 'insert']]) {
@@ -74,4 +74,31 @@ for (const role of ['anon', 'authenticated']) {
 }
 assert.equal((await q(`select has_table_privilege('authenticated', 'connexions_caisse', 'select') ok`))[0].ok, true);
 assert.equal((await q(`select count(*)::int n from pg_policies where tablename = 'connexions_caisse_secrets' or (tablename in ('connexions_caisse','journal_caisse') and cmd <> 'SELECT')`))[0].n, 0);
+
+// v6 : Lightspeed Retail, ventes heure par heure, photo du rapport.
+await q(`insert into connexions_caisse (commercant_id, fournisseur) values ($1, 'lightspeed_retail')`, [C]);
+const h = (l) => q(`select enregistrer_ventes_horaires($1, '2026-10-29', $2, $3::jsonb) n`, [C, l.min, JSON.stringify(l.lignes)]);
+await h({ min: 0, lignes: [{ nom_produit: 'baguettes', heure: 7, quantite: 10 }, { nom_produit: 'Baguette', heure: 7, quantite: 2 }, { nom_produit: 'Baguette', heure: 9, quantite: 5 }] });
+await h({ min: 9, lignes: [{ nom_produit: 'Baguette', heure: 9, quantite: 6 }, { nom_produit: 'Baguette', heure: 10, quantite: 1 }, { nom_produit: 'Baguette', heure: 8, quantite: 99 }] });
+await h({ min: 9, lignes: [{ nom_produit: 'Baguette', heure: 9, quantite: 6 }, { nom_produit: 'Baguette', heure: 10, quantite: 1 }] }); // relance : rien ne double
+assert.deepEqual(await q(`select heure::int, nom_produit, quantite::int from ventes_horaires order by heure`), [
+  { heure: 7, nom_produit: 'Baguette', quantite: 12 }, { heure: 9, nom_produit: 'Baguette', quantite: 6 }, { heure: 10, nom_produit: 'Baguette', quantite: 1 }]);
+await assert.rejects(q(`insert into ventes_horaires values ($1, '2026-10-29', 7, 'Baguette', 1)`, [C])); // unique
+await assert.rejects(q(`insert into ventes_horaires values ($1, '2026-10-29', 24, 'Pain', 1)`, [C]));   // heure 0-23
+for (const role of ['anon', 'authenticated']) {
+  for (const [obj, droit] of [['ventes_horaires', 'insert'], ['ventes_horaires', 'update'], ['lectures_ticket', 'insert']]) {
+    assert.equal((await q(`select has_table_privilege('${role}', '${obj}', '${droit}') ok`))[0].ok, false, role + droit + obj);
+  }
+  assert.equal((await q(`select has_function_privilege('${role}', 'enregistrer_ventes_horaires(uuid,date,integer,jsonb)', 'execute') ok`))[0].ok, false);
+}
+assert.equal((await q(`select has_table_privilege('authenticated', 'ventes_horaires', 'select') ok`))[0].ok, true);
+assert.equal((await q(`select has_function_privilege('authenticated', 'enregistrer_ventes_photo(date,jsonb,text)', 'execute') ok`))[0].ok, true);
+// Photo : au nom du commerçant connecté, source « photo », une ligne de journal.
+await assert.rejects(q(`select enregistrer_ventes_photo(current_date - 1, '[{"nom_produit":"Flan","quantite":3}]', 'test')`), /Non authentifie/);
+await db.exec(`create or replace function auth.uid() returns uuid language sql as $$ select '${C}'::uuid $$;`);
+assert.equal((await q(`select enregistrer_ventes_photo((now() at time zone 'Europe/Paris')::date - 1, '[{"nom_produit":"Flan","quantite":3},{"nom_produit":"flans","quantite":2},{"nom_produit":"","quantite":9}]', 'rapport.jpg') n`))[0].n, 1);
+assert.deepEqual(await q(`select nom_produit, quantite::int, source from ventes where source = 'photo'`), [{ nom_produit: 'Flan', quantite: 5, source: 'photo' }]);
+assert.equal((await q(`select count(*)::int n from journal_caisse where source = 'photo' and nb_ventes = 1`))[0].n, 1);
+await assert.rejects(q(`select enregistrer_ventes_photo((now() at time zone 'Europe/Paris')::date + 1, '[{"nom_produit":"Flan","quantite":3}]', null)`), /Date/);
+assert.equal((await q(`select count(*)::int n from ventes_horaires where nom_produit = 'Flan'`))[0].n, 0); // la photo n'écrit pas les heures
 console.log('migration OK');

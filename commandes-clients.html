@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>À Point - Commandes clients</title>
+  <link rel="icon" href="logo.svg">
+  <link rel="stylesheet" href="style.css?v=20261101q">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="moteur-prevision.js?v=20261101r"></script>
+  <script src="commandes-clients.js?v=20261101a"></script>
+  <script src="contexte.js?v=20261101l"></script>
+  <script src="nav.js?v=20261101q"></script>
+</head>
+<body>
+  <a class="lien-evitement" href="#contenu">Aller au contenu</a>
+  <header class="entete-site">
+    <a href="previsions.html" class="logo" aria-label="À Point, accueil">
+      <svg class="logo-marque" viewBox="0 0 100 100" width="24" height="24" aria-hidden="true">
+        <path d="M50 12 L16 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <path d="M50 12 L84 86" stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+        <circle cx="50" cy="56" r="8" fill="currentColor"/>
+      </svg>
+      <span class="logo-texte">À Point</span>
+    </a>
+    <nav id="navPrincipale"></nav>
+  </header>
+
+  <div id="contenu" role="main" class="conteneur">
+    <div class="entete-page">
+      <div>
+        <h1>Commandes clients</h1>
+        <p class="texte-aide" style="margin:0;">Bûches, galettes, mairie, cantine : elles sortent dans ta fournée, à part de la boutique.</p>
+      </div>
+    </div>
+    <p id="statutConnexion" class="texte-aide">Chargement…</p>
+
+    <div class="carte-vide-claire" id="bientot" hidden>
+      <p><strong>Les commandes clients seront bientôt disponibles.</strong></p>
+      <p>Tu pourras bientôt noter ici les bûches, galettes et commandes de la mairie, au comptoir, en quelques secondes.</p>
+    </div>
+
+    <div id="zone" hidden>
+      <div class="etat-synchro" id="etatSynchro" role="status">
+        <span class="etat-synchro-point" aria-hidden="true"></span>
+        <p class="etat-synchro-texte" id="texteSynchro"></p>
+      </div>
+      <p class="bandeau-observation" id="rappelAnnuel" hidden></p>
+      <p class="bandeau-observation" id="alerteAcomptes" hidden></p>
+
+      <!-- Saisie au comptoir : 7 champs, le client devant. -->
+      <form class="carte" id="formCommande" autocomplete="off" novalidate>
+        <h2 class="section-titre" id="titreForm">Nouvelle commande</h2>
+        <div class="ligne-form">
+          <div><label for="cNom">Nom du client</label><input type="text" id="cNom" enterkeyhint="next" autocapitalize="words"></div>
+          <div><label for="cTel">Téléphone</label><input type="tel" id="cTel" inputmode="tel" enterkeyhint="next"></div>
+        </div>
+        <div class="actions-jour" id="produitsRapides"></div>
+        <div class="ligne-form">
+          <div><label for="cProduit">Produit</label><input type="text" id="cProduit" list="listeProduits" enterkeyhint="next"></div>
+          <div><label for="cQuantite">Quantité</label><input type="number" id="cQuantite" min="1" inputmode="numeric" enterkeyhint="next"></div>
+        </div>
+        <datalist id="listeProduits"></datalist>
+        <div id="variantes" hidden>
+          <div class="actions-jour" id="choixParfum" role="group" aria-label="Parfum"></div>
+          <div class="actions-jour" id="choixTaille" role="group" aria-label="Taille"></div>
+        </div>
+        <div class="ligne-form">
+          <div>
+            <label for="cDate">Retrait</label>
+            <div class="selecteur-periode" id="choixJour" role="group" aria-label="Jour de retrait">
+              <button type="button" class="periode-bouton" data-decalage="0">Aujourd'hui</button>
+              <button type="button" class="periode-bouton" data-decalage="1">Demain</button>
+            </div>
+            <input type="date" id="cDate" aria-label="Date de retrait">
+          </div>
+          <div><label for="cHeure">Heure</label><input type="time" id="cHeure"></div>
+        </div>
+        <label>Acompte</label>
+        <div class="selecteur-periode" id="choixAcompte" role="group" aria-label="Acompte">
+          <button type="button" class="periode-bouton" data-acompte="aucun">Non</button>
+          <button type="button" class="periode-bouton" data-acompte="encaisse">Payé</button>
+          <button type="button" class="periode-bouton" data-acompte="a_encaisser">À encaisser</button>
+        </div>
+        <div id="blocMontant" hidden><label for="cMontant">Montant de l'acompte (€)</label><input type="number" id="cMontant" min="0" step="0.5" inputmode="decimal"></div>
+        <p class="texte-aide" id="texteTotal" hidden></p>
+        <details class="repli" id="repliRecurrence">
+          <summary>Chaque semaine (commande récurrente)</summary>
+          <div class="grille-jours" id="joursRecurrence"></div>
+          <label class="case-jour"><input type="checkbox" id="cSaufVacances"> Pas pendant les vacances scolaires</label>
+          <label for="cFin">Jusqu'au (facultatif)</label><input type="date" id="cFin">
+        </details>
+        <p class="ligne-form">
+          <button type="submit" class="bouton-principal" id="btnEnregistrer">Enregistrer la commande</button>
+          <button type="button" class="bouton-secondaire" id="btnRefusee">Refusée, complet</button>
+          <button type="button" class="bouton-secondaire" id="btnAbandon" hidden>Abandonner la modification</button>
+        </p>
+        <p class="texte-aide" id="statutForm" role="status"></p>
+      </form>
+
+      <section class="carte" aria-labelledby="titreRetraits">
+        <h2 class="section-titre" id="titreRetraits">Retraits</h2>
+        <div class="selecteur-periode" id="jourRetraits" role="group" aria-label="Jour des retraits">
+          <button type="button" class="periode-bouton" data-decalage="0">Aujourd'hui</button>
+          <button type="button" class="periode-bouton" data-decalage="1">Demain</button>
+        </div>
+        <label for="recherche">Chercher un client</label>
+        <input type="search" id="recherche" placeholder="2 lettres du nom ou du téléphone" enterkeyhint="search">
+        <p class="resume-commande" id="resumeRetraits"></p>
+        <ul class="liste-commande" id="listeRetraits"></ul>
+      </section>
+
+      <section class="carte" id="blocProduction" aria-labelledby="titreProduction">
+        <h2 class="section-titre" id="titreProduction">À enfourner pour les commandes</h2>
+        <ul class="liste-commande" id="listeProduction"></ul>
+      </section>
+
+      <section class="carte" id="blocAVenir" aria-labelledby="titreAVenir">
+        <h2 class="section-titre" id="titreAVenir">À venir</h2>
+        <div id="listeAVenir"></div>
+      </section>
+
+      <section class="carte" id="blocRecurrentes" aria-labelledby="titreRecurrentes" hidden>
+        <h2 class="section-titre" id="titreRecurrentes">Chaque semaine</h2>
+        <ul class="liste-commande" id="listeRecurrentes"></ul>
+      </section>
+
+      <details class="repli" id="repliSms">
+        <summary>SMS de la veille au client (envoi bientôt disponible)</summary>
+        <p class="texte-aide">La veille du retrait, chaque client qui a laissé son téléphone recevra ce message. L'envoi arrive bientôt ; voici ce qui partira pour demain :</p>
+        <ul class="liste-commande" id="listeSms"></ul>
+      </details>
+
+      <details class="repli" id="repliAnnulees">
+        <summary id="resumeAnnulees">Annulées et refusées</summary>
+        <p class="texte-aide">Rien n'est jamais effacé : une commande annulée reste ici et peut être rétablie.</p>
+        <ul class="liste-commande" id="listeAnnulees"></ul>
+      </details>
+
+      <details class="repli" id="repliReglages" hidden>
+        <summary>Variantes, acompte et équipe</summary>
+        <h3 class="claire-titre claire-titre--petit">Variantes d'un produit</h3>
+        <p class="texte-aide">Parfums et tailles se choisissent ensuite d'une touche, et restent d'une année sur l'autre.</p>
+        <ul class="liste-commande" id="listeCatalogue"></ul>
+        <div class="ligne-form">
+          <div><label for="vProduit">Produit</label><input type="text" id="vProduit" placeholder="Bûche"></div>
+          <div><label for="vParfums">Parfums (séparés par des virgules)</label><input type="text" id="vParfums" placeholder="Praliné, Chocolat, Framboise"></div>
+        </div>
+        <div class="ligne-form">
+          <div><label for="vTailles">Tailles et prix</label><input type="text" id="vTailles" placeholder="4 parts = 22, 6 parts = 32, 8 parts = 42"></div>
+          <button type="button" class="bouton-secondaire" id="btnVariantes">Enregistrer les variantes</button>
+        </div>
+        <h3 class="claire-titre claire-titre--petit">Acompte conseillé</h3>
+        <div class="ligne-form">
+          <div><label for="rTaux">Part (%)</label><input type="number" id="rTaux" min="0" max="100" inputmode="numeric"></div>
+          <div><label for="rSeuil">Au-dessus de (€)</label><input type="number" id="rSeuil" min="0" inputmode="numeric"></div>
+          <button type="button" class="bouton-secondaire" id="btnRegle">Enregistrer</button>
+        </div>
+        <div id="blocEquipe" hidden>
+          <h3 class="claire-titre claire-titre--petit">Qui fait quoi</h3>
+          <p class="texte-aide">Associé : tout. Vendeuse : commandes et retraits, sans chiffres de la boutique. Apprenti : la production seulement, sans prix.</p>
+          <ul class="liste-commande" id="listeEquipe"></ul>
+        </div>
+        <p class="texte-aide" id="statutReglages" role="status"></p>
+      </details>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var CC = window.CommandesClients;
+      var C = window.ContexteBoulangerie;
+      var MP = window.MoteurPrevision;
+      var sb = null, commercantId = null, role = 'patron', session = null;
+      var commandes = [], catalogue = [], prixProduits = {}, regle = CC.REGLE_ACOMPTE, boutique = '';
+      var etat = 'ok';
+      var edition = null, acompte = 'aucun', acompteTouche = false, parfum = null, taille = null;
+      var jourRetraits = 0;
+      var JOURS_COURTS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+      var JOURS_LONGS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+
+      var $ = function (id) { return document.getElementById(id); };
+      function echapper(t) { return String(t === null || t === undefined ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+      function aujourdhui() { return CC.versISO(new Date()); }
+      function jourLong(iso) { return new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); }
+      function peutTout() { return role === 'patron' || role === 'associe'; }
+
+      // ---------- Synchro ----------
+      function majSynchro() {
+        var attente = CC.file(commercantId).length;
+        var bloc = $('etatSynchro');
+        bloc.classList.toggle('etat-synchro--ok', !attente && etat === 'ok');
+        $('texteSynchro').innerHTML = attente
+          ? '<strong>' + attente + ' en attente d\'envoi.</strong> Pas de réseau : rien n\'est perdu, elles partent seules au retour du réseau.'
+          : etat === 'ok' ? '<strong>Tout est enregistré.</strong> Toute l\'équipe voit la même liste.'
+          : '<strong>Pas de réseau.</strong> Liste de ce téléphone ; les nouvelles commandes partiront au retour du réseau.';
+      }
+
+      function recharger() {
+        return CC.charger(sb, commercantId).then(function (r) {
+          if (r.etat === 'absente') { $('zone').hidden = true; $('bientot').hidden = false; return; }
+          etat = r.etat;
+          commandes = r.commandes;
+          afficherTout();
+        });
+      }
+
+      function enregistrer(c, production) {
+        var ligne = {};
+        Object.keys(c).forEach(function (k) { if (k.charAt(0) !== '_') ligne[k] = c[k]; });
+        var maintenant = new Date().toISOString();
+        ligne.maj_le = maintenant;
+        if (production) ligne.modifie_le = maintenant;
+        CC.mettreEnFile(commercantId, ligne);
+        commandes = CC.fusionner(commandes.filter(function (x) { return x.id !== ligne.id; }), [ligne]);
+        afficherTout();
+        return CC.envoyer(sb, commercantId).then(function (r) {
+          if (r.absente) { $('zone').hidden = true; $('bientot').hidden = false; return; }
+          if (r.envoyees) etat = 'ok';
+          var attente = CC.file(commercantId).map(function (l) { return l.id; });
+          commandes.forEach(function (x) { if (attente.indexOf(x.id) === -1) delete x._enAttente; });
+          afficherTout();
+        });
+      }
+
+      // ---------- Formulaire ----------
+      function poserDate(iso) {
+        $('cDate').value = iso;
+        $('choixJour').querySelectorAll('[data-decalage]').forEach(function (b) {
+          var actif = CC.ajouterJours(aujourdhui(), Number(b.getAttribute('data-decalage'))) === iso;
+          b.classList.toggle('actif', actif); b.setAttribute('aria-pressed', actif ? 'true' : 'false');
+        });
+      }
+      function poserAcompte(v) {
+        acompte = v;
+        $('choixAcompte').querySelectorAll('[data-acompte]').forEach(function (b) {
+          var actif = b.getAttribute('data-acompte') === v;
+          b.classList.toggle('actif', actif); b.setAttribute('aria-pressed', actif ? 'true' : 'false');
+        });
+        $('blocMontant').hidden = v === 'aucun';
+      }
+      function ficheProduit(nom) { return catalogue.filter(function (f) { return CC.cle(f.produit) === CC.cle(nom); })[0]; }
+      function boutons(liste, choisi, attr) {
+        return liste.map(function (x) { var a = x === choisi; return '<button type="button" class="btn-mini' + (a ? ' actif' : '') + '" aria-pressed="' + a + '" ' + attr + '="' + echapper(x) + '">' + echapper(x) + '</button>'; }).join('');
+      }
+      function majVariantes() {
+        var f = ficheProduit($('cProduit').value);
+        var avec = f && ((f.parfums || []).length || (f.tailles || []).length);
+        $('variantes').hidden = !avec;
+        if (!avec) { parfum = null; taille = null; } else {
+          if (parfum && f.parfums.indexOf(parfum) === -1) parfum = null;
+          if (taille && f.tailles.indexOf(taille) === -1) taille = null;
+          $('choixParfum').innerHTML = boutons(f.parfums || [], parfum, 'data-parfum');
+          $('choixTaille').innerHTML = boutons(f.tailles || [], taille, 'data-taille');
+          $('choixParfum').hidden = !(f.parfums || []).length;
+          $('choixTaille').hidden = !(f.tailles || []).length;
+        }
+        majTotal();
+      }
+      // Prix connu : total et acompte conseillé (30 % au-dessus de 40 €, réglable).
+      function majTotal() {
+        var total = CC.prixCommande({ produit: $('cProduit').value, taille: taille, quantite: Number($('cQuantite').value) || 0 }, catalogue, prixProduits);
+        var conseil = total ? CC.acompteConseille(total, regle) : 0;
+        $('texteTotal').hidden = !total;
+        if (total) $('texteTotal').textContent = 'Total ' + CC.euros(total) + (conseil ? ' · acompte conseillé ' + CC.euros(conseil) : '');
+        if (!acompteTouche && !edition) {
+          poserAcompte(conseil ? 'a_encaisser' : 'aucun');
+          $('cMontant').value = conseil || '';
+        }
+      }
+      function produitsRapides() {
+        var noms = catalogue.map(function (f) { return f.produit; });
+        var compte = {};
+        commandes.forEach(function (c) { var k = c.produit; compte[k] = (compte[k] || 0) + 1; });
+        Object.keys(compte).sort(function (a, b) { return compte[b] - compte[a]; }).forEach(function (n) {
+          if (!noms.some(function (x) { return CC.cle(x) === CC.cle(n); })) noms.push(n);
+        });
+        noms = noms.slice(0, 6);
+        $('produitsRapides').innerHTML = noms.map(function (n) { return '<button type="button" class="btn-mini" data-produit="' + echapper(n) + '">' + echapper(n) + '</button>'; }).join('');
+        var options = {};
+        noms.concat(Object.keys(prixProduits).filter(function (k) { return k.indexOf('_nom_') === 0; }).map(function (k) { return prixProduits[k]; })).forEach(function (n) { options[n] = 1; });
+        $('listeProduits').innerHTML = Object.keys(options).map(function (n) { return '<option value="' + echapper(n) + '">'; }).join('');
+      }
+
+      function viderFormulaire() {
+        edition = null; acompteTouche = false; parfum = null; taille = null;
+        ['cNom', 'cTel', 'cProduit', 'cQuantite', 'cHeure', 'cMontant', 'cFin'].forEach(function (id) { $(id).value = ''; });
+        $('cSaufVacances').checked = false;
+        $('joursRecurrence').querySelectorAll('input').forEach(function (x) { x.checked = false; });
+        $('repliRecurrence').open = false;
+        poserDate(CC.ajouterJours(aujourdhui(), 1));
+        poserAcompte('aucun');
+        $('titreForm').textContent = 'Nouvelle commande';
+        $('btnEnregistrer').textContent = 'Enregistrer la commande';
+        $('btnAbandon').hidden = true;
+        majVariantes();
+      }
+
+      function remplir(c) {
+        edition = c; acompteTouche = true; parfum = c.parfum || null; taille = c.taille || null;
+        $('cNom').value = c.client_nom || ''; $('cTel').value = c.client_telephone || '';
+        $('cProduit').value = c.produit || ''; $('cQuantite').value = c.quantite || '';
+        $('cHeure').value = c.heure_retrait ? String(c.heure_retrait).slice(0, 5) : '';
+        $('cMontant').value = c.acompte_montant || '';
+        $('cFin').value = c.date_fin || '';
+        $('cSaufVacances').checked = !!c.sauf_vacances;
+        $('joursRecurrence').querySelectorAll('input').forEach(function (x) { x.checked = (c.jours_recurrence || []).map(Number).indexOf(Number(x.value)) !== -1; });
+        $('repliRecurrence').open = CC.estRecurrente(c);
+        poserDate(c.date_retrait); poserAcompte(c.acompte_statut || 'aucun');
+        $('titreForm').textContent = 'Modifier la commande de ' + c.client_nom;
+        $('btnEnregistrer').textContent = 'Enregistrer la modification';
+        $('btnAbandon').hidden = false;
+        majVariantes();
+        $('formCommande').scrollIntoView({ block: 'start' });
+        $('cQuantite').focus();
+      }
+
+      function lireFormulaire(statut) {
+        var jours = Array.prototype.filter.call($('joursRecurrence').querySelectorAll('input'), function (x) { return x.checked; }).map(function (x) { return Number(x.value); });
+        var base = edition ? Object.assign({}, edition) : { id: CC.nouvelId(), commercant_id: commercantId, statut: 'active', dates_sautees: [], dates_retirees: [], sms_envois: {}, cree_le: new Date().toISOString() };
+        return Object.assign(base, {
+          client_nom: $('cNom').value.trim() || (statut === 'refusee' ? 'Demande refusée' : ''),
+          client_telephone: $('cTel').value.trim() || null,
+          produit: $('cProduit').value.trim(),
+          parfum: parfum, taille: taille,
+          quantite: parseInt($('cQuantite').value, 10) || (statut === 'refusee' ? 1 : 0),
+          date_retrait: $('cDate').value,
+          heure_retrait: $('cHeure').value || null,
+          acompte_statut: acompte,
+          acompte_montant: acompte === 'aucun' ? 0 : (Number(String($('cMontant').value).replace(',', '.')) || 0),
+          jours_recurrence: jours.length ? jours : null,
+          date_fin: jours.length && $('cFin').value ? $('cFin').value : null,
+          sauf_vacances: !!(jours.length && $('cSaufVacances').checked),
+          statut: statut || base.statut
+        });
+      }
+
+      function valider(c) {
+        if (!c.client_nom) return ['cNom', 'Le nom du client.'];
+        if (!c.produit) return ['cProduit', 'Le produit.'];
+        if (!(c.quantite > 0)) return ['cQuantite', 'La quantité.'];
+        if (!c.date_retrait) return ['cDate', 'Le jour du retrait.'];
+        if (c.acompte_statut !== 'aucun' && !(c.acompte_montant > 0)) return ['cMontant', 'Le montant de l\'acompte.'];
+        return null;
+      }
+
+      $('formCommande').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var c = lireFormulaire();
+        var manque = valider(c);
+        if (manque) { $('statutForm').textContent = 'Il manque : ' + manque[1]; $(manque[0]).focus(); return; }
+        var avant = edition;
+        var production = !avant || ['produit', 'parfum', 'taille', 'quantite', 'date_retrait', 'heure_retrait', 'statut', 'date_fin', 'sauf_vacances'].some(function (k) { return String(avant[k]) !== String(c[k]); }) ||
+          String(avant.jours_recurrence) !== String(c.jours_recurrence);
+        enregistrer(c, production);
+        $('statutForm').textContent = (avant ? 'Modifiée : ' : 'Enregistrée : ') + c.client_nom + ', ' + c.quantite + ' ' + c.produit + ', ' + jourLong(c.date_retrait) + '.';
+        viderFormulaire();
+        $('cNom').focus();
+      });
+      $('btnRefusee').addEventListener('click', function () {
+        var c = lireFormulaire('refusee');
+        if (!c.produit) { $('statutForm').textContent = 'Touche d\'abord le produit demandé.'; $('cProduit').focus(); return; }
+        if (edition) c.id = CC.nouvelId();
+        c.acompte_statut = 'aucun'; c.acompte_montant = 0;
+        enregistrer(c, false);
+        $('statutForm').textContent = 'Demande refusée notée (' + c.quantite + ' ' + c.produit + ') : elle servira l\'an prochain.';
+        viderFormulaire();
+      });
+      $('btnAbandon').addEventListener('click', viderFormulaire);
+      $('choixJour').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-decalage]'); if (b) poserDate(CC.ajouterJours(aujourdhui(), Number(b.getAttribute('data-decalage'))));
+      });
+      $('cDate').addEventListener('change', function () { poserDate($('cDate').value); });
+      $('choixAcompte').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-acompte]'); if (!b) return;
+        acompteTouche = true; poserAcompte(b.getAttribute('data-acompte'));
+        if (acompte !== 'aucun' && !$('cMontant').value) $('cMontant').focus();
+      });
+      $('variantes').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-parfum], [data-taille]'); if (!b) return;
+        if (b.hasAttribute('data-parfum')) parfum = b.getAttribute('data-parfum'); else taille = b.getAttribute('data-taille');
+        majVariantes();
+      });
+      $('produitsRapides').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-produit]'); if (!b) return;
+        $('cProduit').value = b.getAttribute('data-produit'); majVariantes();
+        if (!$('variantes').hidden) return; $('cQuantite').focus();
+      });
+      $('cProduit').addEventListener('input', majVariantes);
+      $('cQuantite').addEventListener('input', majTotal);
+      $('joursRecurrence').innerHTML = [1, 2, 3, 4, 5, 6, 0].map(function (j) {
+        return '<label class="case-jour"><input type="checkbox" value="' + j + '"> ' + JOURS_COURTS[j] + '</label>';
+      }).join('');
+
+      // ---------- Listes ----------
+      function ligneAcompte(c) {
+        if (c.acompte_statut === 'encaisse') return 'Acompte encaissé ' + CC.euros(c.acompte_montant);
+        if (c.acompte_statut === 'a_encaisser') return '<strong>Acompte à encaisser ' + CC.euros(c.acompte_montant) + '</strong>';
+        return 'Sans acompte';
+      }
+      function etiquette(c) { return c._enAttente ? ' <span class="etiquette-mesure etiquette-mesure--estime">en attente d\'envoi</span>' : ' <span class="etiquette-mesure">enregistré</span>'; }
+      function produitTexte(c) { return c.quantite + ' ' + echapper(c.produit) + (CC.libelleVariante(c) ? ' · ' + echapper(CC.libelleVariante(c)) : ''); }
+
+      function ligneCommande(c, iso, avecRetrait) {
+        var retire = (c.dates_retirees || []).indexOf(iso) !== -1;
+        var tel = c.client_telephone ? ' · <a href="tel:' + echapper(String(c.client_telephone).replace(/\s/g, '')) + '">' + echapper(c.client_telephone) + '</a>' : '';
+        return '<li class="ligne-commande" data-id="' + echapper(c.id) + '" data-iso="' + iso + '">' +
+          '<span class="ligne-commande-nom"><span><strong>' + echapper(c.client_nom) + '</strong> · ' + produitTexte(c) + etiquette(c) + '</span>' +
+            '<span class="texte-aide--discret">' + (c.heure_retrait ? CC.heureCourte(c.heure_retrait) + ' · ' : '') + ligneAcompte(c) + tel + (CC.estRecurrente(c) ? ' · chaque semaine' : '') + '</span></span>' +
+          (avecRetrait ? '<label class="case-jour"><input type="checkbox" class="case-retire"' + (retire ? ' checked' : '') + '> Retiré</label>' : '<span class="ligne-commande-quantite">' + c.quantite + '</span>') +
+          '<span class="ligne-commande-stock">' +
+            (c.acompte_statut === 'a_encaisser' ? '<button type="button" class="btn-mini" data-action="encaisse">Acompte encaissé</button>' : '') +
+            '<button type="button" class="btn-mini" data-action="modifier">Modifier</button>' +
+            (CC.estRecurrente(c) ? '<button type="button" class="btn-mini" data-action="sauter">Pas cette fois</button>' : '') +
+            '<button type="button" class="btn-mini" data-action="annuler">' + (CC.estRecurrente(c) ? 'Arrêter' : 'Annuler') + '</button>' +
+          '</span></li>';
+      }
+
+      function afficherRetraits() {
+        var iso = CC.ajouterJours(aujourdhui(), jourRetraits);
+        $('jourRetraits').querySelectorAll('[data-decalage]').forEach(function (b) {
+          var a = Number(b.getAttribute('data-decalage')) === jourRetraits; b.classList.toggle('actif', a); b.setAttribute('aria-pressed', a ? 'true' : 'false');
+        });
+        var q = $('recherche').value.trim();
+        var liste, html;
+        if (q.length >= 2) {
+          // Recherche : toutes les commandes à venir (jour affiché compris).
+          liste = CC.rechercher(commandes.filter(function (c) {
+            return c.statut === 'active' && (CC.estRecurrente(c) ? (!c.date_fin || c.date_fin >= aujourdhui()) : c.date_retrait >= aujourdhui());
+          }), q);
+          html = liste.map(function (c) { var d = CC.estRecurrente(c) ? iso : c.date_retrait; return ligneCommande(c, d, d === iso); }).join('');
+          $('resumeRetraits').textContent = liste.length ? liste.length + ' commande' + (liste.length > 1 ? 's' : '') + ' trouvée' + (liste.length > 1 ? 's' : '') : 'Aucune commande à ce nom ou ce numéro.';
+        } else {
+          liste = CC.duJour(commandes, iso);
+          var restants = liste.filter(function (c) { return (c.dates_retirees || []).indexOf(iso) === -1; }).length;
+          var aEncaisser = liste.filter(function (c) { return c.acompte_statut === 'a_encaisser'; }).length;
+          html = liste.map(function (c) { return ligneCommande(c, iso, true); }).join('');
+          $('resumeRetraits').textContent = liste.length ? liste.length + ' retrait' + (liste.length > 1 ? 's' : '') + ', ' + restants + ' à venir' + (aEncaisser ? ' · ' + aEncaisser + ' acompte' + (aEncaisser > 1 ? 's' : '') + ' à encaisser' : '') : 'Aucun retrait ' + (jourRetraits ? 'demain' : 'aujourd\'hui') + '.';
+        }
+        $('listeRetraits').innerHTML = html;
+      }
+
+      function afficherProduction(listeCommandes) {
+        var jours = [0, 1].map(function (n) { return CC.ajouterJours(aujourdhui(), n); });
+        $('listeProduction').innerHTML = jours.map(function (iso, n) {
+          var prod = CC.productionDuJour(listeCommandes, iso);
+          if (!prod.length) return '<li class="ligne-commande"><span class="ligne-commande-nom">' + (n ? 'Demain' : 'Aujourd\'hui') + ' : rien de commandé</span></li>';
+          return prod.map(function (p) {
+            return '<li class="ligne-commande"><span class="ligne-commande-nom"><span>' + (n ? 'Demain' : 'Aujourd\'hui') + ' · <strong>' + echapper(p.nom) + '</strong></span>' +
+              (p.variantes.length ? '<span class="texte-aide--discret">' + p.variantes.map(function (v) { return echapper(v.libelle) + ' : ' + v.quantite; }).join(' · ') + '</span>' : '') +
+              '</span><span class="ligne-commande-quantite">' + p.quantite + '</span></li>';
+          }).join('');
+        }).join('');
+      }
+
+      function afficherAVenir() {
+        var html = '';
+        for (var n = 2; n <= 45; n++) {
+          var iso = CC.ajouterJours(aujourdhui(), n);
+          var l = CC.duJour(commandes, iso).filter(function (c) { return !CC.estRecurrente(c); });
+          if (!l.length) continue;
+          var prod = CC.productionDuJour(l, iso);
+          html += '<h3 class="claire-titre claire-titre--petit">' + jourLong(iso) + '</h3>' +
+            '<p class="texte-aide">' + prod.map(function (p) { return '<strong>' + p.quantite + ' ' + echapper(p.nom) + '</strong>' + (p.variantes.length ? ' (' + p.variantes.map(function (v) { return echapper(v.libelle) + ' : ' + v.quantite; }).join(', ') + ')' : ''); }).join(' · ') + '</p>' +
+            '<ul class="liste-commande">' + l.map(function (c) { return ligneCommande(c, iso, false); }).join('') + '</ul>';
+        }
+        $('listeAVenir').innerHTML = html || '<p class="texte-aide">Rien d\'autre de prévu pour l\'instant.</p>';
+      }
+
+      function afficherTout() {
+        CC.definirZone(MP.zoneVacancesPourCodePostal(window.__cpBoutique));
+        // Jour de rush (24 décembre) : la file est au comptoir, les retraits passent devant la saisie.
+        var sectionRetraits = $('titreRetraits').parentNode;
+        if (CC.jourDeRush(new Date(), commandes) && sectionRetraits.nextElementSibling !== $('formCommande')) $('formCommande').parentNode.insertBefore(sectionRetraits, $('formCommande'));
+        majSynchro();
+        afficherRetraits();
+        $('blocProduction').hidden = false;
+        afficherProduction(commandes);
+        $('blocAVenir').hidden = !peutTout();
+        if (peutTout()) afficherAVenir();
+        var rec = commandes.filter(function (c) { return c.statut === 'active' && CC.estRecurrente(c) && (!c.date_fin || c.date_fin >= aujourdhui()); });
+        $('blocRecurrentes').hidden = !rec.length;
+        $('listeRecurrentes').innerHTML = rec.map(function (c) {
+          var jours = c.jours_recurrence.map(function (j) { return JOURS_LONGS[j]; }).join(', ');
+          return ligneCommande(Object.assign({}, c), aujourdhui(), false).replace('chaque semaine', 'chaque ' + jours + (c.date_fin ? ' jusqu\'au ' + jourLong(c.date_fin) : '') + (c.sauf_vacances ? ', sauf vacances scolaires' : ''));
+        }).join('');
+        var manquants = CC.acomptesManquants(commandes, aujourdhui());
+        $('alerteAcomptes').hidden = !manquants.length;
+        if (manquants.length) $('alerteAcomptes').innerHTML = '<strong>Acompte à encaisser</strong> : ' + manquants.slice(0, 5).map(function (c) { return echapper(c.client_nom) + ' (' + CC.euros(c.acompte_montant) + ', ' + (CC.estRecurrente(c) ? 'chaque semaine' : jourLong(c.date_retrait)) + ')'; }).join(' ; ') + (manquants.length > 5 ? ' et ' + (manquants.length - 5) + ' autres' : '') + '.';
+        var rappel = peutTout() ? CC.rappelAnnuel(commandes, new Date()) : null;
+        $('rappelAnnuel').hidden = !rappel;
+        if (rappel) $('rappelAnnuel').textContent = rappel.texte;
+        var demain = CC.ajouterJours(aujourdhui(), 1);
+        var sms = CC.smsDeLaVeille(commandes, demain, boutique);
+        $('listeSms').innerHTML = sms.length ? sms.map(function (s) { return '<li class="ligne-commande"><span class="ligne-commande-nom"><span>' + echapper(s.telephone) + '</span><span class="texte-aide--discret">' + echapper(s.texte) + '</span></span></li>'; }).join('') : '<li class="texte-aide">Aucun retrait demain avec un téléphone.</li>';
+        var fermees = commandes.filter(function (c) { return c.statut === 'annulee' || c.statut === 'refusee'; }).sort(function (a, b) { return String(b.maj_le).localeCompare(String(a.maj_le)); });
+        $('resumeAnnulees').textContent = 'Annulées et refusées (' + fermees.length + ')';
+        $('listeAnnulees').innerHTML = fermees.map(function (c) {
+          return '<li class="ligne-commande" data-id="' + echapper(c.id) + '"><span class="ligne-commande-nom"><span>' + echapper(c.client_nom) + ' · ' + produitTexte(c) + '</span><span class="texte-aide--discret">' + (c.statut === 'refusee' ? 'Refusée, complet' : 'Annulée') + ' · ' + jourLong(c.date_retrait) + '</span></span>' +
+            (c.statut === 'annulee' ? '<span class="ligne-commande-stock"><button type="button" class="btn-mini" data-action="retablir">Rétablir</button></span>' : '') + '</li>';
+        }).join('');
+        produitsRapides();
+        afficherCatalogue();
+      }
+
+      function trouver(id) { return commandes.filter(function (c) { return c.id === id; })[0]; }
+      function surAction(e) {
+        var li = e.target.closest('[data-id]'); if (!li) return;
+        var c = trouver(li.getAttribute('data-id')); if (!c) return;
+        var iso = li.getAttribute('data-iso') || aujourdhui();
+        var b = e.target.closest('[data-action]');
+        if (e.type === 'change' && e.target.classList.contains('case-retire')) {
+          var dates = (c.dates_retirees || []).filter(function (d) { return d !== iso; });
+          if (e.target.checked) dates.push(iso);
+          enregistrer(Object.assign({}, c, { dates_retirees: dates }), false);
+          return;
+        }
+        if (!b || e.type !== 'click') return;
+        var a = b.getAttribute('data-action');
+        if (a === 'modifier') remplir(c);
+        else if (a === 'encaisse') enregistrer(Object.assign({}, c, { acompte_statut: 'encaisse' }), false);
+        else if (a === 'sauter') {
+          if (!window.confirm('Pas de commande ' + jourLong(iso) + ' pour ' + c.client_nom + ' ? Les autres semaines restent prévues.')) return;
+          enregistrer(Object.assign({}, c, { dates_sautees: (c.dates_sautees || []).concat([iso]) }), true);
+        } else if (a === 'annuler') {
+          if (!window.confirm((CC.estRecurrente(c) ? 'Arrêter la commande de chaque semaine de ' : 'Annuler la commande de ') + c.client_nom + ' (' + c.quantite + ' ' + c.produit + ') ? Elle reste visible dans « Annulées » et peut être rétablie.')) return;
+          enregistrer(Object.assign({}, c, { statut: 'annulee' }), true);
+        } else if (a === 'retablir') enregistrer(Object.assign({}, c, { statut: 'active' }), true);
+      }
+      ['listeRetraits', 'listeAVenir', 'listeRecurrentes', 'listeAnnulees'].forEach(function (id) {
+        $(id).addEventListener('click', surAction);
+        $(id).addEventListener('change', surAction);
+      });
+      $('jourRetraits').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-decalage]'); if (!b) return;
+        jourRetraits = Number(b.getAttribute('data-decalage')); afficherRetraits();
+      });
+      $('recherche').addEventListener('input', afficherRetraits);
+
+      // ---------- Réglages (patron, associé) ----------
+      function afficherCatalogue() {
+        $('listeCatalogue').innerHTML = catalogue.map(function (f) {
+          var tailles = (f.tailles || []).map(function (t) { return t + (f.prix_tailles && f.prix_tailles[t] ? ' (' + CC.euros(f.prix_tailles[t]) + ')' : ''); }).join(', ');
+          return '<li class="ligne-commande"><span class="ligne-commande-nom"><span><strong>' + echapper(f.produit) + '</strong></span><span class="texte-aide--discret">' + echapper((f.parfums || []).join(', ')) + (tailles ? ' · ' + echapper(tailles) : '') + '</span></span>' +
+            '<span class="ligne-commande-stock"><button type="button" class="btn-mini" data-variante="' + echapper(f.produit) + '">Changer</button></span></li>';
+        }).join('') || '<li class="texte-aide">Aucune variante pour l\'instant.</li>';
+      }
+      $('listeCatalogue').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-variante]'); if (!b) return;
+        var f = ficheProduit(b.getAttribute('data-variante'));
+        $('vProduit').value = f.produit; $('vParfums').value = (f.parfums || []).join(', ');
+        $('vTailles').value = (f.tailles || []).map(function (t) { return t + (f.prix_tailles && f.prix_tailles[t] ? ' = ' + f.prix_tailles[t] : ''); }).join(', ');
+      });
+      $('btnVariantes').addEventListener('click', function () {
+        var produit = $('vProduit').value.trim(); if (!produit) { $('vProduit').focus(); return; }
+        var liste = function (t) { return t.split(',').map(function (x) { return x.trim(); }).filter(Boolean); };
+        var tailles = [], prix = {};
+        liste($('vTailles').value).forEach(function (t) {
+          var m = t.split('='); var nom = m[0].trim(); tailles.push(nom);
+          var p = m[1] && Number(m[1].replace(',', '.').replace(/[^\d.]/g, '')); if (p > 0) prix[nom] = p;
+        });
+        var fiche = { commercant_id: commercantId, produit: produit, parfums: liste($('vParfums').value), tailles: tailles, prix_tailles: prix, maj_le: new Date().toISOString() };
+        sb.from('commandes_catalogue').upsert(fiche, { onConflict: 'commercant_id,produit' }).then(function (r) {
+          if (r && r.error) { $('statutReglages').textContent = 'Pas enregistré : vérifie le réseau et réessaie.'; return; }
+          catalogue = catalogue.filter(function (f) { return CC.cle(f.produit) !== CC.cle(produit); }).concat([fiche]);
+          $('statutReglages').textContent = 'Variantes de « ' + produit + ' » enregistrées.';
+          ['vProduit', 'vParfums', 'vTailles'].forEach(function (id) { $(id).value = ''; });
+          afficherTout();
+        }, function () { $('statutReglages').textContent = 'Pas enregistré : vérifie le réseau et réessaie.'; });
+      });
+      $('btnRegle').addEventListener('click', function () {
+        var r = { seuil: Number($('rSeuil').value) || 0, taux: Math.min(100, Number($('rTaux').value) || 0) };
+        sb.from('parametres_commercant').upsert({ commercant_id: commercantId, commandes_acompte: r }).then(function (x) {
+          if (x && x.error) { $('statutReglages').textContent = 'Pas enregistré : vérifie le réseau et réessaie.'; return; }
+          regle = r; $('statutReglages').textContent = 'Acompte conseillé : ' + r.taux + ' % au-dessus de ' + CC.euros(r.seuil) + '.';
+        });
+      });
+      function chargerEquipe() {
+        if (role !== 'patron') return;
+        sb.from('personnel').select('id, nom, prenom, role, user_id, acces_app').eq('commercant_id', commercantId).then(function (r) {
+          var l = ((r && r.data) || []).filter(function (p) { return p.user_id; });
+          if ((r && r.error) || !l.length) return;
+          $('blocEquipe').hidden = false;
+          var ROLES = [['', 'Pas d\'accès'], ['associe', 'Associé (tout)'], ['vendeuse', 'Vendeuse'], ['apprenti', 'Apprenti']];
+          $('listeEquipe').innerHTML = l.map(function (p) {
+            return '<li class="ligne-commande"><label class="ligne-commande-nom" for="acces-' + echapper(p.id) + '">' + echapper([p.prenom, p.nom].filter(Boolean).join(' ') || p.role || 'Employé') + '</label>' +
+              '<select id="acces-' + echapper(p.id) + '" data-personnel="' + echapper(p.id) + '">' + ROLES.map(function (x) { return '<option value="' + x[0] + '"' + ((p.acces_app || '') === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select></li>';
+          }).join('');
+        }, function () {});
+      }
+      $('listeEquipe').addEventListener('change', function (e) {
+        var s = e.target.closest('[data-personnel]'); if (!s) return;
+        sb.from('personnel').update({ acces_app: s.value || null }).eq('id', s.getAttribute('data-personnel')).eq('commercant_id', commercantId).then(function (r) {
+          $('statutReglages').textContent = r && r.error ? 'Pas enregistré : vérifie le réseau et réessaie.' : 'Accès mis à jour.';
+        });
+      });
+
+      // ---------- Démarrage ----------
+      function demarrerApprenti() {
+        // Production seulement : ni nom, ni téléphone, ni euros (fonction en base).
+        $('statutConnexion').textContent = '';
+        ['formCommande', 'etatSynchro', 'repliSms', 'repliAnnulees', 'blocAVenir'].forEach(function (id) { $(id).hidden = true; });
+        $('titreRetraits').parentNode.hidden = true;
+        $('zone').hidden = false;
+        sb.rpc('commandes_production', { p_commercant: commercantId }).then(function (r) {
+          if (r && r.error && CC.estTableAbsente(r.error)) { $('zone').hidden = true; $('bientot').hidden = false; return; }
+          afficherProduction((r && r.data) || []);
+        }, function () { $('listeProduction').innerHTML = '<li class="texte-aide">Pas de réseau : réessaie dans un instant.</li>'; });
+      }
+
+      sb = C.client();
+      sb.auth.getSession().then(function (res) {
+        session = res.data.session;
+        if (!session) { $('statutConnexion').innerHTML = 'Non connecté. <a href="connexion.html">Se connecter</a>'; return; }
+        return CC.resoudreCommercant(sb, session).then(function (x) {
+          commercantId = x.commercantId; role = x.role;
+          if (role !== 'patron' && role !== 'associe') { var nav = $('navPrincipale'); if (nav) nav.hidden = true; document.body.classList.remove('avec-onglets'); }
+          if (role === 'aucun') { $('statutConnexion').textContent = 'Ton accès aux commandes n\'est pas encore ouvert : demande-le à ton patron.'; return; }
+          if (role === 'apprenti') return demarrerApprenti();
+          $('jourRetraits').hidden = false;
+          return Promise.all([
+            sb.from('parametres_commercant').select('*').eq('commercant_id', commercantId).then(function (r) { return (r && r.data && r.data[0]) || {}; }, function () { return {}; }),
+            sb.from('commandes_catalogue').select('*').eq('commercant_id', commercantId).then(function (r) { return (r && !r.error && r.data) || []; }, function () { return []; }),
+            peutTout() ? sb.from('produits').select('nom, prix_vente').eq('commercant_id', commercantId).then(function (r) { return (r && r.data) || []; }, function () { return []; }) : []
+          ]).then(function (r) {
+            boutique = r[0].nom_restaurant || '';
+            window.__cpBoutique = r[0].code_postal || null;
+            if (r[0].commandes_acompte && r[0].commandes_acompte.taux !== undefined) regle = r[0].commandes_acompte;
+            catalogue = r[1];
+            r[2].forEach(function (p) { if (p.prix_vente > 0) { prixProduits[CC.cle(p.nom)] = Number(p.prix_vente); prixProduits['_nom_' + CC.cle(p.nom)] = p.nom; } });
+            $('rTaux').value = regle.taux; $('rSeuil').value = regle.seuil;
+            $('repliReglages').hidden = !peutTout();
+            $('statutConnexion').textContent = boutique;
+            viderFormulaire();
+            $('zone').hidden = false;
+            chargerEquipe();
+            return recharger();
+          });
+        });
+      }).catch(function () { $('statutConnexion').textContent = 'Impossible de charger les commandes. Vérifie ta connexion et recharge la page.'; });
+
+      // Retour du réseau : on envoie la file, puis on relit (l'autre vendeuse
+      // a pu saisir entre-temps). Même chose quand l'écran revient au premier plan.
+      window.addEventListener('online', function () { if (commercantId && role !== 'apprenti') recharger(); });
+      window.addEventListener('offline', function () { etat = 'hors-ligne'; if (commercantId) majSynchro(); });
+      document.addEventListener('visibilitychange', function () { if (!document.hidden && commercantId && role !== 'apprenti' && role !== 'aucun') recharger(); });
+      setInterval(function () { if (!document.hidden && commercantId && role !== 'apprenti' && role !== 'aucun' && navigator.onLine !== false) recharger(); }, 60000);
+    })();
+  </script>
+</body>
+</html>

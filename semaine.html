@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Semaine</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101q">
+  <link rel="stylesheet" href="style.css?v=20261101r">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="moteur-prevision.js?v=20261101r"></script>
   <script src="boulangerie.js?v=20261101l"></script>
-  <script src="contexte.js?v=20261101l"></script>
+  <script src="commandes-clients.js?v=20261101a"></script>
+  <script src="contexte.js?v=20261101s"></script>
   <script src="nav.js?v=20261101q"></script>
 </head>
 <body>
@@ -98,6 +99,11 @@
         var max = Math.max.apply(null, colonnes.map(function (c) { return c.total; })) || 1;
         var ouvertsTotaux = colonnes.filter(function (c) { return !c.ferme; }).map(function (c) { return c.total; });
         var min = ouvertsTotaux.length ? Math.min.apply(null, ouvertsTotaux) : 0;
+        // Lot 11 : la charge d'un jour se lit par rapport à un jour ordinaire de
+        // la semaine (médiane des jours ouverts) : habituel = crème, chargé =
+        // orangé de plus en plus soutenu, calme = plus pâle.
+        var tries = ouvertsTotaux.slice().sort(function (a, b) { return a - b; });
+        var mediane = tries.length ? tries[Math.floor((tries.length - 1) / 2)] : 0;
         document.getElementById('affluence').innerHTML = colonnes.map(function (c) {
           var nomJour = MP.versISO(c.date) === MP.versISO(new Date()) ? 'Auj.' : MP.capitaliser(MP.nomsJoursCourts[c.date.getDay()]);
           var raison;
@@ -112,12 +118,13 @@
             raison = (ecartPct > 0 ? '+' : '−') + Math.abs(ecartPct) + ' % par rapport à d\'habitude';
           } else raison = '';
           // Lot 10 : intensité de couleur selon l'affluence prévue.
-          var niveau = c.ferme ? 'ferme' : (c.ratio !== null && c.ratio >= 1.08 ? 'charge' : c.ratio !== null && c.ratio <= 0.92 ? 'calme' : 'habituel');
-          var libelleNiveau = { ferme: 'Fermé', charge: 'Chargé', calme: 'Calme', habituel: 'Habituel' }[niveau];
+          var charge = mediane > 0 ? c.total / mediane : 1;
+          var niveau = c.ferme ? 'ferme' : charge >= 1.35 ? 'tres-charge' : charge >= 1.12 ? 'charge' : charge <= 0.88 ? 'calme' : 'habituel';
+          var libelleNiveau = { ferme: 'Fermé', 'tres-charge': 'Très chargé', charge: 'Chargé', calme: 'Calme', habituel: 'Habituel' }[niveau];
           if (c.ferme) raison = '';
           var classe = ' affluence-jour--' + niveau;
           // Intensité de couleur : volume du jour dans la semaine (le plus calme pâle, le plus fort croûte).
-          var intensite = c.ferme ? 0 : (max > min ? 0.15 + 0.85 * (c.total - min) / (max - min) : 0.5);
+          var intensite = c.ferme ? 0 : Math.max(0.1, Math.min(1, (charge - 0.85) / 0.6));
           return '<li class="affluence-jour' + classe + '" style="--i:' + intensite.toFixed(2) + '">' +
             '<span class="affluence-barre" aria-hidden="true"><span style="--part:' + (c.ferme ? 0 : Math.max(6, c.total / max * 100)) + '%"></span></span>' +
             '<span class="affluence-nom">' + nomJour + ' ' + c.date.getDate() + '</span>' +

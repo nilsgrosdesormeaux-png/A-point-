@@ -5,11 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Fournée</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101q">
+  <link rel="stylesheet" href="style.css?v=20261101r">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="moteur-prevision.js?v=20261101r"></script>
   <script src="boulangerie.js?v=20261101l"></script>
-  <script src="contexte.js?v=20261101l"></script>
+  <script src="commandes-clients.js?v=20261101a"></script>
+  <script src="alerte-rupture.js?v=20261101a"></script>
+  <script src="contexte.js?v=20261101s"></script>
   <script src="nav.js?v=20261101q"></script>
 </head>
 <body>
@@ -28,6 +30,9 @@
 
   <div id="contenu" role="main" class="conteneur conteneur--large">
     <p id="statutConnexion" class="texte-aide">Chargement…</p>
+    <div class="bandeau-observation" id="alerteCommandes" role="alert" hidden></div>
+    <!-- Lot 12 : alerte rupture du jour (rien sans ventes heure par heure). -->
+    <section class="alerte-rupture" id="alerteRupture" hidden aria-live="polite"></section>
     <p class="texte-aide" id="bandeauReglages" hidden><a href="parametres.html">Complète tes réglages</a> pour une fournée plus juste.</p>
 
     <a class="carte-saisie-hier" id="carteSaisieHier" href="ventes.html" hidden>
@@ -48,6 +53,8 @@
       </div>
     </section>
 
+    <a class="bouton-secondaire" id="lienCommandesClients" href="commandes-clients.html" hidden>Commandes clients</a>
+    <p class="texte-aide" id="rappelCommandes" hidden></p>
     <a class="lien-brancher-caisse" id="lienBrancherCaisse" href="caisse.html" hidden>Branche ta caisse : tes ventes arrivent seules →</a>
 
     <section class="claire-entete fournee-entete" aria-labelledby="titreFournee">
@@ -56,6 +63,7 @@
           <p class="claire-date" id="dateAujourdhui"></p>
           <h1 class="claire-titre" id="titreFournee">Ta fournée</h1>
           <p class="raison-jour" id="raisonJour" hidden></p>
+          <p class="raison-jour" id="baseReouverture" hidden></p>
           <div class="selecteur-periode selecteur-jour" id="selecteurJour" role="group" aria-label="Jour de la fournée" hidden>
             <button type="button" class="periode-bouton" data-jour="aujourdhui" aria-pressed="false">Aujourd'hui</button>
             <button type="button" class="periode-bouton" data-jour="demain" aria-pressed="false">Demain</button>
@@ -229,6 +237,85 @@
         return '<svg class="icone-ciel" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + trace + '</svg>';
       }
 
+      // ---------- Lot 12 ----------
+      // Prochain jour où la boutique ouvre (jours de fermeture, congés, fériés fermés).
+      function prochainOuvert() {
+        var d = MP.ajouterJours(new Date(), 1), n = 0;
+        while (n < 90 && MP.raisonFermeture(d, ctx.optionsPrevision || { joursFermeture: ctx.joursFermeture })) { d = MP.ajouterJours(d, 1); n++; }
+        return d;
+      }
+      function quantitesDepart() {
+        var m = (ctx.session.user.user_metadata || {}).quantites_depart || {};
+        try { var local = JSON.parse(localStorage.getItem('apoint-depart:' + ctx.commercantId) || '{}'); Object.keys(local).forEach(function (k) { if (m[k] == null) m[k] = local[k]; }); } catch (e) {}
+        return m;
+      }
+      document.getElementById('listeRayons').addEventListener('change', function (e) {
+        if (!e.target.classList.contains('valeur-depart')) return;
+        var cle = MP.versISO(jourCible) + '|' + e.target.getAttribute('data-depart');
+        var m = ctx.session.user.user_metadata = ctx.session.user.user_metadata || {};
+        var toutes = Object.assign({}, m.quantites_depart || {});
+        var v = Math.max(0, parseInt(e.target.value, 10) || 0);
+        if (v) toutes[cle] = v; else delete toutes[cle];
+        m.quantites_depart = toutes;
+        try { localStorage.setItem('apoint-depart:' + ctx.commercantId, JSON.stringify(toutes)); } catch (er) {}
+        ctx.sb.auth.updateUser({ data: { quantites_depart: toutes } }).then(function () {}, function () {});
+        afficher();
+      });
+      // Réouverture après congés : la base de la prévision, en une ligne.
+      function afficherBaseReouverture(previsions) {
+        var el = document.getElementById('baseReouverture');
+        var p = previsions.filter(function (x) { return x.r && /Réouverture après les congés/.test(x.r.texteBase || ''); })[0];
+        if (!p) { el.hidden = true; return; }
+        el.textContent = /l'an dernier/.test(p.r.texteBase) ? 'Réouverture : comparée à la même période l\'an dernier.' : 'Réouverture : prévision prudente (−10 %).';
+        el.hidden = false;
+      }
+      // Alerte rupture : ventes heure par heure du jour comparées à la courbe habituelle.
+      var ventesHoraires = null;
+      function heureDecimale(hhmm) { var m = /^(\d{1,2}):(\d{2})/.exec(hhmm || ''); return m ? Number(m[1]) + Number(m[2]) / 60 : null; }
+      function chargerAlertes() {
+        if (!window.AlerteRupture) return;
+        var depuis = MP.versISO(MP.ajouterJours(new Date(), -130));
+        ctx.sb.from('ventes_horaires').select('date_vente, heure, nom_produit, quantite').eq('commercant_id', ctx.commercantId).gte('date_vente', depuis).then(function (r) {
+          ventesHoraires = (r && !r.error && r.data) || [];
+          afficherAlertes();
+        }, function () {});
+      }
+      function cleAlerte(nom) { return 'apoint-alerte:' + ctx.commercantId + ':' + MP.versISO(new Date()) + ':' + nom; }
+      function afficherAlertes() {
+        var el = document.getElementById('alerteRupture');
+        if (!ventesHoraires || !ventesHoraires.length) { el.hidden = true; return; }
+        var aujourdhui = new Date();
+        var fourneesPrevues = {};
+        C.prevoirJour(ctx, aujourdhui).forEach(function (p) {
+          if (p.r.insuffisant || !p.r.quantite) return;
+          var n = B.repartir(Math.ceil(p.r.quantite), partsTranches(p));
+          fourneesPrevues[p.nom] = tournees().map(function (t, i) { return { heure: heureDecimale(t.heure), quantite: n[i] || 0 }; });
+        });
+        var alertes = C.alertesDuJour(ctx, ventesHoraires, fourneesPrevues, aujourdhui.getHours()).filter(function (a) {
+          var etat = null;
+          try { etat = localStorage.getItem(cleAlerte(a.nom)); } catch (e) {}
+          return !(etat === 'lance' || (etat && Number(etat) > Date.now()));
+        });
+        if (!alertes.length) { el.hidden = true; el.innerHTML = ''; return; }
+        el.innerHTML = alertes.map(function (a) {
+          return '<div class="alerte-rupture-carte" data-alerte="' + echapper(a.nom) + '">' +
+            '<p class="alerte-rupture-titre"><strong>' + echapper(a.nom) + ' : relance ' + a.quantite + '</strong> · à lancer avant ' + window.AlerteRupture.formatHeure(a.heureLancer) + '</p>' +
+            '<p class="alerte-rupture-preuve">' + echapper(a.preuve) + '<span class="etiquette-mesure">mesuré</span></p>' +
+            '<div class="alerte-rupture-actions"><button type="button" class="bouton-principal" data-alerte-action="lance">Lancé</button>' +
+            '<button type="button" class="bouton-secondaire" data-alerte-action="plus-tard">Pas maintenant</button></div></div>';
+        }).join('');
+        el.hidden = false;
+      }
+      document.getElementById('alerteRupture').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-alerte-action]');
+        if (!b) return;
+        var nom = b.closest('[data-alerte]').getAttribute('data-alerte');
+        // « Pas maintenant » : l'alerte revient dans une heure si elle tient toujours.
+        try { localStorage.setItem(cleAlerte(nom), b.getAttribute('data-alerte-action') === 'lance' ? 'lance' : String(Date.now() + 3600000)); } catch (er) {}
+        afficherAlertes();
+      });
+      setInterval(function () { if (ctx && ventesHoraires && ventesHoraires.length) chargerAlertes(); }, 15 * 60000);
+
       function texteDelta(p, quantite) {
         if (!p.r.venteHabituelle) return '';
         var jour = p.r.nomJourCible;
@@ -256,6 +343,7 @@
       var cacheFiabilite = {};
       function fiabiliteProduit(p) {
         if (cacheFiabilite[p.nom]) return cacheFiabilite[p.nom];
+        if (!ctx.parProduit[p.nom]) return { ecart: null, peuSur: null }; // produit de saison jamais vendu
         var ecart = MP.calculerEcartUnites(ctx.parProduit[p.nom]);
         var nbMemeJour = p.r.nbMemeJour;
         var demande = p.r.quantite / MP.MARGE_PRODUCTION;
@@ -295,9 +383,56 @@
         document.getElementById('barreProgression').style.width = (cases.length ? faites / cases.length * 100 : 0) + '%';
       }
 
+      // Commandes clients : les pièces réservées s'ajoutent à la cuisson du
+      // jour, affichées à part (« 40 réservées + 85 boutique »). Les commandes
+      // d'un produit sans prévision forment un rayon « Commandes clients ».
+      var CC = window.CommandesClients;
+      var reserveesHorsListe = [];
+      function prevoirAvecCommandes() {
+        var res = CC ? CC.reserveesParCle(ctx.commandesClients || [], MP.versISO(jourCible)) : {};
+        var previsions = C.prevoirJour(ctx, jourCible).map(function (p) {
+          var r = res[CC ? CC.cle(p.nom) : ''];
+          if (!r || p.r.insuffisant) return p;
+          delete res[CC.cle(p.nom)];
+          return { nom: p.nom, rayon: p.rayon, reserve: r.quantite, boutique: Math.ceil(p.r.quantite), r: Object.assign({}, p.r, { quantite: Math.ceil(p.r.quantite) + r.quantite }) };
+        });
+        reserveesHorsListe = Object.keys(res).map(function (k) { return res[k]; });
+        return previsions;
+      }
+      function afficherCommandesClients() {
+        if (!CC) return;
+        var l = ctx.commandesClients || [];
+        var lien = document.getElementById('lienCommandesClients');
+        var n = CC.nbDuJour(l, MP.versISO(new Date()));
+        // Hors période (rien à venir, rien saisi depuis 10 jours) : simple lien discret.
+        var calme = l.etat === 'absente' || CC.horsPeriode(l, new Date());
+        lien.className = calme ? 'lien-discret' : 'bouton-secondaire';
+        lien.textContent = 'Commandes clients' + (calme && !n ? '' : ' · ' + n + ' aujourd\'hui');
+        lien.hidden = false;
+        // Jour de rush (24 décembre…) : aucun rappel de saisie, rien qui gêne.
+        var rush = CC.jourDeRush(new Date(), l);
+        if (rush) ['carteSaisieHier', 'bandeauReglages', 'lienBrancherCaisse'].forEach(function (id) { document.getElementById(id).hidden = true; });
+        var rappel = rush ? null : CC.rappelAnnuel(l, new Date());
+        var rappelEl = document.getElementById('rappelCommandes');
+        rappelEl.hidden = !rappel;
+        if (rappel) rappelEl.textContent = rappel.texte;
+        var cleVu = 'apoint-cc-vu:' + ctx.commercantId;
+        var changes = CC.changementsProches(l, new Date(), localStorage.getItem(cleVu));
+        var alerte = document.getElementById('alerteCommandes');
+        alerte.hidden = !changes.length;
+        if (!changes.length) return;
+        alerte.innerHTML = '<strong>Commandes clients changées :</strong> ' + changes.map(function (x) {
+          return echapper(x.commande.client_nom) + ', ' + x.commande.quantite + ' ' + echapper(x.commande.produit) + ' pour ' + x.pour + ' (' + x.nature + ')';
+        }).join(' ; ') + '. <a href="commandes-clients.html">Voir</a> <button type="button" class="btn-mini" id="btnVuCommandes">Vu</button>';
+        document.getElementById('btnVuCommandes').addEventListener('click', function () {
+          try { localStorage.setItem(cleVu, new Date().toISOString()); } catch (e) {}
+          alerte.hidden = true;
+        });
+      }
+
       function afficher() {
         cacheFiabilite = {};
-        var previsions = C.prevoirJour(ctx, jourCible);
+        var previsions = prevoirAvecCommandes();
         var facteur = 1; // l'effet « plus / moins de monde » est déjà dans le moteur
         afficherRaisons(previsions);
         afficherMeteo();
@@ -321,6 +456,9 @@
           var total = 0;
           var html = lignes.map(function (p) {
             var insuffisant = p.r.insuffisant;
+            // Lot 12 : produit de saison sans historique, le boulanger fixe la quantité.
+            var depart = p.r.aFixer ? quantitesDepart()[MP.versISO(jourCible) + '|' + p.nom] : null;
+            if (p.r.aFixer && depart) { insuffisant = false; p = { nom: p.nom, rayon: p.rayon, reserve: p.reserve, boutique: p.boutique, r: Object.assign({}, p.r, { quantite: depart, insuffisant: false }) }; }
             var masque = insuffisant;
             var q = insuffisant ? 0 : Math.ceil(p.r.quantite * facteur);
             total += q;
@@ -330,9 +468,11 @@
             var fait = typeof cuit === 'number';
             return '<li class="ligne-fournee' + (fait ? ' ligne-fournee--faite' : '') + '" data-nom="' + echapper(p.nom) + '" data-prevu="' + q + '">' +
               '<input type="checkbox" class="case-enfourne" id="' + id + '"' + (fait ? ' checked' : '') + ' aria-describedby="' + id + '-cuit">' +
-              '<label for="' + id + '" class="ligne-fournee-nom"><span>' + echapper(p.nom) + '</span>' + (masque ? '' : texteDelta(p, q)) +
+              '<label for="' + id + '" class="ligne-fournee-nom"><span>' + echapper(p.nom) + '</span>' + (p.reserve ? '<span class="delta-texte"><strong>' + p.reserve + ' réservées</strong> + ' + p.boutique + ' boutique</span>' : '') + (masque || p.r.aFixer ? '' : texteDelta(p, q)) + (p.r.repriseSaison ? '<span class="delta-texte">Reprise de l\'an dernier</span>' : '') + (p.r.aFixer ? '<span class="delta-texte">Nouveau cette saison</span>' : '') +
                 (fiab.peuSur && !repereUnique ? '<span class="repere-peu-sur">' + fiab.peuSur + '</span>' : '') + '</label>' +
-              (masque
+              (p.r.aFixer
+                ? '<span class="ligne-fournee-chiffre ligne-fournee-depart"><label>Quantité de départ <input type="number" class="valeur-depart" min="0" inputmode="numeric" value="' + (depart || '') + '" placeholder="?" data-depart="' + echapper(p.nom) + '"></label></span>'
+                : masque
                 ? '<span class="ligne-fournee-chiffre"><span class="ligne-fournee-insuffisant">' + 'Pas assez d\'historique (' + p.r.nbMemeJour + ' ' + p.r.nomJourCible + (p.r.nbMemeJour > 1 ? 's' : '') + ')' + '</span></span>'
                 : '<span class="ligne-fournee-chiffre"><span class="ligne-fournee-quantite">' + q.toLocaleString('fr-FR') + '</span></span>') +
               (masque ? '' : '<p class="ligne-fournee-tranches">' + texteTranches(p, q) + '</p>') +
@@ -351,6 +491,8 @@
             '<h2 class="rayon-titre" id="rayon-' + B.normaliser(rayon) + '">' + rayon + ' <span class="rayon-total">' + total.toLocaleString('fr-FR') + ' pièces</span>' + '</h2>' +
             '<ul class="liste-fournee">' + html + '</ul></section>';
         }).join('');
+        if (reserveesHorsListe.length) listeEl.innerHTML += '<section class="rayon" aria-labelledby="rayon-commandes-clients"><h2 class="rayon-titre" id="rayon-commandes-clients">Commandes clients</h2><ul class="liste-fournee">' +
+          reserveesHorsListe.map(function (r) { return '<li class="ligne-fournee"><span class="ligne-fournee-nom"><span>' + echapper(r.nom) + '</span><span class="delta-texte">' + r.quantite + ' réservées</span></span><span class="ligne-fournee-chiffre"><span class="ligne-fournee-quantite">' + r.quantite.toLocaleString('fr-FR') + '</span></span></li>'; }).join('') + '</ul></section>';
         majProgression();
         afficherNonCuits();
         var chiffres = previsions.filter(function (p) { return !p.r.insuffisant; });
@@ -361,6 +503,7 @@
         document.getElementById('exempleTranche').textContent = '« ' + h0 + ' → 94 » = 94 pièces à enfourner à ' + h0;
         afficherFiabilite(previsions);
         afficherSource();
+        afficherBaseReouverture(previsions);
         document.getElementById('repliFournee').hidden = chiffres.length === 0;
 
         document.getElementById('blocCommande').innerHTML = '<a class="btn-cta-commandes" href="commandes.html?jour=' + MP.versISO(jourCible) + '">Voir la commande de matières premières</a>';
@@ -524,7 +667,7 @@
       function lireFaits() { try { return JSON.parse(localStorage.getItem(cleFournil()) || '{}'); } catch (e) { return {}; } }
       function preparerFournil() {
         var faits = lireFaits();
-        var previsions = C.prevoirJour(ctx, jourCible).filter(function (p) { return !p.r.insuffisant && p.r.quantite > 0; });
+        var previsions = prevoirAvecCommandes().filter(function (p) { return !p.r.insuffisant && p.r.quantite > 0; });
         // Produit déjà coché dans la liste (quantité cuite en base) sans case
         // du mode fournil : ses fournées sont cochées dans l'ordre jusqu'à ce total.
         previsions.forEach(function (p) {
@@ -616,7 +759,7 @@
       function choisirJour(quel) {
         var maintenant = new Date();
         var estAujourdhui = quel === 'aujourdhui' && aujourdhuiOuvert;
-        jourCible = estAujourdhui ? maintenant : C.prochainJourOuvert(ctx);
+        jourCible = estAujourdhui ? maintenant : prochainOuvert();
         cocheCle = 'apoint-fournee-cuit:' + ctx.commercantId + ':' + MP.versISO(jourCible);
         var dateTitre = MP.formatDateLongue(jourCible).toLowerCase();
         titreEl.textContent = estAujourdhui ? 'À enfourner aujourd\'hui, ' + dateTitre : 'À enfourner pour ' + dateTitre;
@@ -628,7 +771,8 @@
         }
         var court = MP.nomsJours[jourCible.getDay()] + ' ' + jourCible.getDate() + ' ' + MP.nomsMoisCourts[jourCible.getMonth()];
         var fin = /\.$/.test(court) ? '' : '.';
-        raisonEl.textContent = fermes.length ? fermes.join(', ') + ' fermé' + (fermes.length > 1 ? 's' : '') + ' : prochaine fournée ' + court + fin
+        raisonEl.textContent = fermes.length > 2 ? 'Fermé jusqu\'au ' + MP.ajouterJours(jourCible, -1).getDate() + ' ' + MP.nomsMoisCourts[MP.ajouterJours(jourCible, -1).getMonth()].replace(/\.$/, '') + ' : prochaine fournée ' + court + fin
+          : fermes.length ? fermes.join(', ') + ' fermé' + (fermes.length > 1 ? 's' : '') + ' : prochaine fournée ' + court + fin
           : (!aujourdhuiOuvert && !estAujourdhui ? 'Fermé aujourd\'hui : prochaine fournée ' + court + fin : '');
         raisonEl.hidden = !raisonEl.textContent;
         var selecteur = document.getElementById('selecteurJour');
@@ -641,7 +785,7 @@
             b.disabled = !aujourdhuiOuvert;
             b.title = aujourdhuiOuvert ? '' : 'Fermé aujourd\'hui';
           } else {
-            var d = C.prochainJourOuvert(ctx);
+            var d = prochainOuvert();
             b.textContent = MP.versISO(d) === MP.versISO(MP.ajouterJours(maintenant, 1)) ? 'Demain' : MP.capitaliser(MP.nomsJours[d.getDay()]);
           }
         });
@@ -781,9 +925,10 @@
         // coche ce qu'on enfourne ce matin) ; ensuite, celle du lendemain.
         // Sélecteur Aujourd'hui / Demain ; les cases restent attachées à leur date.
         var maintenant = new Date();
-        aujourdhuiOuvert = ctx.joursFermeture.indexOf(maintenant.getDay()) === -1;
+        aujourdhuiOuvert = !MP.raisonFermeture(maintenant, ctx.optionsPrevision || { joursFermeture: ctx.joursFermeture });
         choisirJour(maintenant.getHours() < 12 && aujourdhuiOuvert ? 'aujourdhui' : 'demain');
-        afficherCarteSaisieHier();
+        if (!(CC && CC.jourDeRush(new Date(), ctx.commandesClients || []))) afficherCarteSaisieHier();
+        afficherCommandesClients();
         if (ctx.ventes.length === 0) {
           // Nouveau compte : une seule marche à suivre, rien d'autre à l'écran
           // (ni restes du soir, ni mode fournil, ni choix du jour).
@@ -801,6 +946,7 @@
           majBoutonsAffluence();
           afficher();
           C.enrichir(ctx).then(afficher);
+          chargerAlertes();
         });
         document.getElementById('selecteurJour').addEventListener('click', function (e) {
           var b = e.target.closest('[data-jour]');

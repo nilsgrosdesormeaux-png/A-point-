@@ -9,6 +9,7 @@
 | Square | Jeton d'accès personnel (developer.squareup.com, avec son compte Square) | Aucun |
 | Loyverse | Jeton d'accès créé dans son Back Office | Aucun |
 | Tactill (nouvelle version) | Clé demandée par e-mail à Tactill (message prêt) | Aucun |
+| Zelty, Popina | Clé demandée à l'éditeur (message prêt) | Aucun |
 | Hiboutik | Clé API (déjà en service) | Aucun |
 | Toutes les autres | Historique déposé une seule fois, puis envoi automatique chaque jour par e-mail depuis la caisse | Ta boîte apointapp.contact@gmail.com et un script de 10 minutes (étape 2) |
 
@@ -18,7 +19,7 @@ Chaque nouvelle caisse reste **à confirmer avec le premier boulanger** qui l'ut
 
 ## 1. Mettre en service (l'orchestrateur, avec ton accord)
 
-Migration v4 et fonctions sont en ligne. Pour ce lot, il reste à redéployer `connecter-caisse`, `synchro-caisse` et `import-export-caisse` (aucune migration), puis à régler deux secrets dans Supabase > Edge Functions > Secrets :
+Migration v4 et fonctions sont en ligne. Il reste à exécuter `migration-connecteurs-caisse-v5.sql` (Zelty et Popina), à redéployer `connecter-caisse`, `synchro-caisse` et `import-export-caisse`, puis à régler deux secrets dans Supabase > Edge Functions > Secrets :
 
 - `ADRESSE_IMPORT` = `apointapp.contact@gmail.com`
 - `CLE_IMPORT_EMAIL` : s'il n'existe pas encore, une suite au hasard (`openssl rand -hex 24`). L'orchestrateur te donne l'adresse complète à coller à l'étape 2.4.

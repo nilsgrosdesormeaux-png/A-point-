@@ -7,11 +7,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Bilan</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101q">
+  <link rel="stylesheet" href="style.css?v=20261101r">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="moteur-prevision.js?v=20261101r"></script>
   <script src="boulangerie.js?v=20261101l"></script>
-  <script src="contexte.js?v=20261101l"></script>
+  <script src="contexte.js?v=20261101s"></script>
   <script src="nav.js?v=20261101q"></script>
 </head>
 <body>
@@ -57,10 +57,15 @@
           <p class="carte-kpi-titre"><span id="titreGain">Tes invendus</span> <span class="etiquette-mesure etiquette-mesure--estime" id="etiquetteSauve">estimé</span></p>
           <p class="carte-kpi-valeur" id="kpiReelEuros">–</p>
           <p class="carte-kpi-detail" id="kpiReelEurosDetail">Coche « enfourné » dans la Fournée chaque matin : tes invendus se mesurent seuls avec tes ventes.</p>
-          <!-- Lot 8 : ce qui est mesuré et ce qui est estimé, séparés. -->
-          <p class="gain-ligne" id="ligneMesure" hidden></p>
-          <p class="gain-ligne" id="ligneDepart" hidden></p>
-          <p class="gain-ligne" id="ligneReste" hidden></p>
+          <!-- Lot 11 : visibles, le % mesuré et les euros estimés ; le calcul est replié. -->
+          <p class="gain-ligne gain-euros" id="ligneDepart" hidden></p>
+          <details class="repli repli-calcul" id="repliCalcul" hidden>
+            <summary>Voir le calcul</summary>
+            <p class="gain-ligne" id="detailInvendus"></p>
+            <p class="gain-ligne" id="ligneMesure" hidden></p>
+            <p class="gain-ligne" id="ligneBase"></p>
+            <p class="gain-ligne" id="ligneReste" hidden></p>
+          </details>
         </div>
         <!-- Lot 10 : changer de point de départ, replié, jamais imposé. -->
         <details class="repli" id="repliDepart">
@@ -612,7 +617,8 @@
           detail.textContent = 'Coche ta fournée pour mesurer tes invendus.';
           sauveEl.textContent = '–';
           sauveDetail.textContent = 'Coche « enfourné » dans la Fournée chaque matin : tes invendus se mesurent seuls avec tes ventes.';
-          ['ligneMesure', 'ligneDepart', 'ligneReste'].forEach(function (id) { document.getElementById(id).hidden = true; });
+          ['ligneMesure', 'ligneDepart', 'ligneReste', 'repliCalcul'].forEach(function (id) { document.getElementById(id).hidden = true; });
+          sauveDetail.hidden = false;
           return;
         }
         var taux = mesure.taux || 0;
@@ -630,19 +636,22 @@
         document.getElementById('etiquetteSauve').textContent = 'mesuré';
         document.getElementById('etiquetteSauve').className = 'etiquette-mesure';
         sauveEl.textContent = pourcent(taux);
-        sauveDetail.textContent = gain.invendus.toLocaleString('fr-FR') + ' invendu' + (gain.invendus > 1 ? 's' : '') + ' sur ' + gain.cuit.toLocaleString('fr-FR') + ' pièces cuites (' + nbJours + ' jour' + (nbJours > 1 ? 's' : '') + ').';
+        sauveDetail.hidden = true;
+        document.getElementById('repliCalcul').hidden = false;
+        document.getElementById('detailInvendus').textContent = gain.invendus.toLocaleString('fr-FR') + ' invendu' + (gain.invendus > 1 ? 's' : '') + ' sur ' + gain.cuit.toLocaleString('fr-FR') + ' pièces cuites (' + nbJours + ' jour' + (nbJours > 1 ? 's' : '') + ').';
         var lm = document.getElementById('ligneMesure'), ld = document.getElementById('ligneDepart');
         var origine = ref.nature === 'mesuré' ? 'mesuré sur tes 2 semaines d\'observation' : ref.nature === 'calculé' ? 'tes achats de farine' : ref.libelle === 'estimé d\'après tes réponses' ? 'tes réponses' : 'moyenne nationale';
         lm.innerHTML = 'Avant À Point : <strong>' + pourcent(ref.taux) + '</strong> <span class="gain-origine">(' + origine + ')</span> → maintenant : <strong>' + pourcent(taux) + '</strong>' +
           (sauvees > 0 ? ', soit <strong>' + sauvees.toLocaleString('fr-FR') + ' invendu' + (sauvees > 1 ? 's' : '') + ' en moins</strong>.' : '.');
         var base = 'par rapport à ton point de départ de ' + pourcent(ref.taux) + ' (' + origine + ')';
         if (sauvees > 0 && avecCout.length) {
-          ld.innerHTML = '<span class="etiquette-mesure etiquette-mesure--estime">estimé</span> ≈ <strong>' + euros(Math.max(0, totalEuros)) + '</strong> de matière économisée, ' + base + '.';
+          ld.innerHTML = '≈ <strong>' + euros(Math.max(0, totalEuros)) + '</strong> de matière économisée <span class="etiquette-mesure etiquette-mesure--estime">estimé</span>';
         } else if (sauvees > 0) {
           ld.innerHTML = 'Le montant en euros apparaîtra avec tes coûts de revient (Commande, Tes recettes).';
         } else {
           ld.innerHTML = 'Pas encore moins d\'invendus ' + base + '.';
         }
+        document.getElementById('ligneBase').textContent = 'Les euros : ' + sauvees.toLocaleString('fr-FR') + ' invendus en moins × coût matière de chaque produit, ' + base + '.';
         lm.hidden = ld.hidden = false;
         afficherReste(gain);
         afficherAlternative(mesure, ref, periode);

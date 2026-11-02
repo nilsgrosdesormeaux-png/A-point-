@@ -16,7 +16,8 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { ajouterJours, jourParis } from '../_shared/caisse/commun.ts';
-import { synchroniserConnexion } from '../_shared/caisse/synchroniser.ts';
+import { synchroniserConnexion, synchroniserJournee, HEURE_DEBUT_JOURNEE, HEURE_FIN_JOURNEE } from '../_shared/caisse/synchroniser.ts';
+import { heureParis } from '../_shared/caisse/commun.ts';
 
 var BUDGET_MS = 110000;
 
@@ -32,6 +33,25 @@ Deno.serve(async (req) => {
     lireEnv: function (cle: string) { return Deno.env.get(cle); }
   };
   var hier = ajouterJours(jourParis(new Date()), -1);
+
+  // Mode « journee » (pg_cron chaque heure, migration v6) : ventes du jour
+  // heure par heure, caisse après caisse (jamais en parallèle : on reste
+  // loin des limites d'appel des caisses), de 6 h à 20 h à Paris.
+  var corps = await req.json().catch(function () { return {}; });
+  if (corps && corps.mode === 'journee') {
+    var h = heureParis(new Date());
+    if (h < HEURE_DEBUT_JOURNEE || h > HEURE_FIN_JOURNEE) return new Response(JSON.stringify({ ignore: 'hors horaires' }), { status: 200 });
+    var cxs = await admin.from('connexions_caisse').select('*').eq('statut', 'active').neq('fournisseur', 'export_email')
+      .order('horaire_jusqua', { ascending: true, nullsFirst: true });
+    if (cxs.error) return new Response(JSON.stringify({ error: cxs.error.message }), { status: 500 });
+    var faites = 0, enErreur = 0;
+    for (var i = 0; i < (cxs.data || []).length && Date.now() - debutAppel < BUDGET_MS; i++) {
+      var r: any = await synchroniserJournee(admin, cxs.data[i], env, fetch);
+      faites++;
+      if (!r.ok) { enErreur++; console.error('synchro-caisse journee', cxs.data[i].fournisseur, cxs.data[i].commercant_id, r.erreur); }
+    }
+    return new Response(JSON.stringify({ mode: 'journee', traitees: faites, erreurs: enErreur }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  }
 
   var bilan = { traitees: 0, erreurs: 0, lignes: 0 };
   while (Date.now() - debutAppel < BUDGET_MS) {

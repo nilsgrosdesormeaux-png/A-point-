@@ -78,6 +78,8 @@ globalThis.fetch = async function (url, init) {
   if (url.startsWith('https://api.loyverse.com/v1.0/merchant/')) {
     return auth === 'Bearer jetonLoyverseValide12345678' ? json({ id: 'marchand-1' }) : json({ errors: [{ code: 'UNAUTHORIZED', details: 'Access token is not valid.' }] }, 401);
   }
+  if (url.startsWith('https://api.pragma-project.dev/v1/orders/')) return json({ data: [], meta: { totalPage: 0 } });
+  if (url.startsWith('https://api.zelty.fr/2.10/info')) return json({ version: '2.10', brand_id: 1, restaurant_id: 7, errno: 0 });
   if (url.startsWith('https://api.tactill.com/pos/v0/me')) return json({ status_code: 401, error: 'Unauthorized', message: 'Invalid API key', code: 'acc-052' }, 401);
   return json({}, 404);
 };
@@ -101,7 +103,7 @@ test('sans session : 401, comme la fonction déployée', async function () {
 
 test('état : caisses à clé annoncées, OAuth fermé sans secrets, e-mail ouvert', async function () {
   var r = await appel({ action: 'etat' });
-  assert.deepEqual(r.corps.cle.sort(), ['hiboutik', 'loyverse', 'square', 'sumup', 'tactill', 'zettle']);
+  assert.deepEqual(r.corps.cle.sort(), ['hiboutik', 'lightspeed_retail', 'loyverse', 'popina', 'square', 'sumup', 'tactill', 'zelty', 'zettle']);
   assert.equal(r.corps.oauth.sumup, false);
   assert.equal(r.corps.email, true);
 });
@@ -145,4 +147,16 @@ test('adresse d\'import Gmail « +caisse- » puis export reçu par le relais : v
     { nom_produit: 'Baguette', quantite: 80, date_vente: '2026-10-29' }, { nom_produit: 'Croissant', quantite: 35, date_vente: '2026-10-29' }] });
   var mauvaiseCle = await importer(new Request('https://x/functions/v1/import-export-caisse?cle=faux', { method: 'POST', body: '{}' }));
   assert.equal(mauvaiseCle.status, 401);
+});
+
+test('Zelty avant la migration v5 : « bientôt », rien d\'enregistré ; clé Popina choisie jamais prise pour Loyverse', async function () {
+  var cleZelty = Buffer.from('19974:secretsecretsecret').toString('base64');
+  var r = await appel({ action: 'connecter_cle', fournisseur: 'loyverse', cle: cleZelty }); // caisse devinée : Zelty
+  assert.equal(r.status, 503);
+  assert.match(r.corps.error, /Zelty ouvre très bientôt/);
+  assert.ok(!base.connexions_caisse.some(function (c) { return c.fournisseur === 'zelty'; }));
+  var avant = appelsCaisse.length;
+  var p = await appel({ action: 'connecter_cle', fournisseur: 'popina', cle: 'AbCdEf0123456789AbCdEf' });
+  assert.equal(p.status, 503); // Popina gardé (forme de clé ambiguë), contrainte v4 : bientôt
+  assert.ok(appelsCaisse.slice(avant).every(function (a) { return a.url.indexOf('loyverse') === -1; }));
 });

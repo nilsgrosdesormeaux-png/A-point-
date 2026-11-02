@@ -9,7 +9,7 @@
 // renvoie les ventes avec lines[] (quantity, operation_type SALE/REFUND,
 // details.name). Ventes supprimées (state DELETED) ignorées.
 
-import { type LigneVente, jourParis } from './commun.ts';
+import { type LigneVente, heureParis, jourParis } from './commun.ts';
 import { type FetchFn, appelJson } from './http.ts';
 
 var API = 'https://api.tactill.com/pos/v0';
@@ -40,11 +40,12 @@ export async function lignesVendues(fetchFn: FetchFn, cle: string, _compte: stri
     (page.items || []).forEach(function (v: any) {
       if (v.state === 'DELETED' || v.deprecated === true) return;
       var jour = jourParis(v.created_at);
+      var heure = heureParis(v.created_at);
       (v.lines || []).forEach(function (l: any) {
         var nom = l.details && l.details.name;
         if (!nom) return;
         var q = Math.abs(Number(l.quantity) || 0);
-        lignes.push({ nom_produit: nom, quantite: l.operation_type === 'REFUND' ? -q : q, date_vente: jour });
+        lignes.push({ nom_produit: nom, quantite: l.operation_type === 'REFUND' ? -q : q, date_vente: jour, heure: heure });
       });
     });
     if (!page.next_token) break;

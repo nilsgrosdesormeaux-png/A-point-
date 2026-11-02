@@ -122,7 +122,7 @@ test('SumUp : pagination, 429 réessayé, détail par ticket, échecs ignorés',
 
 // Faux client Supabase : juste ce que synchroniser.ts utilise.
 function fauxAdmin(secrets) {
-  var appels = { rpc: [], updates: [], upserts: [], journal: [] };
+  var appels = { rpc: [], horaires: [], updates: [], upserts: [], journal: [] };
   function requete(table) {
     var q = {
       select: function () { return q; }, eq: function () { return q; },
@@ -137,7 +137,10 @@ function fauxAdmin(secrets) {
   return {
     appels: appels,
     from: requete,
-    rpc: async function (nom, params) { appels.rpc.push({ nom: nom, params: params }); return { data: params.p_lignes.length, error: null }; }
+    rpc: async function (nom, params) {
+      (nom === 'enregistrer_ventes_horaires' ? appels.horaires : appels.rpc).push({ nom: nom, params: params });
+      return { data: params.p_lignes.length, error: null };
+    }
   };
 }
 
@@ -232,8 +235,8 @@ test('Square : commandes terminées par établissement, curseur, variantes', asy
   assert.equal(await square.identifiantCompte(faux, 'tok'), 'L1');
   var lignes = await square.lignesVendues(faux, 'tok', 'L1', '2026-10-28T23:00:00.000Z', '2026-10-29T23:00:00.000Z');
   assert.deepEqual(lignes, [
-    { nom_produit: 'Tarte Grande', quantite: 2, date_vente: '2026-10-29' },
-    { nom_produit: 'Baguette', quantite: 5, date_vente: '2026-10-29' }
+    { nom_produit: 'Tarte Grande', quantite: 2, date_vente: '2026-10-29', heure: 9 },
+    { nom_produit: 'Baguette', quantite: 5, date_vente: '2026-10-29', heure: 10 }
   ]);
   assert.deepEqual(corps[0].query.filter.state_filter.states, ['COMPLETED']);
   assert.equal(corps[0].query.filter.date_time_filter.closed_at.start_at, '2026-10-28T23:00:00.000Z');
@@ -262,11 +265,12 @@ test('Hiboutik : clé collée, magasins, produits vendus du jour paginés', asyn
   assert.throws(function () { hiboutik.lireIdentifiants(JSON.stringify({ compte: 'evil.com/x', utilisateur: 'a', cle: 'b' })); });
 });
 
-test('registre : 6 caisses, toutes en clé personnelle ; OAuth seulement si l\'app est configurée', function () {
-  assert.deepEqual(Object.keys(FOURNISSEURS).sort(), ['hiboutik', 'loyverse', 'square', 'sumup', 'tactill', 'zettle']);
+test('registre : 8 caisses, toutes en clé ; OAuth seulement si l\'app est configurée', function () {
+  var toutes = ['hiboutik', 'lightspeed_retail', 'loyverse', 'popina', 'square', 'sumup', 'tactill', 'zelty', 'zettle'];
+  assert.deepEqual(Object.keys(FOURNISSEURS).sort(), toutes);
   var d = disponibles(function (k) { return k === 'ZETTLE_CLIENT_ID' ? 'z' : undefined; });
-  assert.deepEqual(d.oauth, { sumup: false, zettle: true, square: false, hiboutik: false, loyverse: false, tactill: false });
-  assert.deepEqual(d.cle.sort(), ['hiboutik', 'loyverse', 'square', 'sumup', 'tactill', 'zettle']);
+  assert.deepEqual(d.oauth, { sumup: false, zettle: true, square: false, hiboutik: false, loyverse: false, tactill: false, zelty: false, popina: false, lightspeed_retail: false });
+  assert.deepEqual(d.cle.sort(), toutes);
   // Compatibilité avec l'ancienne page : vrai = bouton OAuth ouvert, ou caisse « clé » d'origine.
   assert.equal(d.sumup, false); assert.equal(d.zettle, true); assert.equal(d.hiboutik, true);
 });
@@ -603,6 +607,7 @@ test('clé collée : la caisse est devinée d\'après sa forme', function () {
   assert.equal(devinerFournisseur('EAAAl' + 'x'.repeat(60)), 'square');
   assert.equal(devinerFournisseur(jwt({ client_id: 'c' })), 'zettle');
   assert.equal(devinerFournisseur('fMYgxHEYtcyT8cvtvgi1Za5DRs4vArSyvydlnd9f'), 'loyverse');
+  assert.equal(devinerFournisseur(Buffer.from('19974:abcdefghijklmnop').toString('base64')), 'zelty');
   assert.equal(devinerFournisseur('ma clé'), null);
   assert.equal(devinerFournisseur(''), null);
 });
@@ -627,4 +632,164 @@ test('SumUp : bornes du jour tenues même si le lien « next » perd newest_time
   };
   await sumup.lignesVendues(faux, 'tok', 'M', '2026-10-28T23:00:00.000Z', '2026-10-29T23:00:00.000Z');
   assert.deepEqual(detailsLus, ['a', 'b']);
+});
+
+test('Zelty : commandes du jour avec articles, pagination par 200, commandes annulées ignorées', async function () {
+  var urls = [];
+  var deuxCents = [];
+  for (var i = 0; i < 200; i++) deuxCents.push({ status: 'closed', items: [{ name: 'Baguette', quantity: 1, type: 'dish' }] });
+  var faux = async function (url, init) {
+    urls.push(url);
+    assert.equal(init.headers.Authorization, 'Bearer CLEZ');
+    if (url.endsWith('/info')) return json({ version: '2.10', brand_id: 12, restaurant_id: 345, errno: 0 });
+    if (url.includes('offset=0')) return json({ orders: deuxCents, errno: 0 });
+    return json({ orders: [{ status: 'closed', items: [{ name: 'Flan', type: 'dish' }] }, { status: 'cancelled', items: [{ name: 'Flan', quantity: 9 }] }], errno: 0 });
+  };
+  assert.equal(await FOURNISSEURS.zelty.identifiantCompte(faux, 'CLEZ'), '345');
+  var lignes = await FOURNISSEURS.zelty.lignesDuJour(faux, 'CLEZ', '345', '2026-10-29');
+  assert.deepEqual(agregerLignes(lignes), [
+    { nom_produit: 'Baguette', quantite: 200, date_vente: '2026-10-29' },
+    { nom_produit: 'Flan', quantite: 1, date_vente: '2026-10-29' }
+  ]);
+  assert.equal(urls[1], 'https://api.zelty.fr/2.10/orders?from=2026-10-29&to=2026-10-29&expand[]=items&limit=200&offset=0');
+  assert.ok(urls[2].endsWith('offset=200'));
+});
+
+test('Popina : commandes du jour paginées, article annulé, perte, commande annulée et formation ignorés', async function () {
+  var urls = [];
+  var faux = async function (url, init) {
+    urls.push(url);
+    assert.equal(init.headers.Authorization, 'Bearer clePopina1234567890');
+    if (url.endsWith('index=0&size=1')) return json({ data: [{ locationId: 'loc-1' }], meta: { totalPage: 1 } });
+    if (url.includes('index=0')) {
+      return json({ data: [
+        { createdAt: '2026-10-29T07:00:00.000Z', isCanceled: false, items: [{ description: 'Croissant', quantity: 6, isCanceled: false, isLoss: false }, { description: 'Croissant', quantity: 2, isCanceled: true }, { description: 'Croissant', quantity: 3, isLoss: true }] },
+        { createdAt: '2026-10-29T08:00:00.000Z', isCanceled: true, items: [{ description: 'Croissant', quantity: 50 }] }
+      ], meta: { totalPage: 2 }, links: { next: 'x' } });
+    }
+    return json({ data: [{ createdAt: '2026-10-29T09:00:00.000Z', isTraining: true, items: [{ description: 'Croissant', quantity: 9 }] },
+      { createdAt: '2026-10-29T10:00:00.000Z', items: [{ description: 'Baguette', quantity: 4 }] }], meta: { totalPage: 2 }, links: { next: null } });
+  };
+  assert.equal(await FOURNISSEURS.popina.identifiantCompte(faux, 'clePopina1234567890'), 'loc-1');
+  var lignes = await FOURNISSEURS.popina.lignesDuJour(faux, 'clePopina1234567890', 'loc-1', '2026-10-29');
+  assert.deepEqual(agregerLignes(lignes), [
+    { nom_produit: 'Croissant', quantite: 6, date_vente: '2026-10-29' },
+    { nom_produit: 'Baguette', quantite: 4, date_vente: '2026-10-29' }
+  ]);
+  assert.ok(urls[1].startsWith('https://api.pragma-project.dev/v1/orders/?since=2026-10-28T23%3A00%3A00.000Z&until=2026-10-29T22%3A59%3A59.999Z&size=100&index=0'));
+  assert.equal(urls.length, 3);
+});
+
+// ---------- Ventes heure par heure (alerte rupture) ----------
+import * as lightspeedRetail from '../supabase/functions/_shared/caisse/lightspeed-retail.ts';
+import { synchroniserJournee } from '../supabase/functions/_shared/caisse/synchroniser.ts';
+import { agregerHoraires, jourEtHeure } from '../supabase/functions/_shared/caisse/commun.ts';
+
+test('heure de Paris de chaque ticket, été comme hiver ; agrégation par heure et produit', function () {
+  assert.deepEqual(jourEtHeure('2026-07-14T22:30:00Z'), { jour: '2026-07-15', heure: 0 });
+  assert.deepEqual(jourEtHeure('2026-10-29T06:59:59.000+0000'), { jour: '2026-10-29', heure: 7 });
+  assert.deepEqual(jourEtHeure('2026-10-29 07:15:00'), { jour: '2026-10-29', heure: 7 }); // déjà en heure locale (Zelty)
+  assert.deepEqual(agregerHoraires([
+    { nom_produit: 'Croissant', quantite: 2, date_vente: '2026-10-29', heure: 7 },
+    { nom_produit: 'croissants', quantite: 3, date_vente: '2026-10-29', heure: 7 },
+    { nom_produit: 'Croissant', quantite: 1, date_vente: '2026-10-29', heure: 8 },
+    { nom_produit: 'Pain', quantite: 9, date_vente: '2026-10-29' },           // sans heure : ignoré
+    { nom_produit: 'Pain', quantite: 9, date_vente: '2026-10-28', heure: 8 }  // autre jour : ignoré
+  ], '2026-10-29'), [
+    { nom_produit: 'Croissant', heure: 7, quantite: 5 },
+    { nom_produit: 'Croissant', heure: 8, quantite: 1 }
+  ]);
+});
+
+test('chaque caisse branchée donne l\'heure du ticket (sauf Hiboutik, totaux du jour seulement)', function () {
+  ['sumup', 'zettle', 'square', 'loyverse', 'tactill', 'popina', 'lightspeed_retail'].forEach(function (nom) {
+    assert.equal(typeof FOURNISSEURS[nom].lignesEntre, 'function', nom);
+  });
+  assert.equal(FOURNISSEURS.zelty.horairesParJour, true);
+  assert.equal(FOURNISSEURS.hiboutik.lignesEntre, undefined);
+  assert.equal(FOURNISSEURS.hiboutik.horairesParJour, undefined);
+});
+
+test('Lightspeed Retail : jeton personnel + adresse, recherche des ventes closes paginée, retours, heure', async function () {
+  var urls = [];
+  var mille = [];
+  for (var i = 0; i < 1000; i++) mille.push({ state: 'closed', date: '2026-10-29T06:10:00Z', line_items: [{ product: { name: 'Baguette' }, quantity: 1 }] });
+  var faux = async function (url, init) {
+    urls.push(url);
+    assert.equal(init.headers.Authorization, 'Bearer jetonPersonnelLightspeed01');
+    if (url.includes('page_size=1&') || url.endsWith('page_size=1')) return json({ data: [] });
+    if (url.includes('offset=0')) return json({ data: mille });
+    return json({ data: [
+      { state: 'closed', date: '2026-10-29T15:30:00Z', line_items: [{ product: { name: 'Baguette' }, quantity: -2 }, { product: { name: 'Éclair' }, quantity: 3 }] },
+      { state: 'voided', date: '2026-10-29T15:40:00Z', line_items: [{ product: { name: 'Éclair' }, quantity: 50 }] }
+    ] });
+  };
+  var stocke = FOURNISSEURS.lightspeed_retail.cle.lire({ compte: 'https://MaBoulangerie.retail.lightspeed.app/', cle: 'jetonPersonnelLightspeed01' });
+  assert.deepEqual(JSON.parse(stocke), { prefixe: 'maboulangerie', jeton: 'jetonPersonnelLightspeed01' });
+  assert.throws(function () { FOURNISSEURS.lightspeed_retail.cle.lire({ compte: '', cle: 'jetonPersonnelLightspeed01' }); }, /adresse/);
+  assert.equal(await lightspeedRetail.identifiantCompte(faux, stocke), 'maboulangerie');
+  var lignes = await FOURNISSEURS.lightspeed_retail.lignesDuJour(faux, stocke, 'maboulangerie', '2026-10-29');
+  assert.deepEqual(agregerLignes(lignes), [
+    { nom_produit: 'Baguette', quantite: 998, date_vente: '2026-10-29' },
+    { nom_produit: 'Éclair', quantite: 3, date_vente: '2026-10-29' }
+  ]);
+  assert.deepEqual(agregerHoraires(lignes, '2026-10-29').map(function (h) { return h.nom_produit + '@' + h.heure + '=' + h.quantite; }),
+    ['Baguette@7=1000', 'Baguette@16=-2', 'Éclair@16=3']);
+  assert.equal(urls[1], 'https://maboulangerie.retail.lightspeed.app/api/2026-10/search?type=sales&state=closed&date_from=2026-10-28T23%3A00%3A00Z&date_to=2026-10-29T22%3A59%3A59Z&page_size=1000&offset=0');
+  assert.ok(urls[2].endsWith('offset=1000'));
+});
+
+test('synchro de nuit : ventes_horaires remplies pour les 4 derniers mois seulement', async function () {
+  var faux = async function (url) {
+    if (url.includes('/merchant/')) return json({ id: 'm' });
+    return json({ receipts: [{ receipt_type: 'SALE', created_at: '2026-06-01T06:30:00.000Z', line_items: [{ item_name: 'Pain', quantity: 4 }] }] });
+  };
+  // Loyverse renvoie le même ticket quel que soit le jour : on regarde seulement quels jours écrivent des heures.
+  var admin = fauxAdmin({ access_token: await chiffrer('jetonLoyverse12345678901', CLE), refresh_token: null, expire_a: null });
+  var r = await synchroniserConnexion(admin, { commercant_id: 'c1', fournisseur: 'loyverse', compte_caisse: 'm', derniere_date_synchronisee: '2026-05-30' },
+    ENV_VIDE, async function (url) {
+      var jour = new URL(url).searchParams.get('created_at_min');
+      return json({ receipts: [{ receipt_type: 'SALE', created_at: jour, line_items: [{ item_name: 'Pain', quantity: 4 }] }] });
+    }, new Date('2026-10-30T03:00:00Z'), Date.now() + 60000);
+  assert.equal(r.ok, true);
+  var horaires = admin.appels.horaires;
+  var jours = horaires.map(function (a) { return a.params.p_jour; });
+  assert.equal(jours[0], '2026-07-02'); // 30 octobre - 120 jours
+  assert.equal(jours[jours.length - 1], '2026-10-29');
+  assert.ok(horaires.every(function (a) { return a.params.p_heure_min === 0 && a.params.p_lignes.length === 1; }));
+  assert.equal(admin.appels.rpc.filter(function (a) { return a.nom === 'enregistrer_ventes_caisse'; }).length, 152); // ventes : tous les jours
+  void faux;
+});
+
+test('synchro dans la journée : seulement le jour, depuis la dernière heure close, 6 h - 20 h, idempotente', async function () {
+  var fenetres = [];
+  var faux = async function (url) {
+    var u = new URL(url);
+    fenetres.push([u.searchParams.get('created_at_min'), u.searchParams.get('created_at_max')]);
+    return json({ receipts: [
+      { receipt_type: 'SALE', created_at: '2026-10-29T08:10:00.000Z', line_items: [{ item_name: 'Croissant', quantity: 2 }] },
+      { receipt_type: 'SALE', created_at: '2026-10-29T09:05:00.000Z', line_items: [{ item_name: 'Croissant', quantity: 1 }] }
+    ] });
+  };
+  var secret = { access_token: await chiffrer('jetonLoyverse12345678901', CLE), refresh_token: null, expire_a: null };
+  var cx = { commercant_id: 'c1', fournisseur: 'loyverse', compte_caisse: 'm', horaire_jusqua: null };
+  // 10 h 20 à Paris (9 h 20 UTC, heure d'hiver) : premier passage du jour, depuis minuit.
+  var admin = fauxAdmin(secret);
+  var r = await synchroniserJournee(admin, cx, ENV_VIDE, faux, new Date('2026-10-29T09:20:00Z'));
+  assert.deepEqual(r, { ok: true, lignes: 2, heureMin: 0 });
+  assert.equal(fenetres[0][0], '2026-10-28T23:00:00.000Z');
+  var appel = admin.appels.horaires[0];
+  assert.equal(admin.appels.rpc.length, 0);
+  assert.deepEqual(appel.params, { p_commercant: 'c1', p_jour: '2026-10-29', p_heure_min: 0,
+    p_lignes: [{ nom_produit: 'Croissant', heure: 9, quantite: 2 }, { nom_produit: 'Croissant', heure: 10, quantite: 1 }] });
+  assert.deepEqual(admin.appels.updates.pop().valeurs, { horaire_jusqua: '2026-10-29T09:00:00.000Z' });
+  // Passage suivant à 11 h 20 : seulement depuis 10 h, heures >= 10 remplacées.
+  var admin2 = fauxAdmin(secret);
+  var r2 = await synchroniserJournee(admin2, Object.assign({}, cx, { horaire_jusqua: '2026-10-29T09:00:00.000Z' }), ENV_VIDE, faux, new Date('2026-10-29T10:20:00Z'));
+  assert.equal(r2.heureMin, 10);
+  assert.equal(fenetres[1][0], '2026-10-29T09:00:00.000Z');
+  assert.deepEqual(admin2.appels.horaires[0].params.p_lignes, [{ nom_produit: 'Croissant', heure: 10, quantite: 1 }]);
+  // Hors horaires (21 h 30 à Paris) et Hiboutik : rien.
+  assert.equal((await synchroniserJournee(fauxAdmin(secret), cx, ENV_VIDE, faux, new Date('2026-10-29T20:30:00Z'))).ignoree, 'hors horaires');
+  assert.match((await synchroniserJournee(fauxAdmin(secret), Object.assign({}, cx, { fournisseur: 'hiboutik' }), ENV_VIDE, faux, new Date('2026-10-29T09:20:00Z'))).ignoree, /pas d'heure/);
 });

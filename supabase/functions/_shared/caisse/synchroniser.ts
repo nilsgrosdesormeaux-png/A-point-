@@ -6,7 +6,7 @@
 // branchement) jusqu'à hier inclus. Le jour en cours n'est jamais importé :
 // ses ventes sont incomplètes.
 
-import { agregerLignes, ajouterJours, jourParis } from './commun.ts';
+import { type LigneVente, agregerHoraires, agregerLignes, ajouterJours, debutJourParisUTC, heureParis, jourParis } from './commun.ts';
 import { chiffrer, dechiffrer } from './chiffrement.ts';
 import { type FetchFn, type Jetons, ErreurAutorisation } from './http.ts';
 import { FOURNISSEURS, identifiantsApp, jetonUtilisable } from './fournisseurs.ts';
@@ -20,6 +20,23 @@ export async function journaliser(admin: any, entree: Record<string, unknown>) {
 // 12 mois d'historique au branchement : des prévisions fiables (saisons,
 // jours fériés, vacances) dès le lendemain.
 export var JOURS_HISTORIQUE_INITIAL = 365;
+// Ventes heure par heure (alerte rupture) : 4 mois d'historique suffisent.
+export var JOURS_HISTORIQUE_HORAIRE = 120;
+// Synchro dans la journée : de 6 h à 20 h, heure de Paris.
+export var HEURE_DEBUT_JOURNEE = 6;
+export var HEURE_FIN_JOURNEE = 20;
+
+// Remplace les heures >= heureMin du jour. Jamais bloquant : sans la
+// migration v6 (table absente), la synchro des ventes continue.
+export async function enregistrerHoraires(admin: any, commercantId: string, jour: string, heureMin: number, lignes: LigneVente[]) {
+  var horaires = agregerHoraires(lignes, jour).filter(function (h) { return h.heure >= heureMin; });
+  try {
+    var res = await admin.rpc('enregistrer_ventes_horaires', { p_commercant: commercantId, p_jour: jour, p_heure_min: heureMin, p_lignes: horaires });
+    return res && res.error ? -1 : horaires.length;
+  } catch (_e) {
+    return -1;
+  }
+}
 
 export type Env = { cleChiffrement: string; lireEnv: (cle: string) => string | undefined };
 
@@ -96,6 +113,9 @@ export async function synchroniserConnexion(admin: any, connexion: any, env: Env
         brutes = await f.lignesDuJour(fetchFn, jeton, connexion.compte_caisse, jour);
       }
       var lignes = agregerLignes(brutes);
+      if (jour >= ajouterJours(aujourdhui, -JOURS_HISTORIQUE_HORAIRE) && brutes.some(function (l: LigneVente) { return typeof l.heure === 'number'; })) {
+        await enregistrerHoraires(admin, connexion.commercant_id, jour, 0, brutes);
+      }
       if (lignes.length > 0) {
         var rpc = await admin.rpc('enregistrer_ventes_caisse', {
           p_commercant: connexion.commercant_id, p_lignes: lignes, p_source: cible
@@ -137,5 +157,42 @@ export async function synchroniserConnexion(admin: any, connexion: any, env: Env
       erreur: ((acces ? 'Reconnecte ta caisse : ' : '') + message).slice(0, 500)
     });
     return { ok: false, erreur: message, lignes: nbLignes };
+  }
+}
+
+// Synchro dans la journée (toutes les heures de 6 h à 20 h) : seulement les
+// ventes du jour, seulement ventes_horaires (la table ventes ne prend
+// jamais un jour incomplet). On relit depuis la dernière heure close
+// (horaire_jusqua) : peu d'appels, et relancer ne double rien.
+export async function synchroniserJournee(admin: any, connexion: any, env: Env, fetchFn: FetchFn, maintenant?: Date) {
+  var now = maintenant || new Date();
+  var heure = heureParis(now);
+  if (heure < HEURE_DEBUT_JOURNEE || heure > HEURE_FIN_JOURNEE) return { ok: true, ignoree: 'hors horaires' };
+  var f = FOURNISSEURS[connexion.fournisseur];
+  if (!f || (!f.lignesEntre && !f.horairesParJour)) return { ok: true, ignoree: 'pas d\'heure pour cette caisse' };
+  var jour = jourParis(now);
+  var debutHeure = new Date(Math.floor(now.getTime() / 3600000) * 3600000); // heure de Paris pile (décalages entiers)
+  var depuis = connexion.horaire_jusqua && jourParis(connexion.horaire_jusqua) === jour
+    ? new Date(Math.floor(Date.parse(connexion.horaire_jusqua) / 3600000) * 3600000)
+    : null;
+  var heureMin = depuis ? heureParis(depuis) : 0;
+  try {
+    var jeton = await jetonValide(admin, connexion, env, fetchFn, false);
+    var lignes: LigneVente[];
+    if (f.lignesEntre) {
+      var debutISO = depuis ? depuis.toISOString() : debutJourParisUTC(jour);
+      lignes = await f.lignesEntre(fetchFn, jeton, connexion.compte_caisse, debutISO, now.toISOString());
+    } else {
+      lignes = await f.lignesDuJour(fetchFn, jeton, connexion.compte_caisse, jour);
+    }
+    var nb = await enregistrerHoraires(admin, connexion.commercant_id, jour, heureMin, lignes);
+    if (nb >= 0) {
+      await admin.from('connexions_caisse').update({ horaire_jusqua: debutHeure.toISOString() })
+        .eq('commercant_id', connexion.commercant_id).eq('fournisseur', connexion.fournisseur);
+    }
+    return { ok: nb >= 0, lignes: nb, heureMin: heureMin };
+  } catch (e) {
+    // La synchro de nuit reste la référence : pas de changement de statut ici.
+    return { ok: false, erreur: String((e as Error).message || e) };
   }
 }

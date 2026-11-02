@@ -145,8 +145,53 @@ function genererComptoire(aujourdhui) {
       created_at: cree, updated_at: cree,
     }],
     evenements_commercant: [],
+    ...commandesClients(aujourdhui),
     connexions_caisse: [{ commercant_id: ID, fournisseur: 'sumup', statut: 'active', compte_caisse: 'MCXK42', debut_historique: iso(jours(aujourdhui, -63)), derniere_synchro: synchro.toISOString(), derniere_date_synchronisee: iso(jours(aujourdhui, -1)), nb_lignes_derniere_synchro: 15, derniere_erreur: null, created_at: brancheLe.toISOString() }],
     journal_caisse: journal,
+  };
+}
+
+// Commandes clients : mairie aujourd'hui, café chaque vendredi, cantine hors
+// vacances, bûche modifiée pour demain (alerte), bûches de l'an dernier
+// (180 commandées, 20 refusées). Option noel : 200 bûches du 20 au 24 déc.
+const ID_VENDEUSE = '00000000-0000-4000-8000-0000000000e1';
+const ID_APPRENTI = '00000000-0000-4000-8000-0000000000e2';
+function commandesClients(auj, noel) {
+  const t = (d, h) => { const x = new Date(d); x.setHours(h, 0, 0, 0); return x.toISOString(); };
+  const base = { commercant_id: ID, client_telephone: null, heure_retrait: null, acompte_statut: 'aucun', acompte_montant: 0, jours_recurrence: null, date_fin: null, dates_sautees: [], dates_retirees: [], statut: 'active', parfum: null, taille: null, sauf_vacances: false, sms_envois: {} };
+  const c = (id, o, creeIlYa = 5) => Object.assign({}, base, { id: 'cc-' + id, cree_le: t(jours(auj, -creeIlYa), 9), modifie_le: t(jours(auj, -creeIlYa), 9), maj_le: t(jours(auj, -creeIlYa), 9) }, o);
+  const l = [
+    c('mairie', { client_nom: 'Mairie', client_telephone: '01 43 55 10 10', produit: 'Pain au chocolat', quantite: 40, date_retrait: iso(auj), heure_retrait: '11:30:00', acompte_statut: 'encaisse', acompte_montant: 20 }),
+    c('cafe', { client_nom: 'Café du coin', client_telephone: '06 12 34 56 78', produit: 'Sandwich jambon-beurre', quantite: 120, date_retrait: iso(jours(auj, -30)), jours_recurrence: [5] }, 31),
+    c('cantine', { client_nom: 'Cantine Jules-Ferry', produit: 'Baguette', quantite: 60, date_retrait: iso(jours(auj, -30)), jours_recurrence: [2, 4], sauf_vacances: true }, 31),
+    c('martin', { client_nom: 'Mme Martin', client_telephone: '06 98 76 54 32', produit: 'Bûche', parfum: 'Praliné', taille: '6 parts', quantite: 1, date_retrait: iso(jours(auj, 1)), heure_retrait: '10:00:00', acompte_statut: 'a_encaisser', acompte_montant: 10,
+      modifie_le: new Date(Date.now() - 3600000).toISOString(), maj_le: new Date(Date.now() - 3600000).toISOString() }, 3),
+    c('durand', { client_nom: 'M. Durand', client_telephone: '07 11 22 33 44', produit: 'Pièce montée', quantite: 1, date_retrait: iso(jours(auj, 6)), heure_retrait: '15:00:00', acompte_statut: 'encaisse', acompte_montant: 60 }),
+  ];
+  const parfums = ['Praliné', 'Chocolat', 'Framboise', 'Marrons', 'Café', 'Vanille'];
+  const tailles = ['4 parts', '6 parts', '8 parts'];
+  const an = auj.getFullYear() - 1;
+  for (let k = 0; k < 36; k++) l.push(c('an-' + k, { client_nom: 'Client ' + (k + 1), produit: 'Bûche', parfum: parfums[k % 6], taille: tailles[k % 3], quantite: 5, date_retrait: an + '-12-' + (20 + (k % 5)) }, 400));
+  for (let k = 0; k < 4; k++) l.push(c('refus-' + k, { client_nom: 'Demande refusée', produit: 'Bûche', quantite: 5, date_retrait: an + '-12-24', statut: 'refusee' }, 400));
+  if (noel) {
+    const noms = ['Martin', 'Bernard', 'Dubois', 'Thomas', 'Robert', 'Richard', 'Petit', 'Durand', 'Leroy', 'Moreau', 'Simon', 'Laurent', 'Lefebvre', 'Michel', 'Garcia', 'David', 'Bertrand', 'Roux', 'Vincent', 'Fournier'];
+    for (let k = 0; k < 200; k++) {
+      const d = 20 + (k % 5);
+      l.push(c('noel-' + k, { client_nom: (k % 2 ? 'Mme ' : 'M. ') + noms[k % 20] + (k >= 20 ? ' ' + (Math.floor(k / 20) + 1) : ''), client_telephone: '06 ' + String(10 + (k % 89)).padStart(2, '0') + ' ' + String(k).padStart(2, '0') + ' 12 34',
+        produit: 'Bûche', parfum: parfums[k % 6], taille: tailles[(k * 7) % 3], quantite: 1 + (k % 3 === 0 ? 1 : 0), date_retrait: auj.getFullYear() + '-12-' + d,
+        heure_retrait: String(8 + (k % 10)).padStart(2, '0') + ':' + (k % 2 ? '30' : '00') + ':00', acompte_statut: k % 4 === 0 ? 'a_encaisser' : 'encaisse', acompte_montant: 10 }, 30));
+    }
+  }
+  return {
+    commandes_clients: l,
+    commandes_catalogue: [
+      { commercant_id: ID, produit: 'Bûche', parfums, tailles, prix_tailles: { '4 parts': 22, '6 parts': 32, '8 parts': 42 } },
+      { commercant_id: ID, produit: 'Galette des rois', parfums: ['Frangipane', 'Pomme', 'Chocolat'], tailles: ['4 parts', '6 parts', '8 parts'], prix_tailles: { '4 parts': 16, '6 parts': 24, '8 parts': 32 } },
+    ],
+    personnel: [
+      { id: 'pers-1', commercant_id: ID, prenom: 'Julie', nom: 'Petit', role: 'Vendeuse', user_id: ID_VENDEUSE, acces_app: 'vendeuse', statut_compte: 'actif' },
+      { id: 'pers-2', commercant_id: ID, prenom: 'Léo', nom: 'Marchand', role: 'Apprenti', user_id: ID_APPRENTI, acces_app: 'apprenti', statut_compte: 'actif' },
+    ],
   };
 }
 
@@ -158,9 +203,33 @@ function boulangerie() {
   return _B;
 }
 
+// Ventes heure par heure : 8 semaines d'historique (courbe d'un jour de
+// boutique), et aujourd'hui une matinée bien plus forte sur la tradition.
+function ventesHoraires(auj) {
+  const r = alea(424242), lignes = [];
+  const courbe = [0, 0, 0, 0, 0, 0, 0, 0.10, 0.14, 0.12, 0.09, 0.08, 0.11, 0.08, 0.04, 0.03, 0.04, 0.07, 0.07, 0.03, 0, 0, 0, 0];
+  const produits = [['Baguette tradition', 185], ['Croissant', 72], ['Pain au chocolat', 84]];
+  for (let k = 1; k <= 56; k++) {
+    const d = jours(auj, -k);
+    if (d.getDay() === 1) continue;
+    const facteur = [1.35, 0, 1, 0.95, 1, 1.05, 1.25][d.getDay()];
+    produits.forEach(([nom, base]) => courbe.forEach((part, h) => {
+      const q = Math.round(base * facteur * part * (0.9 + r() * 0.2));
+      if (q > 0) lignes.push({ commercant_id: ID, date_vente: iso(d), heure: h, nom_produit: nom, quantite: q });
+    }));
+  }
+  // Aujourd'hui jusqu'à 10 h : la tradition part deux fois plus vite.
+  const facteurJour = [1.35, 0, 1, 0.95, 1, 1.05, 1.25][auj.getDay()];
+  [7, 8, 9].forEach((h) => produits.forEach(([nom, base]) => {
+    const vite = nom === 'Baguette tradition' ? 2.1 : 1;
+    lignes.push({ commercant_id: ID, date_vente: iso(auj), heure: h, nom_produit: nom, quantite: Math.round(base * facteurJour * courbe[h] * vite) });
+  }));
+  return lignes;
+}
+
 const COMPTES = {
   comptoire: (auj) => ({
-    user: { id: ID, email: 'contact@lepetitcomptoire.fr', user_metadata: { caisse: 'sumup', reference_avant: { production: 900, reste: 110, dons: true }, fournees: { ouverture: '07:00', tranches: [{ nom: 'Avant l\'ouverture', heure: '05:30' }, { nom: 'Mi-matinée', heure: '09:30' }, { nom: 'Réassort de midi', heure: '11:30' }] } } },
+    user: { id: ID, email: 'contact@lepetitcomptoire.fr', user_metadata: { prenom: 'Martine', caisse: 'sumup', reference_avant: { production: 900, reste: 110, dons: true }, fournees: { ouverture: '07:00', tranches: [{ nom: 'Avant l\'ouverture', heure: '05:30' }, { nom: 'Mi-matinée', heure: '09:30' }, { nom: 'Réassort de midi', heure: '11:30' }] } } },
     tables: genererComptoire(auj),
   }),
   nouveau: () => ({
@@ -168,6 +237,24 @@ const COMPTES = {
     tables: { produits: [], categories_produit: [], ventes: [], fournees: [], ingredients_produit: [], parametres_commercant: [], evenements_commercant: [], connexions_caisse: [], journal_caisse: [] },
   }),
   deconnecte: (auj) => ({ user: null, inscrit: COMPTES.comptoire(auj).user, tables: COMPTES.comptoire(auj).tables }),
+  // Commandes clients : table pas encore créée, vendeuse, apprenti, Noël.
+  'sans-table': (auj) => Object.assign(COMPTES.comptoire(auj), { absentes: ['commandes_clients', 'commandes_catalogue'] }),
+  vendeuse: (auj) => Object.assign(COMPTES.comptoire(auj), { user: { id: ID_VENDEUSE, email: 'julie@lepetitcomptoire.fr', user_metadata: {} } }),
+  apprenti: (auj) => Object.assign(COMPTES.comptoire(auj), { user: { id: ID_APPRENTI, email: 'leo@lepetitcomptoire.fr', user_metadata: {} } }),
+  noel: (auj) => { const c = COMPTES.comptoire(auj); Object.assign(c.tables, commandesClients(auj, true)); return c; },
+  // Lot 12 : alerte rupture (ventes heure par heure), produit de saison à fixer, congés.
+  alerte: (auj) => { const c = COMPTES.comptoire(auj); c.tables.ventes_horaires = ventesHoraires(auj); return c; },
+  saison: (auj) => { const c = COMPTES.comptoire(auj); c.tables.produits.push({ id: 'prod-galette', commercant_id: ID, nom: 'Galette des rois', prix_vente: 18, categorie_id: 'cat-2', created_at: iso(auj) + 'T08:00:00Z' }); return c; },
+  conges: (auj) => {
+    const c = COMPTES.comptoire(auj);
+    Object.assign(c.tables.parametres_commercant[0], {
+      conges: [{ debut: iso(jours(auj, 1)), fin: iso(jours(auj, 9)) }, { debut: '2027-08-02', fin: '2027-08-22' }],
+      feries_fermes: ['1-mai', 'noel', 'jour-an'],
+      periodes_exceptionnelles: [{ debut: iso(jours(auj, -30)), fin: iso(jours(auj, -26)), libelle: 'Travaux dans la rue' }],
+    });
+    return c;
+  },
+  'hors-periode': (auj) => { const c = COMPTES.comptoire(auj); c.tables.commandes_clients = c.tables.commandes_clients.filter((x) => x.id.startsWith('cc-an-') || x.id.startsWith('cc-refus-')); return c; },
 };
 
 // ---------- Faux Supabase (dans la page) ----------
@@ -211,6 +298,17 @@ function fauxSupabase(seed) {
     };
     const CLES = { fournees: ['commercant_id', 'date_fournee', 'nom_produit'], evenements_commercant: ['commercant_id', 'date_evenement'], parametres_commercant: ['commercant_id'], connexions_caisse: ['commercant_id', 'fournisseur'] };
     function executer() {
+      // Hors connexion (Playwright setOffline) : comme supabase-js, une erreur réseau.
+      if (navigator.onLine === false) return { data: null, error: { message: 'TypeError: Failed to fetch' } };
+      if ((seed.absentes || []).includes(nom)) return { data: null, error: { code: 'PGRST205', message: "Could not find the table 'public." + nom + "' in the schema cache" } };
+      // RLS de migration-commandes-clients.sql, en résumé : ce qu'un employé ne lit ni n'écrit pas.
+      const uid = etat.session && etat.session.user.id;
+      const fiche = (etat.tables.personnel || []).find((x) => x.user_id === uid && x.commercant_id !== uid);
+      const BLOQUEES = { vendeuse: ['produits', 'ingredients_produit', 'connexions_caisse', 'journal_caisse', 'categories_produit'],
+        apprenti: ['produits', 'ingredients_produit', 'connexions_caisse', 'journal_caisse', 'categories_produit', 'commandes_clients', 'commandes_clients_historique', 'commandes_catalogue'] };
+      if (fiche && fiche.acces_app !== 'associe' && nom !== 'personnel' && nom !== 'parametres_commercant' && (!BLOQUEES[fiche.acces_app] || BLOQUEES[fiche.acces_app].includes(nom))) {
+        return mode === 'select' ? { data: unique ? null : [], error: null } : { data: null, error: { code: '42501', message: 'new row violates row-level security policy' } };
+      }
       const t = table(nom);
       const garde = (r) => filtres.every((f) => f(r));
       let data;
@@ -268,7 +366,15 @@ function fauxSupabase(seed) {
       refreshSession: () => Promise.resolve({ data: { session: etat.session }, error: null }),
     },
     from: requete,
-    rpc: () => Promise.resolve({ data: null, error: null }),
+    rpc: (nom, args) => {
+      // Production des commandes pour l'apprenti : sans nom, téléphone ni euros.
+      if (nom === 'commandes_production') {
+        if ((seed.absentes || []).includes('commandes_clients')) return Promise.resolve({ data: null, error: { code: 'PGRST202', message: 'Could not find the function in the schema cache' } });
+        const champs = ['id', 'produit', 'parfum', 'taille', 'quantite', 'date_retrait', 'heure_retrait', 'jours_recurrence', 'date_fin', 'dates_sautees', 'sauf_vacances', 'statut'];
+        return Promise.resolve({ data: table('commandes_clients').filter((c) => c.commercant_id === args.p_commercant && c.statut === 'active').map((c) => Object.fromEntries(champs.map((k) => [k, c[k]]))), error: null });
+      }
+      return Promise.resolve({ data: null, error: null });
+    },
     functions: {
       invoke: (nom, opts) => {
         const corps = (opts && opts.body) || {};
@@ -297,6 +403,8 @@ function fauxSupabase(seed) {
 async function routes(contexte) {
   await contexte.route(/supabase-js@2|@supabase\/supabase-js/, (r) => r.fulfill({ contentType: 'text/javascript', body: '/* supabase-js remplacé par le harnais de démo */' }));
   await contexte.route(/\.supabase\.co/, (r) => r.abort()); // jamais la vraie base
+  // Calendrier scolaire officiel (dates simulées au-delà de la liste du moteur) : vide.
+  await contexte.route(/data\.education\.gouv\.fr/, (r) => r.fulfill({ contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: '{"results":[]}' }));
   // Météo : réponses synthétiques (automne parisien), pour un écran complet.
   await contexte.route(/open-meteo\.com/, (r) => {
     const u = new URL(r.request().url());
@@ -325,6 +433,25 @@ const SCENARIOS = [
   { nom: 'fournee', url: 'previsions.html', compte: 'comptoire' },
   { nom: 'fournee-demain', url: 'previsions.html', compte: 'comptoire', action: async (p) => { const b = p.locator('[data-jour="demain"]'); if (await b.isVisible()) { await b.click(); await attendre(p, 500); } } },
   { nom: 'fournee-pourquoi', url: 'previsions.html', compte: 'comptoire', action: async (p) => { const d = p.locator('#listeRayons details').first(); if (await d.count()) { await d.locator('summary').click(); await attendre(p, 300); } } },
+  // Lot 11 : ouvrir puis fermer « Je sais quelque chose… » ne doit rien faire sauter.
+  { nom: 'fournee-repli', url: 'previsions.html', compte: 'comptoire', action: async (p) => {
+    const s = p.locator('#actionsAffluence summary');
+    const pos = async () => p.evaluate(() => ['#titreFournee', '#actionsAffluence summary', '#listeRayons'].map((q) => Math.round(document.querySelector(q).getBoundingClientRect().top)).join('/') + ' y=' + Math.round(scrollY));
+    const releves = ['avant ' + await pos()];
+    await s.tap().catch(() => s.click());
+    for (const t of [0, 100, 300]) { await p.waitForTimeout(t); releves.push('ouvert+' + t + ' ' + await pos()); await p.screenshot({ path: path.join(SORTIE, 'fournee-repli-ouvert-' + t + '.png') }); }
+    await s.tap().catch(() => s.click());
+    await p.waitForTimeout(200); releves.push('fermé ' + await pos());
+    const tops = releves.map((r) => r.split(' ')[1].split('/').slice(0, 2).join('/'));
+    if (new Set(tops).size > 1) throw new Error('Le repli fait bouger la page : ' + releves.join(' | '));
+    await s.tap().catch(() => s.click());
+  } },
+  // Lot 12
+  { nom: 'alerte-rupture', url: 'previsions.html', compte: 'alerte', date: '2026-11-03T10:05:00' },
+  { nom: 'alerte-sans-table', url: 'previsions.html', compte: 'comptoire', date: '2026-11-03T10:05:00' },
+  { nom: 'saison-a-fixer', url: 'previsions.html', compte: 'saison', date: '2027-01-05T08:00:00' },
+  { nom: 'conges-fournee', url: 'previsions.html', compte: 'conges', date: '2026-11-03T15:00:00' },
+  { nom: 'conges-parametres', url: 'parametres.html', compte: 'conges', date: '2026-11-03T15:00:00', action: async (p) => { await p.locator('#fermetures').scrollIntoViewIfNeeded(); } },
   { nom: 'fournil', url: 'previsions.html', compte: 'comptoire', action: async (p) => { await p.click('#btnEcranFournil'); await attendre(p, 500); } },
   { nom: 'commande', url: 'commandes.html', compte: 'comptoire' },
   { nom: 'semaine', url: 'semaine.html', compte: 'comptoire' },
@@ -345,6 +472,25 @@ const SCENARIOS = [
   { nom: 'nouveau-caisse', url: 'caisse.html', compte: 'nouveau' },
   { nom: 'nouveau-parametres', url: 'parametres.html', compte: 'nouveau' },
   { nom: 'deconnecte-fournee', url: 'previsions.html', compte: 'deconnecte' },
+  // Commandes clients
+  { nom: 'commandes-clients', url: 'commandes-clients.html', compte: 'comptoire' },
+  { nom: 'commandes-clients-saisie', url: 'commandes-clients.html', compte: 'comptoire', action: async (p) => {
+    await p.fill('#cNom', 'Mme Leroy'); await p.fill('#cTel', '0612345678'); await p.click('[data-produit="Bûche"]');
+    await p.click('[data-parfum="Chocolat"]'); await p.click('[data-taille="8 parts"]'); await p.fill('#cQuantite', '2'); await p.fill('#cHeure', '11:30'); await attendre(p, 200);
+  } },
+  { nom: 'commandes-clients-hors-ligne', url: 'commandes-clients.html', compte: 'comptoire', action: async (p) => {
+    await p.context().setOffline(true);
+    await p.fill('#cNom', 'École'); await p.fill('#cProduit', 'Croissant'); await p.fill('#cQuantite', '30'); await p.click('#btnEnregistrer'); await attendre(p, 300);
+  } },
+  { nom: 'commandes-clients-vendeuse', url: 'commandes-clients.html', compte: 'vendeuse' },
+  { nom: 'commandes-clients-apprenti', url: 'commandes-clients.html', compte: 'apprenti' },
+  // Rôles : la vendeuse et l'apprenti n'ont que la Fournée (le reste redirige).
+  ...['previsions.html', 'statistiques.html', 'commandes.html', 'semaine.html', 'caisse.html', 'parametres.html'].flatMap((u) => ['vendeuse', 'apprenti'].map((r) => ({ nom: r + '-' + u.replace('.html', ''), url: u, compte: r }))),
+  { nom: 'commandes-clients-bientot', url: 'commandes-clients.html', compte: 'sans-table' },
+  { nom: 'fournee-sans-table', url: 'previsions.html', compte: 'sans-table' },
+  { nom: 'fournee-hors-periode', url: 'previsions.html', compte: 'hors-periode' },
+  { nom: 'commandes-clients-noel', url: 'commandes-clients.html', compte: 'noel', date: '2026-12-24T05:00:00', action: async (p) => { await p.fill('#recherche', 'be'); await attendre(p, 200); } },
+  { nom: 'fournee-noel', url: 'previsions.html', compte: 'noel', date: '2026-12-24T05:00:00' },
   // Parcours du critère 1 : inscription → caisse → Fournée → Commande → Semaine → Bilan.
   { nom: 'parcours', url: 'connexion.html?inscription', compte: 'deconnecte', parcours: true },
 ];
@@ -416,12 +562,13 @@ async function attendreCalme(page) {
 }
 
 async function lancer(browser, sc, format, rapport) {
-  const auj = new Date(); auj.setHours(0, 0, 0, 0);
+  const auj = sc.date ? new Date(sc.date) : new Date(); auj.setHours(0, 0, 0, 0);
   const seed = Object.assign({}, COMPTES[sc.compte](auj), { theme: sc.theme || null });
   const contexte = await browser.newContext(Object.assign({ locale: 'fr-FR', timezoneId: 'Europe/Paris' }, VIEWPORTS[format]));
   await routes(contexte);
   await contexte.addInitScript(fauxSupabase, seed);
   const page = await contexte.newPage();
+  if (sc.date) await page.clock.setFixedTime(new Date(sc.date));
   const erreurs = [];
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') erreurs.push('[console ' + m.type() + '] ' + m.text().slice(0, 200)); });
   page.on('pageerror', (e) => erreurs.push('[exception] ' + e.message.slice(0, 200)));
@@ -492,4 +639,6 @@ async function main() {
   console.log(texte + '\nCaptures et textes : ' + SORTIE + '  (rapport : ' + fichier + ')');
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+// Réutilisé par tests/commandes-clients.test.mjs (import sans lancer la démo).
+export { COMPTES, fauxSupabase, routes, serveur, BASE, ID, ID_VENDEUSE, ID_APPRENTI, iso, jours };
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch((e) => { console.error(e); process.exit(1); });

@@ -281,6 +281,15 @@
     return dates.map(versISO);
   }
 
+  // Clé de chaque férié : pour comparer un férié au même férié des autres
+  // années (Ascension avec Ascension, pas avec le 14 juillet), et pour le
+  // réglage « ouvert / fermé » férié par férié (parametres.feries_fermes).
+  var CLES_FERIES = ['jour-an', 'lundi-paques', '1-mai', '8-mai', 'ascension', 'lundi-pentecote', '14-juillet', '15-aout', 'toussaint', '11-novembre', 'noel'];
+  function cleFerie(date) {
+    var i = joursFeriesAnnee(date.getFullYear()).indexOf(versISO(date));
+    return i === -1 ? null : CLES_FERIES[i];
+  }
+
   var CACHE_JOURS_FERIES = {};
   function estJourFerie(date) {
     var annee = date.getFullYear();
@@ -314,6 +323,7 @@
     { debut: '2026-04-04', fin: '2026-04-20', zones: ['A'] },      // Printemps A
     { debut: '2026-04-11', fin: '2026-04-27', zones: ['B'] },      // Printemps B
     { debut: '2026-04-18', fin: '2026-05-04', zones: ['C'] },      // Printemps C
+    { debut: '2026-05-14', fin: '2026-05-18', zones: 'toutes' },   // Pont de l'Ascension
     { debut: '2026-07-04', fin: '2026-08-31', zones: 'toutes' },   // Été 2026
     // 2026-2027
     { debut: '2026-10-17', fin: '2026-11-02', zones: 'toutes' },   // Toussaint
@@ -324,8 +334,55 @@
     { debut: '2027-04-10', fin: '2027-04-26', zones: ['A'] },      // Printemps A
     { debut: '2027-04-17', fin: '2027-05-03', zones: ['B'] },      // Printemps B
     { debut: '2027-04-03', fin: '2027-04-19', zones: ['C'] },      // Printemps C
+    { debut: '2027-05-06', fin: '2027-05-10', zones: 'toutes' },   // Pont de l'Ascension
     { debut: '2027-07-03', fin: '2027-08-31', zones: 'toutes' }    // Été 2027 (fin indicative)
   ];
+
+  // Années suivantes : calendrier officiel (data.education.gouv.fr, jeu
+  // « fr-en-calendrier-scolaire », sans clé). La liste en dur reste le repli.
+  // Les dates y sont des instants UTC (« 2026-10-16T22:00:00+00:00 » = samedi
+  // 17 à Paris) : on les ramène au jour de Paris, comme la liste ci-dessus
+  // (début = premier jour de vacances, fin = jour de la reprise).
+  function jourParisDepuisInstant(instant) {
+    var d = new Date(instant);
+    if (isNaN(d.getTime())) return null;
+    return new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  }
+
+  function periodesDepuisCalendrierOfficiel(enregistrements) {
+    var vues = {}, periodes = [];
+    (enregistrements || []).forEach(function (e) {
+      var zone = /zone\s*([abc])\b/i.exec(String(e.zones || ''));
+      if (!zone || (e.population && ['-', 'Élèves'].indexOf(e.population) === -1)) return;
+      var debut = jourParisDepuisInstant(e.start_date), fin = jourParisDepuisInstant(e.end_date);
+      if (!debut || !fin || fin < debut) return;
+      var cle = zone[1].toUpperCase() + debut + fin;
+      if (vues[cle]) return;
+      vues[cle] = true;
+      periodes.push({ debut: debut, fin: fin, zones: [zone[1].toUpperCase()] });
+    });
+    return periodes;
+  }
+
+  function ajouterPeriodesVacances(periodes) {
+    var nb = 0;
+    (periodes || []).forEach(function (p) {
+      var deja = PERIODES_VACANCES.some(function (x) {
+        return x.debut <= p.debut && x.fin >= p.fin && (x.zones === 'toutes' || x.zones.indexOf(p.zones[0]) !== -1);
+      });
+      if (!deja) { PERIODES_VACANCES.push(p); nb++; }
+    });
+    return nb;
+  }
+
+  function chargerVacancesOfficielles(depuisIso) {
+    var where = 'end_date >= date\'' + (depuisIso || versISO(new Date())) + '\'';
+    var url = 'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records?limit=100'
+      + '&select=zones,population,start_date,end_date&where=' + encodeURIComponent(where);
+    return fetch(url).then(function (res) { return res.ok ? res.json() : null; }).then(function (json) {
+      return ajouterPeriodesVacances(periodesDepuisCalendrierOfficiel(json && json.results));
+    }).catch(function () { return 0; });
+  }
 
   // Correspondance département → académie → zone (académies au 9 sept 2026,
   // source education.gouv.fr). La Corse (2A/2B) et les départements/
@@ -446,7 +503,10 @@
   // de même catégorie dans calculerRecommandation) ; l'affichage utilise
   // libelle/icone ci-dessous, dérivés du vrai code météo (WMO), pas de cette
   // catégorie à 3 valeurs.
-  function categoriserMeteo(precipitation, temperatureMax) {
+  // Neige (≥ 1 cm) et canicule (≥ 33 °C) passent avant tout : effets forts.
+  function categoriserMeteo(precipitation, temperatureMax, neige) {
+    if (neige !== null && neige !== undefined && neige >= 1) return 'neige';
+    if (temperatureMax !== null && temperatureMax !== undefined && temperatureMax >= 33) return 'canicule';
     if (precipitation !== null && precipitation !== undefined && precipitation >= 1) return 'pluvieux';
     if (temperatureMax !== null && temperatureMax !== undefined && temperatureMax >= 26) return 'chaud';
     return 'normal';
@@ -523,9 +583,10 @@
         var precipitation = data.daily.precipitation_sum ? data.daily.precipitation_sum[i] : null;
         var temperatureMax = data.daily.temperature_2m_max ? data.daily.temperature_2m_max[i] : null;
         var code = data.daily.weathercode ? data.daily.weathercode[i] : null;
+        var neige = data.daily.snowfall_sum ? data.daily.snowfall_sum[i] : null;
         var infos = libelleMeteo(code);
         parJour[iso] = {
-          categorie: categoriserMeteo(precipitation, temperatureMax),
+          categorie: categoriserMeteo(precipitation, temperatureMax, neige),
           temperature: (temperatureMax !== null && temperatureMax !== undefined) ? Math.round(temperatureMax) : null,
           code: code,
           libelle: infos.libelle,
@@ -540,13 +601,13 @@
   function recupererMeteoPassee(latitude, longitude, dateDebut, dateFin) {
     var url = 'https://archive-api.open-meteo.com/v1/archive?latitude=' + latitude + '&longitude=' + longitude +
       '&start_date=' + dateDebut + '&end_date=' + dateFin +
-      '&daily=precipitation_sum,temperature_2m_max,weathercode&timezone=Europe%2FParis';
+      '&daily=precipitation_sum,temperature_2m_max,weathercode,snowfall_sum&timezone=Europe%2FParis';
     return fetch(url).then(function (res) { return res.ok ? res.json() : null; }).then(meteoDepuisReponse).catch(function () { return {}; });
   }
 
   function recupererMeteoPrevue(latitude, longitude) {
     var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + latitude + '&longitude=' + longitude +
-      '&daily=precipitation_sum,temperature_2m_max,weathercode&hourly=temperature_2m,weathercode&timezone=Europe%2FParis&forecast_days=10';
+      '&daily=precipitation_sum,temperature_2m_max,weathercode,snowfall_sum&hourly=temperature_2m,weathercode&timezone=Europe%2FParis&forecast_days=10';
     return fetch(url).then(function (res) { return res.ok ? res.json() : null; }).then(meteoDepuisReponse).catch(function () { return {}; });
   }
 
@@ -603,7 +664,9 @@
       for (var i = 0; i < nbJours; i++) fetes[versISO(ajouterJours(debut, i))] = { cle: cle, libelle: libelle, icone: icone };
     }
     var paques = datePaques(annee);
-    plage(new Date(annee, 0, 2), 14, 'epiphanie', 'Galettes des rois', '👑');
+    // Galettes : jusqu'à fin janvier par défaut ; la vraie fin de saison de
+    // chaque produit est apprise (finSaisonGalettes).
+    plage(new Date(annee, 0, 2), 30, 'epiphanie', 'Galettes des rois', '👑');
     plage(new Date(annee, 1, 2), 1, 'chandeleur', 'Chandeleur', '🥞');
     plage(new Date(annee, 1, 14), 1, 'saint-valentin', 'Saint-Valentin', '❤️');
     plage(ajouterJours(paques, -47), 1, 'mardi-gras', 'Mardi gras', '🍩');
@@ -619,6 +682,101 @@
 
   function feteBoulangere(date) {
     return fetesBoulangeresAnnee(date.getFullYear())[versISO(date)] || null;
+  }
+
+  // Fin de la saison des galettes pour un produit (« MM-JJ »), apprise sur
+  // les années passées : dernier jour où il vendait encore au moins 30 % de
+  // son rythme du 2 au 15 janvier. null si le produit n'a pas de pic de
+  // galettes (pain, baguette…) ou pas d'historique : la fin janvier vaut.
+  function finSaisonGalettes(ventesDuProduit, annee) {
+    var parDate = {};
+    ventesDuProduit.forEach(function (v) { if (v.quantite > 0) parDate[v.date_vente] = (parDate[v.date_vente] || 0) + v.quantite; });
+    for (var y = annee - 1; y >= annee - 3; y--) {
+      var pic = 0, nPic = 0, reste = 0, nReste = 0;
+      Object.keys(parDate).forEach(function (iso) {
+        if (iso >= y + '-01-02' && iso <= y + '-01-15') { pic += parDate[iso]; nPic++; }
+        else if (iso >= y + '-03-01' && iso <= y + '-12-15') { reste += parDate[iso]; nReste++; }
+      });
+      if (nPic < 3) continue;
+      pic /= nPic;
+      if (nReste > 0 && pic < 2 * reste / nReste) return null;
+      var fin = '01-15';
+      Object.keys(parDate).forEach(function (iso) {
+        if (iso >= y + '-01-16' && iso <= y + '-02-28' && parDate[iso] >= 0.3 * pic && iso.slice(5) > fin) fin = iso.slice(5);
+      });
+      return fin;
+    }
+    return null;
+  }
+
+  // Fête du jour vue par un produit (saison des galettes propre au produit).
+  function feteDuProduit(date, ventesDuProduit) {
+    var f = feteBoulangere(date), md = versISO(date).slice(5);
+    if ((f && f.cle === 'epiphanie') || (!f && md > '01-31' && md <= '02-28')) {
+      var fin = finSaisonGalettes(ventesDuProduit, date.getFullYear());
+      if (f && fin && md > fin) return null;
+      if (!f && fin && md <= fin) return { cle: 'epiphanie', libelle: 'Galettes des rois', icone: '👑' };
+    }
+    return f;
+  }
+
+  // Le même jour « par la fête » l'an dernier : 3e jour des galettes avec
+  // 3e jour des galettes, samedi de Pâques avec samedi de Pâques, Ascension
+  // avec Ascension. Sinon, même jour de semaine 52 semaines avant.
+  function equivalentAnDernier(date) {
+    var f = feteBoulangere(date), cleF = cleFerie(date);
+    if (cleF) {
+      var i = CLES_FERIES.indexOf(cleF);
+      return new Date(joursFeriesAnnee(date.getFullYear() - 1)[i] + 'T00:00:00');
+    }
+    if (f) {
+      var debut = date;
+      while (true) { var veille = feteBoulangere(ajouterJours(debut, -1)); if (!veille || veille.cle !== f.cle) break; debut = ajouterJours(debut, -1); }
+      var decalage = Math.round((date - debut) / 86400000);
+      var fetes = fetesBoulangeresAnnee(date.getFullYear() - 1);
+      var premier = Object.keys(fetes).filter(function (iso) { return fetes[iso].cle === f.cle; }).sort()[0];
+      if (premier) return ajouterJours(new Date(premier + 'T00:00:00'), decalage);
+    }
+    return ajouterJours(date, -364);
+  }
+
+  // Produits de saison reconnus à leur nom : la fête qui ouvre leur saison.
+  function saisonDuNom(nom) {
+    var n = cleProduit(nom);
+    if (/galette/.test(n)) return 'epiphanie';
+    if (/buche/.test(n)) return 'noel';
+    if (/paques|oeuf|lapin|cloche|poule en chocolat/.test(n)) return 'paques';
+    if (/crepe/.test(n)) return 'chandeleur';
+    if (/beignet|bugne|merveille/.test(n)) return 'mardi-gras';
+    if (/fraisier|glace|sorbet|tarte aux fraise/.test(n)) return 'ete';
+    return null;
+  }
+
+  // Périodes [{ debut, fin }] (jours inclus, « AAAA-MM-JJ »).
+  function dansPeriodes(iso, periodes) {
+    return !!periodes && periodes.some(function (p) { return p && iso >= p.debut && iso <= p.fin; });
+  }
+
+  // Boutique fermée ce jour-là ? options : { joursFermeture: [0..6],
+  // conges: [{ debut, fin }], feriesFermes: ['1-mai', 'noel', …] }.
+  // Renvoie la raison, ou null si ouverte.
+  function raisonFermeture(date, options) {
+    if (!options) return null;
+    var iso = versISO(date);
+    if (dansPeriodes(iso, options.conges)) return 'Congés annuels : boutique fermée';
+    if (options.joursFermeture && options.joursFermeture.indexOf(date.getDay()) !== -1) return 'Jour de fermeture';
+    var cleF = cleFerie(date);
+    if (cleF && options.feriesFermes && options.feriesFermes.indexOf(cleF) !== -1) return 'Férié : boutique fermée';
+    return null;
+  }
+
+  // Jours ouverts (hors fermetures et périodes exceptionnelles) entre deux dates exclues.
+  function joursOuvertsEntre(isoA, isoB, options) {
+    var n = 0;
+    for (var d = ajouterJours(new Date(isoA + 'T00:00:00'), 1); versISO(d) < isoB && n < 400; d = ajouterJours(d, 1)) {
+      if (!raisonFermeture(d, options) && !dansPeriodes(versISO(d), options && options.periodesExclues)) n++;
+    }
+    return n;
   }
 
   // Pont : vendredi après un jeudi férié, ou lundi avant un mardi férié.
@@ -817,6 +975,66 @@
     return Math.abs(ratio - 1) >= 0.04 ? { ratio: ratio, nb: ratios.length } : null;
   }
 
+  var EFFET_METEO_HABITUEL = { canicule: 0.85, neige: 0.7 };
+  var MOTS_METEO = {
+    pluvieux: { mot: 'pluie', icone: '🌧️' }, chaud: { mot: 'forte chaleur', icone: '☀️' },
+    canicule: { mot: 'canicule', icone: '🥵' }, neige: { mot: 'neige', icone: '❄️' }
+  };
+  var LIBELLES_FERIES = { 'jour-an': 'Jour de l\'an', 'lundi-paques': 'Lundi de Pâques', '1-mai': '1er mai', '8-mai': '8 mai',
+    ascension: 'Ascension', 'lundi-pentecote': 'Lundi de Pentecôte', '14-juillet': '14 juillet', '15-aout': '15 août',
+    toussaint: 'Toussaint', '11-novembre': '11 novembre', noel: 'Noël' };
+
+  // Résultat sans calcul statistique (fermé, hors saison, reprise de saison,
+  // quantité à fixer par le boulanger), avec les mêmes champs que d'habitude.
+  function resultatSansCalcul(nomJourCible, champs) {
+    var q = champs.quantite || 0;
+    return {
+      quantite: q, quantiteInstinct: q, venteHabituelle: q, nbJoursUtilises: 0, memeJourSemaine: false,
+      nomJourCible: nomJourCible, texteBase: champs.texteBase, delta: null, fourchette: null,
+      jourFerie: false, vacancesScolaires: false, evenement: undefined, signaux: champs.signaux || [],
+      insuffisant: !q, nbMemeJour: 0, niveauReference: 3, dernierMemeJour: null,
+      ferme: !!champs.ferme, horsSaison: !!champs.horsSaison, aFixer: !!champs.aFixer, repriseSaison: !!champs.repriseSaison
+    };
+  }
+
+  // Produit qui n'a rien vendu depuis plus de 3 semaines ouvertes (galette,
+  // bûche, fraisier…) : « zéro hier » ne veut pas dire « zéro demain », et
+  // on n'invente rien. Quantité de l'an dernier au même jour de la même
+  // fête ; sinon, si la saison tombait autour, « à toi de fixer la quantité
+  // de départ » ; sinon, hors saison. Il faut options.totauxBoutique.
+  function repriseSaisonniere(ventesDuProduit, jourCible, options) {
+    var isoCible = versISO(jourCible), parDate = {}, derniere = '';
+    ventesDuProduit.forEach(function (v) {
+      if (v.quantite > 0 && v.date_vente < isoCible) {
+        parDate[v.date_vente] = (parDate[v.date_vente] || 0) + v.quantite;
+        if (v.date_vente > derniere) derniere = v.date_vente;
+      }
+    });
+    if (!derniere || joursOuvertsEntre(derniere, isoCible, options) <= 21) return null;
+    // Seulement si la boutique, elle, vend encore (sinon : données pas à jour).
+    var boutiqueRecente = (options.totauxBoutique || []).some(function (t) {
+      return t.quantite > 0 && t.date_vente < isoCible && t.date_vente >= versISO(ajouterJours(jourCible, -30)) && joursOuvertsEntre(t.date_vente, isoCible, options) <= 7;
+    });
+    if (!boutiqueRecente) return null;
+    var fete = feteBoulangere(jourCible);
+    var eq = equivalentAnDernier(jourCible), q = parDate[versISO(eq)];
+    if (q === undefined) {
+      var s = 0, n = 0;
+      for (var k = -3; k <= 3; k++) { var x = parDate[versISO(ajouterJours(eq, k))]; if (x !== undefined) { s += x; n++; } }
+      if (n) q = s / n;
+    }
+    var depuis = new Date(derniere + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+    if (q) {
+      q = Math.round(q);
+      return { quantite: q, repriseSaison: true,
+        texteBase: 'Début de saison : ' + q + ' vendus l\'an dernier ' + (fete ? 'au même jour de la fête (' + fete.libelle + ')' : 'à la même époque') + ', à ajuster',
+        signaux: [{ cle: 'reprise', icone: '🔁', libelle: 'Début de saison', ratio: null, nb: 0, detail: 'repris de l\'an dernier' }] };
+    }
+    var autour = Object.keys(parDate).some(function (iso) { return Math.abs(new Date(iso + 'T00:00:00') - eq) <= 30 * 86400000; });
+    if (autour) return { aFixer: true, texteBase: 'Début de saison : à toi de fixer la quantité de départ' };
+    return { horsSaison: true, texteBase: 'Hors saison : pas vendu depuis le ' + depuis };
+  }
+
   // Calcule la recommandation pour un produit et un jour cible donnés, avec
   // la comparaison ("delta") par rapport à la dernière vente réelle du même
   // jour de la semaine.
@@ -831,6 +1049,22 @@
     var numeroJourCible = jourCible.getDay();
     var nomJourCible = nomsJours[numeroJourCible];
     var isoCible = versISO(jourCible);
+    // Fermé (congés, jour de fermeture, férié fermé) : rien à cuire.
+    var fermeLe = raisonFermeture(jourCible, options);
+    if (fermeLe) return resultatSansCalcul(nomJourCible, { ferme: true, texteBase: fermeLe });
+    // Périodes exceptionnelles marquées (travaux, neige, grève…) : écartées
+    // de l'apprentissage, sauf si le jour à prévoir en fait lui-même partie.
+    if (options.periodesExclues && options.periodesExclues.length && !dansPeriodes(isoCible, options.periodesExclues)) {
+      ventesDuProduit = ventesDuProduit.filter(function (v) { return !dansPeriodes(v.date_vente, options.periodesExclues); });
+    }
+    var finConges = (options.conges || []).filter(function (p) {
+      var reouverture = versISO(ajouterJours(new Date(p.fin + 'T00:00:00'), 1));
+      return reouverture <= isoCible && versISO(ajouterJours(new Date(reouverture + 'T00:00:00'), 14)) > isoCible;
+    })[0];
+    if (!finConges) {
+      var saisonnier = repriseSaisonniere(ventesDuProduit, jourCible, options);
+      if (saisonnier) return resultatSansCalcul(nomJourCible, saisonnier);
+    }
     // Un événement signalé à la main sur le jour cible prime sur
     // férié/vacances scolaires : le commerçant sait quelque chose que
     // l'historique seul ne peut pas deviner.
@@ -839,7 +1073,9 @@
     var cibleVacances = !evenementCible && !cibleFeriee && estEnVacances(jourCible, zoneVacances);
     // La météo n'ajuste le chiffre que si aucun autre signal ne s'applique
     // déjà — pas de cumul d'incertitudes.
-    var meteoCible = (!evenementCible && !cibleFeriee && !cibleVacances && meteoPrevue) ? meteoPrevue[isoCible] : undefined;
+    // Exception : neige et canicule, trop fortes pour être tues.
+    var meteoCible = (!evenementCible && !cibleFeriee && meteoPrevue) ? meteoPrevue[isoCible] : undefined;
+    if (meteoCible && cibleVacances && ['neige', 'canicule'].indexOf(meteoCible.categorie) === -1) meteoCible = undefined;
 
     // Bug corrigé (audit sept. 2026) : new Date(iso) sans 'T00:00:00' parse
     // en UTC, ce qui peut décaler .getDay() d'un jour dans un fuseau à
@@ -869,6 +1105,19 @@
     else if (memeJourTous.length > 0) { ventesMemeJour = memeJourTous; niveauReference = 2; }
     else { ventesMemeJour = []; niveauReference = 3; }
     var insuffisant = memeJourTous.length < 3;
+    // Réouverture après les congés (14 jours) : pas « juillet seul ». Même
+    // jour de semaine l'an dernier, de 3 jours avant à 4 semaines après la
+    // même date ; à défaut, les mêmes jours de septembre de l'an dernier.
+    var reouverture = null;
+    if (finConges) {
+      var eqR = ajouterJours(jourCible, -364), aDebut = versISO(ajouterJours(eqR, -3)), aFin = versISO(ajouterJours(eqR, 28));
+      var sept = (jourCible.getFullYear() - 1) + '-09';
+      var memeJourAnDernier = memeJourTous.filter(function (v) { return v.date_vente >= aDebut && v.date_vente <= aFin; });
+      var septembre = memeJourTous.filter(function (v) { return v.date_vente.slice(0, 7) === sept; });
+      reouverture = memeJourAnDernier.length >= 2 ? { ventes: memeJourAnDernier, texte: 'la même période l\'an dernier' }
+        : septembre.length >= 2 ? { ventes: septembre, texte: 'septembre de l\'an dernier' } : { ventes: null, texte: null };
+      if (reouverture.ventes) { ventesMemeJour = reouverture.ventes; niveauReference = 1; insuffisant = false; }
+    }
 
     var baseVentes = ventesMemeJour.length > 0 ? ventesMemeJour : ventesDuProduit;
     var baseTriee = baseVentes.slice().sort(function (a, b) {
@@ -879,6 +1128,7 @@
     var baseFinale = filtrage.ventesFiltrees;
     var moyenne = moyennePonderee(baseFinale);
     var quantite = Math.round(moyenne * MARGE_PRODUCTION);
+    if (reouverture && !reouverture.ventes) quantite = Math.round(moyenne * 0.9); // sans référence : prudence
 
     // Ajustement météo : compare, parmi les jours de même jour de semaine,
     // ceux qui avaient la même catégorie météo à l'ensemble de ces jours-là.
@@ -906,6 +1156,19 @@
         }
       }
     }
+    // Neige et canicule : rares le même jour de semaine. On apprend alors sur
+    // tous les jours de cette météo ; à défaut, effet habituel en boulangerie
+    // (pain et viennoiseries : canicule −15 %, neige −30 %).
+    if (!ajustementMeteo && (categorieMeteoCible === 'neige' || categorieMeteoCible === 'canicule')) {
+      var aMeteo = meteoPassee ? apprendreEffet(ventesDuProduit, function (d, iso) {
+        return !!meteoPassee[iso] && meteoPassee[iso].categorie === categorieMeteoCible;
+      }, zoneVacances) : null;
+      if (aMeteo && aMeteo.nb >= 2) {
+        ajustementMeteo = { ratio: Math.max(0.5, Math.min(1.4, aMeteo.ratio)), categorie: categorieMeteoCible, nbJours: aMeteo.nb };
+      } else if (ventesDuProduit.length && rayonCourbe(ventesDuProduit[0].nom_produit) !== 'snacking') {
+        ajustementMeteo = { ratio: EFFET_METEO_HABITUEL[categorieMeteoCible], categorie: categorieMeteoCible, nbJours: 0, habituel: true };
+      }
+    }
     if (ajustementMeteo) {
       quantite = Math.round(quantite * ajustementMeteo.ratio);
     }
@@ -931,9 +1194,14 @@
       signaux.push({ cle: cle, icone: icone, libelle: libelle, ratio: appris ? appris.ratio : null, nb: appris ? appris.nb : 0, detail: detail });
     }
     if (!evenementCible) {
-      var feteCible = feteBoulangere(jourCible);
+      var feteCible = feteDuProduit(jourCible, ventesDuProduit);
       if (cibleFeriee) {
-        ajouterSignal('ferie', '📅', 'Jour férié', function (d) { return estJourFerie(d); }, 1);
+        // Même férié les autres années d'abord (par la fête, pas la date),
+        // sinon tous les fériés.
+        var cleF = cleFerie(jourCible);
+        var memeFerie = function (d) { return cleFerie(d) === cleF; };
+        var dejaVu = apprendreEffet(ventesDuProduit, memeFerie, zoneVacances);
+        ajouterSignal('ferie', '📅', LIBELLES_FERIES[cleF] || 'Jour férié', dejaVu ? memeFerie : function (d) { return estJourFerie(d); }, 1);
       }
       if (estPont(jourCible)) {
         ajouterSignal('pont', '🌉', 'Pont', function (d) { return estPont(d); }, 1);
@@ -961,7 +1229,7 @@
         }, 2);
       });
       // Tendance et saison : seulement un jour sans autre signal de calendrier.
-      if (!cibleFeriee && !cibleVacances && !feteCible && !estPont(jourCible) && !estVeilleFerie(jourCible)) {
+      if (!reouverture && !cibleFeriee && !cibleVacances && !feteCible && !estPont(jourCible) && !estVeilleFerie(jourCible)) {
         var saison = sans.saison ? null : effetSaison(ventesDuProduit, jourCible, zoneVacances);
         if (saison) {
           ratioSignaux *= saison.ratio;
@@ -983,8 +1251,9 @@
         dejaPrisEnCompte: true, detail: nbRuptures + ' jour' + (nbRuptures > 1 ? 's' : '') + ' épuisé' + (nbRuptures > 1 ? 's' : '') + ' : la demande était plus haute que la vente' });
     }
     if (ajustementMeteo) {
-      var meteoPluie = ajustementMeteo.categorie === 'pluvieux';
-      signaux.unshift({ cle: 'meteo', icone: meteoPluie ? '🌧️' : '☀️', libelle: meteoPluie ? 'Pluie' : 'Forte chaleur', ratio: ajustementMeteo.ratio, nb: ajustementMeteo.nbJours });
+      var mm = MOTS_METEO[ajustementMeteo.categorie] || MOTS_METEO.chaud;
+      signaux.unshift({ cle: 'meteo', icone: mm.icone, libelle: capitaliser(mm.mot), ratio: ajustementMeteo.ratio, nb: ajustementMeteo.nbJours,
+        detail: ajustementMeteo.habituel ? 'effet habituel en boulangerie, pas encore observé chez toi' : undefined });
     }
     ratioSignaux = Math.max(0.5, Math.min(2, ratioSignaux));
     if (ratioSignaux !== 1) quantite = Math.round(quantite * ratioSignaux);
@@ -1000,6 +1269,9 @@
     if (filtrage.nbExclus > 0) {
       texteBase += " (" + filtrage.nbExclus + " jour" + (filtrage.nbExclus > 1 ? "s" : "") + " atypique" + (filtrage.nbExclus > 1 ? "s" : "") + " écarté" + (filtrage.nbExclus > 1 ? "s" : "") + " du calcul)";
     }
+    if (reouverture) {
+      texteBase = "Réouverture après les congés : " + (reouverture.texte ? "comparé à " + reouverture.texte : "pas de référence, prévision prudente (−10 %), ajuste à la main") + ". " + texteBase;
+    }
     if (evenementCible === 'plus') {
       quantite = Math.round(quantite * 1.15);
       fourchette = null;
@@ -1013,10 +1285,11 @@
     } else if (cibleVacances) {
       texteBase = "🏖️ Vacances scolaires : l'activité peut différer d'un " + nomJourCible + " normal. " + texteBase;
     } else if (ajustementMeteo) {
-      var motMeteo = ajustementMeteo.categorie === 'pluvieux' ? 'pluie' : 'forte chaleur';
-      var icone = ajustementMeteo.categorie === 'pluvieux' ? '🌧️' : '☀️';
+      var mots = MOTS_METEO[ajustementMeteo.categorie] || MOTS_METEO.chaud;
       var sens = ajustementMeteo.ratio > 1 ? 'vendent plutôt plus' : 'vendent plutôt moins';
-      texteBase = icone + " " + capitaliser(motMeteo) + " prévue : tes " + nomJourCible + "s de " + motMeteo + " " + sens + " que la moyenne (" + ajustementMeteo.nbJours + " observé(s)). " + texteBase;
+      texteBase = mots.icone + " " + capitaliser(mots.mot) + " prévue : " + (ajustementMeteo.habituel
+        ? "d'habitude, une boulangerie vend " + libelleEffet(ajustementMeteo.ratio) + " ces jours-là. "
+        : "tes jours de " + mots.mot + " " + sens + " que la moyenne (" + ajustementMeteo.nbJours + " observé(s)). ") + texteBase;
     }
 
     var delta = null;
@@ -1487,6 +1760,18 @@
     estPont: estPont,
     estJourOrdinaire: estJourOrdinaire,
     estVeilleFerie: estVeilleFerie,
+    cleFerie: cleFerie,
+    CLES_FERIES: CLES_FERIES,
+    dateFeteDesMeres: dateFeteDesMeres,
+    finSaisonGalettes: finSaisonGalettes,
+    feteDuProduit: feteDuProduit,
+    equivalentAnDernier: equivalentAnDernier,
+    saisonDuNom: saisonDuNom,
+    raisonFermeture: raisonFermeture,
+    dansPeriodes: dansPeriodes,
+    periodesDepuisCalendrierOfficiel: periodesDepuisCalendrierOfficiel,
+    ajouterPeriodesVacances: ajouterPeriodesVacances,
+    chargerVacancesOfficielles: chargerVacancesOfficielles,
     corrigerRuptures: corrigerRuptures,
     partJourneeEcoulee: partJourneeEcoulee,
     totauxParJour: totauxParJour,

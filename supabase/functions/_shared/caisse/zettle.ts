@@ -5,7 +5,7 @@
 // tranche de 1 000 tickets), jusqu'à 3 ans d'historique. Les
 // remboursements ont une quantité négative et viennent en déduction.
 
-import { type LigneVente, jourParis } from './commun.ts';
+import { type LigneVente, heureParis, jourParis } from './commun.ts';
 import { type FetchFn, type Jetons, appelJson, demanderJetons } from './http.ts';
 
 var OAUTH = 'https://oauth.zettle.com';
@@ -51,11 +51,13 @@ export async function lignesVendues(fetchFn: FetchFn, accessToken: string, _comp
     var page = await appelJson(fetchFn, 'Zettle', url, { headers: { Authorization: 'Bearer ' + accessToken } });
     var achats = page.purchases || [];
     achats.forEach(function (achat: any) {
-      var jour = jourParis(achat.timestamp);
+      var instant = String(achat.timestamp || '').replace(/([+-]\d{2})(\d{2})$/, '$1:$2');
+      var jour = jourParis(instant);
+      var heure = heureParis(instant);
       (achat.products || []).forEach(function (p: any) {
         var nom = p.variantName && p.name ? p.name + ' ' + p.variantName : (p.name || '');
         if (!nom || p.type === 'GIFTCARD') return;
-        lignes.push({ nom_produit: nom, quantite: Number(String(p.quantity).replace(',', '.')) || 0, date_vente: jour });
+        lignes.push({ nom_produit: nom, quantite: Number(String(p.quantity).replace(',', '.')) || 0, date_vente: jour, heure: heure });
       });
     });
     if (achats.length < 1000 || !page.lastPurchaseHash) break;

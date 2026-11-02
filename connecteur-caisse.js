@@ -15,12 +15,14 @@
 // Lecture des fichiers : LectureExport (lecture-export.js), Excel via
 // SheetJS chargé seulement si besoin. Convention du site : IIFE, ES5.
 (function () {
-  var LIBELLES = { sumup: 'SumUp', zettle: 'Zettle', square: 'Square', hiboutik: 'Hiboutik', loyverse: 'Loyverse', tactill: 'Tactill' };
+  var LIBELLES = { sumup: 'SumUp', zettle: 'Zettle', square: 'Square', hiboutik: 'Hiboutik', loyverse: 'Loyverse', tactill: 'Tactill', zelty: 'Zelty', popina: 'Popina', lightspeed_retail: 'Lightspeed Retail' };
   var OAUTH = ['sumup', 'zettle', 'square'];
   // Caisses à clé personnelle, dans l'ordre d'affichage. Tant que l'Edge
   // Function déployée ne les annonce pas (etat.cle), seul Hiboutik (déjà en
   // service) est proposé ; les autres s'affichent « bientôt ».
-  var AVEC_CLE = ['sumup', 'zettle', 'square', 'loyverse', 'tactill', 'hiboutik'];
+  var AVEC_CLE = ['sumup', 'zettle', 'square', 'loyverse', 'lightspeed_retail', 'tactill', 'zelty', 'popina', 'hiboutik'];
+  // Formes de clé sans ambiguïté : elles priment sur la caisse choisie.
+  var FORMES_SURES = ['sumup', 'tactill', 'square', 'zettle', 'zelty'];
   var LIEN_ZETTLE = 'https://my.zettle.com/apps/api-keys?name=' + encodeURIComponent('A Point') + '&scopes=' + encodeURIComponent('READ:PURCHASE READ:USERINFO');
 
   // Même règle que devinerFournisseur (supabase/functions/_shared/caisse/fournisseurs.ts).
@@ -30,6 +32,7 @@
     if (/^sk_(live|test)_/.test(k)) return 'tactill';
     if (/^EAAA[A-Za-z0-9_-]{20,}$/.test(k)) return 'square';
     if (/^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/.test(k)) return 'zettle';
+    if (/^[A-Za-z0-9+\/]{16,}={0,2}$/.test(k)) { try { if (/^\d+:/.test(atob(k))) return 'zelty'; } catch (e) { /* pas du base64 */ } }
     if (/^[A-Za-z0-9]{20,64}$/.test(k)) return 'loyverse';
     return null;
   }
@@ -43,10 +46,11 @@
       'Destinataire : colle ton adresse d\'envoi ci-dessus, puis <strong>Ajouter</strong>.',
       'Rapport : <strong>Mix produits</strong> (« Product Mix »). Format : <strong>CSV</strong>. Fréquence : <strong>Quotidienne</strong>, tous les jours cochés.',
       '<strong>Enregistre</strong>. Chaque matin vers 5 h, les ventes de la veille arrivent seules.'] },
-    cashpad: { support: 'support@cashpad.fr' },
     tactill: { support: 'hello@tactill.com' },
-    zelty: { texte: 'Zelty ne publie pas de mode d\'emploi pour cet envoi. Demande-le à Zelty, le message est prêt. (Un branchement direct Zelty est à l\'étude.)' },
-    tiller: { texte: 'SumUp Caisse Pro (Tiller) ne publie pas de mode d\'emploi pour cet envoi. Demande-le au support, le message est prêt. (Un branchement direct est à l\'étude.)' },
+    tiller: { texte: 'SumUp Caisse Pro (ex-Tiller) ne publie ni envoi programmé de l\'export ni clé que tu pourrais créer toi-même : sa connexion est réservée aux logiciels partenaires, et nous avons fait la demande. Demande aussi l\'envoi automatique au support, le message est prêt.' },
+    laddition: { texte: 'L\'Addition ne publie pas d\'envoi programmé de l\'export, et sa clé de connexion (Reporting &gt; Intégration partenaires) ne sert qu\'aux logiciels partenaires. Demande l\'envoi automatique à L\'Addition, le message est prêt.' },
+    cashpad: { support: 'support@cashpad.fr', texte: 'Cashpad ne publie pas d\'envoi programmé de l\'export ; son API est réservée aux logiciels partenaires. Demande l\'envoi automatique au support, le message est prêt.' },
+    cashmag: { texte: 'Cashmag ne publie pas d\'envoi programmé de l\'export ; son API est une option payante pour les partenaires. Demande l\'envoi automatique à Cashmag, le message est prêt.' },
     autre: {}
   };
 
@@ -64,10 +68,30 @@
       etapes: ['Ouvre ce lien, qui prépare la clé pour toi (sur téléphone ou ordinateur, dans le navigateur) : <a href="' + LIEN_ZETTLE + '" target="_blank" rel="noopener">créer ma clé Zettle pour À Point</a>. Connecte-toi comme d\'habitude si on te le demande.',
         'Vérifie le nom « A Point » et le droit de lecture des achats, puis valide la création.',
         'Copie la <strong>clé API</strong> (une très longue suite de caractères) et colle-la ci-dessous. L\'identifiant client n\'est pas utile.'],
+      note: 'La page de connexion Zettle affiche PayPal : c\'est normal, Zettle appartient à PayPal.',
       champ: 'Clé API Zettle'
     },
+    zelty: {
+      etapes: ['Zelty donne la clé API sur demande : écris à ton contact Zelty ou au support <a href="mailto:?subject=' + encodeURIComponent('Clé API pour mon logiciel de prévision') + '&body=' + encodeURIComponent('Bonjour, je souhaite une clé API Zelty (lecture des commandes) pour brancher mon logiciel de prévision de production À Point sur mon restaurant. Merci !') + '">avec ce message prêt</a>.',
+        'Colle ci-dessous la clé reçue (une longue suite de lettres et de chiffres, souvent terminée par « = »).'],
+      note: 'Si Zelty te propose plutôt d\'activer une application dans la Marketplace de ton back-office, la clé s\'affiche une fois l\'application activée : copie-la.',
+      champ: 'Clé API Zelty'
+    },
+    lightspeed_retail: {
+      etapes: ['Ouvre ta boutique Lightspeed Retail dans le navigateur (adresse en <strong>….retail.lightspeed.app</strong>) avec un compte <strong>administrateur</strong>.',
+        'Menu <strong>Configuration</strong> &gt; <strong>Jetons personnels</strong> (« Personal tokens ») &gt; <strong>Ajouter un jeton personnel</strong>. Nom : « À Point », sans date d\'expiration. Aide Lightspeed : <a href="https://x-series-support.lightspeedhq.com/hc/en-us/articles/204886420-Retail-POS-X-Series-Personal-Tokens" target="_blank" rel="noopener">jetons personnels</a>.',
+        'Copie le jeton, puis colle ci-dessous l\'adresse de ta boutique et le jeton.'],
+      note: 'Les jetons personnels sont réservés à la formule Plus de Lightspeed Retail. Sans elle, utilise l\'import de fichier.',
+      champCompte: 'Adresse de ta boutique (ex. maboulangerie.retail.lightspeed.app)',
+      champ: 'Jeton personnel Lightspeed'
+    },
+    popina: {
+      etapes: ['Popina donne la clé API sur demande (option de ton abonnement) : appelle le support ou écris-lui <a href="mailto:?subject=' + encodeURIComponent('Clé API Popina') + '&body=' + encodeURIComponent('Bonjour, je souhaite une clé API Popina (lecture des commandes) pour brancher mon logiciel de prévision de production À Point. Merci !') + '">avec ce message prêt</a>.',
+        'Colle ci-dessous la clé reçue.'],
+      champ: 'Clé API Popina'
+    },
     square: {
-      etapes: ['Ouvre <a href="https://developer.squareup.com/apps" target="_blank" rel="noopener">developer.squareup.com/apps</a> et connecte-toi avec ton compte Square habituel (gratuit). Possible sur téléphone, plus simple sur ordinateur.',
+      etapes: ['Ouvre <a href="https://developer.squareup.com/apps" target="_blank" rel="noopener">developer.squareup.com/apps</a> et connecte-toi avec ton compte Square habituel (gratuit). Si Square affiche « S\'inscrire à Square », choisis <strong>Se connecter</strong> : c\'est le même compte. Possible sur téléphone, plus simple sur ordinateur.',
         'Crée une application (bouton <strong>+</strong>) et nomme-la « À Point ».',
         'Dans l\'application, ouvre <strong>Credentials</strong> dans le menu de gauche.',
         'En haut de la page, choisis <strong>Production</strong> (pas « Sandbox »).',
@@ -257,9 +281,13 @@
     function formulaireCle(nom) {
       if (nom === 'hiboutik') return formulaireHiboutik();
       var g = GUIDES[nom];
-      return '<p class="texte-aide"><strong>Brancher ' + LIBELLES[nom] + ' en 5 minutes</strong>, avec une clé que tu crées toi-même dans ton compte. Astuce téléphone : garde cette page ouverte, fais les étapes dans un autre onglet, puis reviens coller la clé.</p>'
+      var surDemande = ['zelty', 'popina', 'tactill'].indexOf(nom) !== -1;
+      return '<p class="texte-aide"><strong>Brancher ' + LIBELLES[nom] + '</strong>, ' + (surDemande
+        ? 'avec une clé que ' + LIBELLES[nom] + ' te donne sur simple demande (une seule fois). Astuce téléphone'
+        : 'en 5 minutes, avec une clé que tu crées toi-même dans ton compte. Astuce téléphone') + ' : garde cette page ouverte, fais les étapes dans un autre onglet, puis reviens coller la clé.</p>'
         + '<ol class="texte-aide" style="padding-left:20px;">' + g.etapes.map(function (e) { return '<li style="margin-bottom:4px;">' + e + '</li>'; }).join('') + '</ol>'
         + (g.note ? '<p class="texte-aide">' + g.note + '</p>' : '')
+        + (g.champCompte ? '<label for="compteCaisse">' + g.champCompte + '</label><input type="text" id="compteCaisse" autocomplete="off" spellcheck="false" autocapitalize="none">' : '')
         + '<label for="cleCaisse">' + g.champ + '</label><input type="password" id="cleCaisse" autocomplete="off" spellcheck="false">'
         + '<p class="texte-aide" style="margin-top:4px;">Ta clé est chiffrée et gardée sur nos serveurs, jamais réaffichée. Pour couper l\'accès : supprime-la dans ta caisse, ou « Déconnecter » ici.</p>'
         + '<button type="button" id="btnBrancherCle" data-caisse="' + nom + '">Brancher ma caisse ' + LIBELLES[nom] + '</button>';
@@ -333,6 +361,12 @@
         });
       } else {
         var choix = (caisseChoisie || '').indexOf('autre') === 0 ? 'autre' : caisseChoisie;
+        // Une seule entrée « SumUp » : la façon d'encaisser décide du chemin.
+        if (choix === 'sumup' || choix === 'tiller') {
+          html += '<fieldset class="choix-caisse"><legend class="texte-aide"><strong>Tu encaisses avec :</strong></legend>'
+            + '<label class="choix-caisse__option"><input type="radio" name="sousChoixSumup" value="sumup"' + (choix === 'sumup' ? ' checked' : '') + '> le terminal ou l\'appli SumUp</label>'
+            + '<label class="choix-caisse__option"><input type="radio" name="sousChoixSumup" value="tiller"' + (choix === 'tiller' ? ' checked' : '') + '> SumUp Caisse Pro sur iPad (ex-Tiller)</label></fieldset>';
+        }
         html += !choix || AVEC_CLE.indexOf(choix) !== -1
           ? '<p class="texte-aide">Branche ta caisse : tes 12 derniers mois de ventes arrivent d\'un coup, puis chaque nuit les ventes de la veille. Tu n\'as plus rien à saisir.</p>'
           : '<p class="texte-aide">Ta caisse se règle en deux temps : tu déposes une seule fois ton historique, puis ta caisse envoie seule ses ventes chaque jour. Rien à refaire ensuite.</p>';
@@ -380,6 +414,15 @@
           if (select) { select.value = caisseChoisie; select.dispatchEvent(new Event('change')); } else charger();
         });
       });
+      Array.prototype.forEach.call(bloc.querySelectorAll('input[name="sousChoixSumup"]'), function (radio) {
+        radio.addEventListener('change', function () {
+          var select = document.getElementById('selectCaisse');
+          if (window.CaisseUtilisee && select) {
+            window.CaisseUtilisee.definirSousChoix('selectCaisse', radio.value === 'tiller' ? 'tiller' : null);
+            select.dispatchEvent(new Event('change')); // enregistre et redessine
+          } else { caisseChoisie = radio.value; charger(); }
+        });
+      });
       var btnCle = document.getElementById('btnBrancherCle');
       if (btnCle) surClic(btnCle, function () {
         var champ = document.getElementById('cleCaisse');
@@ -387,8 +430,11 @@
         if (!cle) return Promise.reject(new Error('Colle d\'abord ta clé dans le champ.'));
         var prevue = btnCle.getAttribute('data-caisse');
         var devinee = devinerCaisse(cle);
-        if (!devinee) return Promise.reject(new Error('Cette clé ne ressemble pas à une clé ' + LIBELLES[prevue] + '. Copie-la en entier (bouton « Copier » de ta caisse si tu en as un), sans espace.'));
-        return appeler({ action: 'connecter_cle', fournisseur: devinee, cle: cle }).then(function (r) {
+        if (!devinee || (FORMES_SURES.indexOf(devinee) === -1 && devinee !== prevue)) devinee = prevue;
+        if (/\s/.test(cle)) return Promise.reject(new Error('Cette clé contient un espace : copie-la en entier, d\'un seul bloc, et recolle-la.'));
+        var champCompte = document.getElementById('compteCaisse');
+        if (champCompte && !champCompte.value.trim()) return Promise.reject(new Error('Renseigne aussi l\'adresse de ta boutique.'));
+        return appeler({ action: 'connecter_cle', fournisseur: devinee, cle: cle, compte: champCompte ? champCompte.value : undefined }).then(function (r) {
           champ.value = '';
           var nom = (r && r.fournisseur) || devinee;
           return charger().then(function () {
@@ -607,7 +653,10 @@
 
     // La caisse choisie dans « Mon commerce » change le parcours tout de suite.
     var select = document.getElementById('selectCaisse');
-    if (select) select.addEventListener('change', function () { caisseChoisie = select.value; choixSurLaPage = true; charger(); });
+    if (select) select.addEventListener('change', function () {
+      caisseChoisie = window.CaisseUtilisee ? window.CaisseUtilisee.lire('selectCaisse', 'autreCaisse') : select.value;
+      choixSurLaPage = true; charger();
+    });
 
     charger().then(function () {
       var retour = new URLSearchParams(window.location.search).get('caisse');

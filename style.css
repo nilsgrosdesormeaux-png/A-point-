@@ -1644,3 +1644,116 @@ details.bloc-recettes > summary::-webkit-details-marker { display: none; }
 details.bloc-recettes > summary h2 { margin: 0; }
 details.bloc-recettes > summary h2::before { content: '▸ '; color: var(--couleur-texte-3); }
 details.bloc-recettes[open] > summary h2::before { content: '▾ '; }
+
+/* ---------- Nov. 2026 : moins de pastilles, plus de typographie ----------
+   Voir DESIGN.md, « Ce qui rend À Point humain ». Une pastille n'est gardée que là où
+   elle porte une action ou une alerte ; le reste devient du texte bien hiérarchisé. */
+
+/* En-tête de Fournée / Semaine : fini le dégradé, un papier crème et une grigne dessinée. */
+.claire-entete {
+  position: relative;
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-top: 3px solid var(--couleur-dore);
+  border-radius: 4px 4px var(--rayon-md) var(--rayon-md);
+  box-shadow: var(--ombre-carte);
+}
+.claire-entete::after {
+  content: ''; position: absolute; top: 14px; right: 16px; width: 84px; height: 18px;
+  background: url(images/grigne.svg) no-repeat center / contain; opacity: .9; pointer-events: none;
+}
+@media (max-width: 380px) { .claire-entete::after { display: none; } }
+
+/* Météo : une ligne de texte, pas trois pastilles. */
+.meteo-moments-jour { gap: 0 !important; }
+.meteo-moment, .claire-entete .meteo-moment { padding: 0; background: transparent; border-radius: 0; font-size: var(--texte-sm); }
+.meteo-moment + .meteo-moment::before { content: '·'; margin: 0 8px; color: var(--couleur-texte-3); }
+
+/* « mesuré » / « estimé » : une mention soulignée en pointillé, comme une note au crayon. */
+.etiquette-mesure, .etiquette-mesure--estime, .carte-kpi--heros .etiquette-mesure {
+  padding: 0; background: transparent; border-radius: 0;
+  font-size: var(--texte-xs); font-weight: 600;
+  border-bottom: 1px dotted currentColor;
+}
+.carte-kpi--heros .etiquette-mesure { color: color-mix(in srgb, var(--couleur-sur-inverse) 80%, transparent); }
+
+/* Semaine : le niveau du jour se lit au mot, seul « Chargé » reste marqué. */
+.affluence-jour:not(.affluence-jour--ferme) .affluence-niveau,
+.affluence-niveau {
+  padding: 0; background: transparent; border: 0; border-radius: 0;
+  font-weight: 500; color: var(--couleur-texte-3);
+}
+.affluence-jour--charge:not(.affluence-jour--ferme) .affluence-niveau {
+  padding: 0; background: transparent; border: 0;
+  font-weight: 700; color: var(--couleur-accent-texte);
+}
+.affluence-jour { border-radius: var(--rayon-sm); }
+
+/* Onglet actif sur téléphone : un trait doré au-dessus, pas une pilule. */
+@media (max-width: 720px) {
+  .nav-onglet { position: relative; }
+  .nav-onglet.actif .nav-icone { background: transparent; }
+  .nav-onglet.actif::before {
+    content: ''; position: absolute; top: 0; left: 50%; width: 28px; height: 3px; margin-left: -14px;
+    background: var(--couleur-accent); border-radius: 0 0 3px 3px;
+  }
+  .nav-onglet.actif { font-weight: 600; }
+}
+.claire-entete .selecteur-jour { background: var(--couleur-surface-2); }
+
+/* ---------- lot 11 ---------- */
+/* Fournée, « Je sais quelque chose… » : ouverture stable. Le titre du repli
+   n'est plus en flex (Safari iOS replie/rouvre un summary en flex), la flèche
+   change sans animation, et la ligne d'effet garde sa hauteur. */
+details.repli-affluence > summary { display: block; padding-left: 1.2em; text-indent: -1.2em; }
+details.repli-affluence > summary::before { content: '▸'; display: inline-block; width: 1.2em; text-indent: 0; transition: none; transform: none; }
+details.repli-affluence[open] > summary::before { content: '▾'; transform: none; }
+details.repli-affluence { overflow-anchor: none; }
+details.repli-affluence .effet-affluence { min-height: 1.5em; }
+/* lot 11 : prénom en tête du menu du compte */
+.menu-compte-qui { display: flex; flex-direction: column; gap: 2px; padding: var(--espace-2) var(--espace-3) var(--espace-3); border-bottom: 1px solid var(--couleur-bordure); margin-bottom: var(--espace-2); }
+.menu-compte-qui strong { font-size: var(--texte-md); color: var(--couleur-texte); }
+.menu-compte .menu-compte-qui a.menu-compte-modifier { padding: 0; min-height: 44px; display: flex; align-items: center; font-size: var(--texte-sm); color: var(--couleur-accent-texte); text-decoration: underline; }
+/* lot 11 : Semaine, toute la carte du jour suit la charge (crème → accent doux → doré). */
+.affluence .affluence-jour.affluence-jour--calme { background: color-mix(in srgb, var(--couleur-surface) 55%, var(--couleur-fond)); border-style: dashed; }
+.affluence .affluence-jour.affluence-jour--habituel { background: var(--couleur-surface); }
+.affluence .affluence-jour.affluence-jour--charge { background: var(--couleur-accent-doux); border-color: color-mix(in srgb, var(--couleur-dore) 60%, var(--couleur-bordure)); }
+.affluence .affluence-jour.affluence-jour--tres-charge { background: color-mix(in srgb, var(--couleur-dore) 55%, var(--couleur-accent-doux)); border-color: var(--couleur-accent); }
+.affluence .affluence-jour--tres-charge .affluence-niveau { padding: 0; background: transparent; border: 0; font-weight: 700; color: var(--couleur-texte); }
+.affluence .affluence-jour--tres-charge .affluence-nom, .affluence .affluence-jour--charge .affluence-nom { color: var(--couleur-texte); }
+.affluence .affluence-jour--tres-charge .affluence-total, .affluence .affluence-jour--tres-charge .affluence-raison { color: var(--couleur-texte); }
+
+/* Connexion : sur ordinateur, une bande de papier kraft avec une vraie capture, à gauche du formulaire. */
+.connexion-kraft { display: none; }
+@media (min-width: 960px) {
+  body.page-connexion { align-items: stretch; }
+  .connexion-kraft {
+    display: flex; flex-direction: column; justify-content: center; align-items: center; gap: var(--espace-4);
+    flex: 0 0 40%; max-width: 560px; padding: var(--espace-7) var(--espace-6);
+    background-color: #CDAA80;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='k'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .22 0 0 0 0 .1 0 0 0 .18 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23k)'/%3E%3C/svg%3E");
+  }
+  .connexion-kraft img { width: 100%; max-width: 300px; height: auto; border-radius: 6px; transform: rotate(-2deg); box-shadow: 0 16px 30px -16px rgba(60, 35, 15, .6); }
+  .connexion-kraft p { margin: 0; max-width: 30ch; text-align: center; font-size: var(--texte-sm); color: #3B2A1C; }
+}
+/* lot 11 : Bilan, repli « Voir le calcul » lisible sur la carte foncée. */
+.carte-kpi--heros details.repli > summary { color: color-mix(in srgb, var(--couleur-sur-inverse) 80%, transparent); }
+.carte-kpi--heros .gain-euros { font-size: var(--texte-md); }
+/* lot 12 : Paramètres > Fermetures ; Fournée > alerte rupture et quantité de départ. */
+.sous-titre-reglage { margin: var(--espace-4) 0 var(--espace-1); font-family: var(--police); font-size: var(--texte-md); font-weight: 600; }
+.liste-periodes { list-style: none; margin: 0; padding: 0; }
+.liste-periodes li { display: flex; align-items: center; justify-content: space-between; gap: var(--espace-2); padding: 2px 0; border-bottom: 1px solid var(--couleur-bordure); }
+.ajout-periode { align-items: flex-end; }
+.ajout-periode > div { flex: 1 1 140px; }
+.ajout-periode > button { flex: 0 0 auto; }
+.grille-feries .case-jour { min-width: 150px; }
+.alerte-rupture { margin: 0 0 var(--espace-4); }
+.alerte-rupture-carte { padding: var(--espace-4); background: var(--couleur-accent-doux); border: 1px solid var(--couleur-accent); border-radius: var(--rayon-md); }
+.alerte-rupture-carte + .alerte-rupture-carte { margin-top: var(--espace-3); }
+.alerte-rupture-titre { margin: 0 0 var(--espace-1); font-size: var(--texte-md); color: var(--couleur-texte); }
+.alerte-rupture-titre strong { color: var(--couleur-accent-texte); }
+.alerte-rupture-preuve { margin: 0 0 var(--espace-3); font-size: var(--texte-sm); color: var(--couleur-texte-2); display: flex; flex-wrap: wrap; gap: var(--espace-2); align-items: baseline; }
+.alerte-rupture-actions { display: flex; flex-wrap: wrap; gap: var(--espace-2); }
+.alerte-rupture-actions .bouton-principal { width: auto; margin: 0; }
+.ligne-fournee-depart label { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; margin: 0; font-size: var(--texte-xs); font-weight: 500; color: var(--couleur-texte-2); }
+.ligne-fournee-depart input { width: 96px; text-align: center; font-size: var(--texte-lg); font-weight: 600; }

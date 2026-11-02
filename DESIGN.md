@@ -74,12 +74,38 @@ Une ombre chaude et douce (`--ombre`) pour ce qui flotte ; les cartes ont une bo
 - **Bouton secondaire** : surface + bordure. **Discret** : texte souligné.
 - **Carte produit (Demain)** : nom en sans serif, quantité en Fraunces 44 px, fourchette en légende.
 - **Chiffre héros (Bilan)** : carte brun mie, montant en Fraunces doré.
-- **Pastille** : fond `surface-2`, ou `accent-doux` pour l'état actif / jour chargé.
+- **Pastille** : réservée aux actions et alertes (voir « Ce qui rend À Point humain ») ; sinon, du texte.
 - **Navigation** : en-tête crème (logo, onglets, compte) sur ordinateur ; sur mobile, 5 onglets en barre fixe en bas.
 - **Explications** : repliées dans `<details>`.
 
 ## Images et icônes
 
 Icônes en traits fins (SVG inline, 1.75 px, `currentColor`), pas d'emoji décoratif.
-La page de vente montre une maquette de l'écran « Demain » (données fictives signalées) posée sur un fond doré chaud ;
-de vraies photos de fournée pourront la remplacer quand les boulangeries pilotes en fourniront.
+La page de vente et la connexion montrent de **vraies captures** de l'appli (`images/capture-*.webp`),
+prises avec le harnais `tests/demo.mjs` sur le compte de démonstration « Le petit comptoire » et signalées comme telles.
+Pour les refaire : `node tests/demo.mjs --page fournee --mobile`, puis recadrer au-dessus de la barre d'onglets (y < 1560 px à 2x).
+
+## Ce qui rend À Point humain (1er nov. 2026)
+
+Le fondateur voulait qu'aucun boulanger ne puisse dire « c'est que de l'IA ». Ce qu'on a retiré, et pourquoi :
+
+- **Maquette fictive** sur dégradé doré : remplacée par des captures réelles posées de travers sur du papier kraft (aplat + grain, aucun dégradé).
+- **Pastilles partout** (« Phase de test », « Prêt », « Habituel », « estimé », météo) : une pastille ne sert plus qu'à une action ou une alerte.
+  Le reste est du texte : « mesuré / estimé » souligné en pointillé comme une note au crayon, « Habituel » en légende, « Chargé » en gras croûte,
+  la météo sur une seule ligne séparée par des points, l'état des caisses en texte vert avec une coche.
+- **Cartes identiques en grille** (3 chiffres, 3 étapes, 4 écrans) : remplacées par une ligne d'arithmétique (0,20 € × 10 × 26 ≈ 52 €),
+  une frise « Le soir / Dans la nuit / Au fournil » séparée par un filet de farine, et une galerie de captures décalées.
+- **Slogans en double phrase** (« Enfournez juste. Jetez moins. ») et « gratuit » répété cinq fois : un titre qui dit ce que fait l'outil,
+  la gratuité dite deux fois (sous le bouton, et dans la section Prix).
+- **Tout centré** : seul le formulaire de connexion reste centré ; l'appel final est aligné à gauche comme le reste.
+- **Aucune trace humaine** : un paragraphe « Pourquoi À Point » signé Nils, sans fait inventé (à relire par lui avant mise en ligne).
+
+Les détails dessinés à la main, peu nombreux et à garder rares :
+
+- `images/grigne.svg` : quatre coups de lame de baguette, jamais identiques. Sur la page de vente (surtitre) et en coin de l'en-tête de la Fournée.
+- `images/filet-farine.svg` : une traînée irrégulière de farine, séparateur de la frise « Une journée ».
+- **Étiquette ardoise** (CSS, `.v-ardoise`) : prix à la craie, trou et ficelle, pour 0,20 € et 0 €.
+- **Papier kraft** (`.v-kraft`, `.connexion-kraft`) : support des captures.
+
+Dans l'app : l'en-tête de la Fournée est un papier crème bordé d'un filet doré (plus de dégradé) ; l'onglet actif sur téléphone est marqué
+d'un trait croûte au-dessus de l'icône, pas d'une pilule. Lisibilité à 5 h et logique des écrans inchangées.

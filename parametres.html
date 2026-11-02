@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Paramètres</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101q">
+  <link rel="stylesheet" href="style.css?v=20261101r">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="erreurs.js?v=20261101"></script>
   <script src="nav.js?v=20261101q"></script>
@@ -37,6 +37,13 @@
       <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
 
       <div id="zoneParametres" style="display:none;">
+        <!-- Lot 11 : le prénom, en haut, visible dans le menu du compte. -->
+        <section id="profil" aria-labelledby="titreProfil">
+          <p class="section-titre" id="titreProfil" style="margin-top:22px;">Toi</p>
+          <label for="inputPrenom">Ton prénom</label>
+          <div class="ligne-form"><input type="text" id="inputPrenom" autocomplete="given-name" maxlength="40" placeholder="Ex : Martine"><button type="button" class="bouton-secondaire" id="btnPrenom">Enregistrer</button></div>
+          <span class="texte-aide" id="messagePrenom" role="status"></span>
+        </section>
         <p class="section-titre" style="margin-top:22px;">Mon commerce</p>
 
         <label for="inputNomRestaurant">Nom de la boulangerie</label>
@@ -73,6 +80,31 @@
         <!-- Plan v2 : Ventes et Produits quittent la navigation. Ils restent ici,
              en secours, pour qui n'a pas encore de caisse branchée. -->
         <!-- Lot 2 point 9 : référence « avant À Point » pour mesurer honnêtement le gaspillage. -->
+        <!-- Lot 12 : congés, fériés et périodes exceptionnelles (migration-parametres-v3.sql). -->
+        <section id="fermetures" aria-labelledby="titreFermetures">
+          <h2 class="section-titre" id="titreFermetures">Fermetures</h2>
+          <h3 class="sous-titre-reglage">Congés annuels</h3>
+          <ul class="liste-periodes" id="listeConges"></ul>
+          <div class="ligne-form ajout-periode">
+            <div><label for="congeDebut">Du</label><input type="date" id="congeDebut"></div>
+            <div><label for="congeFin">Au</label><input type="date" id="congeFin"></div>
+            <button type="button" class="bouton-secondaire" id="btnAjouterConge">Ajouter</button>
+          </div>
+          <h3 class="sous-titre-reglage">Jours fériés</h3>
+          <p class="texte-aide">Coche ceux où tu ouvres.</p>
+          <div class="grille-jours grille-feries" id="grilleFeries"></div>
+          <h3 class="sous-titre-reglage">Périodes exceptionnelles</h3>
+          <p class="texte-aide">Ces jours ne servent pas aux prévisions.</p>
+          <ul class="liste-periodes" id="listeExceptions"></ul>
+          <div class="ligne-form ajout-periode">
+            <div><label for="exceptionLibelle">Quoi</label><input type="text" id="exceptionLibelle" maxlength="60" placeholder="Travaux dans la rue"></div>
+            <div><label for="exceptionDebut">Du</label><input type="date" id="exceptionDebut"></div>
+            <div><label for="exceptionFin">Au</label><input type="date" id="exceptionFin"></div>
+            <button type="button" class="bouton-secondaire" id="btnAjouterException">Ajouter</button>
+          </div>
+          <span class="texte-aide" id="messageFermetures" role="status"></span>
+        </section>
+
         <section id="fournees" aria-labelledby="titreFournees">
           <h2 class="section-titre" id="titreFournees">Tes fournées</h2>
           <p class="texte-aide">De 1 à 5 fournées, à tes heures et à tes noms.</p>
@@ -193,11 +225,99 @@
         statutDiv.textContent = "Impossible de vérifier ta connexion pour l'instant. Vérifie ta connexion et réessaie.";
       });
 
+      // ---------- Lot 12 : fermetures ----------
+      // Colonnes jsonb facultatives (migration-parametres-v3.sql) : tant
+      // qu'elles manquent, gardé dans le compte et sur l'appareil.
+      var FERIES = [['jour-an', '1er janvier'], ['lundi-paques', 'Lundi de Pâques'], ['1-mai', '1er mai'], ['8-mai', '8 mai'], ['ascension', 'Ascension'],
+        ['lundi-pentecote', 'Lundi de Pentecôte'], ['14-juillet', '14 juillet'], ['15-aout', '15 août'], ['toussaint', 'Toussaint'], ['11-novembre', '11 novembre'], ['noel', 'Noël']];
+      var fermetures = { conges: [], feries_fermes: [], periodes_exceptionnelles: [] };
+      var sessionFermetures = null;
+      function dateCourte(iso) { var d = new Date(iso + 'T00:00:00'); return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }); }
+      function afficherFermetures() {
+        function ligne(p, i, type) {
+          return '<li><span>' + (p.libelle ? '<strong>' + p.libelle.replace(/[<>&]/g, '') + '</strong> · ' : '') + 'du ' + dateCourte(p.debut) + ' au ' + dateCourte(p.fin) + '</span>' +
+            '<button type="button" class="tournee-retirer" data-retirer-periode="' + type + ':' + i + '" aria-label="Retirer cette période">×</button></li>';
+        }
+        document.getElementById('listeConges').innerHTML = fermetures.conges.map(function (p, i) { return ligne(p, i, 'conges'); }).join('');
+        document.getElementById('listeExceptions').innerHTML = fermetures.periodes_exceptionnelles.map(function (p, i) { return ligne(p, i, 'periodes_exceptionnelles'); }).join('');
+        document.getElementById('grilleFeries').innerHTML = FERIES.map(function (f) {
+          var ouvert = fermetures.feries_fermes.indexOf(f[0]) === -1;
+          return '<label class="case-jour"><input type="checkbox" data-ferie="' + f[0] + '"' + (ouvert ? ' checked' : '') + '> ' + f[1] + '</label>';
+        }).join('');
+      }
+      function chargerFermetures(parametres, session) {
+        sessionFermetures = session;
+        var m = (session.user.user_metadata && session.user.user_metadata.fermetures) || {};
+        ['conges', 'feries_fermes', 'periodes_exceptionnelles'].forEach(function (k) {
+          var v = parametres && Array.isArray(parametres[k]) ? parametres[k] : m[k];
+          fermetures[k] = Array.isArray(v) ? v.slice() : [];
+        });
+        afficherFermetures();
+      }
+      function enregistrerFermetures() {
+        var msg = document.getElementById('messageFermetures');
+        afficherFermetures();
+        sbClient.auth.updateUser({ data: { fermetures: fermetures } }).then(function () {}, function () {});
+        sbClient.from('parametres_commercant').upsert({ commercant_id: commercantId, conges: fermetures.conges, feries_fermes: fermetures.feries_fermes, periodes_exceptionnelles: fermetures.periodes_exceptionnelles }).then(function (r) {
+          msg.textContent = r && r.error ? 'Gardé dans ton compte.' : 'Enregistré.';
+        }, function () { msg.textContent = 'Pas de réseau : réessaie dans un instant.'; });
+      }
+      function ajouterPeriode(type, idDebut, idFin, libelle) {
+        var debut = document.getElementById(idDebut).value, fin = document.getElementById(idFin).value || debut;
+        if (!debut) { document.getElementById('messageFermetures').textContent = 'Choisis au moins la date de début.'; return; }
+        if (fin < debut) { var t = debut; debut = fin; fin = t; }
+        var p = { debut: debut, fin: fin };
+        if (libelle !== undefined) p.libelle = libelle || 'Période exceptionnelle';
+        fermetures[type].push(p);
+        fermetures[type].sort(function (a, b) { return a.debut < b.debut ? -1 : 1; });
+        document.getElementById(idDebut).value = document.getElementById(idFin).value = '';
+        enregistrerFermetures();
+      }
+      document.getElementById('btnAjouterConge').addEventListener('click', function () { ajouterPeriode('conges', 'congeDebut', 'congeFin'); });
+      document.getElementById('btnAjouterException').addEventListener('click', function () {
+        var l = document.getElementById('exceptionLibelle');
+        ajouterPeriode('periodes_exceptionnelles', 'exceptionDebut', 'exceptionFin', l.value.trim().slice(0, 60));
+        l.value = '';
+      });
+      // Saisie rapide : la date de fin propose une semaine après le début.
+      document.getElementById('congeDebut').addEventListener('change', function () {
+        var fin = document.getElementById('congeFin');
+        if (!fin.value && this.value) { var d = new Date(this.value + 'T00:00:00'); d.setDate(d.getDate() + 6); fin.value = d.toISOString().slice(0, 10); }
+      });
+      document.getElementById('fermetures').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-retirer-periode]');
+        if (!b) return;
+        var parts = b.getAttribute('data-retirer-periode').split(':');
+        fermetures[parts[0]].splice(Number(parts[1]), 1);
+        enregistrerFermetures();
+      });
+      document.getElementById('grilleFeries').addEventListener('change', function (e) {
+        var cle = e.target.getAttribute('data-ferie');
+        if (!cle) return;
+        fermetures.feries_fermes = fermetures.feries_fermes.filter(function (k) { return k !== cle; });
+        if (!e.target.checked) fermetures.feries_fermes.push(cle);
+        enregistrerFermetures();
+      });
+
       function chargerParametres(session) {
         commercantId = session.user.id;
         statutDiv.style.display = 'none';
         zoneParametresEl.style.display = 'block';
         emailActuelEl.textContent = "Adresse actuelle : " + session.user.email;
+        var prenomEl = document.getElementById('inputPrenom');
+        prenomEl.value = (session.user.user_metadata && session.user.user_metadata.prenom) || '';
+        if (window.ApointNav) window.ApointNav.majCompte(session);
+        document.getElementById('btnPrenom').onclick = function () {
+          var prenom = prenomEl.value.trim().slice(0, 40);
+          var msg = document.getElementById('messagePrenom');
+          sbClient.auth.updateUser({ data: { prenom: prenom } }).then(function (r) {
+            if (r && r.error) { msg.textContent = window.messageErreur(r.error); return; }
+            session.user.user_metadata = (r && r.data && r.data.user && r.data.user.user_metadata) || session.user.user_metadata || {};
+            session.user.user_metadata.prenom = prenom;
+            msg.textContent = 'Enregistré.';
+            if (window.ApointNav) window.ApointNav.majCompte(session);
+          }, function () { msg.textContent = 'Pas de réseau : réessaie dans un instant.'; });
+        };
 
         grilleJoursFermetureEl.innerHTML = '';
         JOURS_AFFICHES.forEach(function (j) {
@@ -217,6 +337,7 @@
         window.CaisseUtilisee.brancher('selectCaisse', 'autreCaisse', caisseCompte || null);
         sbClient.from('parametres_commercant').select('*').eq('commercant_id', commercantId).then(function (res) {
           var parametres = (res.data && res.data[0]) || null;
+          chargerFermetures(parametres, session);
           if (!parametres) return;
           if (parametres.caisse) window.CaisseUtilisee.definir('selectCaisse', 'autreCaisse', parametres.caisse);
           var rep = parametres.reference_avant || (session.user.user_metadata && session.user.user_metadata.reference_avant);
@@ -426,6 +547,7 @@
       });
 
       btnDeconnexionEl.addEventListener('click', function () {
+        try { localStorage.removeItem('apoint-compte'); } catch (e) {}
         sbClient.auth.signOut().then(function () {
           location.href = 'connexion.html';
         });

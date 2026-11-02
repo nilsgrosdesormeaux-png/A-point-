@@ -4,7 +4,7 @@
 // Commandes terminées (COMPLETED) filtrées par date de clôture, avec leurs
 // lignes d'articles, jusqu'à 1 000 par page, 10 établissements par requête.
 
-import { type LigneVente, jourParis } from './commun.ts';
+import { type LigneVente, heureParis, jourParis } from './commun.ts';
 import { type FetchFn, type Jetons, appelJson, demanderJetons } from './http.ts';
 
 var API = 'https://connect.squareup.com';
@@ -71,10 +71,11 @@ export async function lignesVendues(fetchFn: FetchFn, accessToken: string, compt
       });
       (page.orders || []).forEach(function (commande: any) {
         var jour = jourParis(commande.closed_at || commande.created_at);
+        var heure = heureParis(commande.closed_at || commande.created_at);
         (commande.line_items || []).forEach(function (l: any) {
           var nom = l.variation_name && l.name && l.variation_name !== 'Regular' ? l.name + ' ' + l.variation_name : (l.name || '');
           if (!nom) return;
-          lignes.push({ nom_produit: nom, quantite: Number(l.quantity) || 0, date_vente: jour });
+          lignes.push({ nom_produit: nom, quantite: Number(l.quantity) || 0, date_vente: jour, heure: heure });
         });
       });
       if (!page.cursor) break;

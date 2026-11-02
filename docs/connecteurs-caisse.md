@@ -66,6 +66,39 @@ Principe : historique déposé **une seule fois**, puis la caisse envoie elle-m�
 
 **Synchronisation comptable** (Pennylane, Tiime…) : ne transmet que des totaux par jour et par taux de TVA, jamais les quantités par article. Inutile pour prévoir les fournées.
 
+### Lot 11 : liens vérifiés, liste sans doublon, voie de chaque caisse
+
+**Liens de la page Ma caisse, ouverts en vrai (curl -L + Playwright, 1er novembre 2026, sans compte)** :
+
+| Lien | Page atteinte | Après connexion |
+|---|---|---|
+| `me.sumup.com/settings/api-keys` | Connexion SumUp (auth.sumup.com), avec un contrôle anti-robot | `redirect_url=/settings/api-keys` conservé : page des clés API |
+| `my.zettle.com/apps/api-keys?name=A Point&scopes=…` | Connexion Zettle aux couleurs PayPal (« Enter your account email ») : phrase ajoutée | Retour vers my.zettle.com ; le maintien de la page des clés n'a pas pu être vérifié sans compte (si l'accueil s'affiche, rouvrir le lien) |
+| `developer.squareup.com/apps` | « S'inscrire à Square » (app.squareup.com/signup), bouton **Se connecter** présent : consigne ajoutée | Console développeur, liste des applications |
+| `r.loyverse.com/dashboard/#/integrations/tokens` | Connexion Loyverse Back Office (`redirectUrl` conservé) | Page des jetons d'accès |
+| `mailto:` Tactill, Zelty, Popina, éditeurs | Message prêt dans l'appli e-mail | — |
+
+Aucun lien mort. Les pages d'arrivée exigent toutes une connexion, donc le contenu final n'est vérifiable qu'avec un compte.
+
+**Liste des caisses** (`caisse-utilisee.js`, ordre alphabétique, sans doublon) : Bimedia, Cashmag, Cashpad, Crisalid, Hiboutik, L'Addition, Lightspeed Restaurant (série K), Lightspeed Retail (commerce), Loyverse, Popina, Square, SumUp, Tactill, Toporder, Zelty, Zettle (PayPal), Autre, Pas de caisse. « SumUp » est une seule entrée ; la page demande ensuite « terminal ou appli SumUp » (clé) ou « SumUp Caisse Pro sur iPad, ex-Tiller » (valeur `tiller`).
+
+**Voie de chaque caisse** — (a) clé, connecteur codé ; (b) envoi programmé d'un export par article ; (c) rapport Z par e-mail avec quantités par article ; (d) rien de public :
+
+| Caisse | Voie | Source |
+|---|---|---|
+| SumUp, Zettle, Square, Loyverse, Hiboutik | (a) clé créée par le commerçant | Docs officielles (plus haut) |
+| Tactill (v5) | (a) clé demandée à Tactill | documentation.api.tactill.com |
+| **Zelty** | (a) **nouveau** : clé API remise par l'équipe technique Zelty (ou par activation d'une appli dans la Marketplace), `Authorization: Bearer`, `GET /orders?from=&to=&expand[]=items`. Doc d'API réservée : chemins relevés dans des intégrations publiques de restaurateurs (GitHub) ; `api.zelty.fr` répond 401/403 JSON. **À confirmer** | [Integrating with Zelty](https://zelty.notion.site/Integrating-with-Zelty-25c9c28d925180cb8851cfce5e17a8f7), [Chift](https://docs.chift.eu/help/connectors/pos/zelty) |
+| **Popina** | (a) **nouveau** : clé API fournie par le support Popina (option d'abonnement ; un « consumer » peut être le client lui-même), `GET https://api.pragma-project.dev/v1/orders/?since&until&index&size`, `items[].description/quantity/isCanceled/isLoss`. **À confirmer** | [Popina API](https://www.pragma-project.dev/docs) |
+| Lightspeed Restaurant (K) | (b) Rapports > Planifications de rapports, CSV, quotidien | [Lightspeed](https://k-series-support.lightspeedhq.com/hc/en-us/articles/1260804606090-Understanding-report-schedules) |
+| SumUp Caisse Pro (ex-Tiller) | (d) API et portail développeur réservés aux partenaires (developers.tillersystems.com, connexion) ; clé générée dans l'App Market uniquement pour une appli listée | [Chift](https://docs.chift.eu/help/connectors/pos/tiller) |
+| L'Addition | (d) clé « partenaire » générée dans Reporting > Intégration partenaires, réservée aux partenaires listés | [Guide Guestonline](https://tableonline.zendesk.com/hc/fr/article_attachments/360052931492/Guide_d_installation_LAddition-Guestonline.pdf) |
+| Cashpad | (d) API partenaire : identifiants par partenaire + identifiant d'installation par client | [Cashpad APIs](https://cashpad.notion.site/APIs-134c0bb4d0df43009a22b42540123fda) |
+| Cashmag | (d) option API payante, doc non publique | [Chift](https://docs.chift.eu/help/connectors/pos/cashmag) |
+| Bimedia, Crisalid, Toporder, Lightspeed Retail | (d) aucune API, aucun envoi programmé, aucun rapport Z par article documentés publiquement | Recherches web, GitHub, centres d'aide |
+
+Pour les (d), l'app propose un message prêt pour demander l'envoi automatique à l'éditeur ; le rapport Z de fin de journée n'est documenté par aucun d'eux avec le détail par article (Popina documente des rapports par catégorie seulement). Voie durable : partenariat éditeur (Tiller, L'Addition, Cashpad) ou Chift (devis).
+
 ### Import de fichier : la solution universelle
 
 `supabase/functions/_shared/caisse/lecture-export.js` (même code pour la page, l'e-mail et les tests). Les éditeurs ne publient pas le détail colonne par colonne de leurs exports ; la lecture ne dépend donc pas d'un format précis mais reconnaît tout ce qui suit, testé dans `tests/caisse.test.mjs` :

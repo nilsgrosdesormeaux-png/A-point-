@@ -14,6 +14,7 @@
 | Tendance des 3 dernières semaines | **ajouté** | On n'applique que la moitié de l'écart, et au plus ±12 %. |
 | Produit nouveau un jour de fête | **ajouté** | Il reçoit la moitié de l'effet observé sur toute la boutique. |
 | Événements locaux sans compte (données ouvertes OpenAgenda) | **ajouté** | Marchés, brocantes et fêtes à moins de 2 km. |
+| Congés annuels, fériés ouverts ou fermés, travaux et autres périodes à part, produits de saison (galettes jusqu'à leur vraie fin, bûches), canicule −15 %, neige −30 % | **ajouté** | Rien n'est prévu pendant une fermeture. Une réouverture se compare à l'an dernier. Un produit de saison reprend la quantité de l'an dernier à la même fête, ou bien on demande au boulanger la quantité de départ. |
 | Météo, fériés, ponts, vacances, galettes, Pâques, fête des Mères, Noël | déjà là | — |
 
 Sur une boulangerie simulée de 22 mois (5 produits, ruptures fréquentes), l'écart moyen avec la vraie demande passe de **13,5 à 12,2 pièces par produit et par jour (−9 %)**. Il descend à 11,8 (−12 %) quand la caisse fournit l'heure de la dernière vente.
@@ -37,3 +38,22 @@ Elles sont classées par valeur pour le boulanger. L'effort est celui de l'équi
 **Plus tard.** La comparaison anonyme avec des boulangeries similaires sert peu tant qu'il n'y a pas au moins 30 boulangeries par type de quartier.
 
 **Ordre conseillé.** D'abord 2 et 5, peu d'effort et une valeur visible tout de suite. Ensuite 3, puis 1 dès que la caisse remonte l'heure des ventes. La 4 doit être prête avant les galettes : à livrer avant le 15 décembre.
+
+## Alerte rupture : fiabilité mesurée
+
+**Le principe.** Chaque heure, pour chaque produit, l'appli compare les ventes depuis l'ouverture à celles des 16 derniers mêmes jours de semaine, puis projette l'heure où il n'y aura plus rien (fournées prévues comprises). Elle n'alerte que si cinq conditions sont réunies : même la projection basse vide le stock, au moins 20 pièces sont déjà vendues, le relevé de l'heure d'avant disait déjà la même chose, la rupture tombe plus d'1 h avant la fermeture, et il reste le temps de fabriquer (pains 3 h, viennoiseries 2 h 30, snacking 1 h). Elle se tait du 20 au 24 décembre, le 31, et quand la boutique est fermée ou en congés.
+
+**Le message.** « Tradition : relance 40, à lancer avant 11 h 30, au four avant 14 h. 142 vendus à 10 h contre 98 d'habitude un mardi : plus rien vers 14 h 30. » La quantité suit l'hypothèse basse, pour ne pas fabriquer d'invendus.
+
+**Mesuré sur 300 journées simulées** (3 produits, journées calmes, chargées, « matin fort puis creux », « après-midi fort », 20 % de bruit par heure) :
+
+| | Résultat |
+|---|---|
+| Alertes sans aucune rupture ensuite | **0 sur 77**. Sur 3 autres simulations : 1 % |
+| Alertes suivies d'une rupture seulement après 18 h 30 | 3 sur 77 (4 %) |
+| Ruptures annoncées assez tôt pour relancer une fournée | **37 %** (51 sur 138) |
+| Avance moyenne sur la rupture | **4 h 30** |
+
+Les réglages privilégient le silence : une rupture sur trois est annoncée à temps, et presque aucune alerte n'est fausse. Les autres ruptures viennent d'un après-midi imprévisible à 11 h. Le testeur regarde son téléphone vers 10-11 h et à 14 h : il faut envoyer la notification au premier relevé qui déclenche, et la garder en tête de la Fournée.
+
+**Ce que la caisse doit fournir** (table `ventes_horaires`, une ligne par produit, jour et heure) : `commercant_id`, `date_vente` (jour de Paris), `heure` (0 à 23, heure de Paris, ventes de `heure:00` à `heure:59`), `nom_produit` (même nom que dans `ventes`), `quantite` (entier ≥ 0). Clé unique (commerçant, date, heure, produit), mise à jour au moins toutes les heures pendant l'ouverture, et 4 mois d'historique pour démarrer.

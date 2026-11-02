@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 14" width="600" height="14" preserveAspectRatio="none">
+  <!-- Filet de farine : une traînée irrégulière, comme une main qui fleure le plan de travail. -->
+  <path d="M2 8.2 C 40 6.1, 71 9.6, 118 7.4 S 196 5.2, 240 8.1 S 330 9.9, 372 7 S 452 5.6, 498 8.3 S 566 9.1, 598 6.8" fill="none" stroke="#D9C6A8" stroke-width="2.2" stroke-linecap="round"/>
+  <g fill="#D9C6A8">
+    <circle cx="27" cy="4.1" r="1"/><circle cx="64" cy="11.4" r=".8"/><circle cx="133" cy="3.6" r="1.1"/>
+    <circle cx="171" cy="11.2" r=".7"/><circle cx="226" cy="3.9" r=".9"/><circle cx="291" cy="12" r="1"/>
+    <circle cx="347" cy="3.2" r=".8"/><circle cx="409" cy="11.6" r="1.1"/><circle cx="461" cy="3.8" r=".7"/>
+    <circle cx="522" cy="11.8" r=".9"/><circle cx="577" cy="3.1" r="1"/>
+  </g>
+</svg>

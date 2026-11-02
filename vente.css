@@ -35,115 +35,129 @@
 .v-bloc p { max-width: 65ch; }
 
 /* ---------- Héros ---------- */
-.v-heros { display: grid; gap: var(--espace-7); align-items: center; padding-top: var(--espace-6); }
-@media (min-width: 940px) { .v-heros { grid-template-columns: 1.1fr 0.9fr; padding-top: var(--espace-8); } }
-.v-pastille {
-  display: inline-flex; align-items: center; gap: var(--espace-2); flex-wrap: wrap;
-  margin: 0 0 var(--espace-5); padding: 4px 12px 4px 4px;
-  font-size: var(--texte-sm); color: var(--couleur-texte-2);
-  background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-rond);
-}
-.v-pastille b { padding: 2px 10px; font-size: var(--texte-xs); font-weight: 600; color: var(--couleur-texte); background: var(--couleur-accent-doux); border-radius: var(--rayon-rond); }
+/* Texte à gauche, vraie capture à droite, légèrement de travers sur du papier kraft. */
+.v-heros { display: grid; gap: var(--espace-7); align-items: start; padding-top: var(--espace-6); }
+@media (min-width: 940px) { .v-heros { grid-template-columns: 1.25fr 0.75fr; gap: var(--espace-8); padding-top: var(--espace-8); } }
+.v-surtitre { display: flex; align-items: center; gap: var(--espace-3); margin: 0 0 var(--espace-4); font-size: var(--texte-sm); font-weight: 500; color: var(--couleur-texte-2); }
+.v-surtitre img { flex: none; }
 .v-heros h1 {
   font-size: var(--texte-3xl); font-weight: 600; line-height: 1.02; letter-spacing: -0.025em;
-  margin: 0 0 var(--espace-5); max-width: 14ch;
+  margin: 0 0 var(--espace-5); max-width: 15ch;
 }
-.v-heros-texte { font-size: var(--texte-lg); line-height: 1.45; color: var(--couleur-texte-2); max-width: 44ch; margin: 0 0 var(--espace-6); }
+.v-heros-texte { font-size: var(--texte-lg); line-height: 1.5; color: var(--couleur-texte-2); max-width: 46ch; margin: 0 0 var(--espace-6); }
 .v-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espace-3) var(--espace-5); }
 .v-actions .bouton-principal { width: auto; margin: 0; min-height: 52px; padding: 12px 28px; }
 @media (max-width: 520px) { .v-actions .bouton-principal { width: 100%; } }
 .v-note { margin: var(--espace-4) 0 0; font-size: var(--texte-sm); color: var(--couleur-texte-3); }
 
-/* Maquette de l'écran Fournée (données fictives) */
-.v-scene {
-  padding: var(--espace-6) var(--espace-4);
-  background: radial-gradient(120% 90% at 20% 10%, #F2C27A 0%, var(--couleur-dore) 45%, #C9862B 100%);
-  border-radius: var(--rayon-lg);
+/* Captures réelles de l'appli : posées, pas mises en scène. */
+.v-capture { margin: 0; }
+.v-capture img { display: block; width: 100%; height: auto; border: 1px solid var(--couleur-bordure); border-radius: 6px; box-shadow: 0 1px 0 rgba(80, 50, 20, .06), 0 14px 30px -18px rgba(80, 50, 20, .45); }
+.v-capture figcaption { margin-top: var(--espace-3); font-size: var(--texte-sm); line-height: 1.45; color: var(--couleur-texte-3); max-width: 38ch; }
+.v-capture figcaption b { color: var(--couleur-texte); font-weight: 600; }
+/* Papier kraft : aplat brun clair et grain, pas de dégradé. */
+.v-kraft {
+  padding: var(--espace-5) var(--espace-5) var(--espace-6);
+  background-color: #CDAA80;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='k'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .22 0 0 0 0 .1 0 0 0 .18 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23k)'/%3E%3C/svg%3E");
+  border-radius: 3px;
+  transform: rotate(1.2deg);
 }
-@media (min-width: 940px) { .v-scene { padding: var(--espace-7) var(--espace-6); } }
-.v-maquette {
-  margin: 0 auto; max-width: 360px;
-  padding: var(--espace-5);
-  background: var(--couleur-surface); color: var(--couleur-texte);
-  border-radius: var(--rayon-lg); box-shadow: var(--ombre);
+.v-kraft img { max-width: 340px; margin: 0 auto; transform: rotate(-2.4deg); }
+.v-capture--heros { max-width: 420px; justify-self: center; width: 100%; }
+.v-capture--heros figcaption { margin-left: var(--espace-2); }
+@media (min-width: 940px) { .v-capture--heros { justify-self: end; margin-top: var(--espace-4); } }
+
+/* ---------- Le calcul en euros : une seule ligne d'arithmétique ---------- */
+.v-equation { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espace-4) var(--espace-5); margin: var(--espace-6) 0 var(--espace-5); max-width: none !important; }
+.v-terme { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: clamp(40px, 6vw, 60px); font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.v-terme small { display: block; margin-top: 6px; font-family: var(--police); font-size: var(--texte-sm); font-weight: 500; color: var(--couleur-texte-3); letter-spacing: 0; }
+.v-terme--total { color: var(--couleur-accent-texte); }
+.v-op { font-family: var(--police-titre); font-size: clamp(28px, 4vw, 40px); color: var(--couleur-texte-3); line-height: 1; align-self: flex-start; padding-top: 0.25em; }
+.v-exemple { margin: 0; font-size: var(--texte-sm); color: var(--couleur-texte-3); max-width: 70ch; }
+
+/* Étiquette de prix à la craie, sur une ardoise, avec sa ficelle. */
+.v-ardoise {
+  position: relative; display: inline-block;
+  padding: 12px 22px 12px 38px;
+  font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: clamp(34px, 5vw, 46px); font-weight: 500; line-height: 1;
+  color: #F4EEE2; background: #2E2824;
+  border-radius: 4px 10px 8px 5px;
+  box-shadow: inset 0 0 0 4px #4A3F37, inset 0 0 0 5px rgba(244, 238, 226, .12), 0 6px 14px -6px rgba(40, 25, 15, .5);
+  transform: rotate(-4deg);
+  text-shadow: 0 0 1px rgba(244, 238, 226, .6);
 }
-.v-maquette-legende { margin: 0 0 var(--espace-3); font-size: var(--texte-xs); color: var(--couleur-texte-3); }
-.v-maquette-titre { margin: 0; font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: 24px; font-weight: 600; }
-.v-maquette-sous { margin: 2px 0 var(--espace-4); font-size: var(--texte-sm); color: var(--couleur-texte-2); }
-.v-maquette-rayon { margin: var(--espace-4) 0 0; font-size: var(--texte-xs); font-weight: 600; color: var(--couleur-texte-3); }
-.v-ligne { display: flex; justify-content: space-between; align-items: baseline; gap: var(--espace-3); padding: 8px 0; border-bottom: 1px solid var(--couleur-bordure); }
-.v-ligne:last-of-type { border-bottom: 0; }
-.v-ligne span { font-size: var(--texte-md); }
-.v-ligne small { display: block; font-size: var(--texte-xs); color: var(--couleur-texte-3); }
-.v-ligne strong { font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: 32px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
-.v-maquette-pied { margin: var(--espace-4) 0 0; padding: 10px; text-align: center; font-size: var(--texte-sm); font-weight: 600; color: var(--couleur-sur-accent); background: var(--couleur-accent); border-radius: var(--rayon-rond); }
-
-/* ---------- Le calcul en euros ---------- */
-.v-calcul { display: grid; gap: var(--espace-5); margin-top: var(--espace-6); }
-@media (min-width: 760px) { .v-calcul { grid-template-columns: repeat(3, 1fr); } }
-.v-chiffre {
-  padding: var(--espace-5); background: var(--couleur-surface);
-  border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md);
+.v-ardoise::before { /* trou de l'étiquette */
+  content: ''; position: absolute; left: 14px; top: 50%; width: 9px; height: 9px; margin-top: -4.5px;
+  border-radius: 50%; background: var(--couleur-fond); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .5);
 }
-.v-chiffre strong { display: block; font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: var(--texte-2xl); font-weight: 600; line-height: 1; margin-bottom: var(--espace-2); font-variant-numeric: tabular-nums; }
-.v-chiffre p { margin: 0; color: var(--couleur-texte-2); }
-.v-chiffre--fonce { background: var(--couleur-inverse); border-color: var(--couleur-inverse); color: var(--couleur-sur-inverse); }
-.v-chiffre--fonce strong { color: var(--couleur-dore); }
-.v-chiffre--fonce p { color: var(--couleur-sur-inverse); }
-.v-exemple { margin: var(--espace-4) 0 0; font-size: var(--texte-sm); color: var(--couleur-texte-3); }
-
-/* ---------- Étapes ---------- */
-.v-etapes { list-style: none; counter-reset: etape; display: grid; gap: var(--espace-5); margin: var(--espace-6) 0 0; padding: 0; }
-@media (min-width: 860px) { .v-etapes { grid-template-columns: repeat(3, 1fr); gap: var(--espace-6); } }
-.v-etapes li { counter-increment: etape; padding-top: var(--espace-4); border-top: 3px solid var(--couleur-dore); }
-.v-etapes li::before {
-  content: counter(etape); display: block; margin-bottom: var(--espace-2);
-  font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: 36px; font-weight: 600; color: var(--couleur-accent-texte); line-height: 1;
+.v-ardoise::after { /* ficelle */
+  content: ''; position: absolute; left: -26px; top: 50%; width: 46px; height: 2px;
+  background: repeating-linear-gradient(90deg, #A88457 0 4px, #8C6A42 4px 6px); transform: rotate(-24deg); transform-origin: right center;
 }
-.v-etapes p { margin: 0; color: var(--couleur-texte-2); }
 
-/* ---------- Écrans ---------- */
-.v-ecrans { display: grid; gap: var(--espace-4); margin-top: var(--espace-6); }
-@media (min-width: 760px) { .v-ecrans { grid-template-columns: repeat(2, 1fr); gap: var(--espace-5); } }
-.v-ecran { padding: var(--espace-5); background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md); box-shadow: var(--ombre-carte); }
-.v-ecran-nom { display: inline-block; margin: 0 0 var(--espace-3); padding: 2px 10px; font-size: var(--texte-xs); font-weight: 600; background: var(--couleur-accent-doux); border-radius: var(--rayon-rond); }
-.v-ecran ul { margin: var(--espace-3) 0 0; padding-left: 1.1em; color: var(--couleur-texte-2); }
-.v-ecran li + li { margin-top: var(--espace-1); }
-.v-ecran p { margin: 0; color: var(--couleur-texte-2); }
+/* ---------- Une journée : une frise de texte, pas trois colonnes ---------- */
+.v-journee { list-style: none; margin: var(--espace-6) 0 0; padding: 0; max-width: 820px; }
+.v-journee li { display: grid; gap: var(--espace-2) var(--espace-6); padding: var(--espace-5) 0; }
+.v-journee li + li { background: url(images/filet-farine.svg) no-repeat top left / 100% 10px; }
+@media (min-width: 760px) { .v-journee li { grid-template-columns: 180px 1fr; } }
+.v-moment { margin: 0; font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: var(--texte-xl); font-weight: 500; line-height: 1.1; color: var(--couleur-accent-texte); }
+.v-moment-titre { margin: 0 0 var(--espace-1); font-weight: 600; font-size: var(--texte-lg); color: var(--couleur-texte); }
+.v-journee li p:not(.v-moment):not(.v-moment-titre) { margin: 0; color: var(--couleur-texte-2); }
 
-/* ---------- Caisses ---------- */
-.v-caisses { margin-top: var(--espace-6); display: grid; gap: var(--espace-3); }
-.v-caisse { display: grid; gap: var(--espace-2); padding: var(--espace-4) var(--espace-5); background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-md); }
-@media (min-width: 760px) { .v-caisse { grid-template-columns: 220px 1fr auto; align-items: center; gap: var(--espace-5); } }
-.v-caisse b { font-weight: 600; }
-.v-caisse p { margin: 0; color: var(--couleur-texte-2); }
-.v-etat { justify-self: start; padding: 2px 10px; font-size: var(--texte-xs); font-weight: 600; border-radius: var(--rayon-rond); white-space: nowrap; }
-.v-etat--ok { color: var(--couleur-succes); background: var(--couleur-succes-doux); }
-.v-etat--bientot { color: var(--couleur-alerte); background: var(--couleur-alerte-doux); }
+/* ---------- Les écrans : trois captures, décalées ---------- */
+.v-galerie { display: grid; gap: var(--espace-7) var(--espace-6); margin-top: var(--espace-7); }
+.v-galerie .v-capture { max-width: 320px; }
+.v-capture--bilan { justify-self: end; }
+@media (min-width: 860px) {
+  .v-galerie { grid-template-columns: 1fr 0.9fr 1fr; align-items: start; }
+  .v-galerie .v-capture { max-width: none; }
+  .v-capture--fournil { grid-row: span 2; }
+  .v-capture--bilan { justify-self: stretch; margin-top: var(--espace-9); }
+  .v-capture--commande { margin-top: var(--espace-6); }
+}
+.v-galerie-note { margin: 0; align-self: end; font-size: var(--texte-md); color: var(--couleur-texte-2); max-width: 34ch; }
+.v-galerie-note b { color: var(--couleur-texte); }
+@media (min-width: 860px) { .v-galerie-note { grid-column: 2 / 4; } }
+
+/* ---------- Caisses : un tableau réglé ---------- */
+.v-caisses { margin: var(--espace-6) 0 0; border-top: 2px solid var(--couleur-texte); }
+.v-caisse { display: grid; gap: var(--espace-1); padding: var(--espace-4) 0; border-bottom: 1px solid var(--couleur-bordure); }
+@media (min-width: 760px) { .v-caisse { grid-template-columns: 240px 1fr 150px; align-items: baseline; gap: var(--espace-5); } }
+.v-caisse dt { font-weight: 600; }
+.v-caisse dd { margin: 0; color: var(--couleur-texte-2); max-width: 62ch; }
+.v-etat { font-size: var(--texte-sm); font-weight: 600; }
+.v-etat--ok { color: var(--couleur-succes) !important; }
+.v-etat--ok::before { content: '✓ '; }
+.v-etat .v-etat--bientot { display: block; font-weight: 500; color: var(--couleur-alerte); }
+@media (min-width: 760px) { .v-etat { text-align: right; } }
+
+/* ---------- Pourquoi À Point : une lettre signée ---------- */
+.v-pourquoi { display: grid; gap: var(--espace-4) var(--espace-8); }
+@media (min-width: 860px) { .v-pourquoi { grid-template-columns: 0.7fr 1.3fr; } .v-pourquoi h2 { position: sticky; top: 96px; align-self: start; } }
+.v-lettre { max-width: 60ch; }
+.v-lettre p { margin: 0 0 var(--espace-4); font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: 21px; line-height: 1.5; font-weight: 400; color: var(--couleur-texte); }
+.v-lettre a { color: var(--couleur-accent-texte); text-decoration: underline; }
+.v-lettre .v-signature { margin-top: var(--espace-5); font-size: 26px; font-weight: 600; }
+.v-signature small { display: block; font-family: var(--police); font-size: var(--texte-sm); font-weight: 400; color: var(--couleur-texte-3); }
 
 /* ---------- Prix ---------- */
-.v-prix { display: grid; gap: var(--espace-5); margin-top: var(--espace-6); }
-@media (min-width: 860px) { .v-prix { grid-template-columns: 1.1fr 0.9fr; align-items: stretch; } }
-.v-prix-carte { padding: var(--espace-6) var(--espace-5); background: var(--couleur-surface); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-lg); box-shadow: var(--ombre); }
-.v-prix-etape { margin: 0; font-size: var(--texte-sm); color: var(--couleur-texte-2); }
-.v-prix-montant { margin: 0 0 var(--espace-4); font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-size: 56px; font-weight: 600; line-height: 1.05; letter-spacing: -0.02em; }
-.v-prix-montant small { font-family: var(--police); font-size: var(--texte-md); font-weight: 500; color: var(--couleur-texte-2); letter-spacing: 0; }
-.v-prix-carte ul { list-style: none; margin: var(--espace-5) 0 0; padding: 0; }
-.v-prix-carte li { padding: 8px 0 8px 28px; border-top: 1px solid var(--couleur-bordure); position: relative; }
-.v-prix-carte li::before { content: ""; position: absolute; left: 4px; top: 15px; width: 12px; height: 7px; border-left: 2px solid var(--couleur-succes); border-bottom: 2px solid var(--couleur-succes); transform: rotate(-45deg); }
-.v-prix-carte .bouton-principal { margin-top: var(--espace-5); }
-.v-garantie { padding: var(--espace-6) var(--espace-5); background: var(--couleur-inverse); color: var(--couleur-sur-inverse); border-radius: var(--rayon-lg); }
-.v-garantie h3 { color: var(--couleur-dore); font-size: var(--texte-xl); line-height: 1.15; margin-bottom: var(--espace-4); }
-.v-garantie p { margin: 0 0 var(--espace-3); color: var(--couleur-sur-inverse); }
-.v-garantie a { color: var(--couleur-dore); text-decoration: underline; }
+.v-prix { display: grid; gap: var(--espace-6); align-items: center; }
+@media (min-width: 860px) { .v-prix { grid-template-columns: 260px 1fr; gap: var(--espace-8); } }
+.v-prix-etiquette { padding-left: 34px; }
+.v-ardoise--grande { font-size: clamp(56px, 9vw, 88px); padding: 18px 34px 18px 52px; transform: rotate(-6deg); }
+.v-ardoise--grande::before { left: 20px; width: 12px; height: 12px; margin-top: -6px; }
+.v-prix-texte p { color: var(--couleur-texte-2); }
+.v-prix-texte a:not(.bouton-principal) { color: var(--couleur-accent-texte); text-decoration: underline; }
+.v-prix-texte .bouton-principal { width: auto; margin-top: var(--espace-3); min-height: 52px; padding: 12px 28px; }
+@media (max-width: 520px) { .v-prix-texte .bouton-principal { width: 100%; } }
 
 /* ---------- FAQ ---------- */
 .v-faq { margin-top: var(--espace-5); max-width: 760px; border-top: 1px solid var(--couleur-bordure); }
 
-/* ---------- Appel final ---------- */
-.v-final { text-align: center; }
-.v-final h2, .v-final .v-intro { margin-left: auto; margin-right: auto; }
-.v-final .v-actions { justify-content: center; margin-top: var(--espace-6); }
+/* ---------- Appel final : aligné à gauche, comme le reste ---------- */
+.v-final { padding-bottom: var(--espace-9); }
+.v-final .v-actions { margin-top: var(--espace-5); }
 
 /* ---------- Pied de page ---------- */
 .v-pied {
@@ -182,9 +196,13 @@
 
 /* ---------- Aide ---------- */
 .v-aide-titre { margin: 0 0 var(--espace-2); font-size: var(--texte-xl); }
-.v-aide-sommaire { display: flex; flex-wrap: wrap; gap: var(--espace-2); margin: var(--espace-5) 0 var(--espace-6); padding: 0; list-style: none; }
-.v-aide-sommaire a { display: inline-block; padding: 6px 12px; font-size: var(--texte-sm); color: var(--couleur-texte); background: var(--couleur-surface-2); border-radius: var(--rayon-rond); }
-.v-aide-sommaire a:hover { background: var(--couleur-accent-doux); }
+/* Sommaire de l'Aide : un vrai sommaire numéroté, pas des pastilles. */
+.v-aide-sommaire { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--espace-5); margin: var(--espace-5) 0 var(--espace-7); padding: 0; list-style: none; counter-reset: rub; border-top: 2px solid var(--couleur-texte); }
+@media (min-width: 720px) { .v-aide-sommaire { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.v-aide-sommaire li { counter-increment: rub; border-bottom: 1px solid var(--couleur-bordure); }
+.v-aide-sommaire a { display: flex; align-items: baseline; gap: var(--espace-2); min-height: 44px; padding: 10px 0; font-size: var(--texte-md); color: var(--couleur-texte); }
+.v-aide-sommaire a::before { content: counter(rub); font-family: var(--police-titre); font-variation-settings: 'SOFT' 100; font-weight: 600; color: var(--couleur-accent-texte); min-width: 1ch; }
+.v-aide-sommaire a:hover { color: var(--couleur-accent-texte); }
 .v-aide-rubrique { margin: var(--espace-7) 0 var(--espace-2); font-size: var(--texte-lg); scroll-margin-top: 80px; }
 .v-aide-rubrique:first-of-type { margin-top: 0; }
 .faq-item ol, .faq-item ul { margin: 0 0 var(--espace-4); padding-left: 1.3em; color: var(--couleur-texte-2); max-width: 65ch; }
@@ -197,3 +215,9 @@
   .a-completer { border-style: solid; }
 }
 .v-bloc[id], .v-legal h2[id] { scroll-margin-top: 72px; }
+@media (max-width: 599px) {
+  .v-equation { display: grid; grid-template-columns: 40px 1fr; gap: var(--espace-3) var(--espace-2); align-items: baseline; }
+  .v-equation .v-ardoise { grid-column: 1 / -1; justify-self: start; margin: 0 0 var(--espace-2) 28px; }
+  .v-op { padding-top: 0; align-self: baseline; text-align: center; }
+  .v-terme small { display: inline; margin: 0 0 0 8px; }
+}

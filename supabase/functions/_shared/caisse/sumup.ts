@@ -5,7 +5,7 @@
 //
 // `fetchFn` est injecté pour pouvoir tester sans compte marchand réel.
 
-import { type LigneVente, jourParis } from './commun.ts';
+import { type LigneVente, heureParis, jourParis } from './commun.ts';
 import { type FetchFn, type Jetons, appelJson, demanderJetons, ErreurAutorisation } from './http.ts';
 
 export { ErreurAutorisation };
@@ -96,9 +96,10 @@ export async function lignesVendues(fetchFn: FetchFn, accessToken: string, march
     }));
     details.forEach(function (t: any) {
       var jour = jourParis(t.timestamp);
+      var heure = heureParis(t.timestamp);
       (t.products || []).forEach(function (p: any) {
         if (!p.name) return;
-        lignes.push({ nom_produit: p.name, quantite: Number(p.quantity) || 0, date_vente: jour });
+        lignes.push({ nom_produit: p.name, quantite: Number(p.quantity) || 0, date_vente: jour, heure: heure });
       });
     });
   }

@@ -29,6 +29,7 @@
   ];
 
   var LIENS_COMPTE = [
+    { href: 'commandes-clients.html', label: 'Commandes clients' },
     { href: 'parametres.html', label: 'Paramètres' },
     { href: 'parametres.html#donnees', label: 'Mes données', match: ['ventes.html', 'produits.html', 'import.html'] },
     { href: 'aide.html', label: 'Aide' }
@@ -56,8 +57,33 @@
     }).join('');
   }
 
+  // Lot 11 : en tête du menu, le prénom (ou l'adresse) et la boulangerie,
+  // avec un lien pour les changer. Gardé sur l'appareil pour s'afficher tout de suite.
+  function enteteCompte() {
+    var memo = {};
+    try { memo = JSON.parse(localStorage.getItem('apoint-compte') || '{}'); } catch (e) {}
+    var nom = memo.prenom || memo.email || '';
+    return '<div class="menu-compte-qui" id="menuCompteQui"' + (nom ? '' : ' hidden') + '><strong id="menuComptePrenom">' + echapperNav(nom) + '</strong>' +
+      '<a href="parametres.html#profil" class="menu-compte-modifier">' + (memo.prenom ? 'Changer mon prénom' : 'Ajouter mon prénom') + '</a></div>';
+  }
+  function echapperNav(t) { return String(t || '').replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function majCompte(session) {
+    if (!session || !session.user) return;
+    var m = session.user.user_metadata || {};
+    var memo = { prenom: m.prenom || '', email: session.user.email || '' };
+    try { localStorage.setItem('apoint-compte', JSON.stringify(memo)); } catch (e) {}
+    var bloc = document.getElementById('menuCompteQui');
+    if (!bloc) return;
+    bloc.hidden = !(memo.prenom || memo.email);
+    document.getElementById('menuComptePrenom').textContent = memo.prenom || memo.email;
+    bloc.querySelector('.menu-compte-modifier').textContent = memo.prenom ? 'Changer mon prénom' : 'Ajouter mon prénom';
+    var bouton = document.querySelector('.btn-compte');
+    if (bouton) bouton.setAttribute('aria-label', 'Mon compte' + (memo.prenom ? ' : ' + memo.prenom : ''));
+  }
+  window.ApointNav = { majCompte: majCompte };
+
   function construireMenuCompte(courante) {
-    return LIENS_COMPTE.map(function (entree) {
+    return enteteCompte() + LIENS_COMPTE.map(function (entree) {
       var actif = entree.href === courante || (entree.match || []).indexOf(courante) !== -1;
       return '<a href="' + entree.href + '"' + (actif ? ' class="actif" aria-current="page"' : '') + '>' + entree.label + '</a>';
     }).join('') + '<hr><a href="cgu.html">Conditions d\'utilisation</a><a href="mentions-legales.html">Mentions légales</a><a href="confidentialite.html">Confidentialité</a>';
@@ -102,6 +128,10 @@
     entete.appendChild(compte);
 
     activerMenuCompte(compte.querySelector('.btn-compte'), compte.querySelector('.menu-compte'));
+    // Pages qui chargent leurs données par contexte.js : sa session met le menu à jour.
+    window.addEventListener('load', function () {
+      if (window.__sbClient && window.__sbClient.auth) window.__sbClient.auth.getSession().then(function (r) { majCompte(r && r.data && r.data.session); }, function () {});
+    });
   }
 
   // Champ fichier en français : le bouton natif (« Choose File ») est caché,

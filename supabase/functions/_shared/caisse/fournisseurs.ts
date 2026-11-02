@@ -19,6 +19,9 @@ import * as square from './square.ts';
 import * as hiboutik from './hiboutik.ts';
 import * as loyverse from './loyverse.ts';
 import * as tactill from './tactill.ts';
+import * as zelty from './zelty.ts';
+import * as popina from './popina.ts';
+import * as lightspeedRetail from './lightspeed-retail.ts';
 
 export type Identifiants = { clientId: string; clientSecret: string };
 
@@ -46,6 +49,12 @@ export type Fournisseur = {
   rafraichir?: (fetchFn: FetchFn, clientId: string, clientSecret: string, refreshToken: string) => Promise<Jetons>;
   identifiantCompte: (fetchFn: FetchFn, jeton: string) => Promise<string>;
   lignesDuJour: (fetchFn: FetchFn, jeton: string, compte: string, jour: string) => Promise<LigneVente[]>;
+  // Ventes entre deux instants UTC, avec l'heure du ticket : synchro dans la
+  // journée (ventes_horaires). Absent : la caisse ne donne que des totaux du
+  // jour (Hiboutik) ou se lit par journée (Zelty, voir horairesDuJour).
+  lignesEntre?: (fetchFn: FetchFn, jeton: string, compte: string, debutISO: string, finISO: string) => Promise<LigneVente[]>;
+  // Lecture par journée qui donne quand même l'heure de chaque ticket.
+  horairesParJour?: boolean;
 };
 
 function parInstants(lire: (f: FetchFn, j: string, c: string, d: string, fin: string) => Promise<LigneVente[]>) {
@@ -70,7 +79,7 @@ export var FOURNISSEURS: Record<string, Fournisseur> = {
       }
     },
     urlAutorisation: sumup.urlAutorisation, echangerCode: sumup.echangerCode, rafraichir: sumup.rafraichir,
-    identifiantCompte: sumup.codeMarchand, lignesDuJour: parInstants(sumup.lignesVendues)
+    identifiantCompte: sumup.codeMarchand, lignesDuJour: parInstants(sumup.lignesVendues), lignesEntre: sumup.lignesVendues
   },
   zettle: {
     libelle: 'Zettle', mode: 'oauth',
@@ -79,7 +88,7 @@ export var FOURNISSEURS: Record<string, Fournisseur> = {
       jetonDepuisCle: zettle.jetonDepuisCle
     },
     urlAutorisation: zettle.urlAutorisation, echangerCode: zettle.echangerCode, rafraichir: zettle.rafraichir,
-    identifiantCompte: zettle.identifiantCompte, lignesDuJour: parInstants(zettle.lignesVendues)
+    identifiantCompte: zettle.identifiantCompte, lignesDuJour: parInstants(zettle.lignesVendues), lignesEntre: zettle.lignesVendues
   },
   square: {
     libelle: 'Square', mode: 'oauth',
@@ -91,7 +100,7 @@ export var FOURNISSEURS: Record<string, Fournisseur> = {
       }
     },
     urlAutorisation: square.urlAutorisation, echangerCode: square.echangerCode, rafraichir: square.rafraichir,
-    identifiantCompte: square.identifiantCompte, lignesDuJour: parInstants(square.lignesVendues)
+    identifiantCompte: square.identifiantCompte, lignesDuJour: parInstants(square.lignesVendues), lignesEntre: square.lignesVendues
   },
   hiboutik: {
     libelle: 'Hiboutik', mode: 'cle',
@@ -116,7 +125,7 @@ export var FOURNISSEURS: Record<string, Fournisseur> = {
       },
       migration: 'migration-connecteurs-caisse-v4.sql'
     },
-    identifiantCompte: loyverse.identifiantCompte, lignesDuJour: parInstants(loyverse.lignesVendues)
+    identifiantCompte: loyverse.identifiantCompte, lignesDuJour: parInstants(loyverse.lignesVendues), lignesEntre: loyverse.lignesVendues
   },
   tactill: {
     libelle: 'Tactill', mode: 'cle',
@@ -129,7 +138,46 @@ export var FOURNISSEURS: Record<string, Fournisseur> = {
       },
       migration: 'migration-connecteurs-caisse-v4.sql'
     },
-    identifiantCompte: tactill.identifiantCompte, lignesDuJour: parInstants(tactill.lignesVendues)
+    identifiantCompte: tactill.identifiantCompte, lignesDuJour: parInstants(tactill.lignesVendues), lignesEntre: tactill.lignesVendues
+  },
+  zelty: {
+    libelle: 'Zelty', mode: 'cle',
+    cle: {
+      lire: function (c) {
+        var k = texte(c.cle);
+        if (!/^[A-Za-z0-9+/=_-]{16,}$/.test(k)) throw new Error('Clé API Zelty attendue (une longue suite de lettres et de chiffres, parfois terminée par « = »)');
+        return k;
+      },
+      migration: 'migration-connecteurs-caisse-v5.sql'
+    },
+    identifiantCompte: zelty.identifiantCompte, lignesDuJour: zelty.lignesVenduesDuJour, horairesParJour: true
+  },
+  popina: {
+    libelle: 'Popina', mode: 'cle',
+    cle: {
+      lire: function (c) {
+        var k = texte(c.cle);
+        if (!/^\S{16,}$/.test(k)) throw new Error('Clé API Popina attendue (celle envoyée par le support Popina), sans espace');
+        return k;
+      },
+      migration: 'migration-connecteurs-caisse-v5.sql'
+    },
+    identifiantCompte: popina.identifiantCompte, lignesDuJour: parInstants(popina.lignesVendues), lignesEntre: popina.lignesVendues
+  },
+  lightspeed_retail: {
+    libelle: 'Lightspeed Retail', mode: 'cle',
+    cle: {
+      lire: function (c) {
+        var prefixe = lightspeedRetail.prefixeDepuisAdresse(texte(c.compte));
+        var jeton = texte(c.cle);
+        if (!/^[a-z0-9-]+$/.test(prefixe)) throw new Error('Renseigne l\'adresse de ta boutique Lightspeed (ce qui est avant « .retail.lightspeed.app »)');
+        if (!/^\S{20,}$/.test(jeton)) throw new Error('Jeton personnel Lightspeed attendu (une longue suite de caractères, sans espace)');
+        return JSON.stringify({ prefixe: prefixe, jeton: jeton });
+      },
+      migration: 'migration-connecteurs-caisse-v6.sql'
+    },
+    identifiantCompte: lightspeedRetail.identifiantCompte, lignesDuJour: parInstants(lightspeedRetail.lignesVendues),
+    lignesEntre: lightspeedRetail.lignesVendues
   }
 };
 
@@ -169,7 +217,9 @@ export function disponibles(lireEnv: (cle: string) => string | undefined): Recor
 // Caisse devinée d'après la forme de la clé collée : le boulanger n'a qu'un
 // champ à remplir, même s'il s'est trompé de caisse dans la liste.
 //   sup_sk_… SumUp · sk_live_ / sk_test_… Tactill · EAAA… Square ·
-//   JWT (eyJ….….…) Zettle · 20 à 64 lettres et chiffres : Loyverse.
+//   JWT (eyJ….….…) Zettle · base64 de « 123:… » Zelty ·
+//   20 à 64 lettres et chiffres : Loyverse (indice faible : une clé Popina
+//   peut y ressembler, voir FORMES_SURES).
 // Hiboutik (compte + e-mail + clé) a son propre formulaire.
 export function devinerFournisseur(cle: unknown): string | null {
   var k = String(cle === null || cle === undefined ? '' : cle).trim();
@@ -177,6 +227,10 @@ export function devinerFournisseur(cle: unknown): string | null {
   if (/^sk_(live|test)_/.test(k)) return 'tactill';
   if (/^EAAA[A-Za-z0-9_-]{20,}$/.test(k)) return 'square';
   if (/^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/.test(k)) return 'zettle';
+  if (zelty.ressembleCleZelty(k)) return 'zelty';
   if (/^[A-Za-z0-9]{20,64}$/.test(k)) return 'loyverse';
   return null;
 }
+
+// Formes sans ambiguïté : elles priment sur la caisse choisie dans la liste.
+export var FORMES_SURES = ['sumup', 'tactill', 'square', 'zettle', 'zelty'];

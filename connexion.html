@@ -7,7 +7,7 @@
   <title>À Point - Connexion</title>
   <meta name="description" content="À Point prévoit ton activité de la semaine à venir à partir de tes propres ventes, pour savoir quoi produire ou commander et si tu auras besoin de renfort, sans jamais rien deviner à ta place.">
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101q">
+  <link rel="stylesheet" href="style.css?v=20261101r">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="erreurs.js?v=20261101"></script>
   <script src="caisse-utilisee.js?v=20261101q"></script>
@@ -19,7 +19,11 @@
     #btnAction { width: 100%; }
   </style>
 </head>
-<body>
+<body class="page-connexion">
+  <aside class="connexion-kraft" aria-hidden="true">
+    <img src="images/capture-fournil.webp" width="390" height="693" alt="">
+    <p>Le mode fournil, à 5 h 30. Compte de démonstration « Le petit comptoire ».</p>
+  </aside>
   <div class="conteneur" role="main" style="max-width: 380px;">
     <a class="logo-centre" href="index.html" aria-label="À Point, présentation">
       <svg class="logo-marque" viewBox="0 0 100 100" width="56" height="56" aria-hidden="true">
@@ -29,7 +33,7 @@
       </svg>
     </a>
     <h1>À Point</h1>
-    <p class="sous-titre texte-aide">La bonne fournée, chaque matin</p>
+    <p class="sous-titre texte-aide">La fournée de demain, comptée sur tes ventes.</p>
 
     <div class="onglets" role="tablist">
       <div class="onglet actif" id="ongletConnexion" role="tab" tabindex="0" aria-selected="true">Se connecter</div>

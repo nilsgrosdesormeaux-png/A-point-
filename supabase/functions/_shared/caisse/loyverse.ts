@@ -8,7 +8,7 @@
 // Tickets annulés (cancelled_at) ignorés ; remboursements (receipt_type
 // REFUND) déduits. Limite : 300 requêtes / 300 s par compte (429 réessayé).
 
-import { type LigneVente, jourParis } from './commun.ts';
+import { type LigneVente, heureParis, jourParis } from './commun.ts';
 import { type FetchFn, appelJson } from './http.ts';
 
 var API = 'https://api.loyverse.com/v1.0';
@@ -35,11 +35,12 @@ export async function lignesVendues(fetchFn: FetchFn, jeton: string, _compte: st
       if (r.cancelled_at) return;
       // Même instant que le filtre (created_at) : un ticket n'est jamais rangé hors de sa fenêtre.
       var jour = jourParis(r.created_at || r.receipt_date);
+      var heure = heureParis(r.created_at || r.receipt_date);
       var signe = r.receipt_type === 'REFUND' ? -1 : 1;
       (r.line_items || []).forEach(function (l: any) {
         var nom = l.variant_name && l.item_name ? l.item_name + ' ' + l.variant_name : (l.item_name || '');
         if (!nom) return;
-        lignes.push({ nom_produit: nom, quantite: signe * Math.abs(Number(l.quantity) || 0), date_vente: jour });
+        lignes.push({ nom_produit: nom, quantite: signe * Math.abs(Number(l.quantity) || 0), date_vente: jour, heure: heure });
       });
     });
     if (!page.cursor) break;

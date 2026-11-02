@@ -32,6 +32,35 @@
     }).catch(function () { return {}; });
   }
 
+  // Employé (mécanisme de l'espace employé : personnel.user_id) : charge la
+  // boutique de son patron. Rôle (personnel.acces_app, migration-commandes-
+  // clients.sql) : 'associe' voit tout ; 'vendeuse' et 'apprenti' n'ont que
+  // la Fournée (quantités, aucun euro) ; la base filtre le reste (RLS).
+  var PAGES_EQUIPE = { vendeuse: ['previsions.html', 'commandes-clients.html'], apprenti: ['previsions.html'], aucun: [] };
+  function boutiqueDe(sb, session) {
+    var uid = session.user.id;
+    function lire(colonnes) { return Promise.resolve(sb.from('personnel').select(colonnes).eq('user_id', uid)); }
+    return lire('commercant_id, acces_app').then(function (r) { return r && r.error ? lire('commercant_id') : r; }).then(function (r) {
+      var l = r && !r.error && r.data && r.data[0];
+      if (!l || !l.commercant_id || l.commercant_id === uid) return { id: uid, role: 'patron' };
+      return { id: l.commercant_id, role: l.acces_app || 'aucun' };
+    }, function () { return { id: uid, role: 'patron' }; });
+  }
+  // Rend false (et redirige) si la page n'est pas ouverte à ce rôle.
+  function ouvrirPourRole(role) {
+    var pages = PAGES_EQUIPE[role];
+    if (!pages) return true;
+    var page = window.location.pathname.split('/').pop() || 'index.html';
+    // Ni onglets ni menu du compte, ni invitations du patron (caisse, réglages, saisie des ventes).
+    var style = document.createElement('style');
+    style.textContent = '.nav-onglets, .compte, #lienBrancherCaisse, #carteSaisieHier, #bandeauReglages { display: none !important; }';
+    document.head.appendChild(style);
+    document.body.classList.remove('avec-onglets');
+    if (pages.indexOf(page) !== -1) return true;
+    window.location.replace(pages[0] || 'espace-employe.html');
+    return false;
+  }
+
   // Résout l'utilisateur et charge tout ; rejette avec { nonConnecte: true }
   // si personne n'est connecté.
   function charger() {
@@ -39,7 +68,9 @@
     return sb.auth.getSession().then(function (res) {
       var session = res.data.session;
       if (!session) throw { nonConnecte: true };
-      var id = session.user.id;
+      return boutiqueDe(sb, session).then(function (boutique) {
+      var id = boutique.id;
+      if (!ouvrirPourRole(boutique.role)) return new Promise(function () {});
       return Promise.all([
         sb.from('ventes').select('*').eq('commercant_id', id),
         sb.from('produits').select('*').eq('commercant_id', id),
@@ -49,7 +80,9 @@
         // Fournées cochées : les jours « épuisé » ou tout vendu révèlent une
         // demande cachée (ruptures, corrigées par le moteur). Facultatif.
         sb.from('fournees').select('date_fournee, nom_produit, quantite_cuite, epuise').eq('commercant_id', id)
-          .then(function (x) { return x; }, function () { return { data: [] }; })
+          .then(function (x) { return x; }, function () { return { data: [] }; }),
+        // Commandes clients (commandes-clients.js, facultatif) : voir « demandes » plus bas.
+        window.CommandesClients ? window.CommandesClients.chargerPourApprentissage(sb, id, boutique.role) : []
       ]).then(function (r) {
         var parametres = (r[3].data && r[3].data[0]) || null;
         // Caisse déclarée à l'inscription : recopiée une fois dans les réglages.
@@ -73,6 +106,7 @@
           sb: sb,
           session: session,
           commercantId: id,
+          role: boutique.role,
           // Une ligne par produit et par jour (doublons de casse et imports relancés).
           ventes: MP.dedoublonnerVentes(r[0].data || []),
           produits: r[1].data || [],
@@ -94,15 +128,34 @@
         // Pour prévoir seulement : demande estimée les jours de rupture, et
         // totaux de la boutique (effets appris prudemment pour un produit
         // qui n'a jamais connu un signal). ctx.parProduit reste les vraies ventes.
-        var demandes = MP.corrigerRuptures(ctx.ventes, (r[5] && r[5].data) || []);
+        // Les pièces réservées par des commandes clients ne sont pas de la
+        // demande boutique : retirées de l'apprentissage (pas de double compte).
+        ctx.commandesClients = r[6] || [];
+        var ventesBoutique = window.CommandesClients ? window.CommandesClients.retirerDesVentes(ctx.ventes, ctx.commandesClients, ctx.zoneVacances) : ctx.ventes;
+        var demandes = MP.corrigerRuptures(ventesBoutique, (r[5] && r[5].data) || []);
         ctx.demandeParProduit = {};
         demandes.forEach(function (v) {
           var nom = MP.formatNomAffichage(v.nom_produit);
           if (!ctx.demandeParProduit[nom]) ctx.demandeParProduit[nom] = [];
           ctx.demandeParProduit[nom].push(v);
         });
-        ctx.optionsPrevision = { totauxBoutique: MP.totauxParJour(demandes.filter(function (v) { return estCuitPour(ctx, MP.formatNomAffichage(v.nom_produit)); })) };
+        // Réglages facultatifs de parametres_commercant (colonnes jsonb à créer) :
+        //   conges : [{ debut: 'AAAA-MM-JJ', fin: 'AAAA-MM-JJ' }] (jours fermés inclus)
+        //   feries_fermes : ['1-mai', 'noel', …] (clés MP.CLES_FERIES ; absent = ouvert)
+        //   periodes_exceptionnelles : [{ debut, fin, libelle }] (travaux, neige, grève…)
+        var p = parametres || {};
+        var exclues = p.periodes_exceptionnelles || [];
+        ctx.optionsPrevision = {
+          joursFermeture: ctx.joursFermeture,
+          conges: p.conges || [],
+          feriesFermes: p.feries_fermes || [],
+          periodesExclues: exclues,
+          totauxBoutique: MP.totauxParJour(demandes.filter(function (v) {
+            return estCuitPour(ctx, MP.formatNomAffichage(v.nom_produit)) && !MP.dansPeriodes(v.date_vente, exclues);
+          }))
+        };
         return ctx;
+      });
       });
     });
   }
@@ -114,13 +167,14 @@
       var dates = ctx.ventes.map(function (v) { return v.date_vente; }).sort();
       var fin = MP.versISO(MP.ajouterJours(new Date(), 8));
       return Promise.all([
+        MP.chargerVacancesOfficielles(MP.versISO(new Date())).catch(function () { return 0; }),
         MP.recupererMeteoPassee(coords.latitude, coords.longitude, dates[0], MP.versISO(new Date())).catch(function () { return {}; }),
         MP.recupererMeteoPrevue(coords.latitude, coords.longitude).catch(function () { return {}; }),
         recupererSignauxExternes(ctx.sb, coords, dates[0], fin)
       ]).then(function (res) {
-        ctx.meteoPassee = res[0] || {};
-        ctx.meteoPrevue = res[1] || {};
-        ctx.signauxExternes = res[2] || {};
+        ctx.meteoPassee = res[1] || {};
+        ctx.meteoPrevue = res[2] || {};
+        ctx.signauxExternes = res[3] || {};
         return ctx;
       });
     });
@@ -136,10 +190,41 @@
     return B.estCuit(nom) || (m.au_four || []).indexOf(nom) !== -1;
   }
 
+  // Produits fermés ou hors saison : retirés. Produit de saison du catalogue
+  // jamais vendu (bûche, galette…) le jour de sa fête : r.aFixer, la page
+  // demande au boulanger sa quantité de départ.
   function prevoirJour(ctx, date) {
-    return Object.keys(ctx.parProduit).filter(function (nom) { return estCuitPour(ctx, nom); }).map(function (nom) {
+    var liste = Object.keys(ctx.parProduit).filter(function (nom) { return estCuitPour(ctx, nom); }).map(function (nom) {
       var r = MP.calculerRecommandation((ctx.demandeParProduit && ctx.demandeParProduit[nom]) || ctx.parProduit[nom], date, ctx.zoneVacances, ctx.evenements, ctx.meteoPassee, ctx.meteoPrevue, ctx.signauxExternes, ctx.optionsPrevision);
       return { nom: nom, rayon: B.deduireRayon(nom), r: r };
+    }).filter(function (p) { return !p.r.ferme && !p.r.horsSaison; });
+    if (MP.raisonFermeture(date, ctx.optionsPrevision)) return liste;
+    var fete = MP.feteBoulangere(date);
+    (ctx.produits || []).forEach(function (prod) {
+      var nom = MP.formatNomAffichage(prod.nom);
+      if (ctx.parProduit[nom] || !fete || MP.saisonDuNom(nom) !== fete.cle) return;
+      liste.push({ nom: nom, rayon: B.deduireRayon(nom), r: { quantite: 0, insuffisant: true, aFixer: true, signaux: [], nomJourCible: MP.nomsJours[date.getDay()],
+        texteBase: 'Première saison : à toi de fixer la quantité de départ' } });
+    });
+    return liste;
+  }
+
+  // Alerte rupture du jour (alerte-rupture.js), muette quand la boutique est
+  // fermée ou en congés. ventesHoraires : lignes { date_vente, heure,
+  // nom_produit, quantite } ; fourneesPrevues : { nom: [{ heure, quantite }] }.
+  function alertesDuJour(ctx, ventesHoraires, fourneesPrevues, heure, fermeture) {
+    var A = window.AlerteRupture;
+    if (!A) return [];
+    var maintenant = new Date(), iso = MP.versISO(maintenant), epuises = {};
+    (ctx.demandeParProduit ? Object.keys(ctx.demandeParProduit) : []).forEach(function (nom) {
+      ctx.demandeParProduit[nom].forEach(function (v) { if (v.rupture) epuises[v.date_vente + '|' + nom.trim().toLowerCase()] = true; });
+    });
+    var exclues = (ctx.optionsPrevision && ctx.optionsPrevision.periodesExclues) || [];
+    return A.alertesRupture({
+      historique: ventesHoraires.filter(function (l) { return l.date_vente < iso && !MP.dansPeriodes(l.date_vente, exclues); }),
+      aujourdhui: ventesHoraires.filter(function (l) { return l.date_vente === iso; }),
+      date: iso, heure: heure, fournees: fourneesPrevues, fermeture: fermeture, joursEpuises: epuises,
+      ferme: !!MP.raisonFermeture(maintenant, ctx.optionsPrevision)
     });
   }
 
@@ -209,6 +294,7 @@
     charger: charger,
     enrichir: enrichir,
     prevoirJour: prevoirJour,
+    alertesDuJour: alertesDuJour,
     raisonsDuJour: raisonsDuJour,
     dernieresVentes: dernieresVentes,
     prochainJourOuvert: prochainJourOuvert

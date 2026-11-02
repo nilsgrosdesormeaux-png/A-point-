@@ -11,8 +11,8 @@
   <meta property="og:description" content="La fournée de demain calculée sur vos propres ventes. Moins d'invendus, moins de ruptures, et les euros économisés affichés chaque mois.">
   <meta property="og:url" content="https://apointapp.fr/">
   <meta property="og:type" content="website">
-  <link rel="stylesheet" href="style.css?v=20261101q">
-  <link rel="stylesheet" href="vente.css?v=20261101a">
+  <link rel="stylesheet" href="style.css?v=20261101r">
+  <link rel="stylesheet" href="vente.css?v=20261101b">
 </head>
 <body class="v">
   <a class="lien-evitement" href="#contenu">Aller au contenu</a>
@@ -26,9 +26,9 @@
       <span class="logo-texte">À Point</span>
     </a>
     <nav class="v-entete-liens" aria-label="Sections de la page">
-      <a href="#fonctionnement">Comment ça marche</a>
+      <a href="#journee">Une journée</a>
+      <a href="#ecrans">Les écrans</a>
       <a href="#caisse">Votre caisse</a>
-      <a href="#prix">Prix</a>
       <a href="#questions">Questions</a>
     </nav>
     <a href="connexion.html" class="v-connexion">Se connecter</a>
@@ -36,118 +36,88 @@
   </header>
 
   <main id="contenu">
-    <!-- 1. Promesse -->
+    <!-- 1. Ce que c'est -->
     <section class="v-bloc v-heros" aria-labelledby="titrePromesse">
-      <div>
-        <p class="v-pastille"><b>Phase de test</b> Gratuit, sans carte bancaire</p>
-        <h1 id="titrePromesse">Enfournez juste. Jetez moins.</h1>
-        <p class="v-heros-texte">Chaque soir, À Point vous dit combien enfourner demain, produit par produit, à partir de vos propres ventes. Moins d'invendus, moins de ruptures. Et chaque mois, le Bilan vous montre en euros ce que vous avez économisé.</p>
+      <div class="v-heros-texte-bloc">
+        <p class="v-surtitre"><img src="images/grigne.svg" alt="" width="66" height="14"> Pour les boulangeries indépendantes</p>
+        <h1 id="titrePromesse">La fournée de demain, comptée sur vos ventes.</h1>
+        <p class="v-heros-texte">Chaque soir, À Point reprend ce que vous avez vendu les mêmes jours des semaines passées, regarde la météo, les fériés et les vacances, et vous donne une quantité par produit, répartie par fournée. Vous gardez le dernier mot.</p>
         <div class="v-actions">
-          <a href="connexion.html?inscription" class="bouton-principal">Essayer gratuitement</a>
-          <a href="#fonctionnement" class="lien-discret">Voir comment ça marche</a>
+          <a href="connexion.html?inscription" class="bouton-principal">Créer mon compte</a>
+          <a href="#ecrans" class="lien-discret">Voir l'appli telle qu'elle est</a>
         </div>
-        <p class="v-note">Gratuit pendant la phase de test. Sur téléphone et ordinateur, rien à installer.</p>
+        <p class="v-note">Gratuit pendant la phase de test, sans carte bancaire. Sur le téléphone, rien à installer.</p>
       </div>
 
-      <div class="v-scene">
-        <figure class="v-maquette" aria-label="Exemple de l'écran Fournée, avec des données fictives" style="margin:0 auto;">
-          <p class="v-maquette-legende">Exemple, données fictives</p>
-          <p class="v-maquette-titre">À enfourner pour samedi</p>
-          <p class="v-maquette-sous">Beau temps annoncé, samedi chargé</p>
-          <p class="v-maquette-rayon">Pains</p>
-          <div class="v-ligne"><span>Baguette tradition<small>5 h 30 → 140 · 9 h 30 → 70 · 11 h 30 → 30</small></span><strong>240</strong></div>
-          <div class="v-ligne"><span>Pain de campagne<small>5 h 30 → 18 · 9 h 30 → 8</small></span><strong>26</strong></div>
-          <p class="v-maquette-rayon">Viennoiseries</p>
-          <div class="v-ligne"><span>Croissant<small>5 h 30 → 110 · 9 h 30 → 45</small></span><strong>155</strong></div>
-          <div class="v-ligne"><span>Pain au chocolat<small>5 h 30 → 90 · 9 h 30 → 40</small></span><strong>130</strong></div>
-          <p class="v-maquette-pied" aria-hidden="true">Mode fournil</p>
-        </figure>
-      </div>
+      <figure class="v-capture v-capture--heros">
+        <div class="v-kraft">
+          <img src="images/capture-fournee.webp" width="390" height="621" alt="Capture de l'écran Fournée : à enfourner pour mardi 3 novembre, Baguette tradition 205, répartie 82 à 5 h 30, 62 à 9 h 30 et 61 à 11 h 30." fetchpriority="high">
+        </div>
+        <figcaption>L'écran Fournée, un dimanche soir. Compte de démonstration « Le petit comptoire », chiffres de démo.</figcaption>
+      </figure>
     </section>
 
-    <!-- 2. La promesse en euros, présentée comme un exemple -->
-    <section class="v-bloc" aria-labelledby="titreEuros">
-      <h2 id="titreEuros">Chaque pièce jetée vous coûte de la matière. Chaque rupture, une vente.</h2>
-      <p class="v-intro">À Point ne promet pas un chiffre au hasard : il compte. Voici le calcul, sur un exemple.</p>
-      <div class="v-calcul">
-        <div class="v-chiffre">
-          <strong>0,20 €</strong>
-          <p>de matière dans une baguette ou un croissant (exemple). C'est ce que vous perdez à chaque pièce jetée.</p>
-        </div>
-        <div class="v-chiffre">
-          <strong>10 pièces</strong>
-          <p>de moins jetées par jour, sur 26 jours d'ouverture, font environ 52 € de matière par mois.</p>
-        </div>
-        <div class="v-chiffre v-chiffre--fonce">
-          <strong>≈ 52 €</strong>
-          <p>par mois de matière qui ne part plus à la poubelle. Et chaque pièce de plus évitée s'ajoute.</p>
-        </div>
-      </div>
-      <p class="v-exemple">Exemple de calcul, pas un résultat client. Vos vrais chiffres s'affichent dans votre Bilan : ce que vous avez cuit, moins ce que vous avez vendu, comparé à vos invendus d'avant. Les ventes gagnées sur les ruptures évitées n'y sont pas comptées : le Bilan ne compte que ce qu'il peut mesurer.</p>
+    <!-- 2. Le calcul en euros, présenté comme un exemple -->
+    <section class="v-bloc v-bloc--calcul" aria-labelledby="titreEuros">
+      <h2 id="titreEuros">Ce que coûtent dix pièces jetées par jour</h2>
+      <p class="v-equation" aria-label="0,20 euro de matière, fois 10 pièces par jour, fois 26 jours d'ouverture, font environ 52 euros par mois.">
+        <span class="v-ardoise" aria-hidden="true">0,20 €</span>
+        <span class="v-op" aria-hidden="true">×</span>
+        <span class="v-terme" aria-hidden="true">10<small>pièces par jour</small></span>
+        <span class="v-op" aria-hidden="true">×</span>
+        <span class="v-terme" aria-hidden="true">26<small>jours d'ouverture</small></span>
+        <span class="v-op" aria-hidden="true">≈</span>
+        <span class="v-terme v-terme--total" aria-hidden="true">52 €<small>de matière par mois</small></span>
+      </p>
+      <p class="v-exemple">0,20 €, c'est un ordre de grandeur de la matière d'une baguette ou d'un croissant. C'est un exemple de calcul, pas un résultat client. Vos chiffres à vous s'affichent dans le Bilan : ce que vous avez cuit, moins ce que vous avez vendu, comparé à vos invendus d'avant. Les ventes rattrapées sur les ruptures n'y sont pas comptées, parce qu'on ne sait pas les mesurer.</p>
     </section>
 
-    <!-- 3. Comment ça marche -->
-    <section class="v-bloc" id="fonctionnement" aria-labelledby="titreFonctionnement">
-      <h2 id="titreFonctionnement">Comment ça marche</h2>
-      <p class="v-intro">Trois étapes. La première se règle une fois.</p>
-      <ol class="v-etapes">
+    <!-- 3. Une journée -->
+    <section class="v-bloc" id="journee" aria-labelledby="titreJournee">
+      <h2 id="titreJournee">Une journée avec À Point</h2>
+      <ol class="v-journee">
         <li>
-          <h3>Vos ventes arrivent</h3>
-          <p>Depuis votre caisse, par un fichier d'export, ou le soir en une minute : vous comptez ce qu'il reste sur les étagères, À Point en déduit ce qui s'est vendu.</p>
+          <p class="v-moment">Le soir</p>
+          <div>
+            <p class="v-moment-titre">Les ventes du jour arrivent.</p>
+            <p>Depuis votre caisse, par un fichier d'export, ou en comptant ce qui reste sur les étagères : À Point en déduit ce qui est parti. Avec une caisse branchée, vous n'avez rien à faire.</p>
+          </div>
         </li>
         <li>
-          <h3>À Point prévoit</h3>
-          <p>Pour chaque produit, il part de vos ventes des mêmes jours de la semaine, compte davantage les plus récentes et écarte les journées exceptionnelles. Il tient compte des jours fériés, des ponts, des vacances scolaires et de la météo de votre ville.</p>
+          <p class="v-moment">Dans la nuit</p>
+          <div>
+            <p class="v-moment-titre">La fournée se calcule.</p>
+            <p>Pour chaque produit, il part de vos ventes des mêmes jours de la semaine, donne plus de poids aux dernières, écarte les journées hors norme. Un pont, la rentrée, une semaine de pluie : il en tient compte.</p>
+          </div>
         </li>
         <li>
-          <h3>Vous enfournez</h3>
-          <p>La quantité de chaque produit, répartie par fournée. Un bouton « Pourquoi ? » explique chaque chiffre. Vous restez maître : un marché, une fête ? « Plus de monde » ajuste tout.</p>
+          <p class="v-moment">Au fournil</p>
+          <div>
+            <p class="v-moment-titre">Vous enfournez.</p>
+            <p>Un chiffre par produit, rangé par rayon et réparti sur vos fournées. Le mode fournil l'affiche en très gros, lisible les mains dans la farine. Un marché sur la place ? « Plus de monde » relève tout d'un coup.</p>
+          </div>
         </li>
       </ol>
     </section>
 
-    <!-- 4. Ce que le boulanger voit -->
-    <section class="v-bloc" aria-labelledby="titreEcrans">
-      <h2 id="titreEcrans">Ce que vous voyez chaque jour</h2>
-      <p class="v-intro">Cinq onglets, en bas de l'écran du téléphone. Les quatre qui comptent :</p>
-      <div class="v-ecrans">
-        <article class="v-ecran">
-          <p class="v-ecran-nom">Fournée</p>
-          <h3>Combien enfourner</h3>
-          <ul>
-            <li>Un grand chiffre par produit, rangé par rayon.</li>
-            <li>Le détail par fournée, à vos heures (de 1 à 5 fournées).</li>
-            <li>Le mode fournil : la feuille à lire près du four, en très gros.</li>
-            <li>Le soir : « Ce qu'il te reste », pour enregistrer la journée.</li>
-          </ul>
-        </article>
-        <article class="v-ecran">
-          <p class="v-ecran-nom">Commande</p>
-          <h3>Quoi commander</h3>
-          <ul>
-            <li>Farine, beurre, œufs… calculés sur la fournée prévue.</li>
-            <li>Classés par fournisseur, avec votre stock déduit.</li>
-            <li>Envoyés en un geste : WhatsApp, e-mail ou PDF.</li>
-          </ul>
-        </article>
-        <article class="v-ecran">
-          <p class="v-ecran-nom">Semaine</p>
-          <h3>Les 7 jours qui viennent</h3>
-          <ul>
-            <li>La production prévue jour par jour.</li>
-            <li>Les jours chargés et calmes signalés : fériés, vacances, météo, événements.</li>
-            <li>Vos jours de fermeture respectés.</li>
-          </ul>
-        </article>
-        <article class="v-ecran">
-          <p class="v-ecran-nom">Bilan</p>
-          <h3>Ce que vous gagnez</h3>
-          <ul>
-            <li>Les euros économisés ce mois-ci, comparés à vos invendus d'avant.</li>
-            <li>Vos invendus réels, en pièces et en pourcentage.</li>
-            <li>Chaque chiffre marqué « mesuré » ou « estimé », avec le détail du calcul.</li>
-          </ul>
-        </article>
+    <!-- 4. Les écrans : vraies captures du harnais de démo -->
+    <section class="v-bloc" id="ecrans" aria-labelledby="titreEcrans">
+      <h2 id="titreEcrans">Les écrans, tels quels</h2>
+      <p class="v-intro">Pas de maquette : ce sont des captures de l'appli sur téléphone, prises sur le compte de démonstration « Le petit comptoire ». Les chiffres sont ceux de la démo.</p>
+      <div class="v-galerie">
+        <figure class="v-capture v-capture--fournil">
+          <img src="images/capture-fournil.webp" width="390" height="693" loading="lazy" alt="Capture du mode fournil, fond brun : fournée de 5 h 30, Baguette tradition 82, Pain au chocolat 78, Croissant 72, chaque produit avec un rond à cocher.">
+          <figcaption><b>Mode fournil.</b> La feuille à poser près du four : une fournée à la fois, un rond à toucher quand c'est enfourné.</figcaption>
+        </figure>
+        <figure class="v-capture v-capture--bilan">
+          <img src="images/capture-bilan.webp" width="390" height="465" loading="lazy" alt="Capture du Bilan : invendus depuis le début 6,9 %, 763 invendus sur 11 037 pièces cuites, environ 139 euros de matière économisée.">
+          <figcaption><b>Bilan.</b> Vos invendus réels, en pièces et en pourcentage. Chaque chiffre dit s'il est mesuré ou estimé.</figcaption>
+        </figure>
+        <figure class="v-capture v-capture--commande">
+          <img src="images/capture-commande.webp" width="390" height="705" loading="lazy" alt="Capture de l'écran Commande : 4 fournisseurs, 21 articles, livraison mardi. Chez le meunier, 4 sacs de 25 kg de farine de tradition.">
+          <figcaption><b>Commande.</b> Farine, beurre, œufs, calculés sur la fournée prévue et rangés par fournisseur. Un bouton pour envoyer.</figcaption>
+        </figure>
+        <p class="v-galerie-note">Et l'onglet <b>Semaine</b> : les sept jours qui viennent, avec les jours chargés, les fériés et vos jours de fermeture.</p>
       </div>
     </section>
 
@@ -156,80 +126,79 @@
          docs/vente/guide-comptes-caisse.md) : passer en « Prêt » une fois déployé et confirmé avec un premier boulanger. -->
     <section class="v-bloc" id="caisse" aria-labelledby="titreCaisse">
       <h2 id="titreCaisse">Votre caisse</h2>
-      <p class="v-intro">Le mieux : vos ventes arrivent seules chaque nuit, vous ne saisissez rien. Voici où en est chaque caisse aujourd'hui.</p>
-      <div class="v-caisses">
+      <p class="v-intro">Le mieux, c'est que les ventes arrivent seules chaque nuit. Voici où en est chaque caisse aujourd'hui.</p>
+      <dl class="v-caisses">
         <div class="v-caisse">
-          <b>Hiboutik</b>
-          <p>Branchement direct : vous collez votre clé une fois, vos ventes arrivent chaque nuit.</p>
-          <span class="v-etat v-etat--ok">Prêt</span>
+          <dt>Hiboutik</dt>
+          <dd>Vous collez votre clé une fois, les ventes arrivent chaque nuit.</dd>
+          <dd class="v-etat v-etat--ok">Prêt</dd>
         </div>
         <div class="v-caisse">
-          <b>Toutes les caisses</b>
-          <p>Import du fichier d'export de vos ventes (CSV ou Excel). Vos mois passés servent dès le premier jour.</p>
-          <span class="v-etat v-etat--ok">Prêt</span>
+          <dt>SumUp, Zettle, Square, Loyverse, Tactill</dt>
+          <dd>Vous créez une clé dans votre compte de caisse (cinq minutes, on vous montre où cliquer) et vous la collez. Vos douze derniers mois arrivent d'un coup, puis chaque nuit. C'est nouveau : nous le vérifions avec nos premières boulangeries.</dd>
+          <dd class="v-etat v-etat--ok">Disponible</dd>
         </div>
         <div class="v-caisse">
-          <b>Sans caisse</b>
-          <p>Le soir, vous comptez ce qu'il reste. Les ventes s'en déduisent. Moins d'une minute.</p>
-          <span class="v-etat v-etat--ok">Prêt</span>
+          <dt>Bimedia, Crisalid, Toporder, Lightspeed, Cashmag, Zelty…</dt>
+          <dd>Vous importez le fichier d'export, les colonnes sont reconnues seules. Bientôt, la caisse l'enverra d'elle-même chaque jour à votre adresse d'import.</dd>
+          <dd class="v-etat v-etat--ok">Import prêt <span class="v-etat--bientot">envoi automatique bientôt</span></dd>
         </div>
         <div class="v-caisse">
-          <b>SumUp, Zettle, Square, Loyverse, Tactill</b>
-          <p>Branchement direct : vous créez une clé dans votre compte de caisse (5 minutes, on vous montre où cliquer) et vous la collez. Vos 12 derniers mois arrivent d'un coup, puis chaque nuit. Nouveau : nous le vérifions avec nos premières boulangeries.</p>
-          <span class="v-etat v-etat--ok">Disponible</span>
+          <dt>Toutes les autres</dt>
+          <dd>Le fichier d'export de vos ventes, en CSV ou Excel. Vos mois passés servent dès le premier jour.</dd>
+          <dd class="v-etat v-etat--ok">Prêt</dd>
         </div>
         <div class="v-caisse">
-          <b>Bimedia, Crisalid, Toporder, Lightspeed, Cashmag, Zelty…</b>
-          <p>Votre caisse envoie chaque jour son export à votre adresse d'import À Point. Aujourd'hui : import du fichier, colonnes reconnues seules.</p>
-          <span class="v-etat v-etat--ok">Import prêt</span> <span class="v-etat v-etat--bientot">Envoi automatique bientôt</span>
+          <dt>Pas de caisse</dt>
+          <dd>Le soir, vous comptez ce qui reste. Cuit moins reste, ça fait les ventes. Moins d'une minute.</dd>
+          <dd class="v-etat v-etat--ok">Prêt</dd>
         </div>
+      </dl>
+    </section>
+
+    <!-- 6. Pourquoi À Point -->
+    <!-- À RELIRE PAR NILS : paragraphe rédigé pour toi, sans fait biographique inventé.
+         Ajoute ce qui est vrai (ton parcours, ta ville, les boulangeries qui testent) ou coupe. -->
+    <section class="v-bloc v-pourquoi" aria-labelledby="titrePourquoi">
+      <h2 id="titrePourquoi">Pourquoi À Point</h2>
+      <div class="v-lettre">
+        <p>Dans beaucoup de boulangeries, la fournée se décide de tête, la veille, avec l'habitude et un coup d'œil au ciel. Ça marche, jusqu'au soir où il reste trente baguettes sur l'étagère, ou au matin où il n'y a plus de croissants à dix heures.</p>
+        <p>J'ai voulu un outil qui fasse ce calcul à partir des vraies ventes de la boutique, qui dise d'où vient chaque chiffre, et qui laisse le boulanger trancher. À Point est conçu avec des boulangeries indépendantes, et pour elles. Il est en phase de test, et gratuit tant qu'elle dure.</p>
+        <p>Si quelque chose ne colle pas à votre façon de travailler, dites-le depuis la page <a href="aide.html#contact">Aide</a>. C'est comme ça que l'outil avance.</p>
+        <p class="v-signature">Nils<small>fondateur d'À Point</small></p>
       </div>
     </section>
 
-    <!-- 6. Prix : phase de test gratuite (décision du fondateur, 1er nov. 2026). -->
-    <section class="v-bloc" id="prix" aria-labelledby="titrePrix">
-      <h2 id="titrePrix">Gratuit pendant la phase de test</h2>
-      <p class="v-intro">À Point est en phase de test avec des boulangeries indépendantes. Toute l'application est gratuite, sans carte bancaire.</p>
-      <div class="v-prix">
-        <div class="v-prix-carte">
-          <p class="v-prix-etape">Pendant la phase de test</p>
-          <p class="v-prix-montant">0 € <small>sans carte bancaire</small></p>
-          <ul>
-            <li>Fournée, Commande, Semaine et Bilan</li>
-            <li>Branchement caisse ou import de fichier</li>
-            <li>Réponse à vos questions par la page Aide</li>
-            <li>Vous arrêtez quand vous voulez</li>
-          </ul>
-          <a href="connexion.html?inscription" class="bouton-principal">Créer mon compte gratuit</a>
-        </div>
-        <div class="v-garantie">
-          <h3>Et après ?</h3>
-          <p>Si un abonnement est proposé un jour, il sera annoncé à l'avance et jamais activé sans votre accord.</p>
-          <p>Vos données restent à vous : vous pouvez les récupérer ou les faire supprimer à tout moment.</p>
-          <p><a href="cgu.html">Les conditions d'utilisation</a></p>
-        </div>
+    <!-- 7. Prix : phase de test gratuite (décision du fondateur, 1er nov. 2026). -->
+    <section class="v-bloc v-prix" id="prix" aria-labelledby="titrePrix">
+      <div class="v-prix-etiquette" aria-hidden="true"><span class="v-ardoise v-ardoise--grande">0 €</span></div>
+      <div class="v-prix-texte">
+        <h2 id="titrePrix">Gratuit pendant la phase de test</h2>
+        <p>Toute l'application : Fournée, Commande, Semaine et Bilan, le branchement de la caisse ou l'import de fichier, et les réponses à vos questions. Pas de carte bancaire, donc rien à résilier.</p>
+        <p>Si un abonnement arrive un jour, il sera annoncé à l'avance et jamais activé sans votre accord. Vos données restent à vous : vous pouvez les récupérer ou les faire supprimer quand vous voulez. <a href="cgu.html">Les conditions d'utilisation</a>.</p>
+        <a href="connexion.html?inscription" class="bouton-principal">Créer mon compte</a>
       </div>
     </section>
 
-    <!-- 7. Questions -->
+    <!-- 8. Questions -->
     <section class="v-bloc" id="questions" aria-labelledby="titreQuestions">
-      <h2 id="titreQuestions">Vos questions</h2>
+      <h2 id="titreQuestions">Questions</h2>
       <div class="v-faq">
         <details class="faq-item">
           <summary>Est-ce qu'À Point décide à ma place ?</summary>
-          <p>Non. Il vous donne un chiffre et explique d'où il vient (« Pourquoi ? » sous chaque produit). Vous connaissez des choses qu'il ignore : une commande, un chantier dans la rue. Vous gardez toujours le dernier mot.</p>
+          <p>Non. Il donne un chiffre et explique d'où il vient (« Pourquoi ? » sous chaque produit). Vous savez des choses qu'il ignore : une commande pour un mariage, un chantier dans la rue. Le dernier mot est le vôtre.</p>
         </details>
         <details class="faq-item">
           <summary>Combien d'historique faut-il ?</summary>
-          <p>Il faut au moins 4 mêmes jours de semaine connus pour un produit (4 samedis, par exemple). Avant, la Fournée écrit « Pas assez d'historique » plutôt qu'un chiffre inventé. Avec un export ou une caisse branchée, vos mois passés arrivent d'un coup et la prévision est utile dès le premier jour.</p>
+          <p>Au moins 4 mêmes jours de semaine pour un produit (4 samedis, par exemple). Avant, la Fournée écrit « Pas assez d'historique » plutôt qu'un chiffre inventé. Avec un export ou une caisse branchée, vos mois passés arrivent d'un coup et la prévision sert dès le premier jour.</p>
         </details>
         <details class="faq-item">
           <summary>Je n'ai pas de caisse branchable. Je peux quand même ?</summary>
-          <p>Oui. Le soir, vous comptez ce qu'il reste sur les étagères : À Point déduit les ventes (cuit moins reste). Moins d'une minute. Vous pouvez aussi importer un fichier de ventes à tout moment.</p>
+          <p>Oui. Le soir, vous comptez ce qui reste sur les étagères : À Point déduit les ventes (cuit moins reste). Vous pouvez aussi importer un fichier de ventes à tout moment.</p>
         </details>
         <details class="faq-item">
-          <summary>Et si demain sort de l'ordinaire ?</summary>
-          <p>Fériés, ponts, vacances scolaires et météo sont déjà pris en compte. Pour le reste (un marché, une fête, des travaux), les boutons « Plus de monde » et « Moins de monde » ajustent toute la fournée.</p>
+          <summary>Et un jour qui sort de l'ordinaire ?</summary>
+          <p>Fériés, ponts, vacances scolaires et météo sont déjà pris en compte. Pour le reste (un marché, une fête, des travaux), « Plus de monde » et « Moins de monde » ajustent toute la fournée.</p>
         </details>
         <details class="faq-item">
           <summary>Faut-il remplir des fiches techniques ?</summary>
@@ -245,21 +214,17 @@
         </details>
         <details class="faq-item">
           <summary>Comment j'arrête ?</summary>
-          <p>Quand vous voulez. C'est gratuit et sans carte bancaire : il n'y a rien à résilier. Si vous voulez que vos données soient supprimées, un message depuis la page Aide suffit.</p>
-        </details>
-        <details class="faq-item">
-          <summary>Ça marche sur téléphone ?</summary>
-          <p>Oui, c'est fait d'abord pour le téléphone. Rien à installer : c'est un site, comme votre banque en ligne.</p>
+          <p>Vous arrêtez de l'ouvrir, tout simplement : il n'y a rien à résilier. Pour que vos données soient supprimées, un message depuis la page Aide suffit.</p>
         </details>
       </div>
     </section>
 
-    <!-- 8. Appel final -->
+    <!-- 9. Appel final -->
     <section class="v-bloc v-final" aria-labelledby="titreFinal">
-      <h2 id="titreFinal">Demain matin, enfournez avec vos chiffres.</h2>
-      <p class="v-intro">Créez votre compte, indiquez votre caisse, et regardez la fournée qu'À Point vous propose. Gratuit pendant la phase de test.</p>
+      <h2 id="titreFinal">Essayez-le sur la fournée de demain.</h2>
+      <p class="v-intro">Créez votre compte, branchez votre caisse ou déposez un export, et comparez son chiffre au vôtre.</p>
       <div class="v-actions">
-        <a href="connexion.html?inscription" class="bouton-principal">Essayer gratuitement</a>
+        <a href="connexion.html?inscription" class="bouton-principal">Créer mon compte</a>
       </div>
     </section>
   </main>
@@ -280,6 +245,7 @@
       <a href="mentions-legales.html">Mentions légales</a>
       <a href="confidentialite.html">Confidentialité</a>
     </nav>
+    <p class="v-pied-note">Un outil de prévision fait avec des boulangeries indépendantes, en phase de test.</p>
   </footer>
 </body>
 </html>

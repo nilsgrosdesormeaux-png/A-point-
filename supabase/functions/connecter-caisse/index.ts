@@ -26,7 +26,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { jourParis } from '../_shared/caisse/commun.ts';
 import { type Jetons } from '../_shared/caisse/http.ts';
-import { FOURNISSEURS, devinerFournisseur, disponibles, identifiantsApp, jetonUtilisable } from '../_shared/caisse/fournisseurs.ts';
+import { FORMES_SURES, FOURNISSEURS, devinerFournisseur, disponibles, identifiantsApp, jetonUtilisable } from '../_shared/caisse/fournisseurs.ts';
 import { debutHistorique, enregistrerJetons, journaliser, synchroniserConnexion } from '../_shared/caisse/synchroniser.ts';
 
 var CORS_HEADERS = {
@@ -131,7 +131,8 @@ Deno.serve(async (req) => {
       // Caisse absente, ou clé d'une autre caisse que celle choisie : on se
       // fie à la forme de la clé (sup_sk_ = SumUp, sk_live_ = Tactill…).
       var devinee = devinerFournisseur(corps.cle);
-      if (corps.fournisseur !== 'hiboutik' && devinee && devinee !== corps.fournisseur) corps.fournisseur = devinee;
+      if (corps.fournisseur !== 'hiboutik' && devinee && devinee !== corps.fournisseur
+        && (FORMES_SURES.indexOf(devinee) !== -1 || !FOURNISSEURS[corps.fournisseur])) corps.fournisseur = devinee;
       var fc = FOURNISSEURS[corps.fournisseur];
       if (!fc || !fc.cle) return reponse({ error: 'Cette clé ne ressemble à aucune caisse connue. Vérifie que tu as copié toute la clé, sans espace.' }, 400);
       if (!ENV.cleChiffrement) return reponse({ error: 'Branchement pas encore ouvert' }, 503);
