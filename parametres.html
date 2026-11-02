@@ -6,12 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Paramètres</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101r">
+  <link rel="stylesheet" href="style.css?v=20261104f">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="erreurs.js?v=20261101"></script>
-  <script src="nav.js?v=20261101q"></script>
-  <script src="boulangerie.js?v=20261101l"></script>
-  <script src="caisse-utilisee.js?v=20261101q"></script>
+  <script src="nav.js?v=20261104f"></script>
+  <script src="boulangerie.js?v=20261104f"></script>
+  <script src="caisse-utilisee.js?v=20261104f"></script>
 </head>
 <body>
   <a class="lien-evitement" href="#contenu">Aller au contenu</a>
@@ -68,7 +68,7 @@
         <p class="texte-aide">Aucune fournée prévue ces jours-là.</p>
 
         <label for="selectCaisse">Quelle caisse utilises-tu ?</label>
-        <select id="selectCaisse"></select>
+        <select id="selectCaisse" autocomplete="off"></select>
         <input type="text" id="autreCaisse" placeholder="Nom de ta caisse" aria-label="Nom de ta caisse" maxlength="60" hidden style="margin-top:8px;">
         <p class="texte-aide" style="margin-top:4px;">Sert à te montrer le bon parcours de branchement, et à nous dire quelles caisses brancher ensuite.</p>
 

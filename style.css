@@ -1757,3 +1757,5 @@ details.repli-affluence .effet-affluence { min-height: 1.5em; }
 .alerte-rupture-actions .bouton-principal { width: auto; margin: 0; }
 .ligne-fournee-depart label { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; margin: 0; font-size: var(--texte-xs); font-weight: 500; color: var(--couleur-texte-2); }
 .ligne-fournee-depart input { width: 96px; text-align: center; font-size: var(--texte-lg); font-weight: 600; }
+.article-nom .article-duree { color: var(--couleur-accent-texte); }
+.colonne-affluence--vide .colonne-etiquette { color: var(--couleur-texte-3); font-style: italic; }

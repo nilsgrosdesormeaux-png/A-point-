@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Commande</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101r">
+  <link rel="stylesheet" href="style.css?v=20261104f">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <script src="moteur-prevision.js?v=20261101r"></script>
-  <script src="boulangerie.js?v=20261101l"></script>
-  <script src="commandes-clients.js?v=20261101a"></script>
-  <script src="contexte.js?v=20261101s"></script>
-  <script src="nav.js?v=20261101q"></script>
+  <script src="moteur-prevision.js?v=20261104f"></script>
+  <script src="boulangerie.js?v=20261104f"></script>
+  <script src="commandes-clients.js?v=20261104f"></script>
+  <script src="contexte.js?v=20261104f"></script>
+  <script src="nav.js?v=20261104f"></script>
 </head>
 <body>
   <a class="lien-evitement" href="#contenu">Aller au contenu</a>
@@ -213,21 +213,29 @@
       }
 
       // Quantité à commander, en unité d'achat, et son explication.
-      function ligneACommander(b, stock) {
+      // nbJours : jours couverts par cette commande ; sert à dire combien de
+      // temps dure ce qu'on achète (un sac entier pour 3,8 kg de besoin).
+      function ligneACommander(b, stock, nbJours) {
         var reste = Math.max(0, b.quantite - stock);
         var u = B.uniteAchat(b.nom, b.unite);
         var besoinTxt = B.formaterQuantite(b.quantite, b.unite, b.nom).replace(/ \(≈[^)]*\)/, '');
         var stockTxt = stock > 0 ? ' − ' + B.formaterQuantite(stock, b.unite, b.nom).replace(/ \(≈[^)]*\)/, '') + ' en stock' : '';
         var achat, achatTexte;
-        var commande = reste;
+        var commande = reste, couverture = '';
         if (reste === 0) { achat = 'En stock'; achatTexte = null; }
         else if (u) {
           var n = Math.ceil(reste / u.taille - 1e-9);
           commande = n * u.taille;
           achat = n.toLocaleString('fr-FR') + ' ' + (n > 1 ? u.pluriel : u.libelle) + (u.detail ? ' ' + u.detail : '');
           achatTexte = achat;
+          // Un sac entier se vend entier : on dit combien de temps il dure.
+          if (commande > reste * 1.5 && b.quantite > 0 && nbJours > 0) {
+            var parJour = b.quantite / nbJours;
+            var duree = Math.max(1, Math.floor(commande / parJour));
+            couverture = 'Achat en ' + u.libelle + ' entier : ' + (duree > 1 ? 'il te dure ≈ ' + duree + ' jours' : 'il te dure ≈ 1 jour');
+          }
         } else { achat = B.formaterQuantite(reste, b.unite, b.nom).replace(/ \(≈[^)]*\)/, ''); achatTexte = achat; }
-        return { reste: reste, commande: commande, achat: achat, achatTexte: achatTexte, explication: besoinTxt + stockTxt };
+        return { reste: reste, commande: commande, achat: achat, achatTexte: achatTexte, couverture: couverture, explication: besoinTxt + stockTxt };
       }
 
       // ---------- Recettes : modifiables sur place (lot 4) ----------
@@ -367,13 +375,13 @@
           cles.forEach(function (cle) {
             var b = besoins[cle];
             var estimation = stockEstime(cle, fiches);
-            var l = ligneACommander(b, estimation.q);
+            var l = ligneACommander(b, estimation.q, horizon.jours.length);
             derniereCommande[f.cle].push({ cle: cle, nom: b.nom, texte: l.achatTexte, stock: estimation.q, commande: l.commande, livraison: MP.versISO(horizon.livraison) });
             if (l.reste === 0) enStock.push(b.nom);
             else {
               // Grille alignée : article · quantité · unité.
               var m = /^([\d\s\u202f.,]+)\s+(.+)$/.exec(l.achat) || [null, l.achat, ''];
-              articles += '<li><span class="article-nom">' + echapper(b.nom) + '<small>' + l.explication + ', pour ' + echapper(b.produits.slice(0, 2).join(', ')) + (b.produits.length > 2 ? '…' : '') + '</small></span>' +
+              articles += '<li><span class="article-nom">' + echapper(b.nom) + '<small>' + l.explication + ', pour ' + echapper(b.produits.slice(0, 2).join(', ')) + (b.produits.length > 2 ? '…' : '') + '</small>' + (l.couverture ? '<small class="article-duree">' + l.couverture + '</small>' : '') + '</span>' +
                 '<strong class="article-qte">' + echapper(m[1].trim()) + '</strong><span class="article-unite">' + echapper(m[2]) + '</span></li>';
             }
             // Stock dans l'unité de l'ingrédient : petites quantités en grammes.

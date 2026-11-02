@@ -7,12 +7,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Bilan</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101r">
+  <link rel="stylesheet" href="style.css?v=20261104f">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261101r"></script>
-  <script src="boulangerie.js?v=20261101l"></script>
-  <script src="contexte.js?v=20261101s"></script>
-  <script src="nav.js?v=20261101q"></script>
+  <script src="moteur-prevision.js?v=20261104f"></script>
+  <script src="boulangerie.js?v=20261104f"></script>
+  <script src="contexte.js?v=20261104f"></script>
+  <script src="nav.js?v=20261104f"></script>
 </head>
 <body>
   <a class="lien-evitement" href="#contenu">Aller au contenu</a>
@@ -368,13 +368,19 @@
         return d;
       }
 
+      // Jours de vente distincts par semaine : une semaine presque vide n'est
+      // pas une chute, c'est un historique incomplet.
+      var joursParSemaine = {};
       function bucketiserParSemaine(ventes) {
-        var buckets = {};
+        var buckets = {}, jours = {};
         ventes.forEach(function (v) {
           var lundi = lundiDeLaSemaine(new Date(v.date_vente + 'T00:00:00'));
           var cle = versISO(lundi);
           buckets[cle] = (buckets[cle] || 0) + (v.quantite || 0);
+          (jours[cle] = jours[cle] || {})[v.date_vente] = true;
         });
+        joursParSemaine = {};
+        Object.keys(jours).forEach(function (k) { joursParSemaine[k] = Object.keys(jours[k]).length; });
         return buckets;
       }
 
@@ -437,7 +443,7 @@
 
       function etiquetteAnnee(cle) { return cle; }
 
-      function rendreGraphiqueAffluence(cles, buckets, formatterEtiquette) {
+      function rendreGraphiqueAffluence(cles, buckets, formatterEtiquette, parSemaine) {
         var conteneur = document.getElementById('graphiqueAffluence');
         conteneur.innerHTML = '';
         // Pas de colonnes vides avant la première vente (historique jeune).
@@ -456,10 +462,17 @@
           // La dernière période est en cours : barre pâle, pour ne pas lire une baisse.
           var enCours = i === cles.length - 1;
           colonne.className = 'colonne-affluence' + (enCours ? ' colonne-affluence--en-cours' : '');
+          // Période sans vente : « pas de données » (jamais une barre à zéro,
+          // qui se lirait comme une chute) ; semaine de moins de 4 jours de
+          // vente : « incomplète ».
+          var nbJoursSemaine = parSemaine ? (joursParSemaine[cle] || 0) : null;
+          var note = enCours ? '<br>en cours' : (valeur === 0 ? '<br>pas de données' : (nbJoursSemaine !== null && nbJoursSemaine < 4 ? '<br>incomplète' : ''));
+          if (valeur === 0) colonne.className += ' colonne-affluence--vide';
+          else if (note.indexOf('incomplète') !== -1) colonne.className += ' colonne-affluence--en-cours';
           colonne.innerHTML =
             '<span class="colonne-valeur">' + (valeur > 0 ? valeur.toLocaleString('fr-FR') : '') + '</span>' +
             '<div class="colonne-barre" style="height:' + hauteurPct + '%;"></div>' +
-            '<span class="colonne-etiquette">' + formatterEtiquette(cle) + (enCours ? '<br>en cours' : '') + '</span>';
+            '<span class="colonne-etiquette">' + formatterEtiquette(cle) + note + '</span>';
           conteneur.appendChild(colonne);
         });
         // Sur mobile, le graphique défile horizontalement (colonnes à
@@ -473,7 +486,7 @@
       var granulariteActuelle = 'mois';
       function rafraichirAffluence() {
         if (granulariteActuelle === 'semaine') {
-          rendreGraphiqueAffluence(derniersLundis(12), bucketiserParSemaine(ventesToutes), etiquetteSemaine);
+          rendreGraphiqueAffluence(derniersLundis(12), bucketiserParSemaine(ventesToutes), etiquetteSemaine, true);
         } else if (granulariteActuelle === 'annee') {
           var buckets = bucketiserParAnnee(ventesToutes);
           var annees = Object.keys(buckets).map(function (a) { return parseInt(a, 10); });

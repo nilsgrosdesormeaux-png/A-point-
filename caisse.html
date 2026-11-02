@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Ma caisse</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101r">
+  <link rel="stylesheet" href="style.css?v=20261104f">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="nav.js?v=20261101q"></script>
-  <script src="caisse-utilisee.js?v=20261104d"></script>
-  <script src="supabase/functions/_shared/caisse/lecture-export.js?v=20261104d"></script>
-  <script src="connecteur-caisse.js?v=20261104d"></script>
+  <script src="nav.js?v=20261104f"></script>
+  <script src="caisse-utilisee.js?v=20261104f"></script>
+  <script src="supabase/functions/_shared/caisse/lecture-export.js?v=20261104f"></script>
+  <script src="connecteur-caisse.js?v=20261104f"></script>
   <style>
     .tableau-journal th, .tableau-journal td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--bordure); vertical-align: top; }
     .tableau-journal td:nth-child(3) { font-variant-numeric: tabular-nums; }
@@ -46,9 +46,9 @@
       <p id="statutConnexion" class="texte-aide">Vérification de la connexion...</p>
 
       <div id="zoneCaisse" hidden>
-        <p class="texte-aide">Tes ventes arrivent seules dans À Point, de deux façons : <strong>brancher ta caisse</strong> avec une clé que tu crées toi-même dans ton compte de caisse (SumUp, Zettle, Square, Loyverse, Hiboutik, et sur demande à ton éditeur Tactill, Zelty, Popina), ou, pour toutes les autres caisses (Bimedia, Crisalid, Toporder, Lightspeed, Cashmag, Zelty…), <strong>déposer une seule fois ton historique</strong> puis laisser ta caisse <strong>envoyer seule ses ventes chaque jour par e-mail</strong>. Choisis ta caisse : on te montre le bon chemin, pas à pas.</p>
+        <p class="texte-aide">Tes ventes arrivent seules dans À Point, sans rien ressaisir. Choisis ta caisse : on te montre le chemin, pas à pas.</p>
         <label for="selectCaisse">Ta caisse</label>
-        <select id="selectCaisse"></select>
+        <select id="selectCaisse" autocomplete="off"></select>
         <input type="text" id="autreCaisse" placeholder="Nom de ta caisse" aria-label="Nom de ta caisse" maxlength="60" hidden style="margin-top:8px;">
 
         <!-- Rempli par connecteur-caisse.js : caisse branchée ou parcours de branchement. -->

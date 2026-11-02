@@ -5,12 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À Point - Commandes clients</title>
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="style.css?v=20261101q">
+  <link rel="stylesheet" href="style.css?v=20261104f">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="moteur-prevision.js?v=20261101r"></script>
-  <script src="commandes-clients.js?v=20261101a"></script>
-  <script src="contexte.js?v=20261101l"></script>
-  <script src="nav.js?v=20261101q"></script>
+  <script src="moteur-prevision.js?v=20261104f"></script>
+  <script src="commandes-clients.js?v=20261104f"></script>
+  <script src="boulangerie.js?v=20261104f"></script>
+  <script src="contexte.js?v=20261104f"></script>
+  <script src="nav.js?v=20261104f"></script>
 </head>
 <body>
   <a class="lien-evitement" href="#contenu">Aller au contenu</a>
@@ -577,13 +578,13 @@
       });
       function chargerEquipe() {
         if (role !== 'patron') return;
-        sb.from('personnel').select('id, nom, prenom, role, user_id, acces_app').eq('commercant_id', commercantId).then(function (r) {
+        sb.from('personnel').select('id, nom, role, user_id, acces_app').eq('commercant_id', commercantId).then(function (r) {
           var l = ((r && r.data) || []).filter(function (p) { return p.user_id; });
           if ((r && r.error) || !l.length) return;
           $('blocEquipe').hidden = false;
           var ROLES = [['', 'Pas d\'accès'], ['associe', 'Associé (tout)'], ['vendeuse', 'Vendeuse'], ['apprenti', 'Apprenti']];
           $('listeEquipe').innerHTML = l.map(function (p) {
-            return '<li class="ligne-commande"><label class="ligne-commande-nom" for="acces-' + echapper(p.id) + '">' + echapper([p.prenom, p.nom].filter(Boolean).join(' ') || p.role || 'Employé') + '</label>' +
+            return '<li class="ligne-commande"><label class="ligne-commande-nom" for="acces-' + echapper(p.id) + '">' + echapper(p.nom || p.role || 'Employé') + '</label>' +
               '<select id="acces-' + echapper(p.id) + '" data-personnel="' + echapper(p.id) + '">' + ROLES.map(function (x) { return '<option value="' + x[0] + '"' + ((p.acces_app || '') === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select></li>';
           }).join('');
         }, function () {});
