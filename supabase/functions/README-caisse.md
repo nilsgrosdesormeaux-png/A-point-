@@ -118,3 +118,10 @@ Tests : `node --test tests/caisse.test.mjs` (réponses d'API simulées d'après 
 - `_shared/caisse/zelty.ts`, `popina.ts` + registre ; Zelty deviné d'après sa clé (base64 de « id:… »), Popina choisi dans la liste (forme de clé ambiguë jamais prise pour Loyverse).
 - `migration-connecteurs-caisse-v5.sql` (idempotente) : Zelty et Popina dans la contrainte. Sans elle, ces deux caisses répondent « bientôt ».
 - À déployer : v5, puis `connecter-caisse`, `synchro-caisse`, `import-export-caisse`.
+
+## Lot 12 : photo du rapport, boîte e-mail universelle, ventes par heure
+
+- `lire-ticket` : photo ou PDF lu par l'IA (`_shared/caisse/lire-rapport.ts`, secret ANTHROPIC_API_KEY), jamais d'écriture directe : le boulanger corrige puis confirme (`enregistrer_ventes_photo`).
+- `import-export-caisse` : CSV et Excel importés seuls ; photo, PDF et texte du message rangés « à confirmer » (`rapports_a_confirmer`, `confirmer_rapport`, `rejeter_rapport`).
+- Relais Gmail : relevé toutes les 30 minutes, de 12 h à 23 h et à 4 h.
+- Lightspeed Retail, `ventes_horaires` et synchro 6 h-20 h : migration v6. Tout ce qu'il reste à appliquer : `docs/a-appliquer-caisse-lot12.md`.

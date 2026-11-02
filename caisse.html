@@ -8,9 +8,9 @@
   <link rel="stylesheet" href="style.css?v=20261101r">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="nav.js?v=20261101q"></script>
-  <script src="caisse-utilisee.js?v=20261104c"></script>
-  <script src="supabase/functions/_shared/caisse/lecture-export.js?v=20261104c"></script>
-  <script src="connecteur-caisse.js?v=20261104c"></script>
+  <script src="caisse-utilisee.js?v=20261104d"></script>
+  <script src="supabase/functions/_shared/caisse/lecture-export.js?v=20261104d"></script>
+  <script src="connecteur-caisse.js?v=20261104d"></script>
   <style>
     .tableau-journal th, .tableau-journal td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--bordure); vertical-align: top; }
     .tableau-journal td:nth-child(3) { font-variant-numeric: tabular-nums; }
@@ -53,6 +53,9 @@
 
         <!-- Rempli par connecteur-caisse.js : caisse branchée ou parcours de branchement. -->
         <div id="blocCaisse" style="margin-top:18px;"></div>
+
+        <!-- Photo du rapport de caisse et rapports reçus par e-mail à confirmer (connecteur-caisse.js). -->
+        <div id="zonePhoto" style="margin-top:28px;"></div>
 
         <h2 class="section-titre" style="margin-top:28px;">Journal des réceptions</h2>
         <p class="texte-aide">Chaque arrivée de ventes : quand, par quel chemin, combien, pour quels jours.</p>

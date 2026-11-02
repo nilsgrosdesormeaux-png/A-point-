@@ -234,12 +234,174 @@
     return paquets;
   }
 
+  // ---------------------------------------------------------------------
+  // Rapport de caisse en photo / PDF, et rapports reçus par e-mail « à
+  // confirmer ». L'IA lit, le boulanger vérifie : rien n'entre dans les
+  // ventes avant son « Confirmer ». Zone séparée du bloc caisse (#zonePhoto)
+  // pour qu'un rafraîchissement du bloc n'efface jamais une correction en cours.
+  // ---------------------------------------------------------------------
+  var COTE_MAX_PHOTO = 1800;
+
+  function lireEnBase64(fichier) {
+    return new Promise(function (ok, ko) {
+      var r = new FileReader();
+      r.onload = function () { ok(String(r.result).split(',')[1] || ''); };
+      r.onerror = function () { ko(new Error('Fichier illisible')); };
+      r.readAsDataURL(fichier);
+    });
+  }
+
+  // Photo réduite (1800 px) en JPEG : plus rapide à envoyer, et lisible par
+  // l'IA même si le téléphone donne du HEIC.
+  function photoReduite(fichier) {
+    return new Promise(function (ok, ko) {
+      var url = URL.createObjectURL(fichier);
+      var img = new Image();
+      img.onload = function () {
+        var f = Math.min(1, COTE_MAX_PHOTO / Math.max(img.width, img.height));
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * f); canvas.height = Math.round(img.height * f);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        ok({ media_type: 'image/jpeg', data: canvas.toDataURL('image/jpeg', 0.85).split(',')[1] });
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); ko(new Error('Photo illisible : essaie en JPEG ou PNG')); };
+      img.src = url;
+    });
+  }
+
+  function preparerFichier(fichier) {
+    if (fichier.type === 'application/pdf' || /\.pdf$/i.test(fichier.name)) {
+      if (fichier.size > 5000000) return Promise.reject(new Error('PDF trop lourd (5 Mo au plus)'));
+      return lireEnBase64(fichier).then(function (data) { return { media_type: 'application/pdf', data: data }; });
+    }
+    return photoReduite(fichier);
+  }
+
+  // Tableau de vérification : jour, articles et quantités modifiables.
+  function revue(conteneur, donnees, libelleRefus, auConfirmer, auRefus, apres) {
+    var aujourdhui = jourParis(new Date());
+    var lignes = (donnees.lignes || []).map(function (l) { return { nom_produit: l.nom_produit, quantite: l.quantite }; });
+    var jour = donnees.jour || jourParis(new Date(Date.now() - 86400000));
+
+    function dessiner(erreur) {
+      var html = '';
+      if (donnees.deja_lu) html += '<p class="texte-aide"><strong>Tu as déjà envoyé ce rapport.</strong> Le confirmer remplace simplement les ventes du jour, sans doublon.</p>';
+      if (donnees.remarques) html += '<p class="texte-aide">' + echapper(donnees.remarques) + '</p>';
+      html += '<p class="texte-aide">Vérifie le jour et corrige ce qui est faux avant de confirmer.</p>'
+        + '<label>Jour des ventes <input type="date" class="revue-jour" value="' + echapper(jour) + '" max="' + aujourdhui + '"></label>'
+        + '<div style="overflow-x:auto;"><table class="tableau-journal"><thead><tr><th>Article</th><th>Quantité</th><th></th></tr></thead><tbody>'
+        + lignes.map(function (l, i) {
+          return '<tr><td data-label="Article"><input type="text" class="revue-nom" data-i="' + i + '" value="' + echapper(l.nom_produit) + '" maxlength="120"></td>'
+            + '<td data-label="Quantité"><input type="number" step="any" class="revue-qte" data-i="' + i + '" value="' + echapper(l.quantite) + '" style="max-width:110px;"></td>'
+            + '<td><button type="button" class="revue-suppr" data-i="' + i + '" aria-label="Retirer cette ligne" style="' + styleSecondaire() + ' padding:4px 10px;">✕</button></td></tr>';
+        }).join('') + '</tbody></table></div>'
+        + (erreur ? '<div class="erreur" style="padding:8px 10px; border-radius:6px; margin:8px 0;">' + echapper(erreur) + '</div>' : '')
+        + '<div class="ligne-form" style="margin-top:10px;"><button type="button" class="revue-ok">Confirmer ces ventes</button>'
+        + '<button type="button" class="revue-refus" style="' + styleSecondaire() + '">' + libelleRefus + '</button></div>';
+      conteneur.innerHTML = html;
+      conteneur.querySelector('.revue-jour').addEventListener('change', function (e) { jour = e.target.value; });
+      Array.prototype.forEach.call(conteneur.querySelectorAll('.revue-nom'), function (el) {
+        el.addEventListener('input', function () { lignes[Number(el.getAttribute('data-i'))].nom_produit = el.value; });
+      });
+      Array.prototype.forEach.call(conteneur.querySelectorAll('.revue-qte'), function (el) {
+        el.addEventListener('input', function () { lignes[Number(el.getAttribute('data-i'))].quantite = el.value; });
+      });
+      Array.prototype.forEach.call(conteneur.querySelectorAll('.revue-suppr'), function (el) {
+        el.addEventListener('click', function () { lignes.splice(Number(el.getAttribute('data-i')), 1); dessiner(); });
+      });
+      conteneur.querySelector('.revue-refus').addEventListener('click', function () {
+        Promise.resolve(auRefus ? auRefus() : null).then(function () { conteneur.innerHTML = ''; if (apres) apres(); });
+      });
+      conteneur.querySelector('.revue-ok').addEventListener('click', function (e) {
+        var propres = lignes.map(function (l) { return { nom_produit: String(l.nom_produit || '').trim(), quantite: Number(String(l.quantite).replace(',', '.')) }; })
+          .filter(function (l) { return l.nom_produit && isFinite(l.quantite); });
+        if (!propres.length) return dessiner('Il ne reste aucune ligne à enregistrer.');
+        if (!jour || jour > aujourdhui) return dessiner('Choisis le jour des ventes (pas dans le futur).');
+        e.target.disabled = true;
+        auConfirmer(jour, propres).then(function (nb) {
+          conteneur.innerHTML = '<div class="succes" style="padding:8px 10px; border-radius:6px;">Ventes du ' + echapper(formaterJour(jour)) + ' enregistrées (' + nb + ' articles). Tes prévisions en tiennent compte.</div>';
+          if (apres) apres();
+        }, function (err) { dessiner(err && err.message ? err.message : 'Enregistrement impossible, réessaie.'); });
+      });
+    }
+    dessiner();
+  }
+
+  function initPhoto(sbClient, commercantId, zone, apres) {
+    zone.innerHTML = '<h2 class="section-titre">Pas d\'export ? Photo du rapport de caisse</h2>'
+      + '<p class="texte-aide">Prends en photo l\'écran ou le ticket des ventes du jour (ou dépose un PDF). On lit les articles et les quantités, tu vérifies, tu confirmes. 10 lectures par jour au plus.</p>'
+      + '<label class="choix-fichier"><input type="file" id="fichierPhoto" accept="image/*,.pdf,application/pdf" multiple><span class="choix-fichier-texte">Prendre ou choisir une photo</span></label>'
+      + '<p class="texte-aide" id="progressionPhoto" aria-live="polite"></p>'
+      + '<div id="revuePhoto"></div>'
+      + '<div id="rapportsAConfirmer"></div>';
+    var entree = document.getElementById('fichierPhoto');
+    var progression = document.getElementById('progressionPhoto');
+    var revuePhoto = document.getElementById('revuePhoto');
+
+    entree.addEventListener('change', function () {
+      var fichiers = Array.prototype.slice.call(entree.files || [], 0, 4);
+      if (!fichiers.length) return;
+      entree.disabled = true;
+      revuePhoto.innerHTML = '';
+      progression.textContent = 'Lecture en cours… (quelques secondes)';
+      Promise.all(fichiers.map(preparerFichier)).then(function (preparees) {
+        return sbClient.functions.invoke('lire-ticket', { body: { fichiers: preparees } });
+      }).then(function (res) {
+        if (res.error) {
+          var ctx = res.error.context;
+          if (ctx && ctx.json) return ctx.json().then(function (j) { throw new Error(j.error || res.error.message); });
+          throw res.error;
+        }
+        var r = res.data;
+        progression.textContent = '';
+        if (!r.lisible) {
+          revuePhoto.innerHTML = '<div class="erreur" style="padding:8px 10px; border-radius:6px;">Impossible de lire ce rapport : ' + echapper(r.remarques || 'photo floue ou incomplète') + '. Reprends la photo de plus près, bien à plat, ou dépose l\'export.</div>';
+          return;
+        }
+        revue(revuePhoto, r, 'Annuler', function (jour, lignes) {
+          return sbClient.rpc('enregistrer_ventes_photo', { p_jour: jour, p_lignes: lignes, p_detail: fichiers.map(function (f) { return f.name; }).join(', ').slice(0, 150) })
+            .then(function (x) { if (x.error) throw new Error(x.error.message); return x.data; });
+        }, null, apres);
+      }).catch(function (e) {
+        progression.textContent = '';
+        revuePhoto.innerHTML = '<div class="erreur" style="padding:8px 10px; border-radius:6px;">' + echapper(e && e.message ? e.message : 'Lecture impossible, réessaie.') + '</div>';
+      }).then(function () { entree.disabled = false; entree.value = ''; });
+    });
+
+    // Rapports reçus par e-mail, lus par l'IA, en attente de ta vérification.
+    function chargerAConfirmer() {
+      var cible = document.getElementById('rapportsAConfirmer');
+      return sbClient.from('rapports_a_confirmer').select('*').eq('commercant_id', commercantId).eq('statut', 'a_confirmer')
+        .order('cree_le', { ascending: false }).limit(10).then(function (res) {
+          if (res.error || !res.data || !res.data.length) { cible.innerHTML = ''; return; }
+          cible.innerHTML = '<h3 class="section-titre" style="margin-top:20px;">À confirmer (reçus par e-mail)</h3>';
+          res.data.forEach(function (rap) {
+            var carte = document.createElement('div');
+            carte.style.cssText = 'border:1px solid var(--bordure); border-radius:8px; padding:12px; margin:10px 0;';
+            carte.innerHTML = '<p class="texte-aide">Reçu le ' + formaterDateHeure(rap.cree_le) + (rap.detail ? ' · ' + echapper(rap.detail) : '') + '</p><div class="zone-revue"></div>';
+            cible.appendChild(carte);
+            revue(carte.querySelector('.zone-revue'), { jour: rap.jour, lignes: rap.lignes, remarques: rap.remarques }, 'Ce n\'est pas ça : rejeter',
+              function (jour, lignes) {
+                return sbClient.rpc('confirmer_rapport', { p_id: rap.id, p_jour: jour, p_lignes: lignes })
+                  .then(function (x) { if (x.error) throw new Error(x.error.message); return x.data; });
+              },
+              function () { return sbClient.rpc('rejeter_rapport', { p_id: rap.id }); },
+              function () { if (apres) apres(); chargerAConfirmer(); });
+          });
+        });
+    }
+    chargerAConfirmer();
+  }
+
   function init(sbClient, commercantId, caisseCompte) {
     var bloc = document.getElementById('blocCaisse');
     if (!bloc) return;
     var disponibles = null;
     var caisseChoisie = caisseCompte || null;
     var choixSurLaPage = false;
+    var zonePhoto = document.getElementById('zonePhoto');
+    if (zonePhoto) initPhoto(sbClient, commercantId, zonePhoto, function () { chargerJournal(); });
 
     function appeler(corps) {
       return sbClient.functions.invoke('connecter-caisse', { body: corps }).then(function (res) {
@@ -627,7 +789,7 @@
     var minuteur = null;
 
     // Journal de chaque réception (page « Ma caisse », #journalCaisse).
-    var SOURCES = { api: 'Caisse (automatique)', email: 'E-mail (automatique)', fichier: 'Fichier déposé', branchement: 'Branchement' };
+    var SOURCES = { api: 'Caisse (automatique)', email: 'E-mail (automatique)', fichier: 'Fichier déposé', branchement: 'Branchement', photo: 'Photo du rapport' };
     function chargerJournal() {
       var zone = document.getElementById('journalCaisse');
       if (!zone) return Promise.resolve();

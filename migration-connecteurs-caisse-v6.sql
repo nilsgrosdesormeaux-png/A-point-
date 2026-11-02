@@ -1,7 +1,8 @@
 -- Branchement caisse v6 (après v5). Idempotente : peut être relancée.
 --  1. Lightspeed Retail (X-Series) en jeton personnel.
 --  2. Photo du rapport de caisse : source « photo », plafond de lectures
---     par jour, enregistrement par le commerçant lui-même.
+--     par jour, enregistrement par le commerçant lui-même ; rapports lus
+--     par l'IA dans un e-mail, « à confirmer » avant d'entrer dans les ventes.
 --  3. Ventes heure par heure (alerte rupture) : table ventes_horaires,
 --     remplie par les caisses branchées, synchro dans la journée.
 
@@ -76,6 +77,90 @@ end;
 $$;
 revoke execute on function enregistrer_ventes_photo(date, jsonb, text) from public, anon;
 grant execute on function enregistrer_ventes_photo(date, jsonb, text) to authenticated;
+
+-- 2d. Rapports « à confirmer » : photo, PDF ou texte reçus par e-mail,
+--     lus par l'IA. Rien n'entre dans `ventes` avant que le boulanger ait
+--     corrigé et confirmé (page Ma caisse). Écrits par import-export-caisse
+--     (service role) ; le commerçant voit les siens et les traite par les
+--     deux fonctions ci-dessous.
+create table if not exists rapports_a_confirmer (
+  id bigint generated always as identity primary key,
+  commercant_id uuid not null references auth.users(id) on delete cascade,
+  cree_le timestamptz not null default now(),
+  source text not null default 'email' check (source in ('email')),
+  statut text not null default 'a_confirmer' check (statut in ('a_confirmer', 'confirme', 'rejete')),
+  jour date,
+  lignes jsonb not null default '[]'::jsonb,
+  remarques text,
+  detail text
+);
+create index if not exists rapports_a_confirmer_commercant on rapports_a_confirmer (commercant_id, statut, cree_le desc);
+alter table rapports_a_confirmer enable row level security;
+do $$
+begin
+  if not exists (select 1 from pg_policies where tablename = 'rapports_a_confirmer' and policyname = 'Un commercant lit ses rapports a confirmer') then
+    create policy "Un commercant lit ses rapports a confirmer" on rapports_a_confirmer
+      for select to authenticated using (auth.uid() = commercant_id);
+  end if;
+end $$;
+revoke insert, update, delete, truncate, references, trigger on rapports_a_confirmer from public, anon, authenticated;
+grant select on rapports_a_confirmer to authenticated;
+grant all on rapports_a_confirmer to service_role;
+
+-- Confirme un rapport (jour et lignes éventuellement corrigés par le
+-- boulanger) : mêmes contrôles et même dédoublonnage que la photo, source
+-- « export_email », une ligne de journal.
+create or replace function confirmer_rapport(p_id bigint, p_jour date, p_lignes jsonb)
+returns integer
+language plpgsql
+security definer
+set search_path = public, pg_catalog
+as $$
+declare
+  nb integer;
+  lignes jsonb;
+begin
+  if auth.uid() is null then
+    raise exception 'Non authentifie';
+  end if;
+  if not exists (select 1 from rapports_a_confirmer where id = p_id and commercant_id = auth.uid() and statut = 'a_confirmer') then
+    raise exception 'Rapport introuvable ou déjà traité';
+  end if;
+  if p_jour is null or p_jour > (now() at time zone 'Europe/Paris')::date or p_jour < (now() at time zone 'Europe/Paris')::date - 400 then
+    raise exception 'Date du rapport invalide';
+  end if;
+  if jsonb_typeof(p_lignes) <> 'array' or jsonb_array_length(p_lignes) = 0 or jsonb_array_length(p_lignes) > 500 then
+    raise exception 'Entre 1 et 500 lignes';
+  end if;
+  select coalesce(jsonb_agg(jsonb_build_object('nom_produit', l->>'nom_produit', 'quantite', (l->>'quantite')::numeric, 'date_vente', p_jour)), '[]'::jsonb)
+    into lignes
+  from jsonb_array_elements(p_lignes) l
+  where coalesce(btrim(l->>'nom_produit'), '') <> '' and (l->>'quantite') ~ '^-?[0-9]+(\.[0-9]+)?$';
+  nb := enregistrer_ventes_caisse(auth.uid(), lignes, 'export_email');
+  update rapports_a_confirmer set statut = 'confirme', jour = p_jour, lignes = p_lignes where id = p_id;
+  insert into journal_caisse (commercant_id, source, fournisseur, nb_ventes, du, au, detail)
+  values (auth.uid(), 'email', 'export_email', nb, p_jour, p_jour, 'Rapport confirmé par toi');
+  return nb;
+end;
+$$;
+revoke execute on function confirmer_rapport(bigint, date, jsonb) from public, anon;
+grant execute on function confirmer_rapport(bigint, date, jsonb) to authenticated;
+
+create or replace function rejeter_rapport(p_id bigint)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_catalog
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Non authentifie';
+  end if;
+  update rapports_a_confirmer set statut = 'rejete' where id = p_id and commercant_id = auth.uid() and statut = 'a_confirmer';
+end;
+$$;
+revoke execute on function rejeter_rapport(bigint) from public, anon;
+grant execute on function rejeter_rapport(bigint) to authenticated;
 
 -- 3a. Ventes heure par heure. heure = 0 à 23 (ventes de h:00 à h:59, heure
 --     de Paris). nom_produit : même nom que dans ventes (nom du produit

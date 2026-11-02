@@ -793,3 +793,86 @@ test('synchro dans la journée : seulement le jour, depuis la dernière heure cl
   assert.equal((await synchroniserJournee(fauxAdmin(secret), cx, ENV_VIDE, faux, new Date('2026-10-29T20:30:00Z'))).ignoree, 'hors horaires');
   assert.match((await synchroniserJournee(fauxAdmin(secret), Object.assign({}, cx, { fournisseur: 'hiboutik' }), ENV_VIDE, faux, new Date('2026-10-29T09:20:00Z'))).ignoree, /pas d'heure/);
 });
+
+// --- Lecture d'un rapport par l'IA et relais Gmail universel (lot 12) --------
+
+var { lireRapport, nettoyerRapport, typeLisible, MODELE } = await import('../supabase/functions/_shared/caisse/lire-rapport.ts');
+
+test('lecture d\'un rapport : types acceptés, sortie nettoyée (jour futur, quantités folles, texte long, trop de lignes)', function () {
+  assert.equal(typeLisible('image/JPG', 'a.bin'), 'image/jpeg');
+  assert.equal(typeLisible('application/octet-stream', 'Z du jour.PDF'), 'application/pdf');
+  assert.equal(typeLisible('image/heic', 'a.heic'), null);
+  assert.equal(typeLisible('application/zip', 'a.zip'), null);
+  var r = nettoyerRapport({ jour: '2026-10-29', lisible: true, remarques: '  doute   sur la ligne 3 ', lignes: [
+    { article: '  Pain   au chocolat ', quantite: '12,5' }, { article: 'x'.repeat(300), quantite: 1 },
+    { article: 'Folie', quantite: 1e9 }, { article: '', quantite: 3 }, { article: 'Texte', quantite: 'beaucoup' }, { quantite: 2 }] }, '2026-10-30');
+  assert.equal(r.jour, '2026-10-29');
+  assert.equal(r.remarques, 'doute sur la ligne 3');
+  assert.deepEqual(r.lignes.map(function (l) { return [l.nom_produit.length > 100 ? 'long' : l.nom_produit, l.quantite]; }), [['Pain au chocolat', 12.5], ['long', 1]]);
+  assert.equal(r.lignes[1].nom_produit.length, 120);
+  assert.equal(nettoyerRapport({ jour: '2026-11-05', lisible: true, lignes: [{ article: 'A', quantite: 1 }] }, '2026-10-30').jour, null); // futur
+  assert.equal(nettoyerRapport({ jour: 'hier', lisible: true, lignes: [{ article: 'A', quantite: 1 }] }, '2026-10-30').jour, null);
+  assert.equal(nettoyerRapport({ lisible: true, lignes: [] }, '2026-10-30').lisible, false); // « lisible » sans lignes = illisible
+  var beaucoup = []; for (var i = 0; i < 500; i++) beaucoup.push({ article: 'A' + i, quantite: 1 });
+  assert.equal(nettoyerRapport({ lisible: true, lignes: beaucoup }, '2026-10-30').lignes.length, 300);
+  assert.equal(nettoyerRapport(null, '2026-10-30').lisible, false);
+});
+
+test('lecture d\'un rapport : appel conforme à l\'API Messages, coût estimé, erreurs lisibles', async function () {
+  var envoye = null;
+  var faux = async function (url, init) {
+    envoye = { url: url, init: init, corps: JSON.parse(init.body) };
+    return new Response(JSON.stringify({ content: [{ type: 'text', text: 'ok' }, { type: 'tool_use', name: 'rapport_ventes', input: { lisible: true, jour: null, lignes: [{ article: 'Baguette', quantite: 80 }] } }], usage: { input_tokens: 2000, output_tokens: 100 } }), { status: 200 });
+  };
+  var r = await lireRapport(faux, 'cle', [{ type: 'fichier', media_type: 'application/pdf', data: 'AAA=' }, { type: 'fichier', media_type: 'image/png', data: 'BBB=' }, { type: 'texte', texte: 'baguette 80' }], '2026-10-30');
+  assert.equal(envoye.url, 'https://api.anthropic.com/v1/messages');
+  assert.equal(envoye.init.headers['x-api-key'], 'cle');
+  assert.equal(envoye.init.headers['anthropic-version'], '2023-06-01');
+  assert.equal(envoye.corps.model, MODELE);
+  assert.deepEqual(envoye.corps.tool_choice, { type: 'tool', name: 'rapport_ventes' });
+  var blocs = envoye.corps.messages[0].content;
+  assert.deepEqual(blocs.map(function (b) { return b.type; }), ['document', 'image', 'text', 'text']);
+  assert.equal(blocs[0].source.media_type, 'application/pdf');
+  assert.deepEqual(r.lignes, [{ nom_produit: 'Baguette', quantite: 80 }]);
+  assert.equal(r.lisible, true);
+  assert.ok(r.usage.cout_usd > 0 && r.usage.cout_usd < 0.01);
+  await assert.rejects(lireRapport(async function () { return new Response('{}', { status: 429 }); }, 'cle', [{ type: 'texte', texte: 'x' }], '2026-10-30'), /réessaie dans une minute/);
+  await assert.rejects(lireRapport(async function () { return new Response('{}', { status: 500 }); }, 'cle', [{ type: 'texte', texte: 'x' }], '2026-10-30'), /échoué \(500\)/);
+  await assert.rejects(lireRapport(faux, '', [{ type: 'texte', texte: 'x' }], '2026-10-30'), /pas encore ouverte/);
+  var sans = await lireRapport(async function () { return new Response(JSON.stringify({ content: [{ type: 'text', text: 'Je ne peux pas' }], usage: {} }), { status: 200 }); }, 'cle', [{ type: 'texte', texte: 'x' }], '2026-10-30');
+  assert.equal(sans.lisible, false); // pas d'appel d'outil : jamais de ligne inventée
+  assert.deepEqual(sans.lignes, []);
+});
+
+test('relais Gmail universel : photo et PDF transmis, logos écartés, texte du message joint, relevé 12 h - 23 h et 4 h', async function () {
+  var vm = await import('node:vm');
+  var fs = await import('node:fs');
+  var envois = [], lus = [], declencheurs = [];
+  var gros = []; for (var i = 0; i < 40000; i++) gros.push(7);
+  function piece(nom, type, octets) { return { getName: function () { return nom; }, getContentType: function () { return type; }, getBytes: function () { return octets; } }; }
+  var messageSeul = {
+    isUnread: function () { return true; }, markRead: function () { lus.push('ok'); },
+    getTo: function () { return 'apointapp.contact+caisse-0123456789abcdef@gmail.com'; }, getCc: function () { return ''; }, getHeader: function () { return ''; },
+    getPlainBody: function () { return '  Ventes du jour : baguette 80, croissant 35  '; },
+    getAttachments: function () { return [piece('IMG_0042.jpg', 'image/jpeg', gros), piece('logo.png', 'image/png', [1, 2, 3]), piece('rapport.pdf', 'application/pdf', [37, 80]), piece('contrat.zip', 'application/zip', gros)]; }
+  };
+  var heure = '14';
+  var ctx = {
+    console: { error: function () {} },
+    PropertiesService: { getScriptProperties: function () { return { getProperty: function () { return 'https://x/import?cle=K'; } }; } },
+    GmailApp: { getUserLabelByName: function () { return 'A Point ventes'; }, search: function () { return [{ getMessages: function () { return [messageSeul]; }, addLabel: function () {}, moveToArchive: function () {} }]; } },
+    Utilities: { base64Encode: function (b) { return Buffer.from(b).toString('base64'); }, formatDate: function () { return heure; } },
+    UrlFetchApp: { fetch: function (url, o) { envois.push(JSON.parse(o.payload)); return { getResponseCode: function () { return 200; }, getContentText: function () { return ''; } }; } },
+    ScriptApp: { getProjectTriggers: function () { return []; }, newTrigger: function (nom) { return { timeBased: function () { return { everyMinutes: function (n) { return { create: function () { declencheurs.push([nom, n]); } }; } }; } }; } }
+  };
+  var code = fs.readFileSync(new URL('../supabase/functions/import-export-caisse/relais-gmail.gs', import.meta.url), 'utf8');
+  vm.runInNewContext(code + '\nrelayerPlanifie();', ctx);
+  assert.equal(envois.length, 1);
+  assert.deepEqual(envois[0].Attachments.map(function (a) { return a.Name; }), ['IMG_0042.jpg', 'rapport.pdf']); // ni logo, ni zip
+  assert.equal(envois[0].TextBody, 'Ventes du jour : baguette 80, croissant 35');
+  // Hors horaires de relevé : rien n'est lu ; à 4 h et à 23 h : relevé.
+  for (var h of ['3', '5', '11', '0']) { envois.length = 0; heure = h; vm.runInNewContext(code + '\nrelayerPlanifie();', ctx); assert.equal(envois.length, 0, h + ' h'); }
+  for (var h2 of ['4', '12', '23']) { envois.length = 0; heure = h2; vm.runInNewContext(code + '\nrelayerPlanifie();', ctx); assert.equal(envois.length, 1, h2 + ' h'); }
+  vm.runInNewContext(code + '\ninstaller();', ctx);
+  assert.deepEqual(declencheurs, [['relayerPlanifie', 30]]);
+});

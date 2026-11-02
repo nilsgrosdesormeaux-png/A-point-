@@ -5,30 +5,50 @@
 // Principe : chaque boulangerie reçoit l'adresse
 // apointapp.contact+caisse-<jeton>@gmail.com (connecter-caisse, secret
 // ADRESSE_IMPORT = apointapp.contact@gmail.com). Gmail livre ces adresses
-// « + » dans la boîte habituelle. Ce script Google Apps Script tourne toutes
-// les 10 minutes, ne regarde QUE les e-mails adressés à « +caisse-… » (le
-// courrier ordinaire n'est jamais touché, ni marqué lu), transmet leurs
-// pièces jointes à l'Edge Function import-export-caisse au format Postmark
-// ({ MailboxHash, Attachments: [{ Name, ContentType, Content (base64) }] }),
-// puis les range sous l'étiquette « A Point ventes », lus et archivés.
+// « + » dans la boîte habituelle. Ce script Google Apps Script relève la boîte
+// toutes les 30 minutes, de 12 h à 23 h (heure de Paris) puis à 4 h : la
+// journée de vente est finie, ou presque. Il ne regarde QUE les e-mails
+// adressés à « +caisse-… » (le courrier ordinaire n'est jamais touché, ni
+// marqué lu), transmet leurs pièces jointes (tableau CSV/Excel, PDF, photo)
+// et le texte du message à l'Edge Function import-export-caisse au format
+// Postmark ({ MailboxHash, TextBody?, Attachments: [{ Name, ContentType,
+// Content (base64) }] }), puis les range sous l'étiquette « A Point ventes »,
+// lus et archivés. Les tableaux sont importés tout de suite ; photos, PDF et
+// texte sont lus par l'IA puis proposés au boulanger « à confirmer ».
 //
 // Mise en service : docs/vente/guide-comptes-caisse.md (moins de 10 minutes).
 // Quotas Apps Script gratuits : largement assez pour plusieurs centaines de
 // boulangeries (un appel par e-mail reçu).
 
 var JETON = /\+caisse-([a-f0-9]{16})@/i;
-var EXTENSIONS = /\.(csv|txt|tsv|xlsx|xlsm|xls|ods)$/i;
+var EXTENSIONS = /\.(csv|txt|tsv|xlsx|xlsm|xls|ods|pdf|jpe?g|png|webp|gif)$/i;
+var TYPES = /csv|excel|spreadsheet|text\/plain|pdf|image\/(jpeg|jpg|png|webp|gif)/i;
+// Les petites images (logos, signatures) ne sont jamais des rapports ; les
+// fichiers de plus de 5 Mo dépassent ce que l'Edge Function accepte.
+var TAILLE_MIN_IMAGE = 30000;
+var TAILLE_MAX = 5000000;
+// Relevé : toutes les 30 minutes, mais seulement de 12 h à 23 h et à 4 h.
+var HEURES_RELEVE = [4, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23];
 var ETIQUETTE = 'A Point ventes';
-// E-mails non lus avec pièce jointe des 3 derniers jours ; le tri
-// « +caisse- » se fait dans le script (la recherche Gmail ne sait pas
-// filtrer sur une partie d'adresse de façon fiable).
-var RECHERCHE = 'is:unread has:attachment newer_than:3d';
+// E-mails non lus des 3 derniers jours (avec ou sans pièce jointe : un
+// rapport peut être collé dans le texte) ; le tri « +caisse- » se fait dans
+// le script (la recherche Gmail ne sait pas filtrer sur une partie d'adresse
+// de façon fiable).
+var RECHERCHE = 'is:unread newer_than:3d';
 
 function installer() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
-    if (t.getHandlerFunction() === 'relayer') ScriptApp.deleteTrigger(t);
+    if (t.getHandlerFunction() === 'relayer' || t.getHandlerFunction() === 'relayerPlanifie') ScriptApp.deleteTrigger(t);
   });
-  ScriptApp.newTrigger('relayer').timeBased().everyMinutes(10).create();
+  ScriptApp.newTrigger('relayerPlanifie').timeBased().everyMinutes(30).create();
+  relayer();
+}
+
+// Appelée par le déclencheur : ne travaille qu'aux heures de relevé.
+// Pour relever tout de suite, lancer « relayer » à la main.
+function relayerPlanifie() {
+  var heure = Number(Utilities.formatDate(new Date(), 'Europe/Paris', 'H'));
+  if (HEURES_RELEVE.indexOf(heure) === -1) return;
   relayer();
 }
 
@@ -57,17 +77,23 @@ function relayer() {
       if (!jeton) { tousTraites = false; return; } // courrier ordinaire : on n'y touche pas
       aCaisse = true;
       if (!m.isUnread()) return;
-      var pieces = m.getAttachments({ includeInlineImages: false }).filter(function (pj) {
-        return EXTENSIONS.test(pj.getName() || '') || /csv|excel|spreadsheet|text\/plain/i.test(pj.getContentType() || '');
+      var pieces = m.getAttachments({ includeInlineImages: true }).filter(function (pj) {
+        var octets = pj.getBytes();
+        var image = /^image\//i.test(pj.getContentType() || '');
+        if (octets.length > TAILLE_MAX || (image && octets.length < TAILLE_MIN_IMAGE)) return false;
+        return EXTENSIONS.test(pj.getName() || '') || TYPES.test(pj.getContentType() || '');
       }).map(function (pj) {
         return { Name: pj.getName(), ContentType: pj.getContentType(), Content: Utilities.base64Encode(pj.getBytes()) };
       });
+      var corps = { MailboxHash: 'caisse-' + jeton, Attachments: pieces };
+      var texte = typeof m.getPlainBody === 'function' ? String(m.getPlainBody() || '').trim() : '';
+      if (texte) corps.TextBody = texte.slice(0, 8000);
       var rep = UrlFetchApp.fetch(url, {
         method: 'post', contentType: 'application/json', muteHttpExceptions: true,
-        payload: JSON.stringify({ MailboxHash: 'caisse-' + jeton, Attachments: pieces })
+        payload: JSON.stringify(corps)
       });
       // 2xx : traité (même un fichier illisible est signalé au boulanger sur
-      // sa page Ma caisse). Sinon on laisse non lu : nouvel essai dans 10 minutes.
+      // sa page Ma caisse). Sinon on laisse non lu : nouvel essai au prochain relevé.
       if (rep.getResponseCode() >= 200 && rep.getResponseCode() < 300) m.markRead();
       else { tousTraites = false; console.error('import-export-caisse ' + rep.getResponseCode() + ' ' + rep.getContentText().slice(0, 200)); }
     });

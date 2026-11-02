@@ -101,4 +101,31 @@ assert.deepEqual(await q(`select nom_produit, quantite::int, source from ventes 
 assert.equal((await q(`select count(*)::int n from journal_caisse where source = 'photo' and nb_ventes = 1`))[0].n, 1);
 await assert.rejects(q(`select enregistrer_ventes_photo((now() at time zone 'Europe/Paris')::date + 1, '[{"nom_produit":"Flan","quantite":3}]', null)`), /Date/);
 assert.equal((await q(`select count(*)::int n from ventes_horaires where nom_produit = 'Flan'`))[0].n, 0); // la photo n'écrit pas les heures
+// Rapports « à confirmer » (photo / PDF / texte reçus par e-mail, lus par l'IA).
+await q(`insert into rapports_a_confirmer (commercant_id, jour, lignes) values ($1, null, '[{"nom_produit":"Éclair","quantite":4}]'), ($1, null, '[{"nom_produit":"Mille-feuille","quantite":2}]')`, [C]);
+const [r1, r2] = (await q(`select id from rapports_a_confirmer order by id`)).map(r => r.id);
+const hier = `(now() at time zone 'Europe/Paris')::date - 1`;
+for (const role of ['anon', 'authenticated']) {
+  for (const droit of ['insert', 'update', 'delete']) assert.equal((await q(`select has_table_privilege('${role}', 'rapports_a_confirmer', '${droit}') ok`))[0].ok, false, role + droit);
+  assert.equal((await q(`select has_function_privilege('${role}', 'confirmer_rapport(bigint,date,jsonb)', 'execute') ok`))[0].ok, role === 'authenticated');
+}
+// Rien n'entre dans les ventes avant la confirmation.
+assert.equal((await q(`select count(*)::int n from ventes where nom_produit = 'Éclair'`))[0].n, 0);
+await assert.rejects(q(`select confirmer_rapport($1, ${hier} + 5, '[{"nom_produit":"Éclair","quantite":4}]')`, [r1]), /Date/);
+await assert.rejects(q(`select confirmer_rapport($1, ${hier}, '[]')`, [r1]), /lignes/);
+// Confirmé avec une correction du boulanger (4 -> 6), source export_email, une ligne de journal.
+assert.equal((await q(`select confirmer_rapport($1, ${hier}, '[{"nom_produit":"Éclair","quantite":6},{"nom_produit":"éclairs","quantite":1}]') n`, [r1]))[0].n, 1);
+assert.deepEqual(await q(`select nom_produit, quantite::int, source from ventes where nom_produit = 'Éclair'`), [{ nom_produit: 'Éclair', quantite: 7, source: 'export_email' }]);
+assert.equal((await q(`select count(*)::int n from journal_caisse where detail = 'Rapport confirmé par toi' and nb_ventes = 1`))[0].n, 1);
+await assert.rejects(q(`select confirmer_rapport($1, ${hier}, '[{"nom_produit":"Éclair","quantite":4}]')`, [r1]), /déjà traité/); // deux fois : jamais
+// Rejeté : rien dans les ventes, et plus confirmable.
+await q(`select rejeter_rapport($1)`, [r2]);
+assert.deepEqual((await q(`select statut from rapports_a_confirmer where id = $1`, [r2])).map(r => r.statut), ['rejete']);
+await assert.rejects(q(`select confirmer_rapport($1, ${hier}, '[{"nom_produit":"Mille-feuille","quantite":2}]')`, [r2]), /déjà traité/);
+assert.equal((await q(`select count(*)::int n from ventes where nom_produit = 'Mille-feuille'`))[0].n, 0);
+// Le rapport d'un autre commerçant n'est pas touchable.
+await q(`insert into auth.users values ('00000000-0000-0000-0000-000000000002')`);
+await q(`insert into rapports_a_confirmer (commercant_id, lignes) values ('00000000-0000-0000-0000-000000000002', '[{"nom_produit":"X","quantite":1}]')`);
+const [rAutre] = (await q(`select id from rapports_a_confirmer where commercant_id = '00000000-0000-0000-0000-000000000002'`)).map(r => r.id);
+await assert.rejects(q(`select confirmer_rapport($1, ${hier}, '[{"nom_produit":"X","quantite":1}]')`, [rAutre]), /introuvable/);
 console.log('migration OK');
