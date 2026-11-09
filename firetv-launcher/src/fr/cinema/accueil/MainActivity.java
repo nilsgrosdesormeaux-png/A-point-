@@ -60,6 +60,7 @@ public class MainActivity extends Activity implements HomeScreen.Host {
         resumed = true;
         maybeRandomTheme();
         if (home.built != p.version() || repo.dirty) home.rebuild();
+        if (getIntent() == null || getIntent().getStringExtra(EXTRA_MENU) == null) home.focusTop();
         home.resume();
         // l'accueil est à l'écran : le service pose sa couche par-dessus (Accueil n'affichera plus Amazon)
         if (!p.amazonAllowed()) home.postDelayed(() -> { if (resumed) sendBroadcast(new Intent(ACTION_OVERLAY).setPackage(getPackageName())); }, 400);

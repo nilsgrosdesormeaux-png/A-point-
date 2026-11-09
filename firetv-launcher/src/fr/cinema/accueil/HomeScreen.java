@@ -259,6 +259,15 @@ final class HomeScreen extends FrameLayout {
         return e;
     }
 
+    /** Remet l'accueil en haut, sur la première tuile des Favoris. */
+    void focusTop() {
+        scroll.scrollTo(0, 0);
+        Tile t = findTile(null);
+        if (t != null) {
+            if (t.hasFocus()) onTileFocused(t); else t.requestFocus();
+        }
+    }
+
     Tile findTile(String key) {
         for (int i = 0; i < rows.getChildCount(); i++) {
             ViewGroup line = (ViewGroup) ((ViewGroup) ((ViewGroup) rows.getChildAt(i)).getChildAt(1)).getChildAt(0);

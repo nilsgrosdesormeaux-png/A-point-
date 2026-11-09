@@ -36,6 +36,8 @@ public class HomeGuardService extends AccessibilityService implements HomeScreen
     private String target;            // appli lancée depuis la couche, en attente
     private BroadcastReceiver receiver;
     private final Runnable giveUp = () -> { if (target != null) { target = null; hide(); } };
+    private long lastHomeAt = -100000;   // dernier appui Accueil (Fire OS bloque les ouvertures ~5 s après)
+    private boolean afterMenu;
 
     @Override protected void onServiceConnected() {
         Guard.serviceAlive = true;
@@ -52,6 +54,7 @@ public class HomeGuardService extends AccessibilityService implements HomeScreen
                     if ("menu".equals(target) && !afterMenu) return;   // menu de tuile encore ouvert
                     target = null;
                     cinemaUnder = true;
+                    afterMenu = i.getBooleanExtra("apresMenu", false);
                     show(false);
                 }
                 else if (repo != null) repo.dirty = true;
@@ -92,6 +95,7 @@ public class HomeGuardService extends AccessibilityService implements HomeScreen
         if (pkg.equals(AMAZON_HOME)) {
             for (String k : LET_THROUGH) if (cls.contains(k)) return;
             Log.i(Guard.TAG, "accueil Amazon ouvert dessous : " + cls);
+            lastHomeAt = android.os.SystemClock.uptimeMillis();
             if (shown && target == null) home.setAmbient(!home.ambient, true); // Accueil sur l'accueil
             else show(true);                                                  // Accueil depuis une appli
             cinemaUnder = false;
@@ -158,9 +162,9 @@ public class HomeGuardService extends AccessibilityService implements HomeScreen
                 ((WindowManager) getSystemService(WINDOW_SERVICE)).addView(home, lp);
                 shown = true;
                 Log.i(Guard.TAG, "accueil Cinéma posé au-dessus");
-                Tile t = home.findTile(p.lastFocus());
-                if (t == null) t = home.findTile(null);
-                if (t != null) t.requestFocus();
+                if (afterMenu) { Tile t = home.findTile(p.lastFocus()); if (t != null) t.requestFocus(); }
+                else home.focusTop();   // retour sur l'accueil : toujours en haut, sur les Favoris
+                afterMenu = false;
             }
             home.resume();
         } catch (Throwable t) {
@@ -194,7 +198,10 @@ public class HomeGuardService extends AccessibilityService implements HomeScreen
         home.showHint(t.app.label);
         try { startActivity(t.app.intent); }
         catch (Throwable e) { Log.w(Guard.TAG, "ouverture refusée", e); target = null; return; }
-        h.postDelayed(giveUp, 9000);
+        // L'appli s'affiche dès que Fire OS l'autorise : tout de suite, ou à la fin du blocage
+        // de ~5 s qui suit un appui sur Accueil. On retire alors la couche sans attendre de signal.
+        long wait = Math.max(0, lastHomeAt + 5200 - android.os.SystemClock.uptimeMillis());
+        h.postDelayed(giveUp, wait + 450);
     }
 
     /** Appui long : le menu (déplacer, masquer…) s'ouvre dans l'activité, puis la couche revient. */
