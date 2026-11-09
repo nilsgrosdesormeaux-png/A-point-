@@ -38,6 +38,7 @@ public class HomeGuardService extends AccessibilityService implements HomeScreen
     private final Runnable giveUp = () -> { if (target != null) { target = null; hide(); } };
     private long lastHomeAt = -100000;   // dernier appui Accueil (Fire OS bloque les ouvertures ~5 s après)
     private boolean afterMenu;
+    private long shownAt;
 
     @Override protected void onServiceConnected() {
         Guard.serviceAlive = true;
@@ -94,10 +95,16 @@ public class HomeGuardService extends AccessibilityService implements HomeScreen
         }
         if (pkg.equals(AMAZON_HOME)) {
             for (String k : LET_THROUGH) if (cls.contains(k)) return;
-            Log.i(Guard.TAG, "accueil Amazon ouvert dessous : " + cls);
-            lastHomeAt = android.os.SystemClock.uptimeMillis();
-            if (shown && target == null) home.setAmbient(!home.ambient, true); // Accueil sur l'accueil
-            else show(true);                                                  // Accueil depuis une appli
+            long now = android.os.SystemClock.uptimeMillis();
+            // Fire OS envoie souvent 2 signaux pour UN appui : on ne compte qu'un appui par seconde,
+            // et le mode « fond seul » seulement si l'accueil Cinéma était déjà affiché avant l'appui.
+            boolean sameTap = now - lastHomeAt < 1200;
+            boolean wasHome = shown && target == null && now - shownAt > 1000;
+            Log.i(Guard.TAG, "accueil Amazon ouvert dessous : " + cls + (sameTap ? " (même appui)" : ""));
+            lastHomeAt = now;
+            if (sameTap) { if (!shown) show(true); }
+            else if (wasHome) home.setAmbient(!home.ambient, true);           // Menu sur l'accueil : fond seul
+            else show(true);                                                  // Menu depuis une appli : tuiles
             cinemaUnder = false;
             target = null;
             startRetry();
@@ -161,6 +168,7 @@ public class HomeGuardService extends AccessibilityService implements HomeScreen
                 lp.windowAnimations = 0;
                 ((WindowManager) getSystemService(WINDOW_SERVICE)).addView(home, lp);
                 shown = true;
+                shownAt = android.os.SystemClock.uptimeMillis();
                 Log.i(Guard.TAG, "accueil Cinéma posé au-dessus");
                 if (afterMenu) { Tile t = home.findTile(p.lastFocus()); if (t != null) t.requestFocus(); }
                 else home.focusTop();   // retour sur l'accueil : toujours en haut, sur les Favoris
