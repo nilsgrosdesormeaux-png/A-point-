@@ -2,6 +2,7 @@
 # Installe l'accueil « Cinéma » sur la Fire TV depuis le Mac (adb en Wi-Fi).
 #   ./installer.sh                    installe / met à jour + active le bouton Accueil
 #   ./installer.sh fond img.jpg vid.mp4 …  ajoute images (« Mes images ») et vidéos (« Mes vidéos ») ; glisse-les dans le terminal
+#   ./installer.sh son snowfall musique.mp3   musique d'un thème (snowfall, barca, console, neon…)
 #   ./installer.sh fonds-vider        supprime tes images
 #   ./installer.sh etat               vérifie que tout est en place
 #   ./installer.sh amazon-off         (option) désactive l'accueil Amazon
@@ -48,6 +49,15 @@ case "${1:-installer}" in
       $A push "$f" "$D/" >/dev/null && echo "Envoyée : $(basename "$f")"
     done
     echo "Sur la TV : Réglages > Personnaliser > Thème > Mes images (photos) ou Mes vidéos (vidéos)."
+    ;;
+  son)
+    T="${2:-}"; F="${3:-}"
+    [ -n "$T" ] && [ -f "$F" ] || { echo "Usage : ./installer.sh son snowfall /chemin/musique.mp3  (glisse le fichier)"; exit 1; }
+    ext="${F##*.}"; ext="$(echo "$ext" | tr 'A-Z' 'a-z')"
+    D="/sdcard/Android/data/$PKG/files/fonds"
+    $A shell mkdir -p "$D"
+    $A shell "rm -f $D/son-$T.*"
+    $A push "$F" "$D/son-$T.$ext" >/dev/null && echo "Musique du thème $T installée. Elle jouera sur l'accueil (réglable dans Personnaliser)."
     ;;
   fonds-vider)
     $A shell rm -rf "/sdcard/Android/data/$PKG/files/fonds" "/sdcard/Android/data/$PKG/files/fond."*

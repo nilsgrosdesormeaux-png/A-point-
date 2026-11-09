@@ -32,6 +32,9 @@ final class HomeScreen extends FrameLayout {
 
     final ThemeView wall;
     private final VideoBg video;
+    private android.media.MediaPlayer music;
+    private java.io.File musicFile;
+    boolean allowMusic;           // vrai pour l'activité, faux pour le voile du service
     private final Prefs p;
     private final AppRepo repo;
     private final Host host;
@@ -107,11 +110,36 @@ final class HomeScreen extends FrameLayout {
         });
     }
 
-    void resume() { wall.resume(); video.resume(); }
+    private Context c() { return getContext(); }
 
-    void pause() { wall.pause(); video.pause(); }
+    void resume() { wall.resume(); video.resume(); startMusic(); }
+
+    void pause() { wall.pause(); video.pause(); stopMusic(); }
 
     void release() { pause(); video.stop(); }
+
+    /** Musique du thème en boucle, volume doux, seulement quand l'accueil est affiché. */
+    private void startMusic() {
+        if (!allowMusic || musicFile == null || music != null) return;
+        try {
+            android.media.MediaPlayer m = new android.media.MediaPlayer();
+            m.setDataSource(musicFile.getAbsolutePath());
+            m.setLooping(true);
+            m.setVolume(0.55f, 0.55f);
+            m.setOnPreparedListener(android.media.MediaPlayer::start);
+            m.prepareAsync();
+            music = m;
+        } catch (Throwable t) {
+            music = null;
+        }
+    }
+
+    private void stopMusic() {
+        if (music != null) {
+            try { music.release(); } catch (Throwable ignored) { }
+            music = null;
+        }
+    }
 
     void showHint(String label) {
         heroSub.setText("Ouverture");
@@ -126,9 +154,14 @@ final class HomeScreen extends FrameLayout {
         int accent = def.accent;
         boolean vids = def.id.equals("videos");
         List<java.io.File> files = vids ? Themes.userVideos(getContext()) : null;
+        String builtIn = vids ? null : Themes.assetVideo(c(), def.id);
         wall.setTheme(def, p.animatedBg());
-        wall.setVideoMode(vids && !files.isEmpty());
-        if (vids && !files.isEmpty()) video.play(files); else video.stop();
+        wall.setVideoMode((vids && !files.isEmpty()) || builtIn != null);
+        if (vids && !files.isEmpty()) video.play(files);
+        else if (builtIn != null) video.playAsset(builtIn);
+        else video.stop();
+        java.io.File snd = p.music() ? Themes.sound(c(), def.id) : null;
+        if (snd == null ? musicFile != null : !snd.equals(musicFile)) { stopMusic(); musicFile = snd; startMusic(); }
         heroSub.setTextColor(accent);
         heroTitle.setTypeface(def.typeface());
         heroTitle.setAllCaps(def.caps);

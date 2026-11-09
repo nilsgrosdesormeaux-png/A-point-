@@ -95,7 +95,7 @@ final class ThemeView extends View {
 
     private int fps() {
         switch (def.id) {
-            case "cinema": case "epure": case "aurore": case "miami": return 0;
+            case "cinema": case "epure": case "aurore": case "miami": case "console": return 0;
             default: return 30;
         }
     }
@@ -149,7 +149,7 @@ final class ThemeView extends View {
             Paint top = new Paint();
             top.setShader(new LinearGradient(0, 0, 0, H * 0.32f, 0x99000000, 0, Shader.TileMode.CLAMP));
             c.drawRect(0, 0, W, H * 0.32f, top);
-            if (def.id.equals("snowfall")) {
+            if (def.id.equals("snowfall_old")) {
                 Paint tp = new Paint(Paint.ANTI_ALIAS_FLAG);
                 tp.setTypeface(Typeface.create("sans-serif-condensed", Typeface.BOLD));
                 tp.setTextSize(H * 0.15f);
@@ -446,6 +446,17 @@ final class ThemeView extends View {
                 alloc(150);
                 for (int i = 0; i < n; i++) { px[i] = rnd.nextFloat() * W; py[i] = rnd.nextFloat() * H; pz[i] = 0.6f + rnd.nextFloat() * rnd.nextFloat() * 3.6f; ps[i] = (18 + pz[i] * 16) * u; pph[i] = rnd.nextFloat() * 6.28f; }
                 break;
+            case "barca":
+                // projecteurs (positions dans la photo), fumée qui dérive, flashs de téléphones dans les tribunes
+                alloc(40);
+                float[][] lights = {{0.035f, 0.215f}, {0.075f, 0.218f}, {0.115f, 0.222f}, {0.53f, 0.295f}, {0.6f, 0.298f}, {0.67f, 0.3f}, {0.74f, 0.302f}, {0.81f, 0.302f}, {0.86f, 0.3f}, {0.97f, 0.302f}};
+                for (int i = 0; i < n; i++) {
+                    if (i < lights.length) { px[i] = lights[i][0] * W; py[i] = lights[i][1] * H; pz[i] = 0; }
+                    else if (i < lights.length + 7) { px[i] = W * (0.45f + rnd.nextFloat() * 0.25f); py[i] = H * (0.14f + rnd.nextFloat() * 0.12f); pz[i] = 1; }
+                    else { px[i] = W * rnd.nextFloat(); py[i] = H * (0.3f + rnd.nextFloat() * 0.35f); pz[i] = 2; }
+                    ps[i] = 0.6f + rnd.nextFloat(); pph[i] = rnd.nextFloat() * 6.28f;
+                }
+                break;
             case "etoiles":
                 alloc(45);
                 for (int i = 0; i < n; i++) { px[i] = rnd.nextFloat() * W; py[i] = rnd.nextFloat() * H * 0.5f; pz[i] = 0.25f + rnd.nextFloat() * 0.75f; ps[i] = (0.6f + rnd.nextFloat() * 1.8f) * u * 1.4f; pph[i] = rnd.nextFloat() * 6.28f; }
@@ -564,6 +575,24 @@ final class ThemeView extends View {
                     int a = (int) (90 + 40 * pz[i]);
                     if (pz[i] > 2.6f) sprite(c, x, py[i], pz[i] * 3.2f * u, 0xFFFFFFFF, a);
                     else { p.setColor(Color.argb(a, 255, 255, 255)); c.drawCircle(x, py[i], pz[i] * 1.6f * u, p); }
+                }
+                break;
+            case "barca":
+                for (int i = 0; i < n; i++) {
+                    if (pz[i] == 0) {
+                        float pulse = 0.75f + 0.25f * (float) Math.sin(t * 2.3f * ps[i] + pph[i]);
+                        sprite(c, px[i], py[i], H * 0.045f, 0xFFFFFFFF, (int) (150 * pulse));
+                    } else if (pz[i] == 1) {
+                        float x = px[i] + ((t * 6 * ps[i] * u) % (W * 0.3f));
+                        float y = py[i] - (float) Math.sin(t * 0.2f + pph[i]) * H * 0.02f;
+                        sprite(c, x, y, H * (0.09f + 0.04f * ps[i]), 0xFFD8DCE6, 34);
+                    } else {
+                        float ph = (t * 0.35f * ps[i] + pph[i]) % 6.28f;
+                        if (ph < 0.12f) {
+                            if (ph < 0.01f) { px[i] = W * rnd.nextFloat(); py[i] = H * (0.3f + rnd.nextFloat() * 0.35f); }
+                            sprite(c, px[i], py[i], H * 0.012f, 0xFFFFFFFF, (int) (230 * (1 - ph / 0.12f)));
+                        }
+                    }
                 }
                 break;
             case "etoiles": {

@@ -110,6 +110,7 @@ public class SettingsActivity extends Activity {
         });
         toggle("Noms sous les tuiles", "labels", false);
         toggle("Animations du fond", "fx", true);
+        toggle("Musique des thèmes (si ajoutée)", "music", true);
         option("Mes images", new Opt() {
             public String value() { int c = Themes.userImages(SettingsActivity.this).size(); return c + (c > 1 ? " images" : " image"); }
             public void change(int d) { toast("Ajoute-les depuis le Mac : ./installer.sh fond puis glisse les images"); }

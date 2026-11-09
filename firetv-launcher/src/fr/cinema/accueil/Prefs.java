@@ -34,6 +34,7 @@ final class Prefs {
     void setBool(String k, boolean v) { sp.edit().putBoolean(k, v).apply(); bump(); }
 
     boolean labels() { return bool("labels", false); }
+    boolean music() { return bool("music", true); }
     boolean animatedBg() { return bool("fx", true); }
     /** Accueil Amazon autorisé (réglage « Revenir à l'accueil Amazon »). */
     boolean amazonAllowed() { return bool("amazonOk", false); }

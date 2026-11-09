@@ -25,6 +25,7 @@ final class Themes {
 
     static final Def[] ALL = {
         new Def("snowfall", "Snowfall", 0xFFF4A259, "sans-serif-condensed", Typeface.BOLD, true, 0.12f),
+        new Def("barca", "FC Barcelone", 0xFFEDBB00, "sans-serif-condensed", Typeface.BOLD, true, 0.08f),
         new Def("cinema", "Rouge cinéma", 0xFFE50914, "sans-serif-condensed", Typeface.BOLD, false, 0f),
         new Def("console", "Console", 0xFFFFFFFF, "sans-serif-light", Typeface.NORMAL, false, 0.01f),
         new Def("etoiles", "Nuit étoilée", 0xFFB9D4FF, "sans-serif-light", Typeface.NORMAL, false, 0.02f),
@@ -73,6 +74,23 @@ final class Themes {
         File d = c.getExternalFilesDir("fonds");
         if (d != null && !d.exists()) d.mkdirs();
         return d;
+    }
+
+    /** Vidéo intégrée au thème (assets/themes/<id>.mp4), sinon null. */
+    static String assetVideo(Context c, String id) {
+        try { c.getAssets().openFd("themes/" + id + ".mp4").close(); return "themes/" + id + ".mp4"; }
+        catch (Throwable t) { return null; }
+    }
+
+    /** Musique d'un thème, ajoutée par l'utilisateur : fonds/son-<id>.mp3 (ou .m4a, .ogg, .aac). */
+    static File sound(Context c, String id) {
+        File dir = imagesDir(c);
+        if (dir == null) return null;
+        for (String ext : new String[]{"mp3", "m4a", "ogg", "aac", "wav"}) {
+            File f = new File(dir, "son-" + id + "." + ext);
+            if (f.exists()) return f;
+        }
+        return null;
     }
 
     static List<File> userVideos(Context c) {

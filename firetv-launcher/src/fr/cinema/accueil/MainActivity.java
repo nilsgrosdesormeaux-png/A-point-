@@ -32,6 +32,7 @@ public class MainActivity extends Activity implements HomeScreen.Host {
         p = new Prefs(this);
         repo = new AppRepo(this);
         home = new HomeScreen(this, p, repo, this);
+        home.allowMusic = true;
         setContentView(home);
 
         pkgReceiver = new BroadcastReceiver() {

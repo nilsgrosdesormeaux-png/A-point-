@@ -15,6 +15,7 @@ import java.util.List;
 final class VideoBg extends TextureView implements TextureView.SurfaceTextureListener {
     private final Handler h = new Handler(Looper.getMainLooper());
     private List<File> files;
+    private String asset;          // vidéo intégrée à l'appli (thème Console)
     private int idx;
     private boolean want;
     private MediaPlayer mp;
@@ -31,8 +32,18 @@ final class VideoBg extends TextureView implements TextureView.SurfaceTextureLis
         setVisibility(GONE);
     }
 
+    void playAsset(String name) {
+        boolean same = want && name.equals(asset);
+        asset = name;
+        files = null;
+        want = true;
+        setVisibility(VISIBLE);
+        if (!same) start();
+    }
+
     void play(List<File> f) {
-        boolean same = want && files != null && files.equals(f);
+        boolean same = want && asset == null && files != null && files.equals(f);
+        asset = null;
         files = f;
         want = true;
         setVisibility(VISIBLE);
@@ -51,11 +62,15 @@ final class VideoBg extends TextureView implements TextureView.SurfaceTextureLis
 
     private void start() {
         releasePlayer();
-        if (!want || surface == null || files == null || files.isEmpty()) return;
+        if (!want || surface == null || (asset == null && (files == null || files.isEmpty()))) return;
         try {
             final MediaPlayer m = new MediaPlayer();
             mp = m;
-            m.setDataSource(files.get(idx % files.size()).getAbsolutePath());
+            if (asset != null) {
+                android.content.res.AssetFileDescriptor afd = getContext().getAssets().openFd(asset);
+                m.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
+                afd.close();
+            } else m.setDataSource(files.get(idx % files.size()).getAbsolutePath());
             m.setSurface(surface);
             m.setVolume(0f, 0f);
             m.setLooping(true);
