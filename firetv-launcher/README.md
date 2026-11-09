@@ -12,14 +12,22 @@ L'IP par défaut est `10.192.26.3`. Pour en utiliser une autre : `FIRETV_IP=x.x.
 ## Ce que fait l'accueil
 - **Lignes** : Favoris (TVMate, YouTube, Disney+, Canal+, Netflix), Replay (M6, France TV, TF1),
   Musique et live (Spotify, Twitch), puis Toutes les applis et Réglages.
-- **Thèmes** : Cinéma, Minuit, Aurore, Ardoise, Braise, ou ton image (`./installer.sh fond ~/image.jpg`).
+- **14 thèmes vivants** : Snowfall (coucher de soleil sur L.A., palmiers, neige qui tombe), Rouge cinéma,
+  Console, Nuit étoilée, Hyperespace, Néon 2077, Matrice, Aurore boréale, Forêt enchantée, Dune,
+  Arcade 8-bit, Abysses, Épuré, Mes images (tes photos en diaporama). Thème au hasard possible, à chaque
+  allumage ou chaque jour, ou avec la tuile « Thème au hasard ».
 - **Tuiles** : bannières officielles, ou « couleurs de marque » (l'icône sur la couleur de l'appli).
   Trois tailles, noms facultatifs, fond animé facultatif.
 - **Halo** : la lumière derrière le titre prend la couleur de l'appli sélectionnée.
 - **Organiser** : appui long sur OK (ou touche Menu) sur une tuile pour la déplacer, la changer de ligne
   ou la masquer.
 
-## Bouton Accueil fiable
+## Cinéma partout, tout le temps
+Le service Accueil tourne dans un petit processus séparé. Un gardien le relance tout seul si Fire OS
+le coupe, et Cinéma s'ouvre au démarrage. Pour revenir à Amazon : Réglages > Personnaliser >
+Accueil Amazon > Autorisé. `./installer.sh etat` affiche un diagnostic.
+
+## Bouton Accueil
 Un service d'accessibilité capte le bouton Accueil **avant** Amazon et ouvre Cinéma directement.
 Un appui long ouvre les Paramètres Fire TV. Si l'accueil Amazon apparaît malgré tout (au démarrage
 par exemple), il est remplacé aussitôt. Désactiver `com.amazon.tv.launcher` n'est donc pas nécessaire.

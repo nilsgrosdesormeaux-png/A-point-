@@ -5,6 +5,7 @@ import android.accessibilityservice.AccessibilityServiceInfo;
 import android.content.Intent;
 import android.os.SystemClock;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
 
@@ -16,13 +17,15 @@ import android.view.accessibility.AccessibilityEvent;
  */
 public class HomeGuardService extends AccessibilityService {
     private static final String AMAZON_HOME = "com.amazon.tv.launcher";
-    private static final String[] LET_THROUGH = {"Settings", "Quick", "Dialog", "Notification", "Profile", "Menu", "Search"};
+    private static final String[] LET_THROUGH = {"Settings", "Quick", "Dialog", "Notification", "Profile"};
 
     private long downAt;
     private long lastLaunch;
     private Prefs prefs;
 
     @Override protected void onServiceConnected() {
+        Guard.serviceAlive = true;
+        Guard.startKeeper(this);
         prefs = new Prefs(this);
         AccessibilityServiceInfo info = getServiceInfo();
         if (info != null) {
@@ -33,8 +36,8 @@ public class HomeGuardService extends AccessibilityService {
 
     @Override protected boolean onKeyEvent(KeyEvent e) {
         if (e.getKeyCode() != KeyEvent.KEYCODE_HOME) return false;
-        if (prefs == null) prefs = new Prefs(this);
-        if (!prefs.interceptHome()) return false;
+        prefs = new Prefs(this); // relu à chaque fois : les réglages changent dans l'autre processus
+        if (prefs.amazonAllowed() || !prefs.interceptHome()) return false;
         if (e.getAction() == KeyEvent.ACTION_DOWN) {
             if (e.getRepeatCount() == 0) downAt = e.getEventTime();
             return true;
@@ -51,6 +54,8 @@ public class HomeGuardService extends AccessibilityService {
         if (e == null || e.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
         if (!AMAZON_HOME.contentEquals(e.getPackageName() == null ? "" : e.getPackageName())) return;
         String cls = e.getClassName() == null ? "" : e.getClassName().toString();
+        Log.i(Guard.TAG, "accueil Amazon détecté : " + cls);
+        if (new Prefs(this).amazonAllowed()) return;
         for (String k : LET_THROUGH) if (cls.contains(k)) return;
         goHome();
     }
@@ -70,4 +75,14 @@ public class HomeGuardService extends AccessibilityService {
     }
 
     @Override public void onInterrupt() { }
+
+    @Override public boolean onUnbind(Intent i) {
+        Guard.serviceAlive = false;
+        return super.onUnbind(i);
+    }
+
+    @Override public void onDestroy() {
+        Guard.serviceAlive = false;
+        super.onDestroy();
+    }
 }

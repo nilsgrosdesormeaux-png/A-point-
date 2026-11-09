@@ -1,8 +1,6 @@
 package fr.cinema.accueil;
 
 import android.animation.ArgbEvaluator;
-import android.animation.ObjectAnimator;
-import android.animation.PropertyValuesHolder;
 import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.app.ActivityOptions;
@@ -15,13 +13,13 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.provider.Settings;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -40,11 +38,11 @@ public class MainActivity extends Activity {
     private int built = -1;
     private boolean resumed;
 
-    private ImageView wall;
+    private ThemeView wall;
+    private long pausedAt;
     private GradientDrawable glowGd;
     private int glowColor = 0xFF000000;
     private ValueAnimator glowAnim;
-    private ObjectAnimator drift;
     private TextView heroTitle, heroSub;
     private ScrollView scroll;
     private LinearLayout rows;
@@ -59,8 +57,7 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(0xFF000000);
         setContentView(root);
 
-        wall = new ImageView(this);
-        wall.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        wall = new ThemeView(this);
         root.addView(wall, new FrameLayout.LayoutParams(-1, -1));
 
         // halo qui prend la couleur de l'appli sélectionnée
@@ -126,18 +123,22 @@ public class MainActivity extends Activity {
         f.addAction(Intent.ACTION_PACKAGE_CHANGED);
         f.addDataScheme("package");
         registerReceiver(pkgReceiver, f);
+        if (!p.amazonAllowed()) Guard.ensure(this, false);
+        Guard.startKeeper(this);
     }
 
     @Override protected void onResume() {
         super.onResume();
         resumed = true;
+        maybeRandomTheme();
         if (built != p.version() || repo.dirty) rebuild();
-        setDrift(p.animatedBg());
+        wall.resume();
     }
 
     @Override protected void onPause() {
         resumed = false;
-        setDrift(false);
+        pausedAt = SystemClock.elapsedRealtime();
+        wall.pause();
         super.onPause();
     }
 
@@ -170,10 +171,13 @@ public class MainActivity extends Activity {
 
     private void rebuild() {
         repo.ensureRows(p);
-        String theme = p.theme();
-        int accent = Themes.accent(theme);
-        wall.setImageDrawable(Themes.wallpaper(this, theme));
+        Themes.Def def = Themes.get(p.theme());
+        int accent = def.accent;
+        wall.setTheme(def, p.animatedBg());
         heroSub.setTextColor(accent);
+        heroTitle.setTypeface(def.typeface());
+        heroTitle.setAllCaps(def.caps);
+        heroTitle.setLetterSpacing(def.spacing);
 
         String want = p.lastFocus();
         rows.removeAllViews();
@@ -244,6 +248,7 @@ public class MainActivity extends Activity {
 
     private List<AppEntry> systemEntries() {
         List<AppEntry> l = new ArrayList<>();
+        l.add(sys("Thème au hasard", R.drawable.ic_dice, 0xFF4A2A1A, new Intent(ACTION_RANDOM)));
         l.add(sys("Personnaliser", R.drawable.ic_palette, 0xFF3A2C4A, new Intent(this, SettingsActivity.class)));
         l.add(sys("Paramètres", R.drawable.ic_gear, 0xFF2A3040, new Intent(Settings.ACTION_SETTINGS)));
         l.add(sys("Gérer les applis", R.drawable.ic_apps, 0xFF203A3A, new Intent(Settings.ACTION_APPLICATION_SETTINGS)));
@@ -299,33 +304,30 @@ public class MainActivity extends Activity {
         glowAnim.start();
     }
 
-    private void setDrift(boolean on) {
-        if (on) {
-            if (drift == null) {
-                drift = ObjectAnimator.ofPropertyValuesHolder(wall,
-                        PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.08f),
-                        PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.08f),
-                        PropertyValuesHolder.ofFloat(View.TRANSLATION_X, 0f, -Ui.dp(this, 24)));
-                drift.setDuration(32000);
-                drift.setRepeatCount(ValueAnimator.INFINITE);
-                drift.setRepeatMode(ValueAnimator.REVERSE);
-            }
-            wall.setLayerType(View.LAYER_TYPE_HARDWARE, null);
-            if (drift.isPaused()) drift.resume(); else if (!drift.isStarted()) drift.start();
-        } else if (drift != null) {
-            drift.pause();
-            if (!p.animatedBg()) {
-                drift.cancel();
-                drift = null;
-                wall.setScaleX(1f); wall.setScaleY(1f); wall.setTranslationX(0f);
-                wall.setLayerType(View.LAYER_TYPE_NONE, null);
-            }
-        }
-    }
-
     // ---------- actions ----------
 
+    private static final String ACTION_RANDOM = "fr.cinema.accueil.HASARD";
+
+    /** Thème au hasard : à chaque allumage (accueil revu après 20 min) ou chaque jour. */
+    private void maybeRandomTheme() {
+        int mode = p.randomMode();
+        if (mode == 0) return;
+        boolean change = false;
+        if (mode == 1) change = pausedAt == 0 || SystemClock.elapsedRealtime() - pausedAt > 20 * 60 * 1000L;
+        if (mode == 2) {
+            long day = System.currentTimeMillis() / 86400000L;
+            if (p.lng("rndDay") != day) { p.setLng("rndDay", day); change = true; }
+        }
+        if (change) p.setTheme(Themes.random(this, p.theme()));
+    }
+
     private void launch(Tile t) {
+        if (ACTION_RANDOM.equals(t.app.intent.getAction())) {
+            p.setTheme(Themes.random(this, p.theme()));
+            rebuild();
+            Toast.makeText(this, "Thème : " + Themes.get(p.theme()).name, Toast.LENGTH_SHORT).show();
+            return;
+        }
         try {
             Bundle anim = ActivityOptions.makeScaleUpAnimation(t.card, 0, 0, t.card.getWidth(), t.card.getHeight()).toBundle();
             startActivity(t.app.intent, anim);

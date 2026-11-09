@@ -15,7 +15,6 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.accessibility.AccessibilityManager;
 import android.widget.FrameLayout;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -25,7 +24,7 @@ import java.io.File;
 /** Écran « Personnaliser » : thème, style des tuiles, taille, bouton Accueil… */
 public class SettingsActivity extends Activity {
     private Prefs p;
-    private ImageView wall;
+    private ThemeView wall;
     private LinearLayout list;
     private int focusIndex;
 
@@ -35,8 +34,7 @@ public class SettingsActivity extends Activity {
         super.onCreate(b);
         p = new Prefs(this);
         FrameLayout root = new FrameLayout(this);
-        wall = new ImageView(this);
-        wall.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        wall = new ThemeView(this);
         root.addView(wall, new FrameLayout.LayoutParams(-1, -1));
         View shade = new View(this);
         shade.setBackground(new ColorDrawable(0x66000000));
@@ -59,8 +57,14 @@ public class SettingsActivity extends Activity {
         build();
     }
 
+    @Override protected void onPause() {
+        wall.pause();
+        super.onPause();
+    }
+
     private void build() {
-        wall.setImageDrawable(Themes.wallpaper(this, p.theme()));
+        wall.setTheme(Themes.get(p.theme()), p.animatedBg());
+        wall.resume();
         list.removeAllViews();
 
         TextView title = new TextView(this);
@@ -78,16 +82,22 @@ public class SettingsActivity extends Activity {
 
         section("Apparence");
         option("Thème", new Opt() {
-            public String value() { return Prefs.THEME_NAMES[themeIndex()]; }
+            public String value() { return Themes.get(p.theme()).name + "   ◀ ▶"; }
             public void change(int d) {
-                int n = Prefs.THEMES.length;
-                p.setTheme(Prefs.THEMES[((themeIndex() + d) % n + n) % n]);
-                if ("perso".equals(p.theme())) {
-                    File f = Themes.customFile(SettingsActivity.this);
-                    if (f == null || !f.exists())
-                        Toast.makeText(SettingsActivity.this, "Aucune image trouvée : envoie-la avec le script (option fond).", Toast.LENGTH_LONG).show();
-                }
+                int n = Themes.ALL.length;
+                p.setTheme(Themes.ALL[((Themes.index(p.theme()) + d) % n + n) % n].id);
+                if ("photos".equals(p.theme()) && Themes.userImages(SettingsActivity.this).isEmpty())
+                    toast("Aucune image : sur le Mac, ./installer.sh fond puis glisse tes images");
             }
+        });
+        option("Thème au hasard", new Opt() {
+            final String[] n = {"Non", "À chaque allumage", "Chaque jour"};
+            public String value() { return n[p.randomMode()]; }
+            public void change(int d) { p.setRandomMode(((p.randomMode() + d) % 3 + 3) % 3); }
+        });
+        action("Tirer un thème au hasard maintenant", () -> {
+            p.setTheme(Themes.random(this, p.theme()));
+            toast("Thème : " + Themes.get(p.theme()).name);
         });
         option("Style des tuiles", new Opt() {
             public String value() { return p.tileStyle() == 0 ? "Bannières officielles" : "Couleurs de marque"; }
@@ -99,7 +109,11 @@ public class SettingsActivity extends Activity {
             public void change(int d) { p.setTileSize(((p.tileSize() + d) % 3 + 3) % 3); }
         });
         toggle("Noms sous les tuiles", "labels", false);
-        toggle("Fond animé (léger mouvement)", "anim", false);
+        toggle("Animations du fond", "fx", true);
+        option("Mes images", new Opt() {
+            public String value() { int c = Themes.userImages(SettingsActivity.this).size(); return c + (c > 1 ? " images" : " image"); }
+            public void change(int d) { toast("Ajoute-les depuis le Mac : ./installer.sh fond puis glisse les images"); }
+        });
 
         section("Contenu");
         toggle("Ligne « Toutes les applis »", "all", true);
@@ -107,7 +121,15 @@ public class SettingsActivity extends Activity {
         action("Réafficher les applis masquées", () -> { p.clearHidden(); toast("Applis réaffichées"); });
         action("Replacer les applis par défaut", () -> { p.resetRows(); toast("Lignes réinitialisées"); });
 
-        section("Bouton Accueil");
+        section("Accueil Amazon");
+        option("Accueil Amazon", new Opt() {
+            public String value() { return p.amazonAllowed() ? "Autorisé" : "Bloqué (Cinéma partout)"; }
+            public void change(int d) {
+                p.setBool("amazonOk", !p.amazonAllowed());
+                if (p.amazonAllowed()) toast("Le bouton Accueil ramène à nouveau à Amazon");
+                else { Guard.ensure(SettingsActivity.this, false); toast("Cinéma reprend la main"); }
+            }
+        });
         toggle("Interception directe (aucun passage par Amazon)", "intercept", true);
         option("Service Accueil Cinéma", new Opt() {
             public String value() { return serviceOn() ? "Activé" : "Désactivé – OK pour l'activer"; }
@@ -120,7 +142,7 @@ public class SettingsActivity extends Activity {
         TextView help = new TextView(this);
         help.setText("Astuce : sur l'accueil, appui long sur OK (ou touche Menu) sur une tuile pour la déplacer, "
                 + "la changer de ligne ou la masquer.\nAppui long sur Accueil : Paramètres Fire TV.\n"
-                + "Fond perso : image envoyée dans " + pathHint());
+                + "Mes images : dossier " + pathHint());
         help.setTextSize(12);
         help.setTextColor(0x80FFFFFF);
         help.setPadding(0, Ui.dp(this, 26), 0, 0);
@@ -136,15 +158,10 @@ public class SettingsActivity extends Activity {
     }
 
     private String pathHint() {
-        File f = Themes.customFile(this);
-        return f == null ? "(stockage indisponible)" : f.getParent() + "/fond.jpg";
+        File f = Themes.imagesDir(this);
+        return f == null ? "(stockage indisponible)" : f.getAbsolutePath();
     }
 
-    private int themeIndex() {
-        String t = p.theme();
-        for (int i = 0; i < Prefs.THEMES.length; i++) if (Prefs.THEMES[i].equals(t)) return i;
-        return 0;
-    }
 
     private boolean serviceOn() {
         AccessibilityManager am = (AccessibilityManager) getSystemService(ACCESSIBILITY_SERVICE);

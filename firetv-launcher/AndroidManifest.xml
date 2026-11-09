@@ -3,6 +3,9 @@
     package="fr.cinema.accueil">
 
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- accordée par ./installer.sh (pm grant) : permet de rebrancher le service Accueil tout seul -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
@@ -43,6 +46,7 @@
         <service
             android:name=".HomeGuardService"
             android:label="@string/a11y_label"
+            android:process=":garde"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true">
             <intent-filter>
@@ -51,9 +55,15 @@
             <meta-data android:name="android.accessibilityservice" android:resource="@xml/home_guard" />
         </service>
 
+        <service
+            android:name=".KeeperService"
+            android:process=":garde"
+            android:exported="false" />
+
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>

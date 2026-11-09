@@ -1,112 +1,92 @@
 package fr.cinema.accueil;
 
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
-import android.graphics.drawable.GradientDrawable;
-import android.graphics.drawable.LayerDrawable;
-import android.util.DisplayMetrics;
+import android.graphics.Typeface;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+import java.util.Random;
 
-/** Fonds d'écran dessinés en dégradés (aucune image lourde) + fond perso. */
+/** Catalogue des thèmes : ambiance du fond (dessinée par ThemeView), couleur d'accent, police du titre. */
 final class Themes {
-
-    static int accent(String theme) {
-        switch (theme) {
-            case "minuit": return 0xFF8DB8FF;
-            case "aurore": return 0xFFC3A8FF;
-            case "ardoise": return 0xFFFFFFFF;
-            case "braise": return 0xFFFF9A5C;
-            case "perso": return 0xFFFFFFFF;
-            default: return 0xFFE6B85C;
+    static final class Def {
+        final String id, name, font;
+        final int accent, style;
+        final boolean caps;
+        final float spacing;
+        Def(String id, String name, int accent, String font, int style, boolean caps, float spacing) {
+            this.id = id; this.name = name; this.accent = accent; this.font = font;
+            this.style = style; this.caps = caps; this.spacing = spacing;
         }
+        Typeface typeface() { return Typeface.create(font, style); }
     }
 
-    static Drawable wallpaper(Context c, String theme) {
-        if ("perso".equals(theme)) {
-            Drawable d = custom(c);
-            if (d != null) return d;
-            theme = "cinema";
+    static final Def[] ALL = {
+        new Def("snowfall", "Snowfall", 0xFFF4A259, "sans-serif-condensed", Typeface.BOLD, true, 0.12f),
+        new Def("cinema", "Rouge cinéma", 0xFFE50914, "sans-serif-condensed", Typeface.BOLD, false, 0f),
+        new Def("console", "Console", 0xFFFFFFFF, "sans-serif-light", Typeface.NORMAL, false, 0.01f),
+        new Def("etoiles", "Nuit étoilée", 0xFFB9D4FF, "sans-serif-light", Typeface.NORMAL, false, 0.02f),
+        new Def("hyper", "Hyperespace", 0xFF7FE7FF, "sans-serif-medium", Typeface.NORMAL, true, 0.2f),
+        new Def("neon", "Néon 2077", 0xFFFCEE0A, "sans-serif-condensed", Typeface.BOLD, true, 0.08f),
+        new Def("matrice", "Matrice", 0xFF3CFF7A, "monospace", Typeface.NORMAL, false, 0f),
+        new Def("aurore", "Aurore boréale", 0xFF8CFFD0, "sans-serif-light", Typeface.NORMAL, false, 0.02f),
+        new Def("foret", "Forêt enchantée", 0xFFFFD86B, "serif", Typeface.NORMAL, false, 0.02f),
+        new Def("dune", "Dune", 0xFFF2B36B, "sans-serif-light", Typeface.NORMAL, true, 0.3f),
+        new Def("arcade", "Arcade 8-bit", 0xFFFFCC00, "monospace", Typeface.BOLD, true, 0.05f),
+        new Def("abysses", "Abysses", 0xFF4FE3FF, "sans-serif-light", Typeface.NORMAL, false, 0.02f),
+        new Def("epure", "Épuré", 0xFFFFFFFF, "sans-serif-light", Typeface.NORMAL, false, 0f),
+        new Def("photos", "Mes images", 0xFFFFFFFF, "sans-serif-light", Typeface.NORMAL, false, 0.02f),
+    };
+
+    static Def get(String id) {
+        if ("perso".equals(id)) id = "photos";
+        for (Def d : ALL) if (d.id.equals(id)) return d;
+        return ALL[1];
+    }
+
+    static int index(String id) {
+        Def d = get(id);
+        for (int i = 0; i < ALL.length; i++) if (ALL[i] == d) return i;
+        return 0;
+    }
+
+    static int accent(String id) { return get(id).accent; }
+
+    /** Un thème au hasard, différent de l'actuel (« Mes images » seulement s'il y a des images). */
+    static String random(Context c, String current) {
+        boolean photos = !userImages(c).isEmpty();
+        List<Def> pool = new ArrayList<>();
+        for (Def d : ALL) {
+            if (d.id.equals(current)) continue;
+            if (d.id.equals("photos") && !photos) continue;
+            pool.add(d);
         }
-        switch (theme) {
-            case "minuit":
-                return layers(c, 0xFF03060E, 0xFF060B18,
-                        radial(c, 0xFF153566, 0.85f, 0.05f, 0.9f),
-                        radial(c, 0xFF0A1730, 0.1f, 1.0f, 0.8f));
-            case "aurore":
-                return layers(c, 0xFF07060F, 0xFF0A0814,
-                        radial(c, 0xFF3D1E73, 0.08f, 0.0f, 0.95f),
-                        radial(c, 0xFF0D4E5B, 0.95f, 1.0f, 0.9f));
-            case "ardoise":
-                return layers(c, 0xFF15181D, 0xFF0B0D10,
-                        radial(c, 0xFF2C323C, 0.5f, 0.0f, 1.1f));
-            case "braise":
-                return layers(c, 0xFF0A0503, 0xFF0D0605,
-                        radial(c, 0xFF5E2108, 0.5f, 1.15f, 1.0f),
-                        radial(c, 0xFF2E0B18, 0.95f, 0.0f, 0.7f));
-            default: // cinéma : noir profond, halo bordeaux, vignette
-                return layers(c, 0xFF060608, 0xFF0B0B0F,
-                        radial(c, 0xFF3A0D16, 0.0f, 0.0f, 0.95f),
-                        radial(c, 0xFF14141C, 1.0f, 1.0f, 0.8f));
+        return pool.get(new Random().nextInt(pool.size())).id;
+    }
+
+    /** Dossier des images perso : /sdcard/Android/data/fr.cinema.accueil/files/fonds */
+    static File imagesDir(Context c) {
+        File d = c.getExternalFilesDir("fonds");
+        if (d != null && !d.exists()) d.mkdirs();
+        return d;
+    }
+
+    static List<File> userImages(Context c) {
+        List<File> out = new ArrayList<>();
+        File base = c.getExternalFilesDir(null);
+        for (File dir : new File[]{imagesDir(c), base}) {
+            if (dir == null) continue;
+            File[] fs = dir.listFiles();
+            if (fs == null) continue;
+            Arrays.sort(fs);
+            for (File f : fs) {
+                String n = f.getName().toLowerCase(Locale.ROOT);
+                if (f.isFile() && (n.endsWith(".jpg") || n.endsWith(".jpeg") || n.endsWith(".png") || n.endsWith(".webp")))
+                    out.add(f);
+            }
         }
-    }
-
-    private static Drawable layers(Context c, int top, int bottom, Drawable... extra) {
-        Drawable[] all = new Drawable[extra.length + 2];
-        all[0] = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{top, bottom});
-        System.arraycopy(extra, 0, all, 1, extra.length);
-        all[all.length - 1] = vignette();
-        return new LayerDrawable(all);
-    }
-
-    private static Drawable radial(Context c, int color, float cx, float cy, float radiusOfWidth) {
-        GradientDrawable g = new GradientDrawable();
-        g.setGradientType(GradientDrawable.RADIAL_GRADIENT);
-        g.setColors(new int[]{color, color & 0x00FFFFFF});
-        g.setGradientCenter(cx, cy);
-        g.setGradientRadius(c.getResources().getDisplayMetrics().widthPixels * radiusOfWidth);
-        return g;
-    }
-
-    /** Assombrit le bas de l'écran pour que les tuiles ressortent. */
-    private static Drawable vignette() {
-        return new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{0x00000000, 0x22000000, 0x88000000});
-    }
-
-    static File customFile(Context c) {
-        File dir = c.getExternalFilesDir(null);
-        if (dir == null) return null;
-        for (String n : new String[]{"fond.jpg", "fond.jpeg", "fond.png", "fond.webp"}) {
-            File f = new File(dir, n);
-            if (f.exists()) return f;
-        }
-        return new File(dir, "fond.jpg");
-    }
-
-    private static Drawable custom(Context c) {
-        try {
-            File f = customFile(c);
-            if (f == null || !f.exists()) return null;
-            DisplayMetrics dm = c.getResources().getDisplayMetrics();
-            BitmapFactory.Options o = new BitmapFactory.Options();
-            o.inJustDecodeBounds = true;
-            BitmapFactory.decodeFile(f.getAbsolutePath(), o);
-            int sample = 1;
-            while (o.outWidth / (sample * 2) >= dm.widthPixels && o.outHeight / (sample * 2) >= dm.heightPixels) sample *= 2;
-            o = new BitmapFactory.Options();
-            o.inSampleSize = sample;
-            o.inPreferredConfig = Bitmap.Config.RGB_565; // moitié moins de mémoire
-            Bitmap b = BitmapFactory.decodeFile(f.getAbsolutePath(), o);
-            if (b == null) return null;
-            BitmapDrawable bd = new BitmapDrawable(c.getResources(), b);
-            GradientDrawable shade = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                    new int[]{0x99000000, 0x55000000, 0xCC000000});
-            return new LayerDrawable(new Drawable[]{bd, shade});
-        } catch (Throwable t) {
-            return null;
-        }
+        return out;
     }
 }
