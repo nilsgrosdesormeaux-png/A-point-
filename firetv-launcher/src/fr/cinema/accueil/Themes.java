@@ -36,6 +36,7 @@ final class Themes {
         new Def("miami", "Miami Nights", 0xFFFF4FA3, "sans-serif-condensed", Typeface.BOLD, true, 0.06f),
         new Def("abysses", "Abysses", 0xFF4FE3FF, "sans-serif-light", Typeface.NORMAL, false, 0.02f),
         new Def("epure", "Épuré", 0xFFFFFFFF, "sans-serif-light", Typeface.NORMAL, false, 0f),
+        new Def("videos", "Mes vidéos", 0xFFFFFFFF, "sans-serif-light", Typeface.NORMAL, false, 0.02f),
         new Def("photos", "Mes images", 0xFFFFFFFF, "sans-serif-light", Typeface.NORMAL, false, 0.02f),
     };
 
@@ -56,10 +57,12 @@ final class Themes {
     /** Un thème au hasard, différent de l'actuel (« Mes images » seulement s'il y a des images). */
     static String random(Context c, String current) {
         boolean photos = !userImages(c).isEmpty();
+        boolean videos = !userVideos(c).isEmpty();
         List<Def> pool = new ArrayList<>();
         for (Def d : ALL) {
             if (d.id.equals(current)) continue;
             if (d.id.equals("photos") && !photos) continue;
+            if (d.id.equals("videos") && !videos) continue;
             pool.add(d);
         }
         return pool.get(new Random().nextInt(pool.size())).id;
@@ -70,6 +73,19 @@ final class Themes {
         File d = c.getExternalFilesDir("fonds");
         if (d != null && !d.exists()) d.mkdirs();
         return d;
+    }
+
+    static List<File> userVideos(Context c) {
+        List<File> out = new ArrayList<>();
+        File dir = imagesDir(c);
+        File[] fs = dir == null ? null : dir.listFiles();
+        if (fs == null) return out;
+        Arrays.sort(fs);
+        for (File f : fs) {
+            String n = f.getName().toLowerCase(Locale.ROOT);
+            if (f.isFile() && (n.endsWith(".mp4") || n.endsWith(".webm") || n.endsWith(".mkv") || n.endsWith(".mov"))) out.add(f);
+        }
+        return out;
     }
 
     static List<File> userImages(Context c) {

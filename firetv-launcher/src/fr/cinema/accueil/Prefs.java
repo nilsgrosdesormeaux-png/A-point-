@@ -40,6 +40,8 @@ final class Prefs {
     /** 0 = jamais, 1 = à chaque allumage, 2 = chaque jour. */
     int randomMode() { return sp.getInt("rnd", 0); }
     void setRandomMode(int m) { sp.edit().putInt("rnd", m).apply(); bump(); }
+    boolean ambient() { return sp.getBoolean("ambient", false); }
+    void setAmbient(boolean on) { sp.edit().putBoolean("ambient", on).apply(); }
     long lng(String k) { return sp.getLong(k, 0); }
     void setLng(String k, long v) { sp.edit().putLong(k, v).apply(); }
     boolean showAll() { return bool("all", true); }

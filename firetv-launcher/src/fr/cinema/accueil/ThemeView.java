@@ -83,6 +83,14 @@ final class ThemeView extends View {
 
     void resume() { running = true; invalidate(); }
 
+    private boolean videoMode;
+    private Shader videoShade;
+
+    /** Mode vidéo : la vidéo est dessous, on ne dessine que le voile sombre pour la lisibilité. */
+    void setVideoMode(boolean on) {
+        if (on != videoMode) { videoMode = on; videoShade = null; invalidate(); }
+    }
+
     void pause() { running = false; }
 
     private int fps() {
@@ -103,6 +111,13 @@ final class ThemeView extends View {
     @Override protected void onDraw(Canvas c) {
         int W = getWidth(), H = getHeight();
         if (W == 0 || H == 0) return;
+        if (videoMode) {
+            if (videoShade == null) videoShade = new LinearGradient(0, 0, 0, H, new int[]{0x99000000, 0x11000000, 0x44000000, 0xD0000000}, new float[]{0f, 0.3f, 0.5f, 1f}, Shader.TileMode.CLAMP);
+            p.setShader(videoShade);
+            c.drawRect(0, 0, W, H, p);
+            p.setShader(null);
+            return;
+        }
         if (base == null) { u = H / 1080f; buildBase(W, H); initFx(W, H); }
         float t = (SystemClock.uptimeMillis() - t0) / 1000f;
         if (!animate) t = 14f;

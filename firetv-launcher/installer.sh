@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Installe l'accueil « Cinéma » sur la Fire TV depuis le Mac (adb en Wi-Fi).
 #   ./installer.sh                    installe / met à jour + active le bouton Accueil
-#   ./installer.sh fond img1.jpg ...  ajoute tes images (thème « Mes images ») ; glisse-les dans le terminal
+#   ./installer.sh fond img.jpg vid.mp4 …  ajoute images (« Mes images ») et vidéos (« Mes vidéos ») ; glisse-les dans le terminal
 #   ./installer.sh fonds-vider        supprime tes images
 #   ./installer.sh etat               vérifie que tout est en place
 #   ./installer.sh amazon-off         (option) désactive l'accueil Amazon
@@ -47,7 +47,7 @@ case "${1:-installer}" in
       [ -f "$f" ] || { echo "Introuvable : $f"; continue; }
       $A push "$f" "$D/" >/dev/null && echo "Envoyée : $(basename "$f")"
     done
-    echo "Sur la TV : Réglages > Personnaliser > Thème > Mes images."
+    echo "Sur la TV : Réglages > Personnaliser > Thème > Mes images (photos) ou Mes vidéos (vidéos)."
     ;;
   fonds-vider)
     $A shell rm -rf "/sdcard/Android/data/$PKG/files/fonds" "/sdcard/Android/data/$PKG/files/fond."*
