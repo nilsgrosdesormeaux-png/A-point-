@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Cinéma</string>
+    <string name="a11y_label">Cinéma – bouton Accueil</string>
+    <string name="a11y_desc">Ramène le bouton Accueil sur l\'accueil Cinéma au lieu de l\'accueil Amazon.</string>
+</resources>
