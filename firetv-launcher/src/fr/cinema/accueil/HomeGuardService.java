@@ -47,7 +47,13 @@ public class HomeGuardService extends AccessibilityService implements HomeScreen
         }
         receiver = new BroadcastReceiver() {
             @Override public void onReceive(Context c, Intent i) {
-                if (MainActivity.ACTION_OVERLAY.equals(i.getAction())) { target = null; if (cinemaUnder) show(false); }
+                if (MainActivity.ACTION_OVERLAY.equals(i.getAction())) {
+                    boolean afterMenu = i.getBooleanExtra("apresMenu", false);
+                    if ("menu".equals(target) && !afterMenu) return;   // menu de tuile encore ouvert
+                    target = null;
+                    cinemaUnder = true;
+                    show(false);
+                }
                 else if (repo != null) repo.dirty = true;
             }
         };
@@ -151,6 +157,7 @@ public class HomeGuardService extends AccessibilityService implements HomeScreen
                 lp.windowAnimations = 0;
                 ((WindowManager) getSystemService(WINDOW_SERVICE)).addView(home, lp);
                 shown = true;
+                Log.i(Guard.TAG, "accueil Cinéma posé au-dessus");
                 Tile t = home.findTile(p.lastFocus());
                 if (t == null) t = home.findTile(null);
                 if (t != null) t.requestFocus();

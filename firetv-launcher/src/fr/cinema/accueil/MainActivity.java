@@ -61,6 +61,8 @@ public class MainActivity extends Activity implements HomeScreen.Host {
         maybeRandomTheme();
         if (home.built != p.version() || repo.dirty) home.rebuild();
         home.resume();
+        // l'accueil est à l'écran : le service pose sa couche par-dessus (Accueil n'affichera plus Amazon)
+        if (!p.amazonAllowed()) home.postDelayed(() -> { if (resumed) sendBroadcast(new Intent(ACTION_OVERLAY).setPackage(getPackageName())); }, 400);
     }
 
     @Override protected void onPause() {
@@ -168,7 +170,7 @@ public class MainActivity extends Activity implements HomeScreen.Host {
                 .setTitle(t.app.label)
                 .setItems(labels.toArray(new String[0]), (d, w) -> acts.get(w).run())
                 .setOnDismissListener(d -> home.postDelayed(
-                        () -> sendBroadcast(new Intent(ACTION_OVERLAY).setPackage(getPackageName())), 300))
+                        () -> sendBroadcast(new Intent(ACTION_OVERLAY).setPackage(getPackageName()).putExtra("apresMenu", true)), 300))
                 .show();
     }
 
