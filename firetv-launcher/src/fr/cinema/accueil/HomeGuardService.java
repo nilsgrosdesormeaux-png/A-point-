@@ -107,7 +107,8 @@ public class HomeGuardService extends AccessibilityService {
 
     private void launch() {
         Intent i = new Intent(this, MainActivity.class)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                .putExtra(MainActivity.EXTRA_GUARD, true);
         try { startActivity(i); } catch (Throwable t) { Log.w(Guard.TAG, "lancement refusé", t); }
     }
 

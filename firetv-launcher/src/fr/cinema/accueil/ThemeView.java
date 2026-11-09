@@ -87,8 +87,7 @@ final class ThemeView extends View {
 
     private int fps() {
         switch (def.id) {
-            case "cinema": case "epure": return 0;
-            case "matrice": case "arcade": return 20;
+            case "cinema": case "epure": case "aurore": case "miami": return 0;
             default: return 30;
         }
     }
@@ -123,6 +122,32 @@ final class ThemeView extends View {
         Canvas c = new Canvas(base);
         c.scale(s, s);
         Random sr = new Random(7);
+        Bitmap ph = asset("themes/" + def.id + ".jpg", W, H);
+        if (ph != null) {
+            // photo réelle + voiles sombres pour que titre et tuiles restent lisibles
+            float k = Math.max(W / (float) ph.getWidth(), H / (float) ph.getHeight());
+            m.reset();
+            m.postScale(k, k);
+            m.postTranslate((W - ph.getWidth() * k) / 2f, (H - ph.getHeight() * k) / 2f);
+            c.drawBitmap(ph, m, bmp);
+            ph.recycle();
+            Paint top = new Paint();
+            top.setShader(new LinearGradient(0, 0, 0, H * 0.32f, 0x99000000, 0, Shader.TileMode.CLAMP));
+            c.drawRect(0, 0, W, H * 0.32f, top);
+            if (def.id.equals("snowfall")) {
+                Paint tp = new Paint(Paint.ANTI_ALIAS_FLAG);
+                tp.setTypeface(Typeface.create("sans-serif-condensed", Typeface.BOLD));
+                tp.setTextSize(H * 0.15f);
+                tp.setLetterSpacing(0.32f);
+                tp.setColor(0x26FFFFFF);
+                tp.setTextAlign(Paint.Align.RIGHT);
+                c.drawText("SNOWFALL", W * 0.97f, H * 0.2f, tp);
+            }
+            shadeBottom(c, W, H, 0xC8000000);
+            vignette(c, W, H);
+            p.setShader(null);
+            return;
+        }
         switch (def.id) {
             case "snowfall": {
                 vgrad(c, W, H, new int[]{0xFF07051A, 0xFF1D0F3A, 0xFF6A1F55, 0xFFD2553F, 0xFFF49A4A, 0xFF120A1C, 0xFF05040A},
@@ -291,6 +316,17 @@ final class ThemeView extends View {
         p.setShader(null);
     }
 
+    private Bitmap asset(String name, int W, int H) {
+        try (java.io.InputStream in = getContext().getAssets().open(name)) {
+            BitmapFactory.Options o = new BitmapFactory.Options();
+            o.inPreferredConfig = Bitmap.Config.RGB_565;
+            o.inSampleSize = W <= 1000 ? 2 : 1;
+            return BitmapFactory.decodeStream(in, null, o);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
     private void vgrad(Canvas c, int W, int H, int[] cols, float[] pos) {
         Paint g = new Paint();
         g.setDither(true);
@@ -396,8 +432,8 @@ final class ThemeView extends View {
                 for (int i = 0; i < n; i++) { px[i] = rnd.nextFloat() * W; py[i] = rnd.nextFloat() * H; pz[i] = 0.6f + rnd.nextFloat() * rnd.nextFloat() * 3.6f; ps[i] = (18 + pz[i] * 16) * u; pph[i] = rnd.nextFloat() * 6.28f; }
                 break;
             case "etoiles":
-                alloc(220);
-                for (int i = 0; i < n; i++) { px[i] = rnd.nextFloat() * W; py[i] = rnd.nextFloat() * H * 0.9f; pz[i] = 0.25f + rnd.nextFloat() * 0.75f; ps[i] = (0.6f + rnd.nextFloat() * 1.8f) * u * 1.4f; pph[i] = rnd.nextFloat() * 6.28f; }
+                alloc(45);
+                for (int i = 0; i < n; i++) { px[i] = rnd.nextFloat() * W; py[i] = rnd.nextFloat() * H * 0.5f; pz[i] = 0.25f + rnd.nextFloat() * 0.75f; ps[i] = (0.6f + rnd.nextFloat() * 1.8f) * u * 1.4f; pph[i] = rnd.nextFloat() * 6.28f; }
                 break;
             case "console":
             case "abysses":
@@ -420,7 +456,11 @@ final class ThemeView extends View {
                 }
                 break;
             }
-            case "aurore": {
+            case "neon":
+                alloc(170); // pluie
+                for (int i = 0; i < n; i++) { px[i] = rnd.nextFloat() * W; py[i] = rnd.nextFloat() * H; pz[i] = 0.4f + rnd.nextFloat() * 0.6f; ps[i] = H * (1.1f + pz[i] * 0.9f); }
+                break;
+            case "aurore_old": {
                 int[] cols = {0x6634FFB0, 0x4430D0FF, 0x33A050FF};
                 bandShaders = new Shader[3];
                 for (int b = 0; b < 3; b++) bandShaders[b] = new LinearGradient(0, H * 0.05f, 0, H * 0.6f, cols[b], cols[b] & 0x00FFFFFF, Shader.TileMode.CLAMP);
@@ -437,8 +477,7 @@ final class ThemeView extends View {
             case "foret":
                 alloc(46);
                 for (int i = 0; i < n; i++) { px[i] = rnd.nextFloat() * W; py[i] = H * (0.35f + rnd.nextFloat() * 0.6f); ps[i] = 0.5f + rnd.nextFloat(); pph[i] = rnd.nextFloat() * 6.28f; }
-                front = pinePath(W, H * 0.98f, H * 0.55f, sr, 4, 0f, 0.12f);
-                front2 = pinePath(W, H * 0.98f, H * 0.6f, sr, 4, 0.88f, 1f);
+
                 break;
             case "dune":
                 alloc(70);
@@ -514,8 +553,7 @@ final class ThemeView extends View {
                 break;
             case "etoiles": {
                 for (int i = 0; i < n; i++) {
-                    float x = (px[i] - t * pz[i] * 5 * u) % W;
-                    if (x < 0) x += W;
+                    float x = px[i];
                     float tw = 0.5f + 0.5f * (float) Math.sin(t * (0.7f + pz[i] * 1.6f) + pph[i]);
                     p.setColor(Color.argb((int) (255 * pz[i] * (0.3f + 0.7f * tw)), 225, 235, 255));
                     c.drawCircle(x, py[i], ps[i] * (0.6f + 0.4f * pz[i]), p);
@@ -538,7 +576,7 @@ final class ThemeView extends View {
             case "console":
                 p.setStyle(Paint.Style.STROKE);
                 p.setStrokeCap(Paint.Cap.ROUND);
-                for (int k = 0; k < 4; k++) {
+                for (int k = 0; k < 0; k++) { // vagues désormais dans la photo
                     wave(W, H, t, k);
                     p.setStrokeWidth(H * (0.05f + 0.025f * k));
                     p.setColor(0x14AACCFF);
@@ -575,7 +613,20 @@ final class ThemeView extends View {
                 p.setStyle(Paint.Style.FILL);
                 break;
             }
-            case "neon": {
+            case "neon":
+                p.setStyle(Paint.Style.STROKE);
+                p.setStrokeWidth(1.2f * u + 0.3f);
+                for (int i = 0; i < n; i++) {
+                    py[i] += ps[i] * dt;
+                    px[i] -= ps[i] * 0.12f * dt;
+                    if (py[i] > H + 40) { py[i] = -40; px[i] = rnd.nextFloat() * W * 1.1f; }
+                    float len = 26 * u * pz[i];
+                    p.setColor(Color.argb((int) (55 * pz[i]), 210, 225, 255));
+                    c.drawLine(px[i], py[i], px[i] - len * 0.12f, py[i] + len, p);
+                }
+                p.setStyle(Paint.Style.FILL);
+                break;
+            case "neon_old": {
                 float hz = H * 0.62f, vx = W * 0.5f;
                 p.setStyle(Paint.Style.STROKE);
                 p.setStrokeWidth(1.6f * u + 0.5f);
@@ -614,7 +665,7 @@ final class ThemeView extends View {
                 }
                 break;
             }
-            case "aurore": {
+            case "aurore_old": {
                 for (int b = 0; b < 3; b++) {
                     path.reset();
                     int steps = 36;
@@ -651,9 +702,6 @@ final class ThemeView extends View {
                     p.setColor(Color.argb((int) (255 * pulse), 255, 250, 210));
                     c.drawCircle(x, y, 1.6f * u + 0.5f, p);
                 }
-                p.setColor(0xFF010806);
-                c.drawPath(front, p);
-                c.drawPath(front2, p);
                 break;
             case "dune":
                 for (int i = 0; i < n; i++) {

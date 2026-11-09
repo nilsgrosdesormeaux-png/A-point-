@@ -7,7 +7,7 @@ BT="$SDK/build-tools/${BT_VER:-35.0.0}"; JAR="$SDK/platforms/android-34/android.
 VCODE="${VCODE:-1}"; VNAME="${VNAME:-1.0}"
 rm -rf build && mkdir -p build/gen build/classes build/dex release
 "$BT/aapt2" compile --dir res -o build/res.zip
-"$BT/aapt2" link -I "$JAR" --manifest AndroidManifest.xml --java build/gen -o build/base.apk build/res.zip \
+"$BT/aapt2" link -I "$JAR" --manifest AndroidManifest.xml -A assets --java build/gen -o build/base.apk build/res.zip \
   --min-sdk-version 25 --target-sdk-version 28 --version-code "$VCODE" --version-name "$VNAME"
 javac -nowarn -Xlint:-options -source 8 -target 8 -bootclasspath "$JAR:$BT/core-lambda-stubs.jar" -encoding UTF-8 -d build/classes $(find src build/gen -name '*.java')
 "$BT/d8" --release --min-api 25 --lib "$JAR" --output build/dex $(find build/classes -name '*.class')

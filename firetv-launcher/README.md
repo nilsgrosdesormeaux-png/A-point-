@@ -12,14 +12,17 @@ L'IP par défaut est `10.192.26.3`. Pour en utiliser une autre : `FIRETV_IP=x.x.
 ## Ce que fait l'accueil
 - **Lignes** : Favoris (TVMate, YouTube, Disney+, Canal+, Netflix), Replay (M6, France TV, TF1),
   Musique et live (Spotify, Twitch), puis Toutes les applis et Réglages.
-- **14 thèmes vivants** : Snowfall (coucher de soleil sur L.A., palmiers, neige qui tombe), Rouge cinéma,
-  Console, Nuit étoilée, Hyperespace, Néon 2077, Matrice, Aurore boréale, Forêt enchantée, Dune,
-  Arcade 8-bit, Abysses, Épuré, Mes images (tes photos en diaporama). Thème au hasard possible, à chaque
-  allumage ou chaque jour, ou avec la tuile « Thème au hasard ».
+- **12 thèmes en vraies photos HD** (Unsplash, usage libre), avec une animation légère par-dessus :
+  Snowfall (palmiers de L.A., neige), Rouge cinéma, Console, Nuit étoilée (étoiles filantes),
+  Hyperespace, Néon 2077 (pluie), Aurore boréale, Forêt enchantée (lucioles), Dune, Miami Nights,
+  Abysses (bulles), Épuré, plus Mes images (tes photos). Thème au hasard : à chaque allumage, chaque
+  jour, ou avec la tuile 🎲.
+- **Accueil sur l'accueil** : appuyer sur Accueil quand Cinéma est déjà affiché masque les tuiles
+  (fond d'écran seul). Un nouvel appui, ou n'importe quelle touche, les fait revenir.
 - **Tuiles** : bannières officielles, ou « couleurs de marque » (l'icône sur la couleur de l'appli).
   Trois tailles, noms facultatifs, fond animé facultatif.
 - **Halo** : la lumière derrière le titre prend la couleur de l'appli sélectionnée.
-- **Organiser** : appui long sur OK (ou touche Menu) sur une tuile pour la déplacer, la changer de ligne
+- **Organiser** : appui long sur OK sur une tuile pour la déplacer, la changer de ligne
   ou la masquer.
 
 ## Cinéma partout, tout le temps

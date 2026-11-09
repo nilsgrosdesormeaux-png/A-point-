@@ -46,6 +46,9 @@ public class MainActivity extends Activity {
     private TextView heroTitle, heroSub;
     private ScrollView scroll;
     private LinearLayout rows;
+    private View content, glowView;
+    private boolean ambient;
+    static final String EXTRA_GUARD = "garde";
     private BroadcastReceiver pkgReceiver;
 
     @Override protected void onCreate(Bundle b) {
@@ -69,12 +72,14 @@ public class MainActivity extends Activity {
         View glow = new View(this);
         glow.setBackground(glowGd);
         root.addView(glow, new FrameLayout.LayoutParams(-1, -1));
+        glowView = glow;
 
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
         col.setClipChildren(false);
         col.setPadding(0, Ui.dp(this, 34), 0, 0);
         root.addView(col, new FrameLayout.LayoutParams(-1, -1));
+        content = col;
 
         LinearLayout hero = new LinearLayout(this);
         hero.setOrientation(LinearLayout.VERTICAL);
@@ -137,6 +142,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onPause() {
         resumed = false;
+        setAmbient(false, false);
         pausedAt = SystemClock.elapsedRealtime();
         wall.pause();
         super.onPause();
@@ -147,23 +153,45 @@ public class MainActivity extends Activity {
         super.onDestroy();
     }
 
-    /** Bouton Accueil alors qu'on est déjà sur l'accueil : retour en haut. */
+    /**
+     * Bouton Accueil alors qu'on est déjà sur l'accueil : mode « fond d'écran seul »,
+     * un nouvel appui (ou n'importe quelle touche) fait revenir les applis.
+     * Les relances automatiques du gardien (EXTRA_GUARD) ne comptent pas comme un appui.
+     */
     @Override protected void onNewIntent(Intent i) {
         super.onNewIntent(i);
-        if (resumed && rows.getChildCount() > 0) {
-            scroll.smoothScrollTo(0, 0);
-            Tile first = findTile(null);
-            if (first != null) first.requestFocus();
+        if (i != null && i.getBooleanExtra(EXTRA_GUARD, false)) return;
+        if (resumed) setAmbient(!ambient, true);
+    }
+
+    private void setAmbient(boolean on, boolean anim) {
+        ambient = on;
+        float a = on ? 0f : 1f;
+        if (anim) {
+            content.animate().alpha(a).setDuration(450).start();
+            glowView.animate().alpha(a).setDuration(450).start();
+        } else {
+            content.setAlpha(a);
+            glowView.setAlpha(a);
         }
+        if (!on && content != null) {
+            View f = getCurrentFocus();
+            if (!(f instanceof Tile)) { Tile t = findTile(p.lastFocus()); if (t != null) t.requestFocus(); }
+        }
+    }
+
+    @Override public boolean dispatchKeyEvent(KeyEvent e) {
+        if (ambient && e.getKeyCode() != KeyEvent.KEYCODE_HOME) {
+            if (e.getAction() == KeyEvent.ACTION_UP) setAmbient(false, true);
+            return true; // en mode fond d'écran, la touche sert seulement à faire revenir les applis
+        }
+        return super.dispatchKeyEvent(e);
     }
 
     @Override public void onBackPressed() { /* l'accueil reste l'accueil */ }
 
     @Override public boolean onKeyDown(int code, KeyEvent e) {
-        if (code == KeyEvent.KEYCODE_MENU) {
-            View f = getCurrentFocus();
-            if (f instanceof Tile) { showMenu((Tile) f); return true; }
-        }
+        if (code == KeyEvent.KEYCODE_MENU) { setAmbient(true, true); return true; }
         return super.onKeyDown(code, e);
     }
 

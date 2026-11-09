@@ -11,7 +11,7 @@ public class BootReceiver extends BroadcastReceiver {
         if (new Prefs(c).amazonAllowed()) return;
         Guard.ensure(c, false);
         try {
-            c.startActivity(new Intent(c, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            c.startActivity(new Intent(c, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra(MainActivity.EXTRA_GUARD, true));
         } catch (Throwable ignored) { }
     }
 }

@@ -58,17 +58,32 @@ case "${1:-installer}" in
     echo "Service Accueil listé : $($A shell settings get secure enabled_accessibility_services)"
     echo "Permission auto-réparation : $($A shell dumpsys package $PKG | grep -c 'WRITE_SECURE_SETTINGS: granted=true')"
     echo "Processus :"; $A shell ps -A | grep "$PKG" || echo "  aucun"
+    echo "Accueil Amazon désactivé : $($A shell pm list packages -d | grep -E 'launcher|homestarter' | tr '\n' ' ')"
+    echo "Accueil par défaut : $($A shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tail -1)"
     echo "Derniers événements :"; $A logcat -d -s CinemaGuard | tail -25
     ;;
   amazon-off|verrou)
-    echo "Désactivation de l'accueil Amazon (retour : ./installer.sh amazon-on)…"
-    $A shell pm disable-user --user 0 com.amazon.tv.launcher
+    echo "Verrou : Cinéma devient le seul accueil (retour : ./installer.sh amazon-on)…"
+    for P in com.amazon.tv.launcher com.amazon.firehomestarter; do
+      if $A shell pm list packages | grep -q "package:$P\$"; then
+        R=$($A shell pm disable-user --user 0 "$P" 2>&1)
+        echo "  $P → $R"
+      fi
+    done
+    $A shell cmd package set-home-activity "$PKG/.MainActivity" >/dev/null 2>&1 \
+      || $A shell pm set-home-activity "$PKG/.MainActivity" >/dev/null 2>&1
+    echo "Vérification :"
+    $A shell pm list packages -d | grep -E "launcher|homestarter" | sed 's/^/  désactivé : /' \
+      || echo "  ATTENTION : Fire OS a refusé de désactiver l'accueil Amazon."
+    echo "  accueil par défaut : $($A shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tail -1)"
     ;;
   amazon-on)
     $A shell pm enable com.amazon.tv.launcher
+    $A shell pm enable com.amazon.firehomestarter >/dev/null 2>&1
     ;;
   retour)
     $A shell pm enable com.amazon.tv.launcher >/dev/null 2>&1
+    $A shell pm enable com.amazon.firehomestarter >/dev/null 2>&1
     $A shell settings delete secure enabled_accessibility_services
     $A uninstall "$PKG"
     echo "Accueil Amazon d'origine rétabli."
