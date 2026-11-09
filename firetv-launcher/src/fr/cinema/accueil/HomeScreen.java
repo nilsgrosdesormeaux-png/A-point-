@@ -112,9 +112,15 @@ final class HomeScreen extends FrameLayout {
 
     private Context c() { return getContext(); }
 
-    void resume() { wall.resume(); video.resume(); startMusic(); }
+    /** Repos : sans toucher la télécommande, seules les images restent (au lieu de l'écran de veille Amazon). */
+    private static final long IDLE_MS = 2 * 60 * 1000L;
+    private final Runnable idle = () -> { if (!ambient) setAmbient(true, true); };
 
-    void pause() { wall.pause(); video.pause(); stopMusic(); }
+    private void armIdle() { removeCallbacks(idle); postDelayed(idle, IDLE_MS); }
+
+    void resume() { wall.resume(); video.resume(); startMusic(); armIdle(); }
+
+    void pause() { wall.pause(); video.pause(); stopMusic(); removeCallbacks(idle); }
 
     void release() { pause(); video.stop(); }
 
@@ -292,9 +298,11 @@ final class HomeScreen extends FrameLayout {
     }
 
     /** Fond d'écran seul (tuiles cachées) ou retour des tuiles. Mémorisé pour le service Accueil. */
-    void setAmbient(boolean on, boolean anim) {
+    void setAmbient(boolean on, boolean anim) { setAmbient(on, anim, true); }
+
+    void setAmbient(boolean on, boolean anim, boolean persist) {
         ambient = on;
-        p.setAmbient(on);
+        if (persist) p.setAmbient(on);
         float a = on ? 0f : 1f;
         if (anim) {
             content.animate().alpha(a).setDuration(450).start();
@@ -313,6 +321,7 @@ final class HomeScreen extends FrameLayout {
 
     @Override public boolean dispatchKeyEvent(KeyEvent e) {
         int code = e.getKeyCode();
+        armIdle();
         if (code == KeyEvent.KEYCODE_HOME) return super.dispatchKeyEvent(e);
         if (ambient) {
             if (e.getAction() == KeyEvent.ACTION_UP) setAmbient(false, true);

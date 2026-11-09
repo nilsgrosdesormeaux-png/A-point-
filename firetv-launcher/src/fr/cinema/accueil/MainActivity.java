@@ -19,6 +19,9 @@ import java.util.List;
 public class MainActivity extends Activity implements HomeScreen.Host {
     static final String EXTRA_GUARD = "garde";
     static final String EXTRA_AMBIENT = "fond";
+    static final String EXTRA_MENU = "menu";
+    /** Demande au service de reposer l'accueil-voile par-dessus (après un menu de tuile). */
+    static final String ACTION_OVERLAY = "fr.cinema.accueil.VOILE";
 
     private Prefs p;
     private AppRepo repo;
@@ -84,6 +87,21 @@ public class MainActivity extends Activity implements HomeScreen.Host {
     private void applyIntent(Intent i) {
         boolean amb = i != null && i.getBooleanExtra(EXTRA_AMBIENT, false);
         home.setAmbient(amb, false);
+        String key = i == null ? null : i.getStringExtra(EXTRA_MENU);
+        if (key != null) {
+            i.removeExtra(EXTRA_MENU);
+            home.post(() -> { Tile t = home.findTile(key); if (t != null) menu(t); });
+        }
+    }
+
+    /**
+     * Quand le voile du service est posé au-dessus, l'activité perd le focus : on coupe
+     * vidéo, animations et musique ici pour ne pas les faire tourner en double.
+     */
+    @Override public void onWindowFocusChanged(boolean has) {
+        super.onWindowFocusChanged(has);
+        if (!resumed) return;
+        if (has) home.resume(); else home.pause();
     }
 
     @Override public void onBackPressed() { /* l'accueil reste l'accueil */ }
@@ -149,6 +167,8 @@ public class MainActivity extends Activity implements HomeScreen.Host {
         new AlertDialog.Builder(this, R.style.CinemaDialog)
                 .setTitle(t.app.label)
                 .setItems(labels.toArray(new String[0]), (d, w) -> acts.get(w).run())
+                .setOnDismissListener(d -> home.postDelayed(
+                        () -> sendBroadcast(new Intent(ACTION_OVERLAY).setPackage(getPackageName())), 300))
                 .show();
     }
 

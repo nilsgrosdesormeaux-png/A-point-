@@ -56,6 +56,17 @@
         </service>
 
         <service
+            android:name=".CinemaDream"
+            android:label="Cinéma"
+            android:permission="android.permission.BIND_DREAM_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+
+        <service
             android:name=".KeeperService"
             android:process=":garde"
             android:exported="false" />

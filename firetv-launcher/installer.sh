@@ -34,6 +34,9 @@ case "${1:-installer}" in
     $A shell settings put secure accessibility_enabled 1
     $A shell dumpsys deviceidle whitelist +"$PKG" >/dev/null 2>&1
     $A shell cmd appops set "$PKG" RUN_IN_BACKGROUND allow >/dev/null 2>&1
+    # écran de veille : ton fond d'écran au lieu des images Amazon
+    $A shell settings put secure screensaver_components "$PKG/$PKG.CinemaDream"
+    $A shell settings put secure screensaver_enabled 1
     $A shell mkdir -p "/sdcard/Android/data/$PKG/files" >/dev/null 2>&1
     echo "4/4 Ouverture…"
     $A shell am start -n "$PKG/.MainActivity" >/dev/null
@@ -95,6 +98,7 @@ case "${1:-installer}" in
     $A shell pm enable com.amazon.tv.launcher >/dev/null 2>&1
     $A shell pm enable com.amazon.firehomestarter >/dev/null 2>&1
     $A shell settings delete secure enabled_accessibility_services
+    $A shell settings delete secure screensaver_components
     $A uninstall "$PKG"
     echo "Accueil Amazon d'origine rétabli."
     ;;
