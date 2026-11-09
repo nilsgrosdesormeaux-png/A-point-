@@ -6,5 +6,5 @@
     android:canRequestFilterKeyEvents="true"
     android:canRetrieveWindowContent="false"
     android:notificationTimeout="0"
-    android:packageNames="com.amazon.tv.launcher"
+    android:packageNames="com.amazon.tv.launcher,fr.cinema.accueil"
     android:description="@string/a11y_desc" />

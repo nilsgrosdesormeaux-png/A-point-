@@ -58,9 +58,9 @@ case "${1:-installer}" in
     echo "Service Accueil listé : $($A shell settings get secure enabled_accessibility_services)"
     echo "Permission auto-réparation : $($A shell dumpsys package $PKG | grep -c 'WRITE_SECURE_SETTINGS: granted=true')"
     echo "Processus :"; $A shell ps -A | grep "$PKG" || echo "  aucun"
-    echo "Derniers événements :"; $A logcat -d -s CinemaGuard | tail -15
+    echo "Derniers événements :"; $A logcat -d -s CinemaGuard | tail -25
     ;;
-  amazon-off)
+  amazon-off|verrou)
     echo "Désactivation de l'accueil Amazon (retour : ./installer.sh amazon-on)…"
     $A shell pm disable-user --user 0 com.amazon.tv.launcher
     ;;
