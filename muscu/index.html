@@ -1133,8 +1133,11 @@ function vCharges(){
     </div>
   </div>`;
   view.querySelectorAll("tr.click").forEach(tr=>tr.onclick=()=>$("h-"+tr.dataset.u).classList.toggle("hidden"));
-  $("exp").onclick=()=>{const b=new Blob([JSON.stringify(store,null,1)],{type:"application/json"});const a=document.createElement("a");
-    a.href=URL.createObjectURL(b);a.download=`muscu-sauvegarde-${today()}.json`;document.body.appendChild(a);a.click();a.remove();};
+  $("exp").onclick=async()=>{const data=JSON.stringify(store,null,1),filename=`muscu-sauvegarde-${today()}.json`;
+    let dl=null;try{if(typeof claude!=="undefined"&&claude.use)dl=await claude.use("downloads");}catch(e){}
+    if(dl){try{await dl.save({filename,data});}catch(e){}return;}
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type:"application/json"}));a.download=filename;
+    document.body.appendChild(a);a.click();a.remove();};
   $("imp").onchange=async ev=>{const f=ev.target.files[0];if(!f)return;try{const s=JSON.parse(await f.text());
     if(!s.log)throw 0;if(!confirm("Remplacer tes données actuelles par cette sauvegarde ?"))return;store=migrate(s);persist();render();toast("Sauvegarde importée");}catch(e){toast("Fichier invalide");}};
 }
@@ -1171,6 +1174,12 @@ function vGuide(){
       <li><b>Garde-le 8 à 10 semaines</b> avant de changer. Changer tout le temps empêche de mesurer ta progression.</li>
     </ul>
   </div>
+  <h3>Ce que j'ai ajouté à ta liste</h3>
+  <div class="panel"><ul class="clean">
+    <li><b>Le développé épaules.</b> Les élévations latérales seules ne suffisent pas : il manquait le gros exercice de poussée verticale.</li>
+    <li><b>Les mollets</b> et <b>les abdos</b>, absents au départ, placés en fin de séance B et Bonus.</li>
+    <li>La machine à adducteurs est l'exercice le <b>moins prioritaire</b> : si tu manques de temps en séance B, saute-la.</li>
+  </ul></div>
   <h3>Progresser</h3>
   <div class="panel"><ul class="clean">
     <li>Commence volontairement léger. La bonne charge : <b>les 2 dernières reps sont dures mais propres</b>.</li>
