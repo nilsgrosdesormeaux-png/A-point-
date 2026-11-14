@@ -1,7 +1,7 @@
 /* Muscu : fonctionne hors connexion à la salle.
    Page : réseau d'abord (pour recevoir les mises à jour), cache en secours.
    Photos, icônes, polices : cache d'abord. */
-const CACHE = "muscu-v2";
+const CACHE = "muscu-v3";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-180.png", "./icon-192.png", "./icon-512.png",
   "./photos/chestIncline.jpg", "./photos/benchPlate.jpg", "./photos/smithBench.jpg", "./photos/seatedRow.jpg", "./photos/preacherCurl.jpg"];
 
